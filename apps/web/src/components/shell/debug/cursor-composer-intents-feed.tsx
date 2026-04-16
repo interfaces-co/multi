@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
 
-import { CursorComposerThinkingSection } from "~/components/glass/debug/cursor-composer-thinking";
+import { CursorComposerThinkingSection } from "~/components/shell/debug/cursor-composer-thinking";
 import {
   CursorPreviewFileToolEditComposerFeed,
   CursorPreviewShellToolCallCollapsed,
   CursorPreviewShellToolCallFull,
-} from "~/components/glass/debug/cursor-native-previews";
+} from "~/components/shell/debug/cursor-native-previews";
 
 function ToolShell(props: { children: ReactNode }) {
   return (
@@ -19,7 +19,7 @@ export function CursorComposerIntentsFeed() {
   return (
     <div
       data-cursor-preview
-      className="flex min-w-0 flex-col gap-3 px-1 py-2 font-glass [font-synthesis:none]"
+      className="flex min-w-0 flex-col gap-3 px-1 py-2 font-chrome [font-synthesis:none]"
     >
       <p className="cursor-composer-explored-facsimile">Explored 1 search</p>
       <p className="cursor-composer-explored-facsimile">Explored 1 file, 1 search</p>

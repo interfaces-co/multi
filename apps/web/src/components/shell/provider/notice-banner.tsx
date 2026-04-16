@@ -1,6 +1,6 @@
 import { IconCrossSmall, IconLightning, IconSettingsGear2, IconX } from "central-icons";
-import type { OrchestrationThreadActivity, ProviderKind } from "@t3tools/contracts";
-import { PROVIDER_NOTICE_KIND } from "~/lib/glass-types";
+import type { OrchestrationThreadActivity, ProviderKind } from "@multi/contracts";
+import { PROVIDER_NOTICE_KIND } from "~/lib/ui-session-types";
 import { useEffect, useState } from "react";
 
 import { deriveProviderNotice, formatNoticeWait } from "~/lib/provider-notice";
@@ -55,7 +55,7 @@ function tone(level: "warning" | "error") {
   };
 }
 
-export function GlassProviderNoticeBanner(props: {
+export function ProviderNoticeBanner(props: {
   sessionId: string;
   provider: ProviderKind | null;
   activities: readonly OrchestrationThreadActivity[];
@@ -98,12 +98,12 @@ export function GlassProviderNoticeBanner(props: {
     <div className="px-4 pt-4 md:px-8">
       <section
         className={cn(
-          "mx-auto flex max-w-[43.875rem] min-w-0 flex-col overflow-hidden rounded-glass-card border shadow-glass-card backdrop-blur-xl",
+          "mx-auto flex max-w-[43.875rem] min-w-0 flex-col overflow-hidden rounded-chrome-card border shadow-chrome-card backdrop-blur-xl",
           style.shell,
         )}
       >
         <div className="flex min-w-0 items-start gap-3 px-3 py-3">
-          <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-glass-control border border-white/6 bg-black/10">
+          <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-chrome-control border border-white/6 bg-black/10">
             <Icon kind={view.kind} level={view.level} />
           </div>
           <div className="min-w-0 flex-1">

@@ -8,8 +8,8 @@ import {
   type ThreadId,
   type TurnId,
   type UserInputQuestion,
-} from "@t3tools/contracts";
-import { PROVIDER_NOTICE_KINDS } from "~/lib/glass-types";
+} from "@multi/contracts";
+import { PROVIDER_NOTICE_KINDS } from "~/lib/ui-session-types";
 
 import type { ProposedPlan, SessionPhase, Thread, ThreadSession, TurnDiffSummary } from "./types";
 

@@ -4,8 +4,8 @@ import type {
   ProviderInteractionMode,
   RuntimeMode,
   ThreadId,
-} from "@t3tools/contracts";
-import type { GlassPromptInput } from "~/lib/glass-types";
+} from "@multi/contracts";
+import type { UiPromptInput } from "~/lib/ui-session-types";
 import { readEnvironmentApi } from "~/environmentApi";
 import { newCommandId, newMessageId } from "~/lib/utils";
 
@@ -17,7 +17,7 @@ interface ChatImageAttachment {
   dataUrl: string;
 }
 
-function foldAttachments(input: GlassPromptInput): {
+function foldAttachments(input: UiPromptInput): {
   text: string;
   attachments: ChatImageAttachment[];
 } {
@@ -41,7 +41,7 @@ function foldAttachments(input: GlassPromptInput): {
   return { text, attachments: inline };
 }
 
-export interface SendGlassPromptContext {
+export interface SendChatPromptContext {
   environmentId: EnvironmentId;
   threadId: ThreadId;
   modelSelection: ModelSelection;
@@ -55,9 +55,9 @@ export interface SendGlassPromptContext {
   };
 }
 
-export async function sendGlassPrompt(
-  input: GlassPromptInput,
-  ctx: SendGlassPromptContext,
+export async function sendChatPrompt(
+  input: UiPromptInput,
+  ctx: SendChatPromptContext,
 ): Promise<{ clear: boolean } | false> {
   const api = readEnvironmentApi(ctx.environmentId);
   if (!api) return false;

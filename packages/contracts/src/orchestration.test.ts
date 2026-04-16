@@ -241,7 +241,7 @@ it.effect("accepts bootstrap metadata in thread.turn.start", () =>
         prepareWorktree: {
           projectCwd: "/tmp/workspace",
           baseBranch: "main",
-          branch: "t3code/example",
+          branch: "multi/example",
         },
         runSetupScript: true,
       },
@@ -344,7 +344,9 @@ it.effect("decodes thread archived and unarchived events", () =>
     });
 
     assert.strictEqual(archived.type, "thread.archived");
-    assert.strictEqual(archived.payload.archivedAt, "2026-01-01T00:00:00.000Z");
+    if (archived.type === "thread.archived") {
+      assert.strictEqual(archived.payload.archivedAt, "2026-01-01T00:00:00.000Z");
+    }
     assert.strictEqual(unarchived.type, "thread.unarchived");
   }),
 );
@@ -372,8 +374,10 @@ it.effect("accepts provider-scoped model options in thread.turn.start", () =>
       createdAt: "2026-01-01T00:00:00.000Z",
     });
     assert.strictEqual(parsed.modelSelection?.provider, "codex");
-    assert.strictEqual(parsed.modelSelection?.options?.reasoningEffort, "high");
-    assert.strictEqual(parsed.modelSelection?.options?.fastMode, true);
+    if (parsed.modelSelection?.provider === "codex") {
+      assert.strictEqual(parsed.modelSelection.options?.reasoningEffort, "high");
+      assert.strictEqual(parsed.modelSelection.options?.fastMode, true);
+    }
   }),
 );
 

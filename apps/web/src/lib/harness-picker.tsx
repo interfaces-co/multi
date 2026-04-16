@@ -1,4 +1,4 @@
-import type { HarnessDescriptor, HarnessKind } from "~/lib/glass-types";
+import type { HarnessDescriptor, HarnessKind } from "~/lib/ui-session-types";
 import { IconCheckmark1Small } from "central-icons";
 import { useMemo, useState } from "react";
 
@@ -38,13 +38,13 @@ export function HarnessPicker(props: {
         type="button"
         onClick={() => setOpen(!open)}
         disabled={props.disabled}
-        className="flex items-center gap-2 rounded-glass-card border border-glass-border/40 bg-glass-bubble/60 px-2.5 py-1.5 text-detail font-medium text-foreground/85 transition-colors hover:bg-glass-hover disabled:opacity-40"
+        className="flex items-center gap-2 rounded-chrome-card border border-chrome-border/40 bg-chrome-bubble/60 px-2.5 py-1.5 text-detail font-medium text-foreground/85 transition-colors hover:bg-chrome-hover disabled:opacity-40"
       >
         <span className="size-2 rounded-full bg-emerald-500" />
         <span>{selected?.label ?? props.value}</span>
       </button>
       {open ? (
-        <div className="absolute left-0 top-full z-50 mt-1 min-w-[10rem] rounded-glass-card border border-glass-border/60 bg-glass-bubble p-1 shadow-glass-card">
+        <div className="absolute left-0 top-full z-50 mt-1 min-w-[10rem] rounded-chrome-card border border-chrome-border/60 bg-chrome-bubble p-1 shadow-chrome-card">
           {items.map((item) => (
             <button
               key={item.kind}
@@ -53,7 +53,7 @@ export function HarnessPicker(props: {
                 props.onChange(item.kind);
                 setOpen(false);
               }}
-              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-detail hover:bg-glass-hover"
+              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-detail hover:bg-chrome-hover"
             >
               <span className="size-2 rounded-full bg-emerald-500" />
               <span className="flex-1">{item.label}</span>

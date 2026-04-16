@@ -1,11 +1,11 @@
 // @ts-nocheck
-import { CommandId, ProjectId } from "@t3tools/contracts";
+import { CommandId, ProjectId } from "@multi/contracts";
 
-import { readGlassEnvironmentApi, readNativeApi } from "../native-api";
+import { readNativeEnvironmentApi, readNativeApi } from "../native-api";
 import { useStore } from "../store";
-import { GLASS_SHELL_CHANGED_EVENT } from "./glass-runtime-constants";
+import { SHELL_LAYOUT_CHANGED_EVENT } from "./shell-runtime-constants";
 
-const WORKSPACE_KEY = "glass:workspace-cwd";
+const WORKSPACE_KEY = "multi:workspace-cwd";
 
 function projectId() {
   const seed = typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}`;
@@ -21,7 +21,7 @@ export async function pickWorkspace() {
 
   const hit = useStore.getState().projects.find((item) => item.cwd === cwd);
   if (!hit) {
-    const environmentApi = readGlassEnvironmentApi(null, { allowPrimaryEnvironmentFallback: true });
+    const environmentApi = readNativeEnvironmentApi(null, { allowPrimaryEnvironmentFallback: true });
     if (!environmentApi) {
       return null;
     }
@@ -41,12 +41,12 @@ export async function pickWorkspace() {
   }
 
   window.localStorage.setItem(WORKSPACE_KEY, cwd);
-  window.dispatchEvent(new CustomEvent(GLASS_SHELL_CHANGED_EVENT));
+  window.dispatchEvent(new CustomEvent(SHELL_LAYOUT_CHANGED_EVENT));
   return cwd;
 }
 
 export async function switchWorkspace(cwd: string) {
   window.localStorage.setItem(WORKSPACE_KEY, cwd);
-  window.dispatchEvent(new CustomEvent(GLASS_SHELL_CHANGED_EVENT));
+  window.dispatchEvent(new CustomEvent(SHELL_LAYOUT_CHANGED_EVENT));
   return true;
 }

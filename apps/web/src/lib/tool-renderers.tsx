@@ -1,4 +1,4 @@
-import type { Json, GlassToolCallBlock } from "~/lib/glass-types";
+import type { Json, UiToolCallBlock } from "~/lib/ui-session-types";
 import { parseDiffFromFile, type FileDiffMetadata } from "@pierre/diffs";
 import { memo } from "react";
 import { ChatMarkdown } from "./chat-markdown";
@@ -6,7 +6,7 @@ import { cn } from "./utils";
 
 export interface ToolData {
   name: string;
-  call: GlassToolCallBlock | null;
+  call: UiToolCallBlock | null;
   args: string;
   result: string;
   error: boolean;
@@ -88,7 +88,7 @@ function toolDetailsRecord(details: Json | null): Record<string, Json> | null {
 
 export function toolFileDiff(
   name: string,
-  call: GlassToolCallBlock | null,
+  call: UiToolCallBlock | null,
 ): FileDiffMetadata | null {
   const r = resolvedToolName(name);
   const raw = (call?.arguments ?? {}) as Record<string, Json>;
@@ -137,7 +137,7 @@ export function isFileTool(name: string) {
   return r === "edit" || r === "write";
 }
 
-export function isShellTool(name: string, call: GlassToolCallBlock | null, argsJson?: string) {
+export function isShellTool(name: string, call: UiToolCallBlock | null, argsJson?: string) {
   if (resolvedToolName(name) === "bash") return true;
   const args = call?.arguments;
   if (
@@ -162,7 +162,7 @@ export function isShellTool(name: string, call: GlassToolCallBlock | null, argsJ
   return false;
 }
 
-export function toolHint(call: GlassToolCallBlock | null): string | null {
+export function toolHint(call: UiToolCallBlock | null): string | null {
   const args = call?.arguments;
   if (!args || typeof args !== "object") return null;
 
@@ -191,7 +191,7 @@ function editPath(args: Record<string, Json>) {
 }
 
 export function toolPathFromCall(
-  call: GlassToolCallBlock | null,
+  call: UiToolCallBlock | null,
   argsJson?: string,
 ): string | null {
   const raw = call?.arguments;
@@ -210,7 +210,7 @@ export function toolPathFromCall(
   return null;
 }
 
-export function toolLabel(name: string, call: GlassToolCallBlock | null): string | null {
+export function toolLabel(name: string, call: UiToolCallBlock | null): string | null {
   const args = call?.arguments;
   if (!args || typeof args !== "object") return null;
   const r = resolvedToolName(name);
@@ -244,7 +244,7 @@ function lineDelta(oldText: string, newText: string) {
 
 export function toolStats(
   name: string,
-  call: GlassToolCallBlock | null,
+  call: UiToolCallBlock | null,
 ): { add: number; del: number } | null {
   if (resolvedToolName(name) !== "edit") return null;
   const args = (call?.arguments ?? {}) as EditArgs;
@@ -316,7 +316,7 @@ const ToolTerminal = memo(function ToolTerminal(props: { text: string; error?: b
   return (
     <pre
       className={cn(
-        "tool-terminal max-h-[min(24rem,50vh)] w-full max-w-full overflow-y-auto whitespace-pre-wrap break-words font-glass-mono text-detail/[1.625]",
+        "tool-terminal max-h-[min(24rem,50vh)] w-full max-w-full overflow-y-auto whitespace-pre-wrap break-words font-chrome-mono text-detail/[1.625]",
         props.error ? "text-destructive/90" : "text-foreground/85",
       )}
     >
@@ -441,7 +441,7 @@ function unified(entry: EditEntry): React.ReactNode[] {
 
   for (const l of old) {
     lines.push(
-      <div key={`d${lines.length}`} className="bg-glass-diff-deletion-bg text-glass-diff-deletion">
+      <div key={`d${lines.length}`} className="bg-chrome-diff-deletion-bg text-chrome-diff-deletion">
         <span className="select-none opacity-50">- </span>
         {l}
       </div>,
@@ -449,7 +449,7 @@ function unified(entry: EditEntry): React.ReactNode[] {
   }
   for (const l of next) {
     lines.push(
-      <div key={`a${lines.length}`} className="bg-glass-diff-addition-bg text-glass-diff-addition">
+      <div key={`a${lines.length}`} className="bg-chrome-diff-addition-bg text-chrome-diff-addition">
         <span className="select-none opacity-50">+ </span>
         {l}
       </div>,
@@ -462,7 +462,7 @@ function DiffRaw(props: { entries: EditEntry[] }) {
   const lines = props.entries.flatMap(unified);
   if (lines.length === 0) return null;
   return (
-    <div className="font-[family-name:var(--glass-font-mono)] text-detail/[1.4] whitespace-pre-wrap">
+    <div className="font-[family-name:var(--chrome-font-mono)] text-detail/[1.4] whitespace-pre-wrap">
       {lines}
     </div>
   );
@@ -473,7 +473,7 @@ function Diff(props: { entries: EditEntry[] }) {
   if (lines.length === 0) return null;
   return (
     <div className="overflow-hidden">
-      <div className="max-h-[min(24rem,50vh)] overflow-auto font-[family-name:var(--glass-font-mono)] text-detail/[1.4] whitespace-pre-wrap">
+      <div className="max-h-[min(24rem,50vh)] overflow-auto font-[family-name:var(--chrome-font-mono)] text-detail/[1.4] whitespace-pre-wrap">
         {lines}
       </div>
     </div>

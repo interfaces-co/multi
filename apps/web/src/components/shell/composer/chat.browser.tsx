@@ -1,10 +1,10 @@
 // @ts-nocheck
 import "../../../styles/tailwind.css";
 import "../../../styles/app.css";
-import "../../../styles/glass.css";
+import "../../../styles/chrome-tokens.css";
 
-import type { HarnessDescriptor } from "~/lib/glass-types";
-import type { GlassDraftFile } from "~/lib/glass-chat-draft-store";
+import type { HarnessDescriptor } from "~/lib/ui-session-types";
+import type { ChatDraftFile } from "~/lib/chat-draft-store";
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { page } from "vitest/browser";
@@ -76,8 +76,8 @@ vi.mock("~/store", () => ({
     }),
 }));
 
-vi.mock("~/components/glass/settings/context", () => ({
-  useGlassSettings: () => ({ openSettings: mocks.openSettings }),
+vi.mock("~/components/shell/settings/context", () => ({
+  useShellSettings: () => ({ openSettings: mocks.openSettings }),
 }));
 
 vi.mock("@tanstack/react-router", () => ({
@@ -88,7 +88,7 @@ vi.mock("@tanstack/react-hotkeys", () => ({
   useHotkey: () => undefined,
 }));
 
-import { GlassChatComposer } from "./chat";
+import { ChatComposer } from "./chat";
 
 const descriptor: HarnessDescriptor = {
   kind: "codex",
@@ -104,11 +104,11 @@ const descriptor: HarnessDescriptor = {
   },
 };
 
-function Harness(props: { supported: boolean; files?: GlassDraftFile[] }) {
+function Harness(props: { supported: boolean; files?: ChatDraftFile[] }) {
   const [draft, setDraft] = useState("");
   const [fast, setFast] = useState(false);
   return (
-    <GlassChatComposer
+    <ChatComposer
       sessionId="thread-fast"
       draft={draft}
       files={props.files}
@@ -138,7 +138,7 @@ function Harness(props: { supported: boolean; files?: GlassDraftFile[] }) {
   );
 }
 
-async function mount(opts: { supported?: boolean; files?: GlassDraftFile[] } = {}) {
+async function mount(opts: { supported?: boolean; files?: ChatDraftFile[] } = {}) {
   const supported = opts.supported ?? true;
   mocks.runtime.items = [
     {
@@ -168,7 +168,7 @@ async function mount(opts: { supported?: boolean; files?: GlassDraftFile[] } = {
 }
 
 function seg(text: string) {
-  for (const node of document.querySelectorAll<HTMLSpanElement>(".glass-composer-mirror span")) {
+  for (const node of document.querySelectorAll<HTMLSpanElement>(".chrome-composer-mirror span")) {
     if (node.textContent === text) return node;
   }
   return undefined;
@@ -186,7 +186,7 @@ function check(node: HTMLSpanElement) {
   expect(style.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
 }
 
-describe("GlassChatComposer fast mode", () => {
+describe("ChatComposer fast mode", () => {
   beforeEach(() => {
     mocks.api.server.listSkills.mockImplementation(async () => []);
     mocks.api.server.listSkills.mockClear();
@@ -292,7 +292,7 @@ describe("GlassChatComposer fast mode", () => {
   });
 });
 
-describe("GlassChatComposer mirror tokens", () => {
+describe("ChatComposer mirror tokens", () => {
   beforeEach(() => {
     mocks.api.server.listSkills.mockClear();
     mocks.api.server.listSkills.mockImplementation(async () => []);

@@ -1,17 +1,17 @@
 import { create } from "zustand";
 
-export type GlassHeroShot = {
+export type HeroFxShot = {
   id: string;
   text: string;
 };
 
 type State = {
-  shot: GlassHeroShot | null;
+  shot: HeroFxShot | null;
   fire: (text: string) => void;
   clear: (id?: string) => void;
 };
 
-export const useGlassHeroFxStore = create<State>()((set) => ({
+export const useHeroFxStore = create<State>()((set) => ({
   shot: null,
   fire: (text) => {
     const next = text.trim().replace(/\s+/g, " ").slice(0, 140);
@@ -27,6 +27,6 @@ export const useGlassHeroFxStore = create<State>()((set) => ({
   },
 }));
 
-export function fireGlassHeroFx(text: string) {
-  useGlassHeroFxStore.getState().fire(text);
+export function fireHeroFx(text: string) {
+  useHeroFxStore.getState().fire(text);
 }

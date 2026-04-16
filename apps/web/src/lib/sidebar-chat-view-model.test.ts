@@ -1,9 +1,9 @@
-import type { GlassSessionSummary } from "~/lib/glass-types";
+import type { SessionListSummary } from "~/lib/ui-session-types";
 import { assert, it } from "vitest";
 
-import { buildWorkspaceChatSections } from "./glass-view-model";
+import { buildWorkspaceChatSections } from "./sidebar-chat-view-model";
 
-function sum(id: string, cwd: string, modifiedAt: string): GlassSessionSummary {
+function sum(id: string, cwd: string, modifiedAt: string): SessionListSummary {
   return {
     id,
     harness: "codex",

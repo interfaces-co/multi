@@ -3,7 +3,7 @@ import {
   type OrchestrationThreadActivity,
   type ToolLifecycleItemType,
   type TurnId,
-} from "@t3tools/contracts";
+} from "@multi/contracts";
 
 export interface WorkLogEntry {
   id: string;

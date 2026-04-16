@@ -11,7 +11,7 @@ type State = {
   unmute: (cwd: string) => void;
 };
 
-export const useGlassShellStore = create<State>()((set) => ({
+export const useShellLayoutStore = create<State>()((set) => ({
   paths: [],
   tick: 0,
   mutes: {},

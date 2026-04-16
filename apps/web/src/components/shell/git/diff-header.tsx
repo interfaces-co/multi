@@ -1,7 +1,7 @@
 // @ts-nocheck
 "use client";
 
-import type { GitFileState } from "~/lib/glass-types";
+import type { GitFileState } from "~/lib/ui-session-types";
 import { IconArrowRotateCounterClockwise, IconBarsThree, IconSplit } from "central-icons";
 import { memo } from "react";
 
@@ -61,13 +61,13 @@ interface Props {
   className?: string;
 }
 
-export const GlassDiffHeader = memo(function GlassDiffHeader(props: Props) {
+export const DiffHeader = memo(function DiffHeader(props: Props) {
   const { prefix, name } = splitPath(props.path);
 
   return (
     <div
       className={cn(
-        "sticky top-0 z-[14] flex min-h-[22px] shrink-0 items-center gap-1 border-b border-[color-mix(in_srgb,var(--foreground)_6%,transparent)] bg-glass-bubble/88 py-1 pr-3 pl-2.5 text-[12px] leading-4 backdrop-blur-xl",
+        "sticky top-0 z-[14] flex min-h-[22px] shrink-0 items-center gap-1 border-b border-[color-mix(in_srgb,var(--foreground)_6%,transparent)] bg-chrome-bubble/88 py-1 pr-3 pl-2.5 text-[12px] leading-4 backdrop-blur-xl",
         props.className,
       )}
     >
@@ -75,7 +75,7 @@ export const GlassDiffHeader = memo(function GlassDiffHeader(props: Props) {
         type="checkbox"
         checked={props.viewed}
         onChange={props.onToggleViewed}
-        className="size-3.5 shrink-0 rounded border-glass-border/60 accent-primary"
+        className="size-3.5 shrink-0 rounded border-chrome-border/60 accent-primary"
         aria-label="Mark as viewed"
       />
 
@@ -92,22 +92,22 @@ export const GlassDiffHeader = memo(function GlassDiffHeader(props: Props) {
 
       <div className="flex shrink-0 items-center gap-0.5 tabular-nums">
         {props.add > 0 && (
-          <span className="font-medium text-[var(--glass-diff-addition)]">+{props.add}</span>
+          <span className="font-medium text-[var(--chrome-diff-addition)]">+{props.add}</span>
         )}
         {props.del > 0 && (
-          <span className="font-medium text-[var(--glass-diff-deletion)]">-{props.del}</span>
+          <span className="font-medium text-[var(--chrome-diff-deletion)]">-{props.del}</span>
         )}
       </div>
 
-      <div className="ml-1 flex shrink-0 items-center rounded-glass-control border border-glass-border/45 bg-glass-hover/14 p-0.5">
+      <div className="ml-1 flex shrink-0 items-center rounded-chrome-control border border-chrome-border/45 bg-chrome-hover/14 p-0.5">
         <button
           type="button"
           onClick={() => props.onDiffStyleChange("unified")}
           className={cn(
-            "flex size-6 items-center justify-center rounded-glass-control transition-colors",
+            "flex size-6 items-center justify-center rounded-chrome-control transition-colors",
             props.diffStyle === "unified"
-              ? "bg-glass-active/60 text-foreground"
-              : "text-muted-foreground/70 hover:bg-glass-hover hover:text-foreground",
+              ? "bg-chrome-active/60 text-foreground"
+              : "text-muted-foreground/70 hover:bg-chrome-hover hover:text-foreground",
           )}
           aria-label="Unified diff"
           aria-pressed={props.diffStyle === "unified"}
@@ -118,10 +118,10 @@ export const GlassDiffHeader = memo(function GlassDiffHeader(props: Props) {
           type="button"
           onClick={() => props.onDiffStyleChange("split")}
           className={cn(
-            "flex size-6 items-center justify-center rounded-glass-control transition-colors",
+            "flex size-6 items-center justify-center rounded-chrome-control transition-colors",
             props.diffStyle === "split"
-              ? "bg-glass-active/60 text-foreground"
-              : "text-muted-foreground/70 hover:bg-glass-hover hover:text-foreground",
+              ? "bg-chrome-active/60 text-foreground"
+              : "text-muted-foreground/70 hover:bg-chrome-hover hover:text-foreground",
           )}
           aria-label="Split diff"
           aria-pressed={props.diffStyle === "split"}
@@ -133,7 +133,7 @@ export const GlassDiffHeader = memo(function GlassDiffHeader(props: Props) {
       <button
         type="button"
         onClick={props.onRevert}
-        className="flex size-7 shrink-0 items-center justify-center rounded-glass-control text-muted-foreground hover:bg-glass-hover hover:text-foreground"
+        className="flex size-7 shrink-0 items-center justify-center rounded-chrome-control text-muted-foreground hover:bg-chrome-hover hover:text-foreground"
         aria-label="Revert file"
       >
         <IconArrowRotateCounterClockwise className="size-4" />

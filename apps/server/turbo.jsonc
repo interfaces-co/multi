@@ -3,7 +3,7 @@
   "extends": ["//"],
   "tasks": {
     "dev:stack": {
-      "with": ["@t3tools/contracts#dev", "@t3tools/web#dev"],
+      "with": ["@multi/contracts#dev", "@multi/web#dev"],
     },
     "start": {
       "dependsOn": ["build"],

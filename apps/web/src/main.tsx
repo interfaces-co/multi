@@ -1,14 +1,18 @@
+if (import.meta.env.DEV) {
+  import("react-grab");
+}
+
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { RouterProvider } from "@tanstack/react-router";
 import { createHashHistory, createBrowserHistory } from "@tanstack/react-router";
 
-import "./glass-appearance-boot";
+import "./appearance-boot";
 import "@xterm/xterm/css/xterm.css";
 import "./index.css";
 import "./styles/tailwind.css";
 import "./styles/app.css";
-import "./styles/glass.css";
+import "./styles/chrome-tokens.css";
 import "./styles/chat-markdown.css";
 
 import { isElectron } from "./env";

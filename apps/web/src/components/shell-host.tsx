@@ -1,20 +1,20 @@
-import type { EnvironmentId } from "@t3tools/contracts";
+import type { EnvironmentId } from "@multi/contracts";
 import { Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useCallback, useEffect, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import { BrowserPanel } from "~/components/BrowserPanel";
 import { isElectron } from "~/env";
-import { useGlassGitPanel } from "~/hooks/use-glass-git";
-import { useGlassShellPanels } from "~/hooks/use-glass-shell-panels";
+import { useEnvironmentGitPanel } from "~/hooks/use-environment-git";
+import { useShellPanels } from "~/hooks/use-shell-panels";
 import { useRouteThreadId } from "~/hooks/use-route-thread-id";
-import { useGlassChatDraftStore, hasDraft } from "~/lib/glass-chat-draft-store";
-import type { GlassDraftChat } from "~/lib/glass-chat-draft-store";
-import { resolveWorkbenchBrowserThreadId } from "~/lib/glass-workbench-browser-scope";
-import { useGlassShellStore } from "~/lib/glass-shell-store";
-import { useGlassThreadUnreadStore } from "~/lib/glass-thread-unread-store";
-import { type GlassSessionSummary } from "~/lib/glass-types";
-import { buildWorkspaceChatSections } from "~/lib/glass-view-model";
+import { useChatDraftStore, hasDraft } from "~/lib/chat-draft-store";
+import type { ChatDraftSnapshot } from "~/lib/chat-draft-store";
+import { resolveWorkbenchBrowserThreadId } from "~/lib/workbench-browser-scope";
+import { useShellLayoutStore } from "~/lib/shell-layout-store";
+import { useThreadUnreadStore } from "~/lib/thread-unread-store";
+import { type SessionListSummary } from "~/lib/ui-session-types";
+import { buildWorkspaceChatSections } from "~/lib/sidebar-chat-view-model";
 import { cn } from "~/lib/utils";
 import {
   selectProjectsAcrossEnvironments,
@@ -22,21 +22,21 @@ import {
   useStore,
 } from "~/store";
 import type { Project, Thread } from "~/types";
-import { GlassAppShell, type GlassAppShellPanels } from "./glass/shell/app";
-import { GlassGitPanel } from "./glass/git/panel";
-import { GlassSidebarFooter } from "./glass/sidebar/footer";
-import { GlassSidebarHeader } from "./glass/sidebar/header";
-import { GlassThreadRail } from "./glass/sidebar/thread-rail";
-import { GlassSettingsProvider } from "./glass/settings/context";
-import { GlassSettingsNavRail } from "./glass/settings/nav-rail";
-import { GlassTerminalPanel } from "./glass/terminal/panel";
-import { WorkbenchPanel } from "./glass/shell/workbench-panel";
+import { AppShell, type AppShellPanels } from "./shell/shell/app";
+import { GitPanel } from "./shell/git/panel";
+import { ShellSidebarFooter } from "./shell/sidebar/footer";
+import { ShellSidebarHeader } from "./shell/sidebar/header";
+import { ThreadRail } from "./shell/sidebar/thread-rail";
+import { ShellSettingsProvider } from "./shell/settings/context";
+import { SettingsNavRail } from "./shell/settings/nav-rail";
+import { TerminalPanel } from "./shell/terminal/panel";
+import { WorkbenchPanel } from "./shell/shell/workbench-panel";
 
 function toHarness(provider: Thread["modelSelection"]["provider"]): "codex" | "claudeCode" {
   return provider === "claudeAgent" ? "claudeCode" : "codex";
 }
 
-function toSummary(thread: Thread, project: Project | undefined): GlassSessionSummary {
+function toSummary(thread: Thread, project: Project | undefined): SessionListSummary {
   const firstUserMessage = thread.messages.find((message) => message.role === "user")?.text?.trim();
   const cwd = thread.worktreePath ?? project?.cwd ?? "";
   return {
@@ -56,7 +56,7 @@ function toSummary(thread: Thread, project: Project | undefined): GlassSessionSu
   };
 }
 
-export function GlassShellHost({ children }: { children?: ReactNode }) {
+export function ShellHost({ children }: { children?: ReactNode }) {
   const pathname = useLocation({ select: (l) => l.pathname });
   const navigate = useNavigate();
   const isSettings = pathname.startsWith("/settings");
@@ -65,13 +65,13 @@ export function GlassShellHost({ children }: { children?: ReactNode }) {
   const threads = useStore(useShallow(selectThreadsAcrossEnvironments));
   const firstProjectCwd = projects[0]?.cwd ?? null;
 
-  const root = useGlassChatDraftStore((s) => s.root);
-  const items = useGlassChatDraftStore((s) => s.items);
-  const cur = useGlassChatDraftStore((s) => s.cur);
-  const pick = useGlassChatDraftStore((s) => s.pick);
-  const park = useGlassChatDraftStore((s) => s.park);
-  const drafts = useMemo(() => Object.values(items) as GlassDraftChat[], [items]);
-  const unread = useGlassThreadUnreadStore((s) => s.unread);
+  const root = useChatDraftStore((s) => s.root);
+  const items = useChatDraftStore((s) => s.items);
+  const cur = useChatDraftStore((s) => s.cur);
+  const pick = useChatDraftStore((s) => s.pick);
+  const park = useChatDraftStore((s) => s.park);
+  const drafts = useMemo(() => Object.values(items) as ChatDraftSnapshot[], [items]);
+  const unread = useThreadUnreadStore((s) => s.unread);
 
   const selectedId = routeThreadId ?? cur;
 
@@ -86,7 +86,7 @@ export function GlassShellHost({ children }: { children?: ReactNode }) {
       threads
         .filter((thread: Thread) => thread.archivedAt === null)
         .map((thread: Thread) => [thread.id, toSummary(thread, projectById.get(thread.projectId))]),
-    ) as Record<string, GlassSessionSummary>;
+    ) as Record<string, SessionListSummary>;
   }, [projectById, threads]);
 
   const unreadIds = useMemo(
@@ -112,7 +112,7 @@ export function GlassShellHost({ children }: { children?: ReactNode }) {
     projects.find((project) => project.cwd === activeCwd)?.environmentId ??
     projects[0]?.environmentId ??
     null;
-  const p = useGlassShellPanels(activeCwd);
+  const p = useShellPanels(activeCwd);
 
   const sections = useMemo(
     () => buildWorkspaceChatSections(summaries, drafts, activeCwd, null, unreadIds),
@@ -150,7 +150,7 @@ export function GlassShellHost({ children }: { children?: ReactNode }) {
     }
   }, [activeCwd, cur, firstProjectCwd, navigate, park, pick, root.files, root.text, routeThreadId]);
 
-  const clearThreadUnread = useGlassThreadUnreadStore((s) => s.clear);
+  const clearThreadUnread = useThreadUnreadStore((s) => s.clear);
 
   const select = useCallback(
     (id: string) => {
@@ -173,11 +173,14 @@ export function GlassShellHost({ children }: { children?: ReactNode }) {
   );
 
   const chatLeft = (
-    <div className="glass-thread-rail-pad flex min-h-0 flex-1 flex-col px-0">
+    <div className="thread-rail-pad flex min-h-0 flex-1 flex-col px-0">
       <div className={cn("shrink-0", isElectron && "no-drag")}>
-        <GlassSidebarHeader onNewChat={create} onCollapse={p.toggleLeft} />
+        <ShellSidebarHeader
+          onNewChat={create}
+          {...(isElectron ? {} : { onCollapse: p.toggleLeft })}
+        />
       </div>
-      <GlassThreadRail
+      <ThreadRail
         loading={false}
         error={false}
         sections={sections}
@@ -185,21 +188,21 @@ export function GlassShellHost({ children }: { children?: ReactNode }) {
         onSelectAgent={select}
         onNewAgent={create}
       />
-      <GlassSidebarFooter />
+      <ShellSidebarFooter />
     </div>
   );
 
   const settingsLeft = (
-    <div className="glass-thread-rail-pad flex min-h-0 flex-1 flex-col px-0">
-      <GlassSettingsNavRail />
-      <GlassSidebarFooter settings />
+    <div className="thread-rail-pad flex min-h-0 flex-1 flex-col px-0">
+      <SettingsNavRail />
+      <ShellSidebarFooter settings />
     </div>
   );
 
   if (isElectron) {
     return (
-      <GlassSettingsProvider>
-        <GlassDesktopShellHost
+      <ShellSettingsProvider>
+        <DesktopShellHost
           panels={p}
           title={isSettings ? "Settings" : title}
           isSettings={isSettings}
@@ -210,13 +213,13 @@ export function GlassShellHost({ children }: { children?: ReactNode }) {
           cwd={activeCwd}
           environmentId={activeEnvironmentId}
         />
-      </GlassSettingsProvider>
+      </ShellSettingsProvider>
     );
   }
 
   return (
-    <GlassSettingsProvider>
-      <GlassAppShell
+    <ShellSettingsProvider>
+      <AppShell
         title={isSettings ? "Settings" : title}
         changesCount={0}
         panels={p}
@@ -225,12 +228,12 @@ export function GlassShellHost({ children }: { children?: ReactNode }) {
         center={children ?? <Outlet />}
         right={null}
       />
-    </GlassSettingsProvider>
+    </ShellSettingsProvider>
   );
 }
 
-function GlassDesktopShellHost(props: {
-  panels: GlassAppShellPanels;
+function DesktopShellHost(props: {
+  panels: AppShellPanels;
   title: string;
   isSettings: boolean;
   onBack?: () => void;
@@ -240,10 +243,10 @@ function GlassDesktopShellHost(props: {
   cwd: string | null;
   environmentId: EnvironmentId | null;
 }) {
-  const git = useGlassGitPanel(props.environmentId);
-  const mute = useGlassShellStore((state) => state.mute);
-  const unmute = useGlassShellStore((state) => state.unmute);
-  const muted = useGlassShellStore((state) =>
+  const git = useEnvironmentGitPanel(props.environmentId);
+  const mute = useShellLayoutStore((state) => state.mute);
+  const unmute = useShellLayoutStore((state) => state.unmute);
+  const muted = useShellLayoutStore((state) =>
     props.cwd ? Boolean(state.mutes[props.cwd]) : false,
   );
   const autoOpen = Boolean(props.routeThreadId && git.focusId && !muted);
@@ -252,7 +255,7 @@ function GlassDesktopShellHost(props: {
   const browserThreadId = resolveWorkbenchBrowserThreadId(props.cwd);
 
   return (
-    <GlassAppShell
+    <AppShell
       title={props.title}
       changesCount={git.count}
       panels={{
@@ -279,9 +282,9 @@ function GlassDesktopShellHost(props: {
       center={props.center}
       right={
         <WorkbenchPanel>
-          {tab === "git" && <GlassGitPanel git={git} />}
+          {tab === "git" && <GitPanel git={git} />}
           {tab === "terminal" && (
-            <GlassTerminalPanel cwd={props.cwd} environmentId={props.environmentId} />
+            <TerminalPanel cwd={props.cwd} environmentId={props.environmentId} />
           )}
           {tab === "browser" && (
             <BrowserPanel

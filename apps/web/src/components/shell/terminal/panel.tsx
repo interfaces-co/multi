@@ -1,27 +1,27 @@
 // @ts-nocheck
 "use client";
 
-import { type EnvironmentId, DEFAULT_TERMINAL_ID, type TerminalEvent } from "@t3tools/contracts";
+import { type EnvironmentId, DEFAULT_TERMINAL_ID, type TerminalEvent } from "@multi/contracts";
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal, type ITheme } from "@xterm/xterm";
-import type { DesktopTerminalAppearance } from "~/lib/glass-types";
+import type { DesktopTerminalAppearance } from "~/lib/ui-session-types";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { readGlassHostTheme } from "~/components/glass/terminal/glass-terminal-theme";
+import { readTerminalHostTheme } from "~/components/shell/terminal/terminal-host-theme";
 import { useTheme } from "~/hooks/use-theme";
-import { readGlassEnvironmentApi } from "~/native-api";
+import { readNativeEnvironmentApi } from "~/native-api";
 
 function workbenchThreadId(cwd: string) {
   return `workbench:${cwd}`;
 }
 
-type WorkbenchTerminalApi = NonNullable<ReturnType<typeof readGlassEnvironmentApi>>["terminal"];
+type WorkbenchTerminalApi = NonNullable<ReturnType<typeof readNativeEnvironmentApi>>["terminal"];
 
 function readWorkbenchTerminalApi(
   environmentId: EnvironmentId | null | undefined,
 ): WorkbenchTerminalApi | null {
   return (
-    readGlassEnvironmentApi(environmentId, {
+    readNativeEnvironmentApi(environmentId, {
       allowPrimaryEnvironmentFallback: true,
     })?.terminal ?? null
   );
@@ -32,7 +32,7 @@ function readFontFamily(el: HTMLElement) {
   node.style.position = "absolute";
   node.style.opacity = "0";
   node.style.pointerEvents = "none";
-  node.style.fontFamily = "var(--font-glass-mono), ui-monospace, monospace";
+  node.style.fontFamily = "var(--font-chrome-mono), ui-monospace, monospace";
   el.append(node);
   const value = getComputedStyle(node).fontFamily || "ui-monospace, monospace";
   node.remove();
@@ -74,7 +74,7 @@ function readDesktopTheme(view: DesktopTerminalAppearance) {
   } satisfies ITheme;
 }
 
-export function GlassTerminalPanel(props: {
+export function TerminalPanel(props: {
   cwd: string | null;
   environmentId?: EnvironmentId | null;
 }) {
@@ -118,7 +118,7 @@ export function GlassTerminalPanel(props: {
         setView(next);
       })
       .catch((err) => {
-        if (dev) console.warn("[GlassTerminalPanel] getTerminalAppearance failed", err);
+        if (dev) console.warn("[TerminalPanel] getTerminalAppearance failed", err);
         if (!live) return;
         setView(null);
       });
@@ -135,7 +135,7 @@ export function GlassTerminalPanel(props: {
 
     const cwd = props.cwd;
     const thread = workbenchThreadId(cwd);
-    const cfg = ghost ?? readGlassHostTheme(el, mode ?? "dark");
+    const cfg = ghost ?? readTerminalHostTheme(el, mode ?? "dark");
     const family = view?.fontFamily ?? readFontFamily(el);
     const fontSize = view?.fontSize ?? 13;
 
@@ -164,7 +164,7 @@ export function GlassTerminalPanel(props: {
       term.current = next;
       fit.current = addon;
     } catch (err) {
-      if (dev) console.warn("[GlassTerminalPanel] xterm init failed", err);
+      if (dev) console.warn("[TerminalPanel] xterm init failed", err);
       setBootErr("Could not load terminal renderer.");
       return () => {
         live = false;
@@ -250,7 +250,7 @@ export function GlassTerminalPanel(props: {
         hydrate(snap.history);
       })
       .catch((err) => {
-        if (dev) console.warn("[GlassTerminalPanel] terminal.open failed", err);
+        if (dev) console.warn("[TerminalPanel] terminal.open failed", err);
         if (live) setBootErr("Could not open terminal session.");
       });
 

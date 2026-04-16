@@ -2,10 +2,10 @@ import {
   PROVIDER_DISPLAY_NAMES,
   type OrchestrationThreadActivity,
   type ProviderKind,
-} from "@t3tools/contracts";
-import { PROVIDER_NOTICE_KIND, type ProviderNoticeKind } from "~/lib/glass-types";
+} from "@multi/contracts";
+import { PROVIDER_NOTICE_KIND, type ProviderNoticeKind } from "~/lib/ui-session-types";
 
-export interface GlassProviderNotice {
+export interface ProviderNotice {
   id: string;
   at: string;
   kind: ProviderNoticeKind;
@@ -17,7 +17,7 @@ export interface GlassProviderNotice {
   raw: unknown;
 }
 
-export interface GlassProviderNoticeForce {
+export interface ProviderNoticeForce {
   seq: number;
   kind: ProviderNoticeKind;
   provider: ProviderKind | null;
@@ -90,7 +90,7 @@ function rateRejected(value: unknown): boolean | null {
   return null;
 }
 
-function note(activity: OrchestrationThreadActivity, now: number): GlassProviderNotice | null {
+function note(activity: OrchestrationThreadActivity, now: number): ProviderNotice | null {
   const payload = obj(activity.payload);
   const provider = payload?.provider;
   if (provider !== "codex" && provider !== "claudeAgent") {
@@ -143,7 +143,7 @@ function note(activity: OrchestrationThreadActivity, now: number): GlassProvider
 }
 
 function forced(input: {
-  force: GlassProviderNoticeForce;
+  force: ProviderNoticeForce;
   provider: ProviderKind | null;
   now: number;
 }) {
@@ -177,15 +177,15 @@ function forced(input: {
       provider,
       kind: input.force.kind,
     },
-  } satisfies GlassProviderNotice;
+  } satisfies ProviderNotice;
 }
 
 export function deriveProviderNotice(input: {
   activities: readonly OrchestrationThreadActivity[];
   provider: ProviderKind | null;
-  force?: GlassProviderNoticeForce | null;
+  force?: ProviderNoticeForce | null;
   now?: number;
-}): GlassProviderNotice | null {
+}): ProviderNotice | null {
   const now = input.now ?? Date.now();
   if (input.force) {
     return forced({ force: input.force, provider: input.provider, now });

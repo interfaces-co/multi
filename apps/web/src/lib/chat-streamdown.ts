@@ -13,7 +13,7 @@ export const chatStreamdownShikiTheme = [pierreLightVibrant, pierreDarkVibrant] 
   ThemeInput,
 ];
 
-export const chatMarkdownThreadClassName = "font-glass chat-markdown text-body/5 text-foreground";
+export const chatMarkdownThreadClassName = "font-chrome chat-markdown text-body/5 text-foreground";
 
 export const chatMarkdownToolClassName =
-  "font-glass-mono chat-markdown text-detail/[1.4] text-foreground";
+  "font-chrome-mono chat-markdown text-detail/[1.4] text-foreground";

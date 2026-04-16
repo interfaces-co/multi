@@ -1,7 +1,7 @@
 import { cn } from "~/lib/utils";
-import { GlassOpenPicker } from "~/components/glass/pickers/open";
+import { OpenPicker } from "~/components/shell/pickers/open";
 
-export function GlassHeroComposerFooter(props: { onPlanMode: () => void; planActive?: boolean }) {
+export function HeroComposerFooter(props: { onPlanMode: () => void; planActive?: boolean }) {
   return (
     <div className="flex w-full min-w-0 flex-wrap items-center justify-start gap-2">
       {!props.planActive ? (
@@ -16,9 +16,9 @@ export function GlassHeroComposerFooter(props: { onPlanMode: () => void; planAct
           <button
             type="button"
             className={cn(
-              "font-glass relative inline-flex min-h-7 items-center gap-1.5 rounded-full border border-glass-stroke bg-glass-bubble px-2.5 text-detail/[17px] text-muted-foreground shadow-glass-card outline-none backdrop-blur-md transition-colors",
+              "font-chrome relative inline-flex min-h-7 items-center gap-1.5 rounded-full border border-chrome-stroke bg-chrome-bubble px-2.5 text-detail/[17px] text-muted-foreground shadow-chrome-card outline-none backdrop-blur-md transition-colors",
               "pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11",
-              "hover:border-glass-stroke-strong hover:bg-glass-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50",
+              "hover:border-chrome-stroke-strong hover:bg-chrome-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50",
             )}
             onClick={() => props.onPlanMode()}
             aria-pressed={false}
@@ -26,14 +26,14 @@ export function GlassHeroComposerFooter(props: { onPlanMode: () => void; planAct
             title="Plan mode off (⇧Tab)"
           >
             <span className="max-w-[16rem] truncate">Plan mode</span>
-            <kbd className="pointer-events-none hidden shrink-0 rounded border border-glass-stroke/60 bg-glass-hover/40 px-1 py-px font-sans text-[10px] text-muted-foreground/80 sm:inline">
+            <kbd className="pointer-events-none hidden shrink-0 rounded border border-chrome-stroke/60 bg-chrome-hover/40 px-1 py-px font-sans text-[10px] text-muted-foreground/80 sm:inline">
               ⇧Tab
             </kbd>
           </button>
         </div>
       ) : null}
       <div className="flex min-w-0 shrink-0 items-center justify-start">
-        <GlassOpenPicker variant="hero" />
+        <OpenPicker variant="hero" />
       </div>
     </div>
   );

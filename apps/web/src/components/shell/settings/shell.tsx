@@ -4,19 +4,19 @@
 import { Outlet, useMatchRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 
-import { useGlassShellPanels } from "~/hooks/use-glass-shell-panels";
+import { useShellPanels } from "~/hooks/use-shell-panels";
 import { useShellState } from "~/hooks/use-shell-cwd";
-import { useGlassShellStore } from "~/lib/glass-shell-store";
-import { GlassAppShell } from "~/components/glass/shell/app";
-import { GlassSettingsNavRail } from "./nav-rail";
-import { GlassSidebarFooter } from "~/components/glass/sidebar/footer";
+import { useShellLayoutStore } from "~/lib/shell-layout-store";
+import { AppShell } from "~/components/shell/shell/app";
+import { SettingsNavRail } from "./nav-rail";
+import { ShellSidebarFooter } from "~/components/shell/sidebar/footer";
 
-export function GlassSettingsShell() {
+export function SettingsShell() {
   const navigate = useNavigate();
   const match = useMatchRoute();
   const { cwd } = useShellState();
-  const p = useGlassShellPanels(cwd);
-  const mute = useGlassShellStore((state) => state.mute);
+  const p = useShellPanels(cwd);
+  const mute = useShellLayoutStore((state) => state.mute);
   const rightOpen = p.rightOpen;
   const setRightOpen = p.setRightOpen;
   const title = match({ to: "/settings/appearance" })
@@ -35,15 +35,15 @@ export function GlassSettingsShell() {
   }, [cwd, mute, rightOpen, setRightOpen]);
 
   return (
-    <GlassAppShell
+    <AppShell
       title={title}
       changesCount={0}
       onBack={() => void navigate({ to: "/" })}
       panels={p}
       left={
-        <div className="glass-thread-rail-pad flex min-h-0 flex-1 flex-col px-0">
-          <GlassSettingsNavRail />
-          <GlassSidebarFooter settings />
+        <div className="thread-rail-pad flex min-h-0 flex-1 flex-col px-0">
+          <SettingsNavRail />
+          <ShellSidebarFooter settings />
         </div>
       }
       center={

@@ -1,8 +1,9 @@
 import { isElectronHost } from "../env";
 
+/** Must stay in sync with `trafficLightPosition` in apps/desktop/src/main.ts (getWindowTitleBarOptions). */
 export const MACOS_TRAFFIC_LIGHTS = {
-  x: 14,
-  y: 14,
+  x: 16,
+  y: 18,
   spacerWidth: 80,
   paddingTop: 30,
 } as const;
@@ -12,9 +13,9 @@ const TITLEBAR_CONTROL_HEIGHT_PX = 24;
 export const TITLEBAR_CONTROL_OFFSET_TOP_PX =
   MACOS_TRAFFIC_LIGHTS.y - (TITLEBAR_CONTROL_HEIGHT_PX - TRAFFIC_LIGHT_CLUSTER_HEIGHT_PX) / 2;
 
-const INSET = "--glass-electron-traffic-inset";
-const TOP = "--glass-electron-traffic-padding-top";
-const ROW_TOP = "--glass-titlebar-control-row-top";
+const INSET = "--chrome-electron-traffic-inset";
+const TOP = "--chrome-electron-traffic-padding-top";
+const ROW_TOP = "--chrome-titlebar-control-row-top";
 
 export function applyDesktopChromeMetrics() {
   if (typeof document === "undefined") return;

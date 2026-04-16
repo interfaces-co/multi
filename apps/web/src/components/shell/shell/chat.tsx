@@ -1,53 +1,53 @@
 // @ts-nocheck
 "use client";
 
-import type { EnvironmentId } from "@t3tools/contracts";
+import type { EnvironmentId } from "@multi/contracts";
 import { Outlet, useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useCallback, useEffect, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import { BrowserPanel } from "~/components/BrowserPanel";
 import { isElectron } from "~/env";
-import { useGlassAgents } from "~/hooks/use-glass-agents";
-import { useGlassGitPanel } from "~/hooks/use-glass-git";
-import { useGlassShellPanels } from "~/hooks/use-glass-shell-panels";
+import { useSidebarAgents } from "~/hooks/use-sidebar-agents";
+import { useEnvironmentGitPanel } from "~/hooks/use-environment-git";
+import { useShellPanels } from "~/hooks/use-shell-panels";
 import { useShellState } from "~/hooks/use-shell-cwd";
-import { useGlassChatDraftStore, hasDraft } from "~/lib/glass-chat-draft-store";
-import { resolveWorkbenchBrowserThreadId } from "~/lib/glass-workbench-browser-scope";
-import { useGlassThreadUnreadStore } from "~/lib/glass-thread-unread-store";
-import { switchWorkspace } from "~/lib/glass-workspace";
+import { useChatDraftStore, hasDraft } from "~/lib/chat-draft-store";
+import { resolveWorkbenchBrowserThreadId } from "~/lib/workbench-browser-scope";
+import { useThreadUnreadStore } from "~/lib/thread-unread-store";
+import { switchWorkspace } from "~/lib/workspace-routing";
 import { cn } from "~/lib/utils";
 import { useDefaultHarness } from "~/lib/harness-picker";
-import { useGlassShellStore } from "~/lib/glass-shell-store";
+import { useShellLayoutStore } from "~/lib/shell-layout-store";
 import { useThreadSummariesStatus } from "~/lib/thread-session-store";
 import {
   selectProjectsAcrossEnvironments,
   selectThreadsAcrossEnvironments,
   useStore,
 } from "~/store";
-import { GlassAppShell } from "./app";
-import { GlassCommandPalette } from "./command-palette";
+import { AppShell } from "./app";
+import { CommandPalette } from "./command-palette";
 import { WorkbenchPanel } from "./workbench-panel";
-import { GlassGitPanel } from "~/components/glass/git/panel";
-import { GlassTerminalPanel } from "~/components/glass/terminal/panel";
-import { GlassSidebarFooter } from "~/components/glass/sidebar/footer";
-import { GlassSidebarHeader } from "~/components/glass/sidebar/header";
-import { GlassThreadRail } from "~/components/glass/sidebar/thread-rail";
+import { GitPanel } from "~/components/shell/git/panel";
+import { TerminalPanel } from "~/components/shell/terminal/panel";
+import { ShellSidebarFooter } from "~/components/shell/sidebar/footer";
+import { ShellSidebarHeader } from "~/components/shell/sidebar/header";
+import { ThreadRail } from "~/components/shell/sidebar/thread-rail";
 
-export function GlassChatShell() {
+export function ChatShellLayout() {
   const navigate = useNavigate();
   const { cwd, home } = useShellState();
-  const p = useGlassShellPanels(cwd);
+  const p = useShellPanels(cwd);
   const { kind } = useDefaultHarness();
   const projects = useStore(useShallow(selectProjectsAcrossEnvironments));
   const sumsStatus = useThreadSummariesStatus();
-  const clear = useGlassShellStore((state) => state.clear);
-  const root = useGlassChatDraftStore((state) => state.root);
-  const items = useGlassChatDraftStore((state) => state.items);
-  const cur = useGlassChatDraftStore((state) => state.cur);
-  const pick = useGlassChatDraftStore((state) => state.pick);
-  const park = useGlassChatDraftStore((state) => state.park);
-  const { sections, routeThreadId, selectedId, selected, loading, error } = useGlassAgents(
+  const clear = useShellLayoutStore((state) => state.clear);
+  const root = useChatDraftStore((state) => state.root);
+  const items = useChatDraftStore((state) => state.items);
+  const cur = useChatDraftStore((state) => state.cur);
+  const pick = useChatDraftStore((state) => state.pick);
+  const park = useChatDraftStore((state) => state.park);
+  const { sections, routeThreadId, selectedId, selected, loading, error } = useSidebarAgents(
     cwd,
     home,
   );
@@ -118,7 +118,7 @@ export function GlassChatShell() {
     [cur, cwd, kind, navigate, park, pick, projects, root.files, root.text, routeThreadId],
   );
 
-  const clearThreadUnread = useGlassThreadUnreadStore((s) => s.clear);
+  const clearThreadUnread = useThreadUnreadStore((s) => s.clear);
 
   const select = useCallback(
     (id: string) => {
@@ -143,11 +143,11 @@ export function GlassChatShell() {
   );
 
   const left = (
-    <div className="glass-thread-rail-pad flex min-h-0 flex-1 flex-col px-0">
+    <div className="thread-rail-pad flex min-h-0 flex-1 flex-col px-0">
       <div className={cn("shrink-0", isElectron && "no-drag")}>
-        <GlassSidebarHeader onNewChat={create} />
+        <ShellSidebarHeader onNewChat={create} />
       </div>
-      <GlassThreadRail
+      <ThreadRail
         loading={loading}
         error={error}
         sections={sections}
@@ -155,15 +155,15 @@ export function GlassChatShell() {
         onSelectAgent={select}
         onNewAgent={create}
       />
-      <GlassSidebarFooter />
+      <ShellSidebarFooter />
     </div>
   );
 
   return (
     <>
-      <GlassCommandPalette panels={p} onNewChat={create} routeThreadId={routeThreadId} />
+      <CommandPalette panels={p} onNewChat={create} routeThreadId={routeThreadId} />
       {isElectron ? (
-        <GlassDesktopShell
+        <DesktopShellLayout
           cwd={cwd}
           left={left}
           title={title}
@@ -172,24 +172,24 @@ export function GlassChatShell() {
           environmentId={activeEnvironmentId}
         />
       ) : (
-        <GlassWebShell left={left} title={title} panels={p} />
+        <WebShellLayout left={left} title={title} panels={p} />
       )}
     </>
   );
 }
 
-function GlassDesktopShell(props: {
+function DesktopShellLayout(props: {
   cwd: string | null;
   left: ReactNode;
   title: string;
   routeThreadId: string | null;
-  panels: ReturnType<typeof useGlassShellPanels>;
+  panels: ReturnType<typeof useShellPanels>;
   environmentId: EnvironmentId | null;
 }) {
-  const git = useGlassGitPanel(props.environmentId);
-  const mute = useGlassShellStore((state) => state.mute);
-  const unmute = useGlassShellStore((state) => state.unmute);
-  const muted = useGlassShellStore((state) =>
+  const git = useEnvironmentGitPanel(props.environmentId);
+  const mute = useShellLayoutStore((state) => state.mute);
+  const unmute = useShellLayoutStore((state) => state.unmute);
+  const muted = useShellLayoutStore((state) =>
     props.cwd ? Boolean(state.mutes[props.cwd]) : false,
   );
   const autoOpen = Boolean(props.routeThreadId && git.focusId && !muted);
@@ -198,7 +198,7 @@ function GlassDesktopShell(props: {
   const browserThreadId = resolveWorkbenchBrowserThreadId(props.cwd);
 
   return (
-    <GlassAppShell
+    <AppShell
       title={props.title}
       changesCount={git.count}
       panels={{
@@ -224,9 +224,9 @@ function GlassDesktopShell(props: {
       center={<Outlet />}
       right={
         <WorkbenchPanel>
-          {tab === "git" && <GlassGitPanel git={git} />}
+          {tab === "git" && <GitPanel git={git} />}
           {tab === "terminal" && (
-            <GlassTerminalPanel cwd={props.cwd} environmentId={props.environmentId} />
+            <TerminalPanel cwd={props.cwd} environmentId={props.environmentId} />
           )}
           {tab === "browser" && (
             <BrowserPanel
@@ -241,13 +241,13 @@ function GlassDesktopShell(props: {
   );
 }
 
-function GlassWebShell(props: {
+function WebShellLayout(props: {
   left: ReactNode;
   title: string;
-  panels: ReturnType<typeof useGlassShellPanels>;
+  panels: ReturnType<typeof useShellPanels>;
 }) {
   return (
-    <GlassAppShell
+    <AppShell
       title={props.title}
       changesCount={0}
       panels={props.panels}

@@ -4,7 +4,7 @@ import { IconArrowLeft, IconSidebar, IconSidebarHiddenLeftWide } from "central-i
 import { type PointerEvent as Evt, type ReactNode, useEffect, useRef, useState } from "react";
 
 import { isElectronHost } from "~/env";
-import type { WorkbenchTab } from "~/hooks/use-glass-shell-panels";
+import type { WorkbenchTab } from "~/hooks/use-shell-panels";
 import { cn } from "~/lib/utils";
 import { WorkbenchTabBar } from "./workbench-tabs";
 
@@ -15,7 +15,7 @@ const limit = {
   right: { min: 340, max: 600 },
 } as const;
 
-export type GlassAppShellPanels = {
+export type AppShellPanels = {
   leftOpen: boolean;
   rightOpen: boolean;
   setLeftOpen: (open: boolean) => void;
@@ -30,13 +30,13 @@ export type GlassAppShellPanels = {
   setActiveTab: (tab: WorkbenchTab) => void;
 };
 
-export function GlassAppShell(props: {
+export function AppShell(props: {
   left: ReactNode;
   center: ReactNode;
   right: ReactNode | null;
   title: string;
   changesCount: number;
-  panels: GlassAppShellPanels;
+  panels: AppShellPanels;
   onBack?: () => void;
 }) {
   const p = props.panels;
@@ -167,7 +167,7 @@ export function GlassAppShell(props: {
     <div className="relative flex h-full min-w-0 flex-1 flex-row bg-transparent">
       <aside
         className={cn(
-          "glass-shell-sidebar relative flex shrink-0 flex-col overflow-hidden border-glass-border/50",
+          "chrome-shell-sidebar relative flex shrink-0 flex-col overflow-hidden border-chrome-border/50",
           side === "left" ? "transition-none" : "transition-[width] duration-150 ease-out",
         )}
         ref={leftRef}
@@ -187,7 +187,7 @@ export function GlassAppShell(props: {
             onPointerMove={move}
             onPointerUp={up}
           >
-            <div className="h-full w-full hover:bg-glass-hover/70" />
+            <div className="h-full w-full hover:bg-chrome-hover/70" />
           </div>
         ) : null}
       </aside>
@@ -195,13 +195,13 @@ export function GlassAppShell(props: {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="relative flex min-h-0 flex-1 flex-row">
           <main
-            className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-glass-chat outline-hidden"
+            className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-chrome-chat outline-hidden"
             data-component="agent-panel"
           >
             {electron ? (
               <div
                 aria-hidden
-                className="pointer-events-none h-(--glass-header-height) shrink-0 select-none"
+                className="pointer-events-none h-(--chrome-header-height) shrink-0 select-none"
               />
             ) : null}
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden outline-hidden">
@@ -211,7 +211,7 @@ export function GlassAppShell(props: {
           {showRight ? (
             <aside
               className={cn(
-                "glass-shell-surface relative flex shrink-0 flex-col overflow-hidden border-glass-border/50",
+                "chrome-shell-surface relative flex shrink-0 flex-col overflow-hidden border-chrome-border/50",
                 side === "right"
                   ? "transition-none"
                   : "transition-[width] duration-100 ease-[cubic-bezier(0.19,1,0.22,1)] motion-reduce:transition-none",
@@ -245,7 +245,7 @@ export function GlassAppShell(props: {
                   onPointerMove={move}
                   onPointerUp={up}
                 >
-                  <div className="h-full w-full hover:bg-glass-hover/70" />
+                  <div className="h-full w-full hover:bg-chrome-hover/70" />
                 </div>
               ) : null}
             </aside>
@@ -255,15 +255,15 @@ export function GlassAppShell(props: {
 
       {electron ? (
         <div
-          className="pointer-events-none absolute top-0 left-0 z-10 h-(--glass-header-height) drag-region"
+          className="pointer-events-none absolute top-0 left-0 z-10 h-(--chrome-header-height) drag-region"
           style={{ right: rightW }}
         >
-          <div className="pointer-events-none absolute top-(--glass-titlebar-control-row-top) left-(--glass-workbench-toggle-left) flex gap-1">
+          <div className="pointer-events-none absolute top-(--chrome-titlebar-control-row-top) left-(--chrome-workbench-toggle-left) flex gap-1">
             {props.onBack ? (
               <button
                 type="button"
                 onClick={() => props.onBack?.()}
-                className="pointer-events-auto no-drag flex h-(--glass-titlebar-control-height) w-(--glass-titlebar-control-height) shrink-0 items-center justify-center rounded-glass-control bg-transparent p-0 leading-none text-muted-foreground [&_svg]:block hover:bg-glass-hover hover:text-foreground"
+                className="pointer-events-auto no-drag flex h-(--chrome-titlebar-control-height) w-(--chrome-titlebar-control-height) shrink-0 items-center justify-center rounded-chrome-control bg-transparent p-0 leading-none text-muted-foreground [&_svg]:block hover:bg-chrome-hover hover:text-foreground"
                 aria-label="Back to chat"
               >
                 <IconArrowLeft className="size-4 shrink-0" />
@@ -272,7 +272,7 @@ export function GlassAppShell(props: {
             <button
               type="button"
               onClick={() => p.toggleLeft()}
-              className="pointer-events-auto no-drag flex h-(--glass-titlebar-control-height) w-(--glass-titlebar-control-height) shrink-0 items-center justify-center rounded-glass-control bg-transparent p-0 leading-none text-muted-foreground [&_svg]:block hover:bg-glass-hover hover:text-foreground"
+              className="pointer-events-auto no-drag flex h-(--chrome-titlebar-control-height) w-(--chrome-titlebar-control-height) shrink-0 items-center justify-center rounded-chrome-control bg-transparent p-0 leading-none text-muted-foreground [&_svg]:block hover:bg-chrome-hover hover:text-foreground"
               aria-label={p.leftOpen ? "Collapse chats" : "Expand chats"}
             >
               {p.leftOpen ? (
@@ -283,11 +283,11 @@ export function GlassAppShell(props: {
             </button>
           </div>
           {showRight && !p.rightOpen ? (
-            <div className="pointer-events-none absolute top-(--glass-titlebar-control-row-top) right-0 flex pr-(--glass-workbench-toggle-right)">
+            <div className="pointer-events-none absolute top-(--chrome-titlebar-control-row-top) right-0 flex pr-(--chrome-workbench-toggle-right)">
               <button
                 type="button"
                 onClick={() => p.toggleRight()}
-                className="pointer-events-auto no-drag flex h-(--glass-titlebar-control-height) w-(--glass-titlebar-control-height) shrink-0 items-center justify-center rounded-glass-control bg-transparent p-0 leading-none text-muted-foreground/70 [&_svg]:block hover:bg-glass-hover hover:text-foreground"
+                className="pointer-events-auto no-drag flex h-(--chrome-titlebar-control-height) w-(--chrome-titlebar-control-height) shrink-0 items-center justify-center rounded-chrome-control bg-transparent p-0 leading-none text-muted-foreground/70 [&_svg]:block hover:bg-chrome-hover hover:text-foreground"
                 aria-label="Expand panel"
               >
                 <IconSidebar className="size-4 shrink-0 opacity-60" />
@@ -300,7 +300,7 @@ export function GlassAppShell(props: {
           <button
             type="button"
             onClick={() => p.toggleLeft()}
-            className="pointer-events-auto flex size-7 items-center justify-center rounded-glass-control bg-glass-sidebar/80 text-muted-foreground shadow-sm backdrop-blur-sm [&_svg]:block hover:bg-glass-hover hover:text-foreground"
+            className="pointer-events-auto flex size-7 items-center justify-center rounded-chrome-control bg-chrome-sidebar/80 text-muted-foreground shadow-sm backdrop-blur-sm [&_svg]:block hover:bg-chrome-hover hover:text-foreground"
             aria-label="Expand chats"
           >
             <IconSidebar className="size-4 shrink-0" />

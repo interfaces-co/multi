@@ -8,15 +8,15 @@ import {
   type ModelSelection,
   type ProviderKind,
   type ServerProvider,
-} from "@t3tools/contracts";
-import type { HarnessModelRef, ThinkingLevel } from "~/lib/glass-types";
+} from "@multi/contracts";
+import type { HarnessModelRef, ThinkingLevel } from "~/lib/ui-session-types";
 import {
   normalizeClaudeModelOptionsWithCapabilities,
   normalizeCodexModelOptionsWithCapabilities,
   resolveSelectableModel,
-} from "@t3tools/shared/model";
+} from "@multi/shared/model";
 
-import { readGlassEnvironmentApi } from "../native-api";
+import { readNativeEnvironmentApi } from "../native-api";
 import { getServerConfig } from "../rpc/server-state";
 import {
   getDefaultServerModel,
@@ -27,7 +27,7 @@ import {
 import { useStore } from "../store";
 import type { Project } from "../types";
 
-const WORKSPACE_KEY = "glass:workspace-cwd";
+const WORKSPACE_KEY = "multi:workspace-cwd";
 
 export interface RuntimeModelItem extends HarnessModelRef {
   key: string;
@@ -381,7 +381,7 @@ export function readRuntimeDefaults(
 export async function writeRuntimeDefaultModel(model: HarnessModelRef) {
   const project = resolveActiveProject(useStore.getState().projects);
   if (!project) return;
-  const orchestration = readGlassEnvironmentApi(project.environmentId)?.orchestration;
+  const orchestration = readNativeEnvironmentApi(project.environmentId)?.orchestration;
   if (!orchestration) return;
   const providers = getServerConfig()?.providers ?? [];
   const current = project.defaultModelSelection;
@@ -403,7 +403,7 @@ export async function writeRuntimeDefaultModel(model: HarnessModelRef) {
 export async function clearRuntimeDefaultModel() {
   const project = resolveActiveProject(useStore.getState().projects);
   if (!project) return;
-  const orchestration = readGlassEnvironmentApi(project.environmentId)?.orchestration;
+  const orchestration = readNativeEnvironmentApi(project.environmentId)?.orchestration;
   if (!orchestration) return;
   await orchestration.dispatchCommand({
     type: "project.meta.update",
@@ -416,7 +416,7 @@ export async function clearRuntimeDefaultModel() {
 export async function writeRuntimeDefaultThinkingLevel(level: ThinkingLevel) {
   const project = resolveActiveProject(useStore.getState().projects);
   if (!project) return;
-  const orchestration = readGlassEnvironmentApi(project.environmentId)?.orchestration;
+  const orchestration = readNativeEnvironmentApi(project.environmentId)?.orchestration;
   if (!orchestration) return;
   const providers = getServerConfig()?.providers ?? [];
   const selection = resolveRuntimeSelection(providers, project.defaultModelSelection);
@@ -431,7 +431,7 @@ export async function writeRuntimeDefaultThinkingLevel(level: ThinkingLevel) {
 export async function writeRuntimeDefaultFastMode(on: boolean) {
   const project = resolveActiveProject(useStore.getState().projects);
   if (!project) return;
-  const orchestration = readGlassEnvironmentApi(project.environmentId)?.orchestration;
+  const orchestration = readNativeEnvironmentApi(project.environmentId)?.orchestration;
   if (!orchestration) return;
   const providers = getServerConfig()?.providers ?? [];
   const selection = resolveRuntimeSelection(providers, project.defaultModelSelection);

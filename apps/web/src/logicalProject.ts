@@ -1,5 +1,5 @@
-import { scopedProjectKey, scopeProjectRef } from "@t3tools/client-runtime";
-import type { ScopedProjectRef } from "@t3tools/contracts";
+import { scopedProjectKey, scopeProjectRef } from "@multi/client-runtime";
+import type { ScopedProjectRef } from "@multi/contracts";
 import type { Project } from "./types";
 
 export function deriveLogicalProjectKey(

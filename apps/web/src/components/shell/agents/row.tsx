@@ -1,18 +1,18 @@
-import { scopeThreadRef } from "@t3tools/client-runtime";
-import type { ThreadId } from "@t3tools/contracts";
+import { scopeThreadRef } from "@multi/client-runtime";
+import type { ThreadId } from "@multi/contracts";
 import { IconBell, IconFormCircle } from "central-icons";
 import { type KeyboardEvent, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { GlassThreadContextMenu } from "~/components/glass/sidebar/thread-context-menu";
-import { GlassRowButton } from "~/components/glass/shared/row-button";
+import { ThreadContextMenu } from "~/components/shell/sidebar/thread-context-menu";
+import { RowButton } from "~/components/shell/shared/row-button";
 import { useThreadActions } from "~/hooks/useThreadActions";
-import type { GlassSidebarChat } from "~/lib/glass-view-model";
-import { useGlassThreadUnreadStore } from "~/lib/glass-thread-unread-store";
+import type { SidebarChatItem } from "~/lib/sidebar-chat-view-model";
+import { useThreadUnreadStore } from "~/lib/thread-unread-store";
 import { cn } from "~/lib/utils";
 import { selectThreadsAcrossEnvironments, useStore } from "~/store";
 
-function StatusDot(props: { item: GlassSidebarChat }) {
+function StatusDot(props: { item: SidebarChatItem }) {
   if (props.item.kind === "draft") {
     return <IconFormCircle className="size-3.5 shrink-0 text-muted-foreground/50" aria-hidden />;
   }
@@ -33,9 +33,9 @@ function StatusDot(props: { item: GlassSidebarChat }) {
   return <span className="size-2 shrink-0 rounded-full bg-muted-foreground/45" aria-hidden />;
 }
 
-export const GlassAgentRow = memo(
-  function GlassAgentRow(props: {
-    item: GlassSidebarChat;
+export const AgentRow = memo(
+  function AgentRow(props: {
+    item: SidebarChatItem;
     selected: boolean;
     onSelectAgent: (id: string) => void;
   }) {
@@ -53,7 +53,7 @@ export const GlassAgentRow = memo(
           : null,
       [environmentId, props.item.kind, props.item.id],
     );
-    const mark = useGlassThreadUnreadStore((s) => s.mark);
+    const mark = useThreadUnreadStore((s) => s.mark);
     const [renaming, setRenaming] = useState(false);
     const [renameValue, setRenameValue] = useState("");
     const inputRef = useRef<HTMLInputElement | null>(null);
@@ -128,7 +128,7 @@ export const GlassAgentRow = memo(
 
     if (props.item.kind === "draft") {
       return (
-        <GlassRowButton
+        <RowButton
           variant="agent"
           data-selected={props.selected}
           data-chat-item=""
@@ -137,12 +137,12 @@ export const GlassAgentRow = memo(
           <StatusDot item={props.item} />
           <span className="min-w-0 flex-1 truncate">{props.item.title}</span>
           <span className="shrink-0 text-detail text-muted-foreground/50">{props.item.ago}</span>
-        </GlassRowButton>
+        </RowButton>
       );
     }
 
     return (
-      <GlassThreadContextMenu
+      <ThreadContextMenu
         threadId={props.item.id}
         onRename={() => {
           setRenaming(true);
@@ -165,8 +165,8 @@ export const GlassAgentRow = memo(
         {renaming ? (
           <div
             className={cn(
-              "font-glass flex min-h-7.5 w-full min-w-0 items-center gap-2 rounded-glass-control border border-transparent px-2 py-1 text-left text-body/[18px]",
-              "border-glass-stroke-strong bg-glass-active",
+              "font-chrome flex min-h-7.5 w-full min-w-0 items-center gap-2 rounded-chrome-control border border-transparent px-2 py-1 text-left text-body/[18px]",
+              "border-chrome-stroke-strong bg-chrome-active",
             )}
           >
             <StatusDot item={props.item} />
@@ -184,7 +184,7 @@ export const GlassAgentRow = memo(
             <span className="shrink-0 text-detail text-muted-foreground/50">{props.item.ago}</span>
           </div>
         ) : (
-          <GlassRowButton
+          <RowButton
             variant="agent"
             data-selected={props.selected}
             data-chat-item=""
@@ -193,9 +193,9 @@ export const GlassAgentRow = memo(
             <StatusDot item={props.item} />
             <span className="min-w-0 flex-1 truncate">{props.item.title}</span>
             <span className="shrink-0 text-detail text-muted-foreground/50">{props.item.ago}</span>
-          </GlassRowButton>
+          </RowButton>
         )}
-      </GlassThreadContextMenu>
+      </ThreadContextMenu>
     );
   },
   (left, right) =>

@@ -2,7 +2,7 @@ import * as Sch from "effect/Schema";
 import { useCallback } from "react";
 import { useLocalStorage } from "./use-local-storage";
 
-const STORAGE_KEY_PREFIX = "glass:git-viewed";
+const STORAGE_KEY_PREFIX = "multi:git-viewed";
 
 const ViewedPathsSchema = Sch.mutable(Sch.Array(Sch.String));
 

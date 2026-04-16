@@ -21,7 +21,7 @@ import { CommandPalette } from "~/components/ui/command-palette";
 import { Kbd } from "~/components/ui/kbd";
 import { useTheme } from "~/hooks/use-theme";
 import { useServerObservability } from "~/rpc/server-state";
-import type { GlassAppShellPanels } from "./app";
+import type { AppShellPanels } from "./app";
 
 const SEG_MAX = 80;
 
@@ -49,12 +49,12 @@ function log(dir: string, id: string) {
 }
 
 interface Props {
-  panels: GlassAppShellPanels;
+  panels: AppShellPanels;
   onNewChat: () => void;
   routeThreadId: string | null;
 }
 
-export function GlassCommandPalette(props: Props) {
+export function CommandPalette(props: Props) {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const { resolvedTheme, setTheme } = useTheme();

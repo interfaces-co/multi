@@ -1,7 +1,7 @@
 import { createFileRoute, retainSearchParams, useNavigate } from "@tanstack/react-router";
 import { Suspense, lazy, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
-import { GlassChatSession } from "../components/glass-chat-session";
+import { RoutedChatSession } from "../components/routed-chat-session";
 import { threadHasStarted } from "../components/ChatView.logic";
 import { DiffWorkerPoolProvider } from "../components/DiffWorkerPoolProvider";
 import {
@@ -265,7 +265,7 @@ function ChatThreadRouteView() {
     return (
       <div className="flex min-h-0 flex-1 flex-row">
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          <GlassChatSession
+          <RoutedChatSession
             environmentId={threadRef.environmentId}
             threadId={threadRef.threadId}
             routeKind="server"
@@ -284,7 +284,7 @@ function ChatThreadRouteView() {
   return (
     <>
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <GlassChatSession
+        <RoutedChatSession
           environmentId={threadRef.environmentId}
           threadId={threadRef.threadId}
           routeKind="server"

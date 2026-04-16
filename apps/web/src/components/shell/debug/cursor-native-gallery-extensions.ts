@@ -12,36 +12,36 @@ export const cursorNativeGalleryExtensions = [
   {
     title: "UiSlashMenuContentGlass",
     kind: "react snapshot",
-    note: "Glass slash palette body: ui-slash-menu__content--glass with scrollable ui-slash-menu__list rows.",
+    note: "Glass slash palette body: ui-slash-menu__content--chrome with scrollable ui-slash-menu__list rows.",
     files: [
-      "/System/Volumes/Data/Applications/Cursor.app/Contents/Resources/app/out/vs/workbench/workbench.desktop.main.js :: ui-slash-menu__content--glass",
+      "/System/Volumes/Data/Applications/Cursor.app/Contents/Resources/app/out/vs/workbench/workbench.desktop.main.js :: ui-slash-menu__content--chrome",
       "/System/Volumes/Data/Applications/Cursor.app/Contents/Resources/app/out/vs/workbench/workbench.desktop.main.css :: .ui-slash-menu__item",
     ],
   },
   {
     title: "UiMentionMenuSidePreviewGlass",
     kind: "react snapshot",
-    note: "Mention menu with side preview: ui-mention-menu-side-preview--glass split list + preview (matches composer token menu grid).",
+    note: "Mention menu with side preview: ui-mention-menu-side-preview--chrome split list + preview (matches composer token menu grid).",
     files: [
       "/System/Volumes/Data/Applications/Cursor.app/Contents/Resources/app/out/vs/workbench/workbench.desktop.main.js :: mention menu glass",
-      "apps/web/src/components/glass/composer/slash-menu.tsx :: GlassComposerTokenMenu",
+      "apps/web/src/components/shell/composer/slash-menu.tsx :: ComposerTokenMenu",
     ],
   },
   {
     title: "UiGalleryGlassChrome",
     kind: "react snapshot",
-    note: "Media gallery chrome: ui-gallery-glass-chrome header + scrollable grid shell.",
+    note: "Media gallery chrome: ui-gallery-shell-chrome header + scrollable grid shell.",
     files: [
       "/System/Volumes/Data/Applications/Cursor.app/Contents/Resources/app/out/vs/workbench/workbench.desktop.main.css :: gallery glass",
-      "apps/web/src/components/glass/composer/chat.tsx :: image lightbox references",
+      "apps/web/src/components/shell/composer/chat.tsx :: image lightbox references",
     ],
   },
   {
-    title: "GlassModelPickerWrapper",
+    title: "ModelPickerPreviewFrame",
     kind: "react snapshot",
-    note: "glass-model-picker-wrapper host + ui-model-picker__trigger + anchored listbox (structural mock).",
+    note: "chrome-model-picker-wrapper host + ui-model-picker__trigger + anchored listbox (structural mock).",
     files: [
-      "apps/web/src/components/glass/pickers/model.tsx :: GlassModelPicker",
+      "apps/web/src/components/shell/pickers/model.tsx :: ModelPicker",
       "/System/Volumes/Data/Applications/Cursor.app/Contents/Resources/app/out/vs/workbench/workbench.desktop.main.js :: model picker",
     ],
   },
@@ -50,7 +50,7 @@ export const cursorNativeGalleryExtensions = [
     kind: "react snapshot",
     note: "Sticky frosted strip with rounded mask: ui-vibrancy-sticky-rounded-mask (clip + backdrop blur).",
     files: [
-      "apps/web/src/styles/glass.css :: --glass-shell-blur",
+      "apps/web/src/styles/glass.css :: --chrome-shell-blur",
       "apps/web/src/styles/tailwind.css :: mask utilities",
     ],
   },
@@ -77,7 +77,7 @@ export const cursorNativeGalleryExtensions = [
     note: "Composer pending row: prompt-attachment flex strip + composer-image-thumbnail chips (see glass-attachment-styles).",
     files: [
       "apps/web/src/lib/glass-attachment-styles.ts",
-      "apps/web/src/components/glass/composer/chat.tsx :: AttachmentStrip",
+      "apps/web/src/components/shell/composer/chat.tsx :: AttachmentStrip",
     ],
   },
   {

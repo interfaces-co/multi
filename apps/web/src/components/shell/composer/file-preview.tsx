@@ -1,14 +1,14 @@
 /**
- * @mention side preview — `ui-mention-menu-side-preview--glass` layout reference.
+ * @mention side preview — `ui-mention-menu-side-preview--chrome` layout reference.
  *   header (path)   12px/16px  primary  truncate
  *   image           contain  radius-sm(4px)  border-tertiary
  *   text            mono  11px/14px  tertiary
  */
-import type { ShellFileHit, ShellFilePreview } from "~/lib/glass-types";
+import type { ShellFileHit, ShellFilePreview } from "~/lib/ui-session-types";
 import { memo } from "react";
 import { ScrollArea } from "~/components/ui/scroll-area";
 
-export const GlassComposerFilePreview = memo(function GlassComposerFilePreview(props: {
+export const ComposerFilePreview = memo(function ComposerFilePreview(props: {
   item: ShellFileHit | null;
   preview: ShellFilePreview | null;
 }) {
@@ -24,7 +24,7 @@ export const GlassComposerFilePreview = memo(function GlassComposerFilePreview(p
         </div>
         <img
           alt={props.item.name}
-          className="min-h-0 flex-1 rounded-sm border border-glass-border/30 bg-black/10 object-contain"
+          className="min-h-0 flex-1 rounded-sm border border-chrome-border/30 bg-black/10 object-contain"
           src={`data:${props.preview.mimeType ?? "image/png"};base64,${props.preview.data}`}
         />
       </div>
@@ -36,9 +36,9 @@ export const GlassComposerFilePreview = memo(function GlassComposerFilePreview(p
       <div className="mb-1.5 truncate px-1 text-[11px] leading-[14px] text-foreground/70">
         {props.item.path}
       </div>
-      <div className="min-h-0 flex-1 overflow-hidden rounded-sm border border-glass-border/30 bg-glass-hover/8">
+      <div className="min-h-0 flex-1 overflow-hidden rounded-sm border border-chrome-border/30 bg-chrome-hover/8">
         <ScrollArea className="h-full">
-          <pre className="font-glass-mono p-2 text-[11px] leading-[14px] whitespace-pre-wrap text-foreground/72">
+          <pre className="font-chrome-mono p-2 text-[11px] leading-[14px] whitespace-pre-wrap text-foreground/72">
             {props.preview.text || "Binary file"}
             {props.preview.truncated ? "\n\n[truncated]" : ""}
           </pre>

@@ -2,7 +2,7 @@ import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { parseCliArgs } from "@t3tools/shared/cliArgs";
+import { parseCliArgs } from "@multi/shared/cliArgs";
 
 export const releasePackageFiles = [
   "apps/server/package.json",

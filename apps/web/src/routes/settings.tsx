@@ -27,7 +27,7 @@ function SettingsContentLayout() {
   }, []);
 
   return (
-    <div className="glass-settings-page flex min-h-0 min-w-0 flex-1 flex-col bg-transparent text-foreground">
+    <div className="settings-form-page flex min-h-0 min-w-0 flex-1 flex-col bg-transparent text-foreground">
       <header className="border-b border-border px-3 py-2 sm:px-5">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-foreground">Settings</span>

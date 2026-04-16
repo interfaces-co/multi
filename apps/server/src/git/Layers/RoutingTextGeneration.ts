@@ -24,11 +24,11 @@ import { ClaudeTextGenerationLive } from "./ClaudeTextGeneration.ts";
 // ---------------------------------------------------------------------------
 
 class CodexTextGen extends Context.Service<CodexTextGen, TextGenerationShape>()(
-  "t3/git/Layers/RoutingTextGeneration/CodexTextGen",
+  "multi/git/Layers/RoutingTextGeneration/CodexTextGen",
 ) {}
 
 class ClaudeTextGen extends Context.Service<ClaudeTextGen, TextGenerationShape>()(
-  "t3/git/Layers/RoutingTextGeneration/ClaudeTextGen",
+  "multi/git/Layers/RoutingTextGeneration/ClaudeTextGen",
 ) {}
 
 // ---------------------------------------------------------------------------

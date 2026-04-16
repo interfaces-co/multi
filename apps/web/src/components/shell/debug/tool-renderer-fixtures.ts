@@ -1,9 +1,9 @@
-import type { GlassToolCallBlock } from "~/lib/glass-types";
+import type { UiToolCallBlock } from "~/lib/ui-session-types";
 
 import type { ToolData } from "~/lib/tool-renderers";
 import { TOOL_RENDERER_KEYS } from "~/lib/tool-renderers";
 
-function call(name: string, args: Record<string, unknown>): GlassToolCallBlock {
+function call(name: string, args: Record<string, unknown>): UiToolCallBlock {
   return { type: "toolCall", name, arguments: args };
 }
 
@@ -29,13 +29,13 @@ const bashCall = call("bash", { command: "pnpm run fmt", timeout: 120 });
 const grepCall = call("grep", { pattern: "toolBody", path: "apps/web/src/lib" });
 const grepResult = "apps/web/src/lib/tool-renderers.tsx:52:export function toolBody";
 
-const findCall = call("find", { glob: "*.tsx", query: "GlassChat" });
-const findResult = "apps/web/src/components/glass/chat/messages.tsx";
+const findCall = call("find", { glob: "*.tsx", query: "ChatComposer" });
+const findResult = "apps/web/src/components/shell/chat/messages.tsx";
 
 const askCall = call("ask", { prompt: "continue?" });
 const askResult = "User chose: proceed with migration.";
 
-const lsCall = call("ls", { path: "apps/web/src/components/glass/debug" });
+const lsCall = call("ls", { path: "apps/web/src/components/shell/debug" });
 const lsResult =
   "cursor-composer-intents-feed.tsx\ncursor-native-previews.tsx\ndebug-gallery-page.tsx";
 
@@ -183,7 +183,7 @@ export const toolRendererFixturePairs: ReadonlyArray<{
       name: "find",
       call: findCall,
       args: JSON.stringify(findCall.arguments),
-      result: `${findResult}\napps/web/src/components/glass/chat/rows.tsx`,
+      result: `${findResult}\napps/web/src/components/shell/chat/rows.tsx`,
       error: false,
       details: { truncation: true, resultLimitReached: 200 },
       expanded: true,

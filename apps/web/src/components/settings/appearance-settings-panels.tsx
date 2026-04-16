@@ -3,11 +3,11 @@ import { useMemo, useState, type ReactNode } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { toast } from "sonner";
 
-import { useGlassAppearance } from "../../hooks/use-glass-appearance";
+import { useAppearanceSettings } from "../../hooks/use-appearance-settings";
 import { useRuntimeDefaults } from "../../hooks/use-runtime-models";
 import { useShellState } from "../../hooks/use-shell-cwd";
 import { useTheme } from "../../hooks/use-theme";
-import { readGlassEnvironmentApi, readNativeApi } from "../../native-api";
+import { readNativeEnvironmentApi, readNativeApi } from "../../native-api";
 import {
   clearRuntimeDefaultModel,
   writeRuntimeDefaultFastMode,
@@ -16,7 +16,7 @@ import {
 } from "../../lib/runtime-models";
 import {
   type ColorPaletteId,
-  resetGlassAppearance,
+  resetAppearanceSettings,
   setCodeFontFamily,
   setCodeFontSize,
   setColorPalette,
@@ -26,8 +26,8 @@ import {
   setUiFontFamily,
   setUiFontSize,
   setWindowTransparency,
-} from "../../lib/glass-appearance";
-import { pickWorkspace } from "../../lib/glass-workspace";
+} from "../../lib/appearance-settings";
+import { pickWorkspace } from "../../lib/workspace-routing";
 import { setDefaultHarness, setHarnessEnabled, useHarnessList } from "../../lib/harness-store";
 import { cn } from "../../lib/utils";
 import { useServerProviders } from "../../rpc/server-state";
@@ -38,29 +38,29 @@ import {
 } from "../../store";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
-import { GlassSelect } from "~/components/ui/select";
+import { SimpleSelect } from "~/components/ui/select";
 import { Switch } from "~/components/ui/switch";
-import { GlassOpenPicker } from "../glass/pickers/open";
-import { GlassTintPopover } from "../glass/shared/tint-popover";
-import { GlassModelPicker } from "../glass/pickers/model";
+import { OpenPicker } from "../shell/pickers/open";
+import { TintPopover } from "../shell/shared/tint-popover";
+import { ModelPicker } from "../shell/pickers/model";
 
 const levels = ["off", "minimal", "low", "medium", "high", "xhigh"] as const;
 const APPEARANCE_KEYS = [
-  "glass:color-preset",
-  "glass:reduce-transparency",
-  "glass:window-transparency",
-  "glass:accent-hue",
-  "glass:accent-saturation",
-  "glass:ui-font-size",
-  "glass:code-font-size",
-  "glass:ui-font",
-  "glass:mono-font",
+  "multi:color-preset",
+  "multi:reduce-transparency",
+  "multi:window-transparency",
+  "multi:accent-hue",
+  "multi:accent-saturation",
+  "multi:ui-font-size",
+  "multi:code-font-size",
+  "multi:ui-font",
+  "multi:mono-font",
 ];
 
 function SettingsSection(props: { label: string; children: ReactNode }) {
   return (
     <div className="mt-8 first:mt-0">
-      <div data-glass-settings-section className="mb-2 font-medium text-muted-foreground">
+      <div data-settings-settings-section className="mb-2 font-medium text-muted-foreground">
         {props.label}
       </div>
       <div className="divide-y divide-border/70 border-border/70 border-b">{props.children}</div>
@@ -78,10 +78,10 @@ function SettingsRow(props: {
   return (
     <div className="flex min-h-14 flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
       <div className="min-w-0 flex-1">
-        <div data-glass-settings-label className="font-medium text-foreground">
+        <div data-settings-settings-label className="font-medium text-foreground">
           {props.label}
         </div>
-        <div data-glass-settings-description className="mt-0.5 text-muted-foreground">
+        <div data-settings-settings-description className="mt-0.5 text-muted-foreground">
           {props.description}
         </div>
       </div>
@@ -146,12 +146,12 @@ function ToneSlider(props: {
         />
         <div
           aria-hidden
-          className="absolute inset-x-0 top-1/2 h-[18px] -translate-y-1/2 rounded-full border border-glass-stroke/60"
+          className="absolute inset-x-0 top-1/2 h-[18px] -translate-y-1/2 rounded-full border border-chrome-stroke/60"
           style={{ background: props.track }}
         />
         <div
           aria-hidden
-          className="absolute top-1/2 h-[18px] w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-glass-border/60 bg-background shadow-[0_4px_14px_rgb(0_0_0/0.14)]"
+          className="absolute top-1/2 h-[18px] w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-chrome-border/60 bg-background shadow-[0_4px_14px_rgb(0_0_0/0.14)]"
           style={{ left: `${left}%` }}
         />
         <input
@@ -176,20 +176,20 @@ function ToneSlider(props: {
 
 export function AppearanceSettingsPanel() {
   const theme = useTheme();
-  const g = useGlassAppearance();
-  const tintOff = g.palette !== "glass";
+  const g = useAppearanceSettings();
+  const tintOff = g.palette !== "multi";
 
   return (
-    <div className="glass-settings-page mx-auto w-full max-w-2xl px-1 py-2">
+    <div className="settings-form-page mx-auto w-full max-w-2xl px-1 py-2">
       <h1 className="font-semibold tracking-tight text-foreground">Appearance</h1>
-      <p className="mt-1 text-muted-foreground">Keep the Glass look, tune the atmosphere.</p>
+      <p className="mt-1 text-muted-foreground">Keep the Multi look, tune the atmosphere.</p>
 
       <SettingsSection label="Theme">
         <SettingsRow
           label="Appearance mode"
           description="Match the system theme, or lock the app to light or dark."
           control={
-            <GlassSelect
+            <SimpleSelect
               value={theme.theme}
               onValueChange={(v) => theme.setTheme(v as "system" | "light" | "dark")}
               options={[
@@ -202,13 +202,13 @@ export function AppearanceSettingsPanel() {
         />
         <SettingsRow
           label="Color palette"
-          description="Stay on Glass or swap to Pierre while keeping the same layout."
+          description="Stay on Multi or swap to Pierre while keeping the same layout."
           control={
-            <GlassSelect
+            <SimpleSelect
               value={g.palette}
               onValueChange={(v) => setColorPalette(v as ColorPaletteId)}
               options={[
-                { value: "glass", label: "Glass" },
+                { value: "multi", label: "Multi" },
                 { value: "pierre", label: "Pierre" },
               ]}
             />
@@ -225,7 +225,7 @@ export function AppearanceSettingsPanel() {
               label="Window transparency"
               min={0}
               max={100}
-              track="linear-gradient(90deg, color-mix(in srgb, var(--glass-base-surface) 96%, var(--background)), color-mix(in srgb, var(--glass-base-surface) 54%, transparent))"
+              track="linear-gradient(90deg, color-mix(in srgb, var(--chrome-base-surface) 96%, var(--background)), color-mix(in srgb, var(--chrome-base-surface) 54%, transparent))"
               value={g.transparency}
               onChange={setWindowTransparency}
             />
@@ -235,11 +235,11 @@ export function AppearanceSettingsPanel() {
           label="Hue and saturation"
           description={
             tintOff
-              ? "Available again when the Glass palette is active."
+              ? "Available again when the Multi palette is active."
               : "Shift the tint without changing the full UI system."
           }
           control={
-            <GlassTintPopover
+            <TintPopover
               disabled={tintOff}
               hue={g.hue}
               saturation={g.saturation}
@@ -320,7 +320,7 @@ export function AgentsSettingsPanel() {
   };
 
   return (
-    <div className="glass-settings-page mx-auto w-full max-w-2xl px-1 py-2">
+    <div className="settings-form-page mx-auto w-full max-w-2xl px-1 py-2">
       <h1 className="font-semibold tracking-tight text-foreground">Agents</h1>
       <p className="mt-1 text-muted-foreground">
         Turn providers on or off, set which harness new chats use, then pick the default model for
@@ -330,7 +330,7 @@ export function AgentsSettingsPanel() {
       <SettingsSection label="Workspace">
         <SettingsRow
           label="Current workspace"
-          description="Pick the project Glass should treat as the active default surface."
+          description="Pick the project Multi should treat as the active default surface."
           control={
             <span className="max-w-xs truncate text-right text-body">
               {shell.cwd ?? "No workspace selected"}
@@ -339,7 +339,7 @@ export function AgentsSettingsPanel() {
         />
         <SettingsRow
           label="Workspace actions"
-          description="Add a workspace to Glass or open it in your editor."
+          description="Add a workspace to Multi or open it in your editor."
           controlWide
           control={
             <div className="flex flex-wrap items-center gap-2">
@@ -351,7 +351,7 @@ export function AgentsSettingsPanel() {
               >
                 Choose workspace
               </Button>
-              <GlassOpenPicker variant="settings" />
+              <OpenPicker variant="settings" />
             </div>
           }
         />
@@ -391,7 +391,7 @@ export function AgentsSettingsPanel() {
           description="Default model for new chats in this project (for the harness marked default above)."
           controlWide
           control={
-            <GlassModelPicker
+            <ModelPicker
               items={defaults.items}
               loading={defaults.loading}
               status={defaults.status}
@@ -421,9 +421,9 @@ export function AgentsSettingsPanel() {
         />
         <SettingsRow
           label="Default thinking"
-          description="Maps the Glass thinking control onto provider model options."
+          description="Maps the Multi thinking control onto provider model options."
           control={
-            <GlassSelect
+            <SimpleSelect
               value={defaults.thinkingLevel}
               onValueChange={(v) =>
                 void writeRuntimeDefaultThinkingLevel(v as (typeof levels)[number]).catch((error) =>
@@ -478,7 +478,7 @@ export function ArchivedThreadsPanel() {
   }, [all, projects]);
 
   return (
-    <div className="glass-settings-page mx-auto w-full max-w-2xl px-1 py-2">
+    <div className="settings-form-page mx-auto w-full max-w-2xl px-1 py-2">
       <h1 className="font-semibold tracking-tight text-foreground">Archived chats</h1>
       {groups.length === 0 ? (
         <SettingsSection label="Archived chats">
@@ -498,13 +498,13 @@ export function ArchivedThreadsPanel() {
                     size="sm"
                     variant="outline"
                     onClick={() => {
-                      const orchestration = readGlassEnvironmentApi(
+                      const orchestration = readNativeEnvironmentApi(
                         thread.environmentId,
                       )?.orchestration;
                       if (!orchestration) return;
                       void orchestration.dispatchCommand({
                         type: "thread.unarchive",
-                        commandId: crypto.randomUUID() as import("@t3tools/contracts").CommandId,
+                        commandId: crypto.randomUUID() as import("@multi/contracts").CommandId,
                         threadId: thread.id,
                       });
                     }}
@@ -536,7 +536,7 @@ export function useSettingsRestore(onRestore?: () => void) {
   return {
     changedSettingLabels,
     restoreDefaults: async () => {
-      resetGlassAppearance();
+      resetAppearanceSettings();
       await clearRuntimeDefaultModel();
       onRestore?.();
     },

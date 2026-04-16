@@ -1,16 +1,16 @@
 // @ts-nocheck
-import type { ModelSelection, ServerConfig } from "@t3tools/contracts";
+import type { ModelSelection, ServerConfig } from "@multi/contracts";
 import type {
-  GlassSessionActiveEvent,
-  GlassSessionItem,
-  GlassSessionSnapshot,
-  GlassSessionSummary,
-  GlassWorkingState,
-  GlassWorkingUpdate,
+  UiSessionActiveEvent,
+  UiSessionItem,
+  UiSessionSnapshot,
+  SessionListSummary,
+  UiWorkingState,
+  UiWorkingUpdate,
   HarnessKind,
   HarnessModelRef,
   ThinkingLevel,
-} from "~/lib/glass-types";
+} from "~/lib/ui-session-types";
 import { create } from "zustand";
 
 import { readNativeApi } from "../native-api";
@@ -30,19 +30,19 @@ type State = {
   cfgStatus: ThreadBootStatus;
   cfgError: string | null;
   ids: string[];
-  sums: Record<string, GlassSessionSummary>;
+  sums: Record<string, SessionListSummary>;
   sumsStatus: ThreadBootStatus;
   sumsError: string | null;
-  snaps: Record<string, GlassSessionSnapshot>;
-  work: Record<string, GlassWorkingState>;
+  snaps: Record<string, UiSessionSnapshot>;
+  work: Record<string, UiWorkingState>;
   ready: boolean;
   boot: () => Promise<void>;
   refreshCfg: () => Promise<void>;
   refreshSums: () => Promise<void>;
-  putSnap: (snap: GlassSessionSnapshot) => void;
-  syncWork: (items: ReadonlyArray<GlassWorkingState>) => void;
-  putWork: (item: GlassWorkingUpdate) => void;
-  applyActs: (_events: GlassSessionActiveEvent[]) => void;
+  putSnap: (snap: UiSessionSnapshot) => void;
+  syncWork: (items: ReadonlyArray<UiWorkingState>) => void;
+  putWork: (item: UiWorkingUpdate) => void;
+  applyActs: (_events: UiSessionActiveEvent[]) => void;
   syncDomain: () => void;
 };
 
@@ -114,7 +114,7 @@ function attachText(
   return text.length > 0 ? `${text}\n\n${suffix}` : suffix;
 }
 
-function toMsg(item: Thread["messages"][number]): GlassSessionItem {
+function toMsg(item: Thread["messages"][number]): UiSessionItem {
   if (item.role === "user") {
     return {
       id: item.id,
@@ -183,7 +183,7 @@ function summaryPreview(thread: Thread) {
 
 const summarySearch = (thread: Thread) => thread.messages.map((item) => item.text).join("\n\n");
 
-function toSummary(thread: Thread, project: Project | undefined): GlassSessionSummary {
+function toSummary(thread: Thread, project: Project | undefined): SessionListSummary {
   return {
     id: thread.id,
     harness: toHarness(thread.session?.provider ?? thread.modelSelection.provider),
@@ -202,8 +202,8 @@ function toSummary(thread: Thread, project: Project | undefined): GlassSessionSu
 function toSnapshot(
   thread: Thread,
   project: Project | undefined,
-  work: GlassWorkingState | null | undefined,
-): GlassSessionSnapshot {
+  work: UiWorkingState | null | undefined,
+): UiSessionSnapshot {
   return {
     id: thread.id,
     harness: toHarness(thread.session?.provider ?? thread.modelSelection.provider),
@@ -220,7 +220,7 @@ function toSnapshot(
   };
 }
 
-function rank(sums: Record<string, GlassSessionSummary>) {
+function rank(sums: Record<string, SessionListSummary>) {
   return Object.values(sums)
     .toSorted((left, right) =>
       left.modifiedAt < right.modifiedAt ? 1 : left.modifiedAt > right.modifiedAt ? -1 : 0,
@@ -228,20 +228,20 @@ function rank(sums: Record<string, GlassSessionSummary>) {
     .map((item) => item.id);
 }
 
-function domainState(work: Record<string, GlassWorkingState>) {
+function domainState(work: Record<string, UiWorkingState>) {
   const state = useStore.getState();
   const projects = selectProjectsAcrossEnvironments(state);
   const projectById = new Map(projects.map((item) => [item.id, item]));
   const threads = selectThreadsAcrossEnvironments(state).filter((item) => item.archivedAt === null);
   const sums = Object.fromEntries(
     threads.map((item) => [item.id, toSummary(item, projectById.get(item.projectId))]),
-  ) as Record<string, GlassSessionSummary>;
+  ) as Record<string, SessionListSummary>;
   const snaps = Object.fromEntries(
     threads.map((item) => [
       item.id,
       toSnapshot(item, projectById.get(item.projectId), work[item.id]),
     ]),
-  ) as Record<string, GlassSessionSnapshot>;
+  ) as Record<string, UiSessionSnapshot>;
   return { sums, snaps, ids: rank(sums) };
 }
 
@@ -325,7 +325,7 @@ export const useThreadSessionStore = create<State>()((set) => ({
     set((state) => {
       const work = Object.fromEntries(items.map((item) => [item.threadId, item])) as Record<
         string,
-        GlassWorkingState
+        UiWorkingState
       >;
       const snaps = Object.fromEntries(
         Object.entries(state.snaps).map(([id, snap]) => [
@@ -335,7 +335,7 @@ export const useThreadSessionStore = create<State>()((set) => ({
             working: work[id] ?? null,
           },
         ]),
-      ) as Record<string, GlassSessionSnapshot>;
+      ) as Record<string, UiSessionSnapshot>;
       return { ...state, work, snaps };
     });
   },

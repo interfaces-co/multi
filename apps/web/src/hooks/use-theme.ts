@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 
-import { applyColorPalette } from "../lib/glass-appearance";
+import { applyColorPalette } from "../lib/appearance-settings";
 
 type Theme = "light" | "dark" | "system";
 type ThemeSnapshot = {
@@ -8,7 +8,7 @@ type ThemeSnapshot = {
   systemDark: boolean;
 };
 
-const STORAGE_KEY = "glass:theme";
+const STORAGE_KEY = "multi:theme";
 const MEDIA_QUERY = "(prefers-color-scheme: dark)";
 
 let listeners: Array<() => void> = [];
@@ -21,6 +21,12 @@ function emitChange() {
 function readStoredTheme(): Theme {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (raw === "light" || raw === "dark" || raw === "system") return raw;
+  const legacy = localStorage.getItem("glass:theme");
+  if (legacy === "light" || legacy === "dark" || legacy === "system") {
+    localStorage.setItem(STORAGE_KEY, legacy);
+    localStorage.removeItem("glass:theme");
+    return legacy;
+  }
   return "system";
 }
 

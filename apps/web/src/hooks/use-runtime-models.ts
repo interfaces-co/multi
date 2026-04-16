@@ -1,6 +1,6 @@
 // @ts-nocheck
-import type { ModelSelection } from "@t3tools/contracts";
-import type { HarnessModelRef, ThinkingLevel } from "~/lib/glass-types";
+import type { ModelSelection } from "@multi/contracts";
+import type { HarnessModelRef, ThinkingLevel } from "~/lib/ui-session-types";
 import { useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 

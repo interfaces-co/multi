@@ -1,11 +1,11 @@
 import { useSyncExternalStore } from "react";
 
-import { readGlassAppearanceSnapshot, subscribeGlassAppearance } from "../lib/glass-appearance";
+import { readAppearanceSnapshot, subscribeAppearanceSettings } from "../lib/appearance-settings";
 
-export function useGlassAppearance() {
+export function useAppearanceSettings() {
   return useSyncExternalStore(
-    subscribeGlassAppearance,
-    readGlassAppearanceSnapshot,
-    readGlassAppearanceSnapshot,
+    subscribeAppearanceSettings,
+    readAppearanceSnapshot,
+    readAppearanceSnapshot,
   );
 }

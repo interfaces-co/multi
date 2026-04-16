@@ -12,19 +12,19 @@ import {
 } from "~/lib/thread-session-store";
 import { selectBootstrapCompleteForActiveEnvironment, useStore } from "~/store";
 import { createThreadSelectorAcrossEnvironments } from "~/storeSelectors";
-import { GlassAskTool } from "./ask-tool";
-import { GlassHeroComposerFooter } from "./hero-composer-footer";
-import { GlassChatComposer, type GlassChatComposerHandle } from "~/components/glass/composer/chat";
-import { GlassHeroStage } from "./hero-stage";
-import { GlassChatMessages } from "./messages";
-import { GlassProviderNoticeBanner } from "~/components/glass/provider/notice-banner";
-import { GlassShell } from "~/components/glass/shell/root";
-import { useRuntimeSession } from "~/components/glass/session/runtime";
+import { AskTool } from "./ask-tool";
+import { HeroComposerFooter } from "./hero-composer-footer";
+import { ChatComposer, type ChatComposerHandle } from "~/components/shell/composer/chat";
+import { HeroStage } from "./hero-stage";
+import { ChatMessages } from "./messages";
+import { ProviderNoticeBanner } from "~/components/shell/provider/notice-banner";
+import { RootShell } from "~/components/shell/shell/root";
+import { useRuntimeSession } from "~/components/shell/session/runtime";
 import { deriveWorkLogEntries } from "~/lib/work-log";
-import { clearSlash, draftSlash, slashPrefix } from "~/components/glass/composer/search";
+import { clearSlash, draftSlash, slashPrefix } from "~/components/shell/composer/search";
 import { Skeleton } from "~/components/ui/skeleton";
 
-export function GlassChatSession(props: { sessionId: string }) {
+export function ThreadChatSession(props: { sessionId: string }) {
   const reduce = useReducedMotion();
   const sum = useThreadSummary(props.sessionId);
   const snap = useThreadSessionStore((state) => state.snaps[props.sessionId]);
@@ -52,8 +52,8 @@ export function GlassChatSession(props: { sessionId: string }) {
       className="flex min-h-0 min-w-0 flex-1 flex-col"
       style={{ willChange: "opacity" }}
     >
-      <GlassShell>
-        <GlassProviderNoticeBanner
+      <RootShell>
+        <ProviderNoticeBanner
           sessionId={props.sessionId}
           provider={provider}
           activities={thread?.activities ?? []}
@@ -65,7 +65,7 @@ export function GlassChatSession(props: { sessionId: string }) {
         ) : (
           <DockSession sessionId={props.sessionId} />
         )}
-      </GlassShell>
+      </RootShell>
     </motion.div>
   );
 }
@@ -74,11 +74,11 @@ function BootView() {
   return (
     <div className="mx-auto flex min-h-0 w-full max-w-[43.875rem] flex-1 flex-col gap-6 px-4 py-4 md:px-8 md:py-6">
       <div className="flex flex-1 flex-col gap-4 pt-4">
-        <Skeleton className="h-18 w-[78%] rounded-glass-card bg-muted/24" />
-        <Skeleton className="h-28 w-[90%] rounded-glass-card bg-muted/18" />
-        <Skeleton className="h-22 w-[72%] rounded-glass-card bg-muted/16" />
+        <Skeleton className="h-18 w-[78%] rounded-chrome-card bg-muted/24" />
+        <Skeleton className="h-28 w-[90%] rounded-chrome-card bg-muted/18" />
+        <Skeleton className="h-22 w-[72%] rounded-chrome-card bg-muted/16" />
       </div>
-      <div className="shrink-0 rounded-[1.75rem] border border-white/8 bg-black/10 p-3 shadow-glass-card backdrop-blur-xl">
+      <div className="shrink-0 rounded-[1.75rem] border border-white/8 bg-black/10 p-3 shadow-chrome-card backdrop-blur-xl">
         <Skeleton className="h-28 w-full rounded-[1.25rem] bg-muted/18" />
       </div>
     </div>
@@ -96,7 +96,7 @@ function HeroSession(props: { sessionId: string }) {
   const kind = sum?.harness ?? snap?.harness ?? "codex";
   const harnessDescriptor = useHarnessDescriptor(kind);
   const session = useRuntimeSession(props.sessionId, kind);
-  const composerRef = useRef<GlassChatComposerHandle>(null);
+  const composerRef = useRef<ChatComposerHandle>(null);
   const prevSession = useRef(props.sessionId);
 
   const clearPlan = useCallback((value: string) => {
@@ -157,17 +157,17 @@ function HeroSession(props: { sessionId: string }) {
   }, [props.sessionId]);
 
   return (
-    <GlassHeroStage
+    <HeroStage
       scene={props.sessionId}
       footer={
-        <GlassHeroComposerFooter
+        <HeroComposerFooter
           onPlanMode={activatePlan}
           planActive={thread?.interactionMode === "plan"}
         />
       }
     >
       <div className="relative w-full">
-        <GlassChatComposer
+        <ChatComposer
           ref={composerRef}
           sessionId={props.sessionId}
           draft={draft}
@@ -191,10 +191,10 @@ function HeroSession(props: { sessionId: string }) {
           harnessDescriptor={harnessDescriptor}
         />
         <AnimatePresence>
-          {session.ask ? <GlassAskTool state={session.ask} onReply={session.answerAsk} /> : null}
+          {session.ask ? <AskTool state={session.ask} onReply={session.answerAsk} /> : null}
         </AnimatePresence>
       </div>
-    </GlassHeroStage>
+    </HeroStage>
   );
 }
 
@@ -215,7 +215,7 @@ function DockSession(props: { sessionId: string }) {
     [thread],
   );
   const plans = useMemo(() => thread?.proposedPlans ?? [], [thread]);
-  const composerRef = useRef<GlassChatComposerHandle>(null);
+  const composerRef = useRef<ChatComposerHandle>(null);
 
   const clearPlan = useCallback((value: string) => {
     const hit = draftSlash(value);
@@ -271,7 +271,7 @@ function DockSession(props: { sessionId: string }) {
 
   return (
     <>
-      <GlassChatMessages
+      <ChatMessages
         items={session.messages}
         work={session.work}
         workLog={workLog}
@@ -282,7 +282,7 @@ function DockSession(props: { sessionId: string }) {
         expanded={expanded}
       />
       <div className="relative">
-        <GlassChatComposer
+        <ChatComposer
           ref={composerRef}
           sessionId={props.sessionId}
           draft={draft}
@@ -306,7 +306,7 @@ function DockSession(props: { sessionId: string }) {
           harnessDescriptor={harnessDescriptor}
         />
         <AnimatePresence>
-          {session.ask ? <GlassAskTool state={session.ask} onReply={session.answerAsk} /> : null}
+          {session.ask ? <AskTool state={session.ask} onReply={session.answerAsk} /> : null}
         </AnimatePresence>
       </div>
     </>

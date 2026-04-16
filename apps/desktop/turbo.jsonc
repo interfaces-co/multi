@@ -7,17 +7,17 @@
       "outputs": ["dist-electron/**"],
     },
     "dev": {
-      "dependsOn": ["t3#build"],
+      "dependsOn": ["usemulti#build"],
       "persistent": true,
-      "with": ["@t3tools/web#dev"],
+      "with": ["@multi/web#dev"],
     },
     "start": {
-      "dependsOn": ["build", "@t3tools/web#build", "t3#build"],
+      "dependsOn": ["build", "@multi/web#build", "usemulti#build"],
       "cache": false,
       "persistent": true,
     },
     "smoke-test": {
-      "dependsOn": ["build", "@t3tools/web#build", "t3#build"],
+      "dependsOn": ["build", "@multi/web#build", "usemulti#build"],
       "cache": false,
       "outputs": [],
     },

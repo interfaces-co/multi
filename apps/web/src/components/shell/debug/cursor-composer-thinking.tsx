@@ -61,8 +61,8 @@ export function CursorComposerThinkingSection() {
     <div className="flex flex-col gap-2">
       <p className="cursor-composer-activity-log">
         <span className="cursor-composer-activity-log__verb">Grepped</span>
-        <span className="font-glass-mono text-[11px] text-muted-foreground/90">
-          toolBody|Collapsible in apps/web/src/components/glass/chat/rows.tsx
+        <span className="font-chrome-mono text-[11px] text-muted-foreground/90">
+          toolBody|Collapsible in apps/web/src/components/shell/chat/rows.tsx
         </span>
       </p>
       <p className="cursor-composer-activity-log">
@@ -71,7 +71,7 @@ export function CursorComposerThinkingSection() {
       </p>
       <p className="cursor-composer-activity-log">
         <span className="cursor-composer-activity-log__verb">Read</span>
-        <span className="font-glass-mono text-[11px] text-muted-foreground/90">
+        <span className="font-chrome-mono text-[11px] text-muted-foreground/90">
           runtime.ts L1–60
         </span>
       </p>
@@ -145,7 +145,7 @@ export function CursorComposerThinkingSection() {
                           Shimmer on the header simulates an in-flight reasoning pass (~3.4s demo).
                         </li>
                         <li>
-                          <code className="font-glass-mono text-[12px]">mask-image</code> on the
+                          <code className="font-chrome-mono text-[12px]">mask-image</code> on the
                           fade keeps the blur from eating the full width harshly.
                         </li>
                       </ul>

@@ -39,7 +39,7 @@ const removeLocalStorageItem = (key: string) => {
   isomorphicLocalStorage.removeItem(key);
 };
 
-const LOCAL_STORAGE_CHANGE_EVENT = "glass:local_storage_change";
+const LOCAL_STORAGE_CHANGE_EVENT = "multi:local_storage_change";
 
 interface LocalStorageChangeDetail {
   key: string;

@@ -2,7 +2,7 @@
 import { useMemo, useSyncExternalStore } from "react";
 import { useShallow } from "zustand/react/shallow";
 
-import { GLASS_SHELL_CHANGED_EVENT } from "../lib/glass-runtime-constants";
+import { SHELL_LAYOUT_CHANGED_EVENT } from "../lib/shell-runtime-constants";
 import { useServerAvailableEditors } from "../rpc/server-state";
 import {
   selectProjectsAcrossEnvironments,
@@ -11,7 +11,7 @@ import {
 } from "../store";
 import { useRouteThreadId } from "./use-route-thread-id";
 
-const WORKSPACE_KEY = "glass:workspace-cwd";
+const WORKSPACE_KEY = "multi:workspace-cwd";
 
 function readStoredCwd() {
   if (typeof window === "undefined") return null;
@@ -27,9 +27,9 @@ function basename(cwd: string | null) {
 }
 
 function subscribe(listener: () => void) {
-  window.addEventListener(GLASS_SHELL_CHANGED_EVENT, listener);
+  window.addEventListener(SHELL_LAYOUT_CHANGED_EVENT, listener);
   return () => {
-    window.removeEventListener(GLASS_SHELL_CHANGED_EVENT, listener);
+    window.removeEventListener(SHELL_LAYOUT_CHANGED_EVENT, listener);
   };
 }
 

@@ -22,7 +22,7 @@ const items: {
   { to: "/settings/archived", label: "Archived", icon: IconArchive },
 ];
 
-export function GlassSettingsNavRail(props: { onRestoreTick?: () => void }) {
+export function SettingsNavRail(props: { onRestoreTick?: () => void }) {
   const { changedSettingLabels, restoreDefaults } = useSettingsRestore(props.onRestoreTick);
 
   return (
@@ -36,15 +36,15 @@ export function GlassSettingsNavRail(props: { onRestoreTick?: () => void }) {
               to={item.to}
               activeProps={{
                 className: cn(
-                  "font-glass glass-sidebar-label flex min-h-7.5 min-w-0 w-full items-center justify-start gap-2 rounded-glass-control border border-transparent px-2 py-1 text-body/[18px] transition-colors",
-                  "border-glass-border/90 bg-glass-active text-foreground",
+                  "font-chrome sidebar-label-track flex min-h-7.5 min-w-0 w-full items-center justify-start gap-2 rounded-chrome-control border border-transparent px-2 py-1 text-body/[18px] transition-colors",
+                  "border-chrome-border/90 bg-chrome-active text-foreground",
                 ),
                 "aria-current": "page",
               }}
               inactiveProps={{
                 className: cn(
-                  "font-glass glass-sidebar-label flex min-h-7.5 min-w-0 w-full items-center justify-start gap-2 rounded-glass-control border border-transparent px-2 py-1 text-body/[18px] transition-colors",
-                  "text-muted-foreground hover:bg-glass-hover hover:text-foreground",
+                  "font-chrome sidebar-label-track flex min-h-7.5 min-w-0 w-full items-center justify-start gap-2 rounded-chrome-control border border-transparent px-2 py-1 text-body/[18px] transition-colors",
+                  "text-muted-foreground hover:bg-chrome-hover hover:text-foreground",
                 ),
               }}
             >
@@ -54,7 +54,7 @@ export function GlassSettingsNavRail(props: { onRestoreTick?: () => void }) {
           );
         })}
       </nav>
-      <div className="shrink-0 border-t border-glass-border/40 pt-2">
+      <div className="shrink-0 border-t border-chrome-border/40 pt-2">
         <Button
           type="button"
           size="xs"

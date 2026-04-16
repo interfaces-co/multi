@@ -16,7 +16,7 @@ type State = {
   oauth: () => Promise<void>;
 };
 
-export const useGlassProviderAuthStore = create<State>()((set, get) => ({
+export const useProviderAuthStore = create<State>()((set, get) => ({
   req: null,
   open: (req) => {
     set({ req });

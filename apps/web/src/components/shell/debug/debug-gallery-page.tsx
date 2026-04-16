@@ -1,20 +1,20 @@
-import { CursorComposerIntentsFeed } from "~/components/glass/debug/cursor-composer-intents-feed";
-import { CursorNativeStyle } from "~/components/glass/debug/cursor-native-previews";
+import { CursorComposerIntentsFeed } from "~/components/shell/debug/cursor-composer-intents-feed";
+import { CursorNativeStyle } from "~/components/shell/debug/cursor-native-previews";
 
 export function DebugGalleryPage() {
   return (
     <div className="flex h-full min-h-0 w-full flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-gutter:stable]">
       <CursorNativeStyle />
       <main
-        className="agent-panel mx-auto flex min-h-0 w-full max-w-full flex-1 flex-col bg-[var(--glass-chat-surface-background)] outline-hidden"
+        className="agent-panel mx-auto flex min-h-0 w-full max-w-full flex-1 flex-col bg-[var(--chrome-chat-surface-background)] outline-hidden"
         data-component="agent-panel"
       >
         <div
           aria-hidden
-          className="pointer-events-none h-(--glass-header-height) shrink-0 select-none"
+          className="pointer-events-none h-(--chrome-header-height) shrink-0 select-none"
         />
         <div className="mx-auto flex min-h-0 w-full max-w-[43.875rem] shrink-0 flex-col px-4 py-6 md:px-8">
-          <header className="mb-6 space-y-1 font-glass">
+          <header className="mb-6 space-y-1 font-chrome">
             <p className="text-caption font-medium tracking-wide text-muted-foreground uppercase">
               Dev / debug intents
             </p>
@@ -23,9 +23,9 @@ export function DebugGalleryPage() {
             </h1>
             <p className="text-detail/[1.45] text-muted-foreground">
               Static transcript mock: shipped{" "}
-              <code className="font-glass-mono text-detail">ui-*</code> hooks from{" "}
-              <code className="font-glass-mono text-detail">workbench.desktop.main</code>, scoped
-              under <code className="font-glass-mono text-detail">[data-cursor-preview]</code>.
+              <code className="font-chrome-mono text-detail">ui-*</code> hooks from{" "}
+              <code className="font-chrome-mono text-detail">workbench.desktop.main</code>, scoped
+              under <code className="font-chrome-mono text-detail">[data-cursor-preview]</code>.
             </p>
           </header>
           <div

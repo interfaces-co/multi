@@ -1,15 +1,15 @@
 // @ts-nocheck
 import type {
-  GlassPromptInput,
-  GlassPromptPathAttachment,
-  GlassSkill,
+  UiPromptInput,
+  UiPromptPathAttachment,
+  UiSkill,
   HarnessDescriptor,
   HarnessKind,
   HarnessModelRef,
   ShellFileHit,
   ShellFilePreview,
   ThinkingLevel,
-} from "~/lib/glass-types";
+} from "~/lib/ui-session-types";
 import type { RuntimeModelItem } from "~/lib/runtime-models";
 import {
   IconArrowUp,
@@ -39,23 +39,23 @@ import {
 import { flushSync } from "react-dom";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { useNavigate } from "@tanstack/react-router";
-import { readGlassRuntimeApi } from "~/native-api";
+import { readNativeRuntimeApi } from "~/native-api";
 import { useRuntimeModels } from "~/hooks/use-runtime-models";
-import { fireGlassHeroFx } from "~/lib/glass-hero-fx-store";
+import { fireHeroFx } from "~/lib/hero-fx-store";
 import { useShellState } from "~/hooks/use-shell-cwd";
-import type { GlassDraftFile, GlassDraftSkill } from "~/lib/glass-chat-draft-store";
+import type { ChatDraftFile, ChatDraftSkill } from "~/lib/chat-draft-store";
 import { useThreadSessionStore } from "~/lib/thread-session-store";
 import {
-  glassComposerAttachmentChip,
-  glassComposerAttachmentStrip,
-  glassComposerImageGrid,
-  glassComposerImageThumbnail,
-} from "~/lib/glass-attachment-styles";
+  composerAttachmentChip,
+  composerAttachmentStrip,
+  composerImageGrid,
+  composerImageThumbnail,
+} from "~/lib/chat-attachment-styles";
 import { cn } from "~/lib/utils";
-import { useGlassSettings } from "~/components/glass/settings/context";
+import { useShellSettings } from "~/components/shell/settings/context";
 import { selectProjectsAcrossEnvironments, useStore } from "~/store";
 import { createThreadSelectorAcrossEnvironments } from "~/storeSelectors";
-import { GLASS_EDITOR_SET_EVENT } from "~/lib/glass-runtime-constants";
+import { COMPOSER_EDITOR_SET_EVENT } from "~/lib/shell-runtime-constants";
 import { pushComposerDraft } from "~/lib/composer-draft-mirror";
 import {
   clearSlash,
@@ -69,10 +69,10 @@ import {
   slashMatch,
   type MirrorSeg,
 } from "./search";
-import { buildSlashMenuRows, type GlassSlashItem, type SlashMenuRow } from "./slash-registry";
+import { buildSlashMenuRows, type SlashItem, type SlashMenuRow } from "./slash-registry";
 import { readSlashRecents, recordSlashUse } from "./slash-recents";
-import { GlassComposerTokenMenu } from "./slash-menu";
-import { GlassModelPicker, type GlassModelPickerHandle } from "~/components/glass/pickers/model";
+import { ComposerTokenMenu } from "./slash-menu";
+import { ModelPicker, type ModelPickerHandle } from "~/components/shell/pickers/model";
 import {
   applySkill,
   dropSkill,
@@ -81,16 +81,16 @@ import {
   snapSkillSelection,
   touchSkill,
 } from "./skill-tokens";
-import { GlassWorkspacePicker } from "~/components/glass/pickers/workspace";
+import { WorkspacePicker } from "~/components/shell/pickers/workspace";
 import { useHotkey } from "@tanstack/react-hotkeys";
 
-type Pick = GlassDraftFile;
+type Pick = ChatDraftFile;
 
 /** Glass expects an optional `server.listSkills` host hook; c-t3 `LocalApi` does not define it yet. */
 async function fetchListSkillsIfSupported(
-  api: NonNullable<ReturnType<typeof readGlassRuntimeApi>>,
-): Promise<GlassSkill[] | null> {
-  const list = (api.server as { listSkills?: () => Promise<GlassSkill[]> }).listSkills;
+  api: NonNullable<ReturnType<typeof readNativeRuntimeApi>>,
+): Promise<UiSkill[] | null> {
+  const list = (api.server as { listSkills?: () => Promise<UiSkill[]> }).listSkills;
   if (typeof list !== "function") return null;
   try {
     return await list();
@@ -113,8 +113,8 @@ function segCls(kind: MirrorSeg["kind"], on: boolean) {
   return cn(
     "box-decoration-clone rounded-sm px-1.5 py-px [-webkit-box-decoration-break:clone]",
     on
-      ? "bg-[var(--glass-composer-object-bg-active)] text-[color:var(--glass-composer-object-fg)] shadow-[inset_0_0_0_1px_var(--glass-composer-object-border-active)]"
-      : "bg-[var(--glass-composer-object-bg)] text-[color:var(--glass-composer-object-fg-muted)] shadow-[inset_0_0_0_1px_var(--glass-composer-object-border)]",
+      ? "bg-[var(--chrome-composer-object-bg-active)] text-[color:var(--chrome-composer-object-fg)] shadow-[inset_0_0_0_1px_var(--chrome-composer-object-border-active)]"
+      : "bg-[var(--chrome-composer-object-bg)] text-[color:var(--chrome-composer-object-fg-muted)] shadow-[inset_0_0_0_1px_var(--chrome-composer-object-border)]",
   );
 }
 
@@ -123,12 +123,12 @@ interface Props {
   sessionId?: string | null;
   draft: string;
   files?: Pick[];
-  skills?: GlassDraftSkill[];
+  skills?: ChatDraftSkill[];
   onFiles?: (files: Pick[]) => void;
-  onSkills?: (skills: GlassDraftSkill[]) => void;
+  onSkills?: (skills: ChatDraftSkill[]) => void;
   onDraft: (value: string) => void;
   onSend: (
-    input: GlassPromptInput,
+    input: UiPromptInput,
   ) => Promise<{ clear: boolean } | false> | { clear: boolean } | false;
   onAbort: () => void;
   onModel: (model: RuntimeModelItem) => void;
@@ -148,7 +148,7 @@ interface Props {
   onPlanToggle?: () => void;
 }
 
-export interface GlassChatComposerHandle {
+export interface ChatComposerHandle {
   focus: () => void;
   activatePlan: () => void;
   togglePlan: () => void;
@@ -177,7 +177,7 @@ function icon(item: Pick) {
   return IconFileBend;
 }
 
-function path(input: Pick): GlassPromptPathAttachment | null {
+function path(input: Pick): UiPromptPathAttachment | null {
   if (input.type !== "path") return null;
   return { type: "path", path: input.path, name: input.name };
 }
@@ -383,7 +383,7 @@ const ImageChip = memo(function ImageChip(props: {
     <div className="group relative inline-flex shrink-0" title={props.item.name}>
       <button
         type="button"
-        className={cn(glassComposerImageThumbnail, props.hasPreview && "cursor-pointer")}
+        className={cn(composerImageThumbnail, props.hasPreview && "cursor-pointer")}
         onClick={() => {
           if (props.hasPreview) props.onOpen();
         }}
@@ -413,8 +413,8 @@ const ImageChip = memo(function ImageChip(props: {
 const FileChip = memo(function FileChip(props: { item: Pick; onRemove: () => void }) {
   const Glyph = icon(props.item);
   return (
-    <div className={glassComposerAttachmentChip}>
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-glass-hover/24 text-muted-foreground/75">
+    <div className={composerAttachmentChip}>
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-chrome-hover/24 text-muted-foreground/75">
         <Glyph className="size-4" />
       </span>
       <span className="min-w-0 flex-1">
@@ -428,7 +428,7 @@ const FileChip = memo(function FileChip(props: { item: Pick; onRemove: () => voi
       <button
         type="button"
         aria-label={`Remove ${props.item.name}`}
-        className="flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground/65 transition-colors hover:bg-glass-hover/50 hover:text-foreground"
+        className="flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground/65 transition-colors hover:bg-chrome-hover/50 hover:text-foreground"
         onClick={props.onRemove}
       >
         <IconCrossSmall className="size-3.5" />
@@ -463,9 +463,9 @@ const AttachmentStrip = memo(function AttachmentStrip(props: {
   }, [openId, openIndex]);
 
   return (
-    <div className={cn(glassComposerAttachmentStrip, "px-3 pt-3 pb-2")}>
+    <div className={cn(composerAttachmentStrip, "px-3 pt-3 pb-2")}>
       {images.length > 0 ? (
-        <div className={glassComposerImageGrid}>
+        <div className={composerImageGrid}>
           {images.map((item) => (
             <ImageChip
               key={item.id}
@@ -492,10 +492,10 @@ const AttachmentStrip = memo(function AttachmentStrip(props: {
   );
 });
 
-const GlassChatComposerImpl = memo(
-  forwardRef<GlassChatComposerHandle, Props>(function GlassChatComposer(props, ref) {
+const ChatComposerImpl = memo(
+  forwardRef<ChatComposerHandle, Props>(function ChatComposer(props, ref) {
     const navigate = useNavigate();
-    const settings = useGlassSettings();
+    const settings = useShellSettings();
     const shell = useShellState();
     const models = useRuntimeModels(props.model);
     const snap = useThreadSessionStore(
@@ -531,9 +531,9 @@ const GlassChatComposerImpl = memo(
         [props.sessionId, shell.cwd],
       ),
     );
-    const api = readGlassRuntimeApi(activeEnvironmentId, { allowPrimaryEnvironmentFallback: true });
+    const api = readNativeRuntimeApi(activeEnvironmentId, { allowPrimaryEnvironmentFallback: true });
     const area = useRef<HTMLTextAreaElement | null>(null);
-    const modelPickerRef = useRef<GlassModelPickerHandle | null>(null);
+    const modelPickerRef = useRef<ModelPickerHandle | null>(null);
     const shellRef = useRef<HTMLDivElement | null>(null);
     const nextCursor = useRef<number | null>(null);
     const nextFocus = useRef(true);
@@ -546,8 +546,8 @@ const GlassChatComposerImpl = memo(
     cursorRef.current = cursor;
     const [composing, setComposing] = useState(false);
     const [localFiles, setLocalFiles] = useState<Pick[]>([]);
-    const [localSkills, setLocalSkills] = useState<GlassDraftSkill[]>([]);
-    const [defs, setDefs] = useState<GlassSkill[]>([]);
+    const [localSkills, setLocalSkills] = useState<ChatDraftSkill[]>([]);
+    const [defs, setDefs] = useState<UiSkill[]>([]);
     const [drag, setDrag] = useState(false);
     const [hits, setHits] = useState<ShellFileHit[]>([]);
     const [preview, setPreview] = useState<ShellFilePreview | null>(null);
@@ -556,7 +556,7 @@ const GlassChatComposerImpl = memo(
     const [git, setGit] = useState<string | null>(null);
     const files = props.files ?? localFiles;
     const marks = props.skills ?? localSkills;
-    const skillSink = useRef<(skills: GlassDraftSkill[]) => void>(() => undefined);
+    const skillSink = useRef<(skills: ChatDraftSkill[]) => void>(() => undefined);
     const marksRef = useRef(marks);
     marksRef.current = marks;
     const empty = !props.draft.trim() && files.length === 0;
@@ -592,7 +592,7 @@ const GlassChatComposerImpl = memo(
       return true;
     };
 
-    const dropToken = (skill: GlassDraftSkill) => {
+    const dropToken = (skill: ChatDraftSkill) => {
       const raw = text();
       const next = dropSkill(raw, marksRef.current, skill);
       flushSync(() => update(next.value, next.cursor, next.skills, raw));
@@ -609,7 +609,7 @@ const GlassChatComposerImpl = memo(
     };
 
     const writeSkills = (
-      next: GlassDraftSkill[] | ((cur: GlassDraftSkill[]) => GlassDraftSkill[]),
+      next: ChatDraftSkill[] | ((cur: ChatDraftSkill[]) => ChatDraftSkill[]),
     ) => {
       const value = typeof next === "function" ? next(marks) : next;
       if (props.onSkills) {
@@ -623,7 +623,7 @@ const GlassChatComposerImpl = memo(
     const update = (
       value: string,
       pos?: number,
-      nextSkills?: GlassDraftSkill[],
+      nextSkills?: ChatDraftSkill[],
       prev?: string,
       focus = true,
     ) => {
@@ -684,7 +684,7 @@ const GlassChatComposerImpl = memo(
       planOn();
     };
 
-    const exec = (item: Extract<GlassSlashItem, { kind: "command" }>) => {
+    const exec = (item: Extract<SlashItem, { kind: "command" }>) => {
       if (item.action === "new-chat") {
         void navigate({ to: "/" });
         return true;
@@ -718,7 +718,7 @@ const GlassChatComposerImpl = memo(
     };
 
     const run = (
-      item: Extract<GlassSlashItem, { kind: "command" }>,
+      item: Extract<SlashItem, { kind: "command" }>,
       raw: string,
       hit: { query: string; start: number; end: number },
     ) => {
@@ -819,7 +819,7 @@ const GlassChatComposerImpl = memo(
                 action: "plan-mode" as const,
               },
             ]
-          : []) satisfies GlassSlashItem[],
+          : []) satisfies SlashItem[],
       [caps.commands, caps.modelPicker, props.fastActive, props.fastSupported, props.planActive],
     );
 
@@ -856,7 +856,7 @@ const GlassChatComposerImpl = memo(
     const skillItems = useMemo(
       () =>
         defs.map(
-          (item): GlassSlashItem => ({
+          (item): SlashItem => ({
             id: item.id,
             kind: "skill",
             name: item.name,
@@ -965,9 +965,9 @@ const GlassChatComposerImpl = memo(
         draftSink.current(next);
         nextCursor.current = next.length;
       };
-      window.addEventListener(GLASS_EDITOR_SET_EVENT, set as EventListener);
+      window.addEventListener(COMPOSER_EDITOR_SET_EVENT, set as EventListener);
       return () => {
-        window.removeEventListener(GLASS_EDITOR_SET_EVENT, set as EventListener);
+        window.removeEventListener(COMPOSER_EDITOR_SET_EVENT, set as EventListener);
       };
     }, []);
 
@@ -990,7 +990,7 @@ const GlassChatComposerImpl = memo(
       setPreview(null);
     }, [at, filePick]);
 
-    const pickSlash = (item: GlassSlashItem) => {
+    const pickSlash = (item: SlashItem) => {
       const raw = text();
       const hit = slashMatch(raw, span().start);
       if (!hit) return;
@@ -1030,7 +1030,7 @@ const GlassChatComposerImpl = memo(
       if (!raw && files.length === 0) return;
       if (props.variant === "hero") {
         const shotText = shot(value, files);
-        if (shotText) fireGlassHeroFx(shotText);
+        if (shotText) fireHeroFx(shotText);
       }
       let body = value;
       if (marks.length > 0 && api) {
@@ -1054,7 +1054,7 @@ const GlassChatComposerImpl = memo(
             }
             return path(item);
           })
-          .filter((item): item is NonNullable<GlassPromptInput["attachments"]>[number] =>
+          .filter((item): item is NonNullable<UiPromptInput["attachments"]>[number] =>
             Boolean(item),
           ),
       });
@@ -1127,7 +1127,7 @@ const GlassChatComposerImpl = memo(
     };
 
     const menu = (
-      <GlassComposerTokenMenu
+      <ComposerTokenMenu
         open={open}
         onOpenChange={(next) => {
           if (!next && key) setClosed(key);
@@ -1175,7 +1175,7 @@ const GlassChatComposerImpl = memo(
         className={cn(
           props.variant === "hero"
             ? "w-full"
-            : "relative isolate pb-2 before:pointer-events-none before:absolute before:inset-x-0 before:bottom-0 before:top-[-96px] before:bg-glass-chat before:mask-[linear-gradient(0deg,#000_0,rgba(0,0,0,0.86)_28%,rgba(0,0,0,0.56)_62%,rgba(0,0,0,0.22)_84%,transparent)]",
+            : "relative isolate pb-2 before:pointer-events-none before:absolute before:inset-x-0 before:bottom-0 before:top-[-96px] before:bg-chrome-chat before:mask-[linear-gradient(0deg,#000_0,rgba(0,0,0,0.86)_28%,rgba(0,0,0,0.56)_62%,rgba(0,0,0,0.22)_84%,transparent)]",
         )}
       >
         <div
@@ -1187,12 +1187,12 @@ const GlassChatComposerImpl = memo(
               {props.variant === "hero" ? (
                 <div className="mb-2 flex w-full min-w-0 items-center justify-between gap-3 px-0.5">
                   <div className="min-w-0 flex-1">
-                    <GlassWorkspacePicker variant="composer" />
+                    <WorkspacePicker variant="composer" />
                   </div>
                   {branch ? (
                     <div className="flex min-w-0 flex-1 justify-end">
                       <span
-                        className="font-glass inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-glass-control px-2 py-0.5 text-detail text-muted-foreground/82"
+                        className="font-chrome inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-chrome-control px-2 py-0.5 text-detail text-muted-foreground/82"
                         title={branch}
                       >
                         <IconBranchSimple className="size-3.5 shrink-0 opacity-60" />
@@ -1206,8 +1206,8 @@ const GlassChatComposerImpl = memo(
                 ref={shellRef}
                 data-dragging={drag || undefined}
                 className={cn(
-                  "overflow-hidden rounded-glass-card border border-glass-stroke-tertiary bg-glass-bubble shadow-glass-card backdrop-blur-[10px] transition-none focus-within:border-glass-stroke-strong",
-                  drag && "border-glass-stroke-strong shadow-[0_0_0_2px_var(--glass-ring)]",
+                  "overflow-hidden rounded-chrome-card border border-chrome-stroke-tertiary bg-chrome-bubble shadow-chrome-card backdrop-blur-[10px] transition-none focus-within:border-chrome-stroke-strong",
+                  drag && "border-chrome-stroke-strong shadow-[0_0_0_2px_var(--chrome-ring)]",
                 )}
                 onDragLeave={(event) => {
                   const rect = event.currentTarget.getBoundingClientRect();
@@ -1234,7 +1234,7 @@ const GlassChatComposerImpl = memo(
                 ) : null}
                 <div className="relative min-h-10">
                   <div
-                    className="glass-composer-mirror font-glass pointer-events-none absolute inset-0 z-0 px-3 pt-3 pb-1 text-body whitespace-pre-wrap break-words"
+                    className="chrome-composer-mirror font-chrome pointer-events-none absolute inset-0 z-0 px-3 pt-3 pb-1 text-body whitespace-pre-wrap break-words"
                     aria-hidden
                   >
                     {composing ? (
@@ -1291,7 +1291,7 @@ const GlassChatComposerImpl = memo(
                     }}
                     placeholder={placeholderText}
                     rows={1}
-                    className="field-sizing-content font-glass relative z-10 block min-h-10 max-h-56 w-full resize-none bg-transparent px-3 pt-3 pb-1 text-body text-transparent caret-foreground outline-hidden placeholder:text-muted-foreground selection:bg-primary/25"
+                    className="field-sizing-content font-chrome relative z-10 block min-h-10 max-h-56 w-full resize-none bg-transparent px-3 pt-3 pb-1 text-body text-transparent caret-foreground outline-hidden placeholder:text-muted-foreground selection:bg-primary/25"
                     onKeyDown={(event: KeyboardEvent<HTMLTextAreaElement>) => {
                       const raw = text();
                       const { start, end } = span();
@@ -1389,14 +1389,14 @@ const GlassChatComposerImpl = memo(
                         type="button"
                         disabled={props.busy}
                         onClick={pickFiles}
-                        className="flex size-8 items-center justify-center rounded-glass-card text-muted-foreground/62 transition-colors hover:bg-glass-hover hover:text-foreground disabled:opacity-35"
+                        className="flex size-8 items-center justify-center rounded-chrome-card text-muted-foreground/62 transition-colors hover:bg-chrome-hover hover:text-foreground disabled:opacity-35"
                         aria-label="Add files"
                       >
-                        <IconPlusLarge className="glass-composer-icon" />
+                        <IconPlusLarge className="composer-toolbar-icon" />
                       </button>
                     ) : null}
                     {caps.modelPicker ? (
-                      <GlassModelPicker
+                      <ModelPicker
                         ref={modelPickerRef}
                         items={models.items}
                         status={props.modelLoading ? "loading" : models.status}
@@ -1422,8 +1422,8 @@ const GlassChatComposerImpl = memo(
                         type="button"
                         disabled={props.busy}
                         className={cn(
-                          "font-glass inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border border-glass-stroke-strong pl-2 pr-1 text-body shadow-glass-card outline-none backdrop-blur-md transition-colors",
-                          "bg-glass-hover/70 hover:bg-glass-hover focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50",
+                          "font-chrome inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border border-chrome-stroke-strong pl-2 pr-1 text-body shadow-chrome-card outline-none backdrop-blur-md transition-colors",
+                          "bg-chrome-hover/70 hover:bg-chrome-hover focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50",
                         )}
                         onClick={() =>
                           props.onFastToggle
@@ -1444,8 +1444,8 @@ const GlassChatComposerImpl = memo(
                         type="button"
                         disabled={props.busy}
                         className={cn(
-                          "font-glass glass-plan-mode-chip--on inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border pl-2 pr-1 text-body shadow-glass-card outline-none backdrop-blur-md transition-colors",
-                          "hover:border-glass-stroke-strong hover:bg-glass-hover focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50",
+                          "font-chrome chrome-plan-mode-chip--on inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border pl-2 pr-1 text-body shadow-chrome-card outline-none backdrop-blur-md transition-colors",
+                          "hover:border-chrome-stroke-strong hover:bg-chrome-hover focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50",
                         )}
                         onClick={() => props.onPlanToggle?.()}
                         aria-pressed
@@ -1472,15 +1472,15 @@ const GlassChatComposerImpl = memo(
                     aria-label={props.busy ? "Stop" : "Send"}
                   >
                     {props.busy ? (
-                      <IconStop className="glass-composer-icon" />
+                      <IconStop className="composer-toolbar-icon" />
                     ) : (
-                      <IconArrowUp className="glass-composer-icon" />
+                      <IconArrowUp className="composer-toolbar-icon" />
                     )}
                   </button>
                 </div>
                 {drag ? (
-                  <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-glass-card bg-glass-active/15 backdrop-blur-[2px]">
-                    <div className="rounded-glass-pill border border-glass-border/40 bg-glass-bubble px-3 py-2 text-body font-medium text-foreground/84 shadow-glass-card">
+                  <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-chrome-card bg-chrome-active/15 backdrop-blur-[2px]">
+                    <div className="rounded-chrome-pill border border-chrome-border/40 bg-chrome-bubble px-3 py-2 text-body font-medium text-foreground/84 shadow-chrome-card">
                       Drop files to attach
                     </div>
                   </div>
@@ -1506,5 +1506,5 @@ const GlassChatComposerImpl = memo(
     same(left.model, right.model),
 );
 
-export const GlassChatComposer = GlassChatComposerImpl;
-GlassChatComposer.displayName = "GlassChatComposer";
+export const ChatComposer = ChatComposerImpl;
+ChatComposer.displayName = "ChatComposer";

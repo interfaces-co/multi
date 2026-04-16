@@ -1,5 +1,5 @@
 // @ts-nocheck
-import type { GlassWorkingState, Json } from "~/lib/glass-types";
+import type { UiWorkingState, Json } from "~/lib/ui-session-types";
 import type { FileDiffMetadata } from "@pierre/diffs";
 import { FileDiff } from "@pierre/diffs/react";
 import { Collapsible } from "~/components/ui/collapsible";
@@ -16,12 +16,12 @@ import {
 } from "central-icons";
 import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { ChatMarkdown } from "~/lib/chat-markdown";
-import { useGlassDiffStylePreference } from "~/hooks/use-glass-git";
+import { useDiffStylePreference } from "~/hooks/use-environment-git";
 import { useTheme } from "~/hooks/use-theme";
 import {
-  glassUserAttachmentFileRow,
-  glassUserAttachmentImageCard,
-} from "~/lib/glass-attachment-styles";
+  userAttachmentFileRow,
+  userAttachmentImageCard,
+} from "~/lib/chat-attachment-styles";
 import {
   type ChatRow,
   type ChatUserAttachment,
@@ -115,7 +115,7 @@ function CardSummary(props: { mono?: boolean; children: React.ReactNode }) {
     <span
       className={cn(
         "min-w-0 flex-1 truncate text-[13px] leading-[18px] text-[color-mix(in_srgb,var(--foreground)_55%,transparent)]",
-        props.mono && "font-glass-mono text-[12px]",
+        props.mono && "font-chrome-mono text-[12px]",
       )}
     >
       {props.children}
@@ -195,7 +195,7 @@ function Card(props: {
 const AttachmentTile = memo(function AttachmentTile(props: { item: ChatUserAttachment }) {
   if (props.item.kind === "image") {
     return (
-      <div className={glassUserAttachmentImageCard}>
+      <div className={userAttachmentImageCard}>
         {props.item.data ? (
           <img
             alt={props.item.name}
@@ -203,7 +203,7 @@ const AttachmentTile = memo(function AttachmentTile(props: { item: ChatUserAttac
             src={`data:${props.item.mimeType ?? "image/png"};base64,${props.item.data}`}
           />
         ) : (
-          <div className="flex aspect-[4/3] items-center justify-center bg-glass-hover/20 text-muted-foreground/70">
+          <div className="flex aspect-[4/3] items-center justify-center bg-chrome-hover/20 text-muted-foreground/70">
             <IconImages1 className="size-7" />
           </div>
         )}
@@ -222,8 +222,8 @@ const AttachmentTile = memo(function AttachmentTile(props: { item: ChatUserAttac
   }
 
   return (
-    <div className={glassUserAttachmentFileRow}>
-      <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-glass-card bg-glass-hover/25 text-muted-foreground/75">
+    <div className={userAttachmentFileRow}>
+      <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-chrome-card bg-chrome-hover/25 text-muted-foreground/75">
         <IconFileBend className="size-4.5" />
       </span>
       <span className="min-w-0 flex-1">
@@ -261,7 +261,7 @@ const HumanBubble = memo(function HumanBubble(props: {
           </div>
         ) : null}
         {props.text ? (
-          <div className="max-w-[min(100%,36rem)] whitespace-pre-wrap break-words rounded-[20px] border border-glass-border/40 bg-glass-active px-3.5 py-2 text-body/5 text-foreground shadow-glass-card backdrop-blur-sm">
+          <div className="max-w-[min(100%,36rem)] whitespace-pre-wrap break-words rounded-[20px] border border-chrome-border/40 bg-chrome-active px-3.5 py-2 text-body/5 text-foreground shadow-chrome-card backdrop-blur-sm">
             {props.text}
           </div>
         ) : null}
@@ -311,7 +311,7 @@ function workLabel(since: string | null, now: number) {
   return `Working for ${workSpan(Math.max(0, now - start))}`;
 }
 
-function workTitle(work: GlassWorkingState | null) {
+function workTitle(work: UiWorkingState | null) {
   const text =
     work?.summary?.trim() ||
     work?.task?.summary?.trim() ||
@@ -322,14 +322,14 @@ function workTitle(work: GlassWorkingState | null) {
   return line.length <= 56 ? line : `${line.slice(0, 53)}\u2026`;
 }
 
-function workMeta(work: GlassWorkingState | null) {
+function workMeta(work: UiWorkingState | null) {
   if (work?.tool?.title?.trim()) return work.tool.title.trim();
   if (work?.tool?.detail?.trim()) return work.tool.detail.trim();
   if (work?.task?.description?.trim()) return work.task.description.trim();
   return null;
 }
 
-function workBody(work: GlassWorkingState | null) {
+function workBody(work: UiWorkingState | null) {
   const head = work?.summary?.trim() || work?.task?.summary?.trim() || null;
   const text = work?.text.trim() || null;
   const meta = workMeta(work);
@@ -354,8 +354,8 @@ function workBody(work: GlassWorkingState | null) {
   );
 }
 
-const GlassChatWorking = memo(function GlassChatWorking(props: {
-  work: GlassWorkingState | null;
+const ChatWorkingRow = memo(function ChatWorkingRow(props: {
+  work: UiWorkingState | null;
   busy: boolean;
   thinking: boolean;
   since: string | null;
@@ -518,14 +518,14 @@ function JsonSection(props: { label: string; text: string }) {
         </span>
         <button
           onClick={copy}
-          className="flex shrink-0 items-center gap-1 rounded px-1 py-0.5 text-muted-foreground/40 transition-colors hover:bg-glass-hover/20 hover:text-muted-foreground/70"
+          className="flex shrink-0 items-center gap-1 rounded px-1 py-0.5 text-muted-foreground/40 transition-colors hover:bg-chrome-hover/20 hover:text-muted-foreground/70"
         >
           <IconClipboard className="size-3" />
           <span>copy</span>
         </button>
       </div>
       {parsed !== null ? (
-        <div className="tool-output-surface font-glass-mono text-detail/[1.5]">
+        <div className="tool-output-surface font-chrome-mono text-detail/[1.5]">
           {renderValue(parsed, 0)}
         </div>
       ) : (
@@ -557,7 +557,7 @@ const AssistantErrorBlock = memo(function AssistantErrorBlock(props: {
       expanded={props.expanded}
     >
       <div className="min-w-0 pt-1.5 pb-2">
-        <pre className="tool-terminal max-h-[min(40vh,20rem)] overflow-y-auto whitespace-pre-wrap break-words font-glass-mono text-detail/[1.45] text-foreground/80">
+        <pre className="tool-terminal max-h-[min(40vh,20rem)] overflow-y-auto whitespace-pre-wrap break-words font-chrome-mono text-detail/[1.45] text-foreground/80">
           {props.text}
         </pre>
       </div>
@@ -702,7 +702,7 @@ const LiteToolRow = memo(function LiteToolRow(props: {
   return (
     <li className="min-w-0">
       <Collapsible.Root open={open} onOpenChange={setOpen}>
-        <Collapsible.Trigger className="group flex h-8 max-h-8 w-full cursor-pointer items-center gap-2 py-0 text-left outline-none transition-colors hover:bg-glass-hover/8 focus:outline-none focus-visible:outline-none focus-visible:ring-0">
+        <Collapsible.Trigger className="group flex h-8 max-h-8 w-full cursor-pointer items-center gap-2 py-0 text-left outline-none transition-colors hover:bg-chrome-hover/8 focus:outline-none focus-visible:outline-none focus-visible:ring-0">
           <CardTitle>Web Search</CardTitle>
           <span className="shrink-0">
             <StatusBadge state={runtimeState(props.row)} />
@@ -716,7 +716,7 @@ const LiteToolRow = memo(function LiteToolRow(props: {
         </Collapsible.Trigger>
         <Collapsible.Panel>
           {body ? (
-            <div className="mt-1 max-h-[min(40vh,20rem)] min-h-0 overflow-auto rounded-glass-control border border-glass-border/35 bg-muted/20 px-3 py-2">
+            <div className="mt-1 max-h-[min(40vh,20rem)] min-h-0 overflow-auto rounded-chrome-control border border-chrome-border/35 bg-muted/20 px-3 py-2">
               {body}
             </div>
           ) : null}
@@ -733,7 +733,7 @@ const FileEditToolCard = memo(function FileEditToolCard(props: {
   expanded: boolean;
   state: RuntimeState;
 }) {
-  const [diffStyle] = useGlassDiffStylePreference();
+  const [diffStyle] = useDiffStylePreference();
   const theme =
     useTheme().resolvedTheme === "dark" ? ("pierre-dark" as const) : ("pierre-light" as const);
   const [open, setOpen] = useSyncedExpand(props.expanded);
@@ -754,7 +754,7 @@ const FileEditToolCard = memo(function FileEditToolCard(props: {
           title={props.path}
         >
           <CardTitle>{base}</CardTitle>
-          <span className="flex shrink-0 items-baseline gap-2 font-glass-mono text-[12px] tabular-nums">
+          <span className="flex shrink-0 items-baseline gap-2 font-chrome-mono text-[12px] tabular-nums">
             {stat.add > 0 ? (
               <span className="text-emerald-600 dark:text-emerald-400">+{stat.add}</span>
             ) : null}
@@ -784,14 +784,14 @@ const FileEditToolCard = memo(function FileEditToolCard(props: {
             </div>
             {!full ? (
               <div
-                className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[color-mix(in_srgb,var(--color-glass-bubble)_96%,var(--background))] to-transparent dark:from-[color-mix(in_srgb,var(--color-glass-bubble)_90%,var(--background))]"
+                className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[color-mix(in_srgb,var(--color-chrome-bubble)_96%,var(--background))] to-transparent dark:from-[color-mix(in_srgb,var(--color-chrome-bubble)_90%,var(--background))]"
                 aria-hidden
               />
             ) : null}
           </div>
           <button
             type="button"
-            className="flex w-full cursor-pointer items-center justify-center gap-1.5 border-t border-[color-mix(in_srgb,var(--foreground)_6%,transparent)] py-1.5 text-detail text-muted-foreground outline-none transition-colors hover:bg-glass-hover/8 hover:text-foreground/85 focus:outline-none focus-visible:outline-none focus-visible:ring-0"
+            className="flex w-full cursor-pointer items-center justify-center gap-1.5 border-t border-[color-mix(in_srgb,var(--foreground)_6%,transparent)] py-1.5 text-detail text-muted-foreground outline-none transition-colors hover:bg-chrome-hover/8 hover:text-foreground/85 focus:outline-none focus-visible:outline-none focus-visible:ring-0"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -813,7 +813,7 @@ const ToolCard = memo(function ToolCard(props: {
   row: Extract<ChatRow, { kind: "tool" }>;
   expanded: boolean;
 }) {
-  const [diffStyle] = useGlassDiffStylePreference();
+  const [diffStyle] = useDiffStylePreference();
   const theme =
     useTheme().resolvedTheme === "dark" ? ("pierre-dark" as const) : ("pierre-light" as const);
   const s = runtimeState(props.row);
@@ -923,14 +923,14 @@ const BashCard = memo(function BashCard(props: {
           </span>
         </CardTrigger>
         <CardPanel className="gap-0">
-          <code className="block whitespace-pre-wrap break-all px-2.5 py-1.5 font-glass-mono text-[12px] leading-[1.6] text-foreground/85">
+          <code className="block whitespace-pre-wrap break-all px-2.5 py-1.5 font-chrome-mono text-[12px] leading-[1.6] text-foreground/85">
             <span className="select-none text-[color-mix(in_srgb,var(--foreground)_40%,transparent)]">
               ${" "}
             </span>
             {cmd}
           </code>
           {props.row.output.trim() ? (
-            <pre className="whitespace-pre-wrap break-all px-2.5 py-1.5 font-glass-mono text-[12px] leading-[1.5] text-[color-mix(in_srgb,var(--foreground)_75%,transparent)]">
+            <pre className="whitespace-pre-wrap break-all px-2.5 py-1.5 font-chrome-mono text-[12px] leading-[1.5] text-[color-mix(in_srgb,var(--foreground)_75%,transparent)]">
               {props.row.output}
               {props.row.truncated ? "\n\n[truncated]" : ""}
             </pre>
@@ -979,7 +979,7 @@ const TextCard = memo(function TextCard(props: {
         }
         return (
           <div className="max-h-[min(24rem,50vh)] overflow-auto">
-            <div className="font-glass-mono text-detail/[1.5]">{renderValue(j, 0)}</div>
+            <div className="font-chrome-mono text-detail/[1.5]">{renderValue(j, 0)}</div>
           </div>
         );
       } catch {
@@ -1178,7 +1178,7 @@ const WorkEntryRow = memo(function WorkEntryRow(props: { entry: WorkLogEntry; ex
   return (
     <Card icon={icon} title={label || "Tool call"} summary={preview} expanded={props.expanded}>
       {props.entry.detail ? (
-        <pre className="max-h-[min(40vh,20rem)] whitespace-pre-wrap break-words px-2.5 pt-1.5 pb-2 font-glass-mono text-detail/[1.45] text-foreground/75">
+        <pre className="max-h-[min(40vh,20rem)] whitespace-pre-wrap break-words px-2.5 pt-1.5 pb-2 font-chrome-mono text-detail/[1.45] text-foreground/75">
           {props.entry.detail}
         </pre>
       ) : null}
@@ -1187,7 +1187,7 @@ const WorkEntryRow = memo(function WorkEntryRow(props: { entry: WorkLogEntry; ex
           {props.entry.changedFiles.slice(0, 6).map((f) => (
             <span
               key={f}
-              className="rounded-md border border-glass-border/45 bg-muted/15 px-1.5 py-0.5 font-glass-mono text-[10px] text-muted-foreground/70"
+              className="rounded-md border border-chrome-border/45 bg-muted/15 px-1.5 py-0.5 font-chrome-mono text-[10px] text-muted-foreground/70"
               title={f}
             >
               {f.split(/[\\/]/).at(-1) ?? f}
@@ -1274,4 +1274,4 @@ function draw(row: ChatRow, expanded: boolean) {
   return null;
 }
 
-export { GlassChatWorking };
+export { ChatWorkingRow };

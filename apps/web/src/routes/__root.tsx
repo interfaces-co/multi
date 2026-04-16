@@ -1,5 +1,5 @@
-import { type ServerLifecycleWelcomePayload } from "@t3tools/contracts";
-import { scopedProjectKey, scopeProjectRef } from "@t3tools/client-runtime";
+import { type ServerLifecycleWelcomePayload } from "@multi/contracts";
+import { scopedProjectKey, scopeProjectRef } from "@multi/client-runtime";
 import {
   Outlet,
   createRootRouteWithContext,
@@ -11,7 +11,7 @@ import { useEffect, useEffectEvent, useRef } from "react";
 import { QueryClient, useQueryClient } from "@tanstack/react-query";
 
 import { APP_DISPLAY_NAME } from "../branding";
-import { GlassShellHost } from "../components/glass-shell-host";
+import { ShellHost } from "../components/shell-host";
 import { CommandPalette } from "../components/CommandPalette";
 import { TaskCompletionNotifications } from "../notifications/taskCompletion";
 import {
@@ -97,9 +97,9 @@ function RootRouteView() {
         <TaskCompletionNotifications />
         <WebSocketConnectionSurface>
           <CommandPalette>
-            <GlassShellHost>
+            <ShellHost>
               <Outlet />
-            </GlassShellHost>
+            </ShellHost>
           </CommandPalette>
         </WebSocketConnectionSurface>
       </AnchoredToastProvider>

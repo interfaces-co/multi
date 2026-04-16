@@ -7,7 +7,7 @@ type State = {
   isUnread: (id: string) => boolean;
 };
 
-export const useGlassThreadUnreadStore = create<State>()((set, get) => ({
+export const useThreadUnreadStore = create<State>()((set, get) => ({
   unread: {},
   mark: (id) => {
     set((s) => (s.unread[id] ? s : { unread: { ...s.unread, [id]: true } }));

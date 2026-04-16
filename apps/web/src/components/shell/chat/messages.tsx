@@ -1,4 +1,4 @@
-import type { GlassSessionItem, GlassWorkingState } from "~/lib/glass-types";
+import type { UiSessionItem, UiWorkingState } from "~/lib/ui-session-types";
 import type { WorkLogEntry } from "~/lib/work-log";
 import type { ProposedPlan } from "~/types";
 import { createContext, memo, useCallback, useEffect, useMemo, useRef } from "react";
@@ -10,7 +10,7 @@ import {
   type TimelineRow,
   type StableTimelineRowsState,
 } from "~/lib/chat-timeline";
-import { TimelineRowContent, GlassChatWorking } from "./rows";
+import { TimelineRowContent, ChatWorkingRow } from "./rows";
 
 interface TimelineCtxState {
   expanded: boolean;
@@ -18,9 +18,9 @@ interface TimelineCtxState {
 
 export const TimelineRowCtx = createContext<TimelineCtxState>({ expanded: false });
 
-export const GlassChatMessages = memo(function GlassChatMessages(props: {
-  items: GlassSessionItem[];
-  work: GlassWorkingState | null;
+export const ChatMessages = memo(function ChatMessages(props: {
+  items: UiSessionItem[];
+  work: UiWorkingState | null;
   workLog: WorkLogEntry[];
   plans: ProposedPlan[];
   busy: boolean;
@@ -54,7 +54,7 @@ export const GlassChatMessages = memo(function GlassChatMessages(props: {
       if (item.kind === "working") {
         return (
           <div className="mx-auto max-w-[43.875rem] px-4 md:px-8">
-            <GlassChatWorking
+            <ChatWorkingRow
               work={props.work}
               busy={props.busy}
               thinking={props.thinking}

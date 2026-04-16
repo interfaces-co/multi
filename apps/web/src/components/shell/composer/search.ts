@@ -1,4 +1,4 @@
-import type { ShellFileHit } from "~/lib/glass-types";
+import type { ShellFileHit } from "~/lib/ui-session-types";
 
 const marks = new Set([" ", "\t", '"', "'", "="]);
 

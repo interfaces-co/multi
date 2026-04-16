@@ -13,7 +13,7 @@
  *   section     11px/14px  tertiary  padding:4px
  *   highlight   font-weight:600
  */
-import type { ShellFileHit, ShellFilePreview } from "~/lib/glass-types";
+import type { ShellFileHit, ShellFilePreview } from "~/lib/ui-session-types";
 import { Popover } from "@base-ui/react/popover";
 import {
   IconBuildingBlocks,
@@ -26,10 +26,10 @@ import {
 import type { ReactNode, RefObject } from "react";
 import { cn } from "~/lib/utils";
 import { ScrollArea } from "~/components/ui/scroll-area";
-import { GlassComposerFilePreview } from "./file-preview";
-import type { GlassSlashItem, SlashMenuRow } from "./slash-registry";
+import { ComposerFilePreview } from "./file-preview";
+import type { SlashItem, SlashMenuRow } from "./slash-registry";
 
-function kindGlyph(kind: GlassSlashItem["kind"]) {
+function kindGlyph(kind: SlashItem["kind"]) {
   if (kind === "skill") return IconBuildingBlocks;
   return IconLightning;
 }
@@ -70,7 +70,7 @@ function dirOf(path: string): string | null {
   return cut > 0 ? path.slice(0, cut) : null;
 }
 
-export function GlassComposerTokenMenu(props: {
+export function ComposerTokenMenu(props: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   anchor: RefObject<Element | null> | null;
@@ -80,7 +80,7 @@ export function GlassComposerTokenMenu(props: {
   slashRows: SlashMenuRow[];
   slashActive: number;
   onSlashHover: (optionIndex: number) => void;
-  onSlashPick: (item: GlassSlashItem) => void;
+  onSlashPick: (item: SlashItem) => void;
   hits: ShellFileHit[];
   fileActive: number;
   onFileHover: (i: number) => void;
@@ -108,9 +108,9 @@ export function GlassComposerTokenMenu(props: {
             initialFocus={false}
             finalFocus={false}
             className={cn(
-              "glass-slash-menu-popup glass-composer-token-menu",
+              "chrome-slash-menu-popup chrome-composer-token-menu",
               "origin-[var(--transform-origin)]",
-              "overflow-hidden rounded-glass-card border border-glass-stroke bg-glass-bubble shadow-glass-popup backdrop-blur-xl",
+              "overflow-hidden rounded-chrome-card border border-chrome-stroke bg-chrome-bubble shadow-chrome-popup backdrop-blur-xl",
               "w-[min(320px,calc(100vw-2rem))] text-[12px] leading-[16px] select-none",
             )}
           >
@@ -129,7 +129,7 @@ function SlashPane(props: {
   slashRows: SlashMenuRow[];
   slashActive: number;
   onSlashHover: (optionIndex: number) => void;
-  onSlashPick: (item: GlassSlashItem) => void;
+  onSlashPick: (item: SlashItem) => void;
 }) {
   return (
     <div className="max-h-72 min-h-0 overflow-y-auto overscroll-contain">
@@ -161,8 +161,8 @@ function SlashPane(props: {
               className={cn(
                 "flex w-full items-center gap-[6px] rounded-sm px-1 py-[3px] text-left transition-colors motion-reduce:transition-none",
                 active
-                  ? "bg-glass-active text-foreground"
-                  : "text-foreground/82 hover:bg-glass-hover/40",
+                  ? "bg-chrome-active text-foreground"
+                  : "text-foreground/82 hover:bg-chrome-hover/40",
               )}
               onMouseDown={(event) => {
                 event.preventDefault();
@@ -213,8 +213,8 @@ function FilePane(props: {
   loading: boolean;
 }) {
   return (
-    <div className="grid bg-glass-border/20 md:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
-      <div className="min-w-0 border-b border-glass-border/20 md:border-r md:border-b-0">
+    <div className="grid bg-chrome-border/20 md:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
+      <div className="min-w-0 border-b border-chrome-border/20 md:border-r md:border-b-0">
         <ScrollArea className="max-h-74">
           {/* Menu content: 4px padding */}
           <div
@@ -242,8 +242,8 @@ function FilePane(props: {
                     className={cn(
                       "flex w-full items-center gap-[6px] rounded-sm px-1 py-[3px] text-left transition-colors motion-reduce:transition-none",
                       active
-                        ? "glass-composer-object-row--active"
-                        : "text-foreground/82 hover:bg-glass-hover/40",
+                        ? "chrome-composer-object-row--active"
+                        : "text-foreground/82 hover:bg-chrome-hover/40",
                     )}
                     onMouseDown={(event) => {
                       event.preventDefault();
@@ -257,7 +257,7 @@ function FilePane(props: {
                       className={cn(
                         "inline-flex h-4 w-3 shrink-0 items-center justify-center",
                         active
-                          ? "text-[color:var(--glass-composer-object-fg-muted)]"
+                          ? "text-[color:var(--chrome-composer-object-fg-muted)]"
                           : "text-muted-foreground/60",
                       )}
                     >
@@ -283,7 +283,7 @@ function FilePane(props: {
                           className={cn(
                             "min-w-0 truncate text-[11px] leading-[14px]",
                             active
-                              ? "text-[color:var(--glass-composer-object-fg-muted)]"
+                              ? "text-[color:var(--chrome-composer-object-fg-muted)]"
                               : "text-muted-foreground/40",
                           )}
                           style={{ direction: "rtl", textAlign: "left" }}
@@ -297,7 +297,7 @@ function FilePane(props: {
                         className={cn(
                           "size-2.5 shrink-0",
                           active
-                            ? "text-[color:var(--glass-composer-object-fg-muted)]"
+                            ? "text-[color:var(--chrome-composer-object-fg-muted)]"
                             : "text-muted-foreground/45",
                         )}
                       />
@@ -309,7 +309,7 @@ function FilePane(props: {
           </div>
         </ScrollArea>
       </div>
-      <GlassComposerFilePreview item={props.filePick} preview={props.preview} />
+      <ComposerFilePreview item={props.filePick} preview={props.preview} />
     </div>
   );
 }

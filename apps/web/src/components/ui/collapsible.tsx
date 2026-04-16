@@ -4,7 +4,7 @@ import { Collapsible as CollapsiblePrimitive } from "@base-ui/react/collapsible"
 
 import { cn } from "~/lib/utils";
 
-function Collapsible({ ...props }: CollapsiblePrimitive.Root.Props) {
+function CollapsibleRoot(props: CollapsiblePrimitive.Root.Props) {
   return <CollapsiblePrimitive.Root data-slot="collapsible" {...props} />;
 }
 
@@ -30,6 +30,18 @@ function CollapsiblePanel({ className, ...props }: CollapsiblePrimitive.Panel.Pr
     />
   );
 }
+
+type CollapsibleCompound = typeof CollapsibleRoot & {
+  Root: typeof CollapsibleRoot;
+  Trigger: typeof CollapsibleTrigger;
+  Panel: typeof CollapsiblePanel;
+};
+
+const Collapsible = Object.assign(CollapsibleRoot, {
+  Root: CollapsibleRoot,
+  Trigger: CollapsibleTrigger,
+  Panel: CollapsiblePanel,
+}) as CollapsibleCompound;
 
 export {
   Collapsible,

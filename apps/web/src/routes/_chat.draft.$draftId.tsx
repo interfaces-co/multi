@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
-import { GlassChatSession } from "../components/glass-chat-session";
+import { RoutedChatSession } from "../components/routed-chat-session";
 import { threadHasStarted } from "../components/ChatView.logic";
 import { useComposerDraftStore, DraftId } from "../composerDraftStore";
 import { createThreadSelectorAcrossEnvironments } from "../storeSelectors";
@@ -55,7 +55,7 @@ function DraftChatThreadRouteView() {
   if (canonicalThreadRef) {
     return (
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <GlassChatSession
+        <RoutedChatSession
           environmentId={canonicalThreadRef.environmentId}
           threadId={canonicalThreadRef.threadId}
           routeKind="server"
@@ -70,7 +70,7 @@ function DraftChatThreadRouteView() {
 
   return (
     <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-      <GlassChatSession
+      <RoutedChatSession
         draftId={draftId as string}
         environmentId={draftSession.environmentId}
         threadId={draftSession.threadId}

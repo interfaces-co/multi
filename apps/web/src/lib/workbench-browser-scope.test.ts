@@ -1,7 +1,7 @@
-import { ThreadId } from "@t3tools/contracts";
+import { ThreadId } from "@multi/contracts";
 import { describe, expect, it } from "vitest";
 
-import { resolveWorkbenchBrowserThreadId } from "./glass-workbench-browser-scope";
+import { resolveWorkbenchBrowserThreadId } from "./workbench-browser-scope";
 
 describe("resolveWorkbenchBrowserThreadId", () => {
   it("returns the default workbench scope when cwd is missing", () => {

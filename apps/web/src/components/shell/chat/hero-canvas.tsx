@@ -1,14 +1,14 @@
 import { useCallback, useRef } from "react";
 import { useHotkey } from "@tanstack/react-hotkeys";
 
-import { useGlassChatDraftStore } from "~/lib/glass-chat-draft-store";
+import { useChatDraftStore } from "~/lib/chat-draft-store";
 import { useDefaultHarness } from "~/lib/harness-picker";
 import { useHarnessDescriptor } from "~/lib/harness-store";
-import { clearSlash, draftSlash, slashPrefix } from "~/components/glass/composer/search";
-import { GlassChatComposer, type GlassChatComposerHandle } from "~/components/glass/composer/chat";
-import { GlassHeroComposerFooter } from "./hero-composer-footer";
-import { GlassHeroStage } from "./hero-stage";
-import { useRuntimeSession } from "~/components/glass/session/runtime";
+import { clearSlash, draftSlash, slashPrefix } from "~/components/shell/composer/search";
+import { ChatComposer, type ChatComposerHandle } from "~/components/shell/composer/chat";
+import { HeroComposerFooter } from "./hero-composer-footer";
+import { HeroStage } from "./hero-stage";
+import { useRuntimeSession } from "~/components/shell/session/runtime";
 
 function title(text: string, files: { name: string }[]) {
   const line = text.trim().split("\n")[0]?.trim();
@@ -16,17 +16,17 @@ function title(text: string, files: { name: string }[]) {
   return files[0]?.name ?? "New chat";
 }
 
-export function GlassHeroCanvas() {
+export function HeroCanvas() {
   const { kind: defaultKind } = useDefaultHarness();
-  const cur = useGlassChatDraftStore((state) => state.cur);
-  const items = useGlassChatDraftStore((state) => state.items);
-  const root = useGlassChatDraftStore((state) => state.root);
-  const save = useGlassChatDraftStore((state) => state.save);
-  const saveRoot = useGlassChatDraftStore((state) => state.saveRoot);
-  const setActiveInteractionMode = useGlassChatDraftStore(
+  const cur = useChatDraftStore((state) => state.cur);
+  const items = useChatDraftStore((state) => state.items);
+  const root = useChatDraftStore((state) => state.root);
+  const save = useChatDraftStore((state) => state.save);
+  const saveRoot = useChatDraftStore((state) => state.saveRoot);
+  const setActiveInteractionMode = useChatDraftStore(
     (state) => state.setActiveInteractionMode,
   );
-  const toggleRootPlanInteraction = useGlassChatDraftStore(
+  const toggleRootPlanInteraction = useChatDraftStore(
     (state) => state.toggleRootPlanInteraction,
   );
   const draft = cur ? (items[cur] ?? null) : null;
@@ -37,7 +37,7 @@ export function GlassHeroCanvas() {
   const files = draft?.files ?? root.files;
   const skills = draft?.skills ?? root.skills;
   const planActive = (draft?.interactionMode ?? root.interactionMode) === "plan";
-  const composerRef = useRef<GlassChatComposerHandle>(null);
+  const composerRef = useRef<ChatComposerHandle>(null);
 
   const clearPlan = useCallback((value: string) => {
     const hit = draftSlash(value);
@@ -96,11 +96,11 @@ export function GlassHeroCanvas() {
   );
 
   return (
-    <GlassHeroStage
+    <HeroStage
       scene={draft?.id ?? "root"}
-      footer={<GlassHeroComposerFooter onPlanMode={activatePlan} planActive={planActive} />}
+      footer={<HeroComposerFooter onPlanMode={activatePlan} planActive={planActive} />}
     >
-      <GlassChatComposer
+      <ChatComposer
         ref={composerRef}
         key={draft?.id ?? "root"}
         sessionId={null}
@@ -138,6 +138,6 @@ export function GlassHeroCanvas() {
         harness={kind}
         harnessDescriptor={harnessDescriptor}
       />
-    </GlassHeroStage>
+    </HeroStage>
   );
 }

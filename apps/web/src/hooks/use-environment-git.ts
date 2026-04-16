@@ -1,14 +1,14 @@
 // @ts-nocheck
 import type { FileDiffMetadata } from "@pierre/diffs";
-import type { EnvironmentId, GitStatusResult } from "@t3tools/contracts";
-import type { GitFileSummary, GitState } from "~/lib/glass-types";
+import type { EnvironmentId, GitStatusResult } from "@multi/contracts";
+import type { GitFileSummary, GitState } from "~/lib/ui-session-types";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
 import * as Schema from "effect/Schema";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { gitPatchQueryOptions, gitQueryKeys } from "../lib/glass-git-react-query";
-import { readGlassGitApi } from "../lib/glass-git-api";
-import { useGlassShellStore } from "../lib/glass-shell-store";
+import { gitPatchQueryOptions, gitQueryKeys } from "../lib/native-git-react-query";
+import { readNativeGitApi } from "../lib/native-git-api";
+import { useShellLayoutStore } from "../lib/shell-layout-store";
 import { selectBootstrapCompleteForActiveEnvironment, useStore } from "../store";
 import { getWsRpcClientForEnvironment } from "../ws-rpc-client";
 import { useLocalStorage } from "./use-local-storage";
@@ -16,9 +16,9 @@ import { useShellState } from "./use-shell-cwd";
 
 const DiffStyle = Schema.Literals(["unified", "split"]);
 
-export function useGlassDiffStylePreference() {
+export function useDiffStylePreference() {
   return useLocalStorage<"unified" | "split", "unified" | "split">(
-    "glass:git-diff-style",
+    "multi:git-diff-style",
     "unified",
     DiffStyle,
   );
@@ -29,7 +29,7 @@ export interface DiffRow extends GitFileSummary {
   del: number;
 }
 
-export interface GlassGitPanelModel {
+export interface GitPanelModel {
   snap: GitState | null;
   loading: boolean;
   error: string | null;
@@ -166,11 +166,11 @@ function toSnap(cwd: string, status: GitStatusResult): GitState {
   };
 }
 
-export function useGlassGitPanel(environmentId?: EnvironmentId | null): GlassGitPanelModel {
+export function useEnvironmentGitPanel(environmentId?: EnvironmentId | null): GitPanelModel {
   const { cwd } = useShellState();
   const boot = useStore(selectBootstrapCompleteForActiveEnvironment);
-  const paths = useGlassShellStore((state) => state.paths);
-  const tick = useGlassShellStore((state) => state.tick);
+  const paths = useShellLayoutStore((state) => state.paths);
+  const tick = useShellLayoutStore((state) => state.tick);
   const qc = useQueryClient();
 
   const [git, setGit] = useState(() => ({
@@ -188,7 +188,7 @@ export function useGlassGitPanel(environmentId?: EnvironmentId | null): GlassGit
 
   const load = useCallback(
     async (opts?: { reset?: boolean }) => {
-      const api = readGlassGitApi(environmentId);
+      const api = readNativeGitApi(environmentId);
       if (!api || !cwd) return null;
       const id = ++seq.current;
       setGit((state) =>
@@ -218,7 +218,7 @@ export function useGlassGitPanel(environmentId?: EnvironmentId | null): GlassGit
   );
 
   useEffect(() => {
-    const api = readGlassGitApi(environmentId);
+    const api = readNativeGitApi(environmentId);
     if (!api || !cwd) {
       seq.current += 1;
       prevRows.current = [];
@@ -444,7 +444,7 @@ export function useGlassGitPanel(environmentId?: EnvironmentId | null): GlassGit
     collapseAll,
     refresh: load,
     init: async () => {
-      const api = readGlassGitApi(environmentId);
+      const api = readNativeGitApi(environmentId);
       if (!api || !cwd) return null;
       try {
         await api.init({ cwd });
@@ -462,7 +462,7 @@ export function useGlassGitPanel(environmentId?: EnvironmentId | null): GlassGit
       return load();
     },
     discard: async (paths) => {
-      const api = readGlassGitApi(environmentId);
+      const api = readNativeGitApi(environmentId);
       if (!api || !cwd) return curSnap;
       try {
         await api.discardPaths({ cwd, paths });

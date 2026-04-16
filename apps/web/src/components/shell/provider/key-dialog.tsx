@@ -13,7 +13,7 @@ import {
 } from "~/components/ui/dialog";
 import { Input } from "~/components/ui/input";
 
-export function GlassProviderKeyDialog(props: {
+export function ProviderKeyDialog(props: {
   open: boolean;
   provider: string;
   mode: "api_key" | "oauth";
@@ -50,12 +50,12 @@ export function GlassProviderKeyDialog(props: {
             ) : props.oauthSupported ? (
               <>
                 Provider <span className="font-medium">{props.provider}</span> uses OAuth in Pi.
-                Re-authenticate it here and Glass will retry the blocked action.
+                Re-authenticate it here and Multi will retry the blocked action.
               </>
             ) : (
               <>
                 Provider <span className="font-medium">{props.provider}</span> is currently using
-                OAuth-style credentials from your local Pi config. Glass will not overwrite them
+                OAuth-style credentials from your local Pi config. Multi will not overwrite them
                 with an API key prompt.
               </>
             )}

@@ -1,21 +1,21 @@
 // @ts-nocheck
-import type { GlassSkill } from "~/lib/glass-types";
+import type { UiSkill } from "~/lib/ui-session-types";
 
-import type { GlassDraftSkill } from "~/lib/glass-chat-draft-store";
+import type { ChatDraftSkill } from "~/lib/chat-draft-store";
 import type { SlashMatch } from "./search";
 
-function sort(skills: GlassDraftSkill[]) {
+function sort(skills: ChatDraftSkill[]) {
   return skills.toSorted((left, right) => {
     if (left.start !== right.start) return left.start - right.start;
     return left.end - right.end;
   });
 }
 
-function token(skill: Pick<GlassDraftSkill, "name">) {
+function token(skill: Pick<ChatDraftSkill, "name">) {
   return `/${skill.name}`;
 }
 
-function valid(text: string, skill: GlassDraftSkill) {
+function valid(text: string, skill: ChatDraftSkill) {
   if (skill.start < 0 || skill.end <= skill.start || skill.end > text.length) return false;
   return text.slice(skill.start, skill.end) === token(skill);
 }
@@ -42,7 +42,7 @@ function edit(prev: string, next: string) {
   };
 }
 
-export function shiftSkills(prev: string, next: string, skills: GlassDraftSkill[]) {
+export function shiftSkills(prev: string, next: string, skills: ChatDraftSkill[]) {
   const change = edit(prev, next);
   return sort(
     skills.flatMap((skill) => {
@@ -65,8 +65,8 @@ export function shiftSkills(prev: string, next: string, skills: GlassDraftSkill[
 export function applySkill(
   value: string,
   hit: SlashMatch,
-  item: Pick<GlassSkill, "id" | "name">,
-  skills: GlassDraftSkill[],
+  item: Pick<UiSkill, "id" | "name">,
+  skills: ChatDraftSkill[],
 ) {
   const next = `${value.slice(0, hit.start)}/${item.name} ${value.slice(hit.end)}`;
   return {
@@ -86,7 +86,7 @@ export function applySkill(
 
 export function touchSkill(
   text: string,
-  skills: GlassDraftSkill[],
+  skills: ChatDraftSkill[],
   pos: number,
   dir: "left" | "right",
 ) {
@@ -99,7 +99,7 @@ export function touchSkill(
 
 export function snapSkillSelection(
   text: string,
-  skills: GlassDraftSkill[],
+  skills: ChatDraftSkill[],
   start: number,
   end: number,
 ) {
@@ -118,7 +118,7 @@ export function snapSkillSelection(
   return changed ? { start: left, end: right } : null;
 }
 
-export function dropSkill(value: string, skills: GlassDraftSkill[], skill: GlassDraftSkill) {
+export function dropSkill(value: string, skills: ChatDraftSkill[], skill: ChatDraftSkill) {
   let start = skill.start;
   let end = skill.end;
 
@@ -136,7 +136,7 @@ export function dropSkill(value: string, skills: GlassDraftSkill[], skill: Glass
   };
 }
 
-export function expandSkills(text: string, skills: GlassDraftSkill[], defs: GlassSkill[]) {
+export function expandSkills(text: string, skills: ChatDraftSkill[], defs: UiSkill[]) {
   const map = new Map(defs.map((item) => [item.id, item]));
   let out = "";
   let at = 0;

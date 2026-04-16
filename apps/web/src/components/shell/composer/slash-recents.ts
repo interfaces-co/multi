@@ -1,9 +1,9 @@
-import type { GlassSlashItemKind } from "./slash-types";
+import type { SlashItemKind } from "./slash-types";
 
 const keys = {
-  commands: "glass.slash.recent.commands",
-  skills: "glass.slash.recent.skills",
-  global: "glass.slash.recent.global",
+  commands: "multi.slash.recent.commands",
+  skills: "multi.slash.recent.skills",
+  global: "multi.slash.recent.global",
 } as const;
 
 const cap = { per: 5, global: 15 } as const;
@@ -27,11 +27,11 @@ function push(key: string, id: string, max: number) {
   write(key, cur.slice(0, max));
 }
 
-function kindKey(kind: GlassSlashItemKind) {
+function kindKey(kind: SlashItemKind) {
   return kind === "skill" ? keys.skills : keys.commands;
 }
 
-export function recordSlashUse(id: string, kind: GlassSlashItemKind) {
+export function recordSlashUse(id: string, kind: SlashItemKind) {
   push(keys.global, id, cap.global);
   push(kindKey(kind), id, cap.per);
 }
@@ -53,7 +53,7 @@ export function readSlashRecents(): SlashRecentsSnapshot {
 /** Higher rank = more recent (0 = not in list). */
 export function recentBoost(
   id: string,
-  kind: GlassSlashItemKind,
+  kind: SlashItemKind,
   snap: SlashRecentsSnapshot,
 ): number {
   const g = snap.global.indexOf(id);

@@ -1,4 +1,4 @@
-import type { GlassAskReply, GlassAskState } from "~/lib/glass-types";
+import type { UiAskReply, UiAskState } from "~/lib/ui-session-types";
 import {
   IconCheckmark1Small,
   IconChevronLeft,
@@ -11,8 +11,8 @@ import { ScrollArea } from "~/components/ui/scroll-area";
 import { cn } from "~/lib/utils";
 
 interface Props {
-  state: GlassAskState;
-  onReply: (reply: GlassAskReply) => void;
+  state: UiAskState;
+  onReply: (reply: UiAskReply) => void;
 }
 
 const vacant: string[] = [];
@@ -21,7 +21,7 @@ const MotionCard = motion.create("div");
 
 function ShortcutBadge(props: { char: string }) {
   return (
-    <kbd className="flex size-5 shrink-0 items-center justify-center rounded-sm border border-glass-border/60 bg-glass-hover/40 text-[10px] leading-none font-medium text-muted-foreground/85">
+    <kbd className="flex size-5 shrink-0 items-center justify-center rounded-sm border border-chrome-border/60 bg-chrome-hover/40 text-[10px] leading-none font-medium text-muted-foreground/85">
       {props.char.toUpperCase()}
     </kbd>
   );
@@ -51,7 +51,7 @@ function OptRow(props: {
         "group flex w-full items-center gap-2 rounded-sm border px-2 py-1.5 text-left transition-colors",
         props.checked
           ? "border-primary/60 bg-primary/[0.06]"
-          : "border-glass-border/50 bg-transparent hover:border-glass-border/80 hover:bg-glass-hover/30",
+          : "border-chrome-border/50 bg-transparent hover:border-chrome-border/80 hover:bg-chrome-hover/30",
       )}
     >
       {props.shortcut ? <ShortcutBadge char={props.shortcut} /> : null}
@@ -97,7 +97,7 @@ function Pagination(props: {
         type="button"
         onClick={props.onPrev}
         disabled={props.current <= 1}
-        className="flex size-5 items-center justify-center rounded-sm text-muted-foreground/55 transition-colors hover:bg-glass-hover hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent"
+        className="flex size-5 items-center justify-center rounded-sm text-muted-foreground/55 transition-colors hover:bg-chrome-hover hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent"
         aria-label="Previous question"
       >
         <IconChevronLeft className="size-3" />
@@ -109,7 +109,7 @@ function Pagination(props: {
         type="button"
         onClick={props.onNext}
         disabled={props.current >= props.total}
-        className="flex size-5 items-center justify-center rounded-sm text-muted-foreground/55 transition-colors hover:bg-glass-hover hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent"
+        className="flex size-5 items-center justify-center rounded-sm text-muted-foreground/55 transition-colors hover:bg-chrome-hover hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent"
         aria-label="Next question"
       >
         <IconChevronRight className="size-3" />
@@ -118,7 +118,7 @@ function Pagination(props: {
   );
 }
 
-export function GlassAskTool(props: Props) {
+export function AskTool(props: Props) {
   const q = props.state.questions[props.state.current - 1];
   const baseVals = useMemo(() => {
     if (!q) return vacant;
@@ -165,7 +165,7 @@ export function GlassAskTool(props: Props) {
   );
 
   const reply = useCallback(
-    (type: GlassAskReply["type"]) => {
+    (type: UiAskReply["type"]) => {
       if (!q) return;
       if (type === "abort") {
         props.onReply({ type });
@@ -246,9 +246,9 @@ export function GlassAskTool(props: Props) {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 8 }}
         transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-        className="mx-auto w-full max-w-xl overflow-hidden rounded-glass-card border border-glass-stroke-tertiary bg-glass-bubble/98 shadow-glass-popup backdrop-blur-xl"
+        className="mx-auto w-full max-w-xl overflow-hidden rounded-chrome-card border border-chrome-stroke-tertiary bg-chrome-bubble/98 shadow-chrome-popup backdrop-blur-xl"
       >
-        <div className="flex items-center justify-between border-b border-glass-border/30 px-3 py-2">
+        <div className="flex items-center justify-between border-b border-chrome-border/30 px-3 py-2">
           <div className="flex items-center gap-1.5">
             <h3 className="text-[12px] leading-[16px] font-semibold text-foreground">Questions</h3>
             {count > 0 ? <PickBadge text={`${count} selected`} /> : null}
@@ -297,7 +297,7 @@ export function GlassAskTool(props: Props) {
                         "flex items-center gap-2 rounded-sm border px-2 py-1.5 text-left transition-all",
                         mode === "custom"
                           ? "border-primary/60 bg-primary/[0.06]"
-                          : "border-dashed border-glass-border/50 bg-transparent hover:border-glass-border/80 hover:bg-glass-hover/30",
+                          : "border-dashed border-chrome-border/50 bg-transparent hover:border-chrome-border/80 hover:bg-chrome-hover/30",
                       )}
                     >
                       {other.shortcut ? <ShortcutBadge char={other.shortcut} /> : null}
@@ -309,7 +309,7 @@ export function GlassAskTool(props: Props) {
                   ) : null}
                 </div>
                 {mode === "custom" ? (
-                  <div className="rounded-sm border border-glass-border/50 bg-glass-hover/18 p-2">
+                  <div className="rounded-sm border border-chrome-border/50 bg-chrome-hover/18 p-2">
                     <div className="mb-1.5 flex items-center justify-between gap-1.5">
                       <span className="text-[11px] leading-[14px] font-medium text-foreground/86">
                         Custom answer
@@ -320,7 +320,7 @@ export function GlassAskTool(props: Props) {
                           setCustom("");
                           setMode("options");
                         }}
-                        className="flex size-5 items-center justify-center rounded-sm text-muted-foreground/62 transition-colors hover:bg-glass-hover hover:text-foreground"
+                        className="flex size-5 items-center justify-center rounded-sm text-muted-foreground/62 transition-colors hover:bg-chrome-hover hover:text-foreground"
                         aria-label="Close custom answer"
                       >
                         <IconCrossSmall className="size-3" />
@@ -331,11 +331,11 @@ export function GlassAskTool(props: Props) {
                       onChange={(event) => setCustom(event.target.value)}
                       placeholder="Type your answer…"
                       rows={3}
-                      className="w-full resize-none rounded-sm border border-glass-border/50 bg-transparent px-2 py-1.5 text-[12px] leading-[16px] text-foreground outline-hidden placeholder:text-muted-foreground/60"
+                      className="w-full resize-none rounded-sm border border-chrome-border/50 bg-transparent px-2 py-1.5 text-[12px] leading-[16px] text-foreground outline-hidden placeholder:text-muted-foreground/60"
                     />
                     <p className="mt-1.5 text-[11px] leading-[14px] text-muted-foreground/68">
                       Press{" "}
-                      <kbd className="rounded-sm bg-glass-hover/60 px-1 py-px text-[10px]">
+                      <kbd className="rounded-sm bg-chrome-hover/60 px-1 py-px text-[10px]">
                         Ctrl+Enter
                       </kbd>{" "}
                       to continue.
@@ -347,19 +347,19 @@ export function GlassAskTool(props: Props) {
           </div>
         </ScrollArea>
 
-        <div className="flex items-center justify-between border-t border-glass-border/30 px-2 py-1.5">
+        <div className="flex items-center justify-between border-t border-chrome-border/30 px-2 py-1.5">
           <div className="flex items-center gap-1">
             <button
               type="button"
               onClick={() => reply("abort")}
-              className="rounded-sm px-2 py-1 text-[11px] leading-[14px] text-muted-foreground transition-colors hover:bg-glass-hover hover:text-foreground"
+              className="rounded-sm px-2 py-1 text-[11px] leading-[14px] text-muted-foreground transition-colors hover:bg-chrome-hover hover:text-foreground"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={() => reply("skip")}
-              className="rounded-sm px-2 py-1 text-[11px] leading-[14px] text-muted-foreground transition-colors hover:bg-glass-hover hover:text-foreground"
+              className="rounded-sm px-2 py-1 text-[11px] leading-[14px] text-muted-foreground transition-colors hover:bg-chrome-hover hover:text-foreground"
             >
               Skip
             </button>
@@ -369,7 +369,7 @@ export function GlassAskTool(props: Props) {
               <button
                 type="button"
                 onClick={() => reply("back")}
-                className="rounded-sm px-2 py-1 text-[11px] leading-[14px] text-muted-foreground transition-colors hover:bg-glass-hover hover:text-foreground"
+                className="rounded-sm px-2 py-1 text-[11px] leading-[14px] text-muted-foreground transition-colors hover:bg-chrome-hover hover:text-foreground"
               >
                 Back
               </button>

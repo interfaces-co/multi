@@ -1,4 +1,4 @@
-import type { GitFileState } from "~/lib/glass-types";
+import type { GitFileState } from "~/lib/ui-session-types";
 import { FileDiff, type FileDiffMetadata } from "@pierre/diffs/react";
 import { memo } from "react";
 import { cn } from "~/lib/utils";
@@ -15,7 +15,7 @@ interface Props {
   collapsed?: boolean;
 }
 
-export const GlassDiffViewer = memo(function GlassDiffViewer(props: Props) {
+export const DiffViewer = memo(function DiffViewer(props: Props) {
   const { resolvedTheme } = useTheme();
   const theme = resolvedTheme === "dark" ? "pierre-dark" : "pierre-light";
   const patch = props.filePatch?.trim() ?? "";

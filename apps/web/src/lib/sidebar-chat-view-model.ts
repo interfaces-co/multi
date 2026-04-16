@@ -1,10 +1,10 @@
 // @ts-nocheck
-import type { GlassSessionSummary } from "~/lib/glass-types";
+import type { SessionListSummary } from "~/lib/ui-session-types";
 
-import type { GlassDraftChat } from "./glass-chat-draft-store";
-import { shortWorkspacePathLabel } from "./glass-path-label";
+import type { ChatDraftSnapshot } from "./chat-draft-store";
+import { shortWorkspacePathLabel } from "./path-label";
 
-export interface GlassSidebarChat {
+export interface SidebarChatItem {
   id: string;
   kind: "draft" | "thread";
   title: string;
@@ -15,12 +15,12 @@ export interface GlassSidebarChat {
   cwd: string;
 }
 
-export interface GlassSidebarSection {
+export interface SidebarSectionModel {
   id: string;
   label: string;
   cwd: string;
   active: boolean;
-  items: readonly GlassSidebarChat[];
+  items: readonly SidebarChatItem[];
 }
 
 function timeAgo(iso: string) {
@@ -36,7 +36,7 @@ function timeAgo(iso: string) {
   return `${day}d`;
 }
 
-function draftTitle(draft: GlassDraftChat) {
+function draftTitle(draft: ChatDraftSnapshot) {
   const text = draft.text.trim();
   if (text) {
     const line = text.split("\n")[0]?.trim();
@@ -48,7 +48,7 @@ function draftTitle(draft: GlassDraftChat) {
   return `${head} +${draft.files.length - 1}`;
 }
 
-function buildThreadChat(sum: GlassSessionSummary, unreadIds?: ReadonlySet<string>) {
+function buildThreadChat(sum: SessionListSummary, unreadIds?: ReadonlySet<string>) {
   return {
     id: sum.id,
     kind: "thread",
@@ -58,10 +58,10 @@ function buildThreadChat(sum: GlassSessionSummary, unreadIds?: ReadonlySet<strin
     updatedAt: sum.modifiedAt,
     ago: timeAgo(sum.modifiedAt),
     cwd: sum.cwd || "/",
-  } satisfies GlassSidebarChat;
+  } satisfies SidebarChatItem;
 }
 
-function buildDraftChat(draft: GlassDraftChat) {
+function buildDraftChat(draft: ChatDraftSnapshot) {
   return {
     id: draft.id,
     kind: "draft",
@@ -71,12 +71,12 @@ function buildDraftChat(draft: GlassDraftChat) {
     updatedAt: draft.updatedAt,
     ago: timeAgo(draft.updatedAt),
     cwd: draft.cwd || "/",
-  } satisfies GlassSidebarChat;
+  } satisfies SidebarChatItem;
 }
 
 export function buildWorkspaceChatSections(
-  sums: Record<string, GlassSessionSummary>,
-  drafts: readonly GlassDraftChat[],
+  sums: Record<string, SessionListSummary>,
+  drafts: readonly ChatDraftSnapshot[],
   cwd: string | null,
   home: string | null,
   unreadIds?: ReadonlySet<string>,
@@ -87,7 +87,7 @@ export function buildWorkspaceChatSections(
   ];
   if (list.length === 0) return [];
 
-  const by = new Map<string, GlassSidebarChat[]>();
+  const by = new Map<string, SidebarChatItem[]>();
   for (const item of list) {
     const key = item.cwd || "/";
     const cur = by.get(key);
@@ -115,5 +115,5 @@ export function buildWorkspaceChatSections(
     cwd: group.dir,
     active: group.dir === cwd,
     items: group.sorted,
-  })) satisfies GlassSidebarSection[];
+  })) satisfies SidebarSectionModel[];
 }

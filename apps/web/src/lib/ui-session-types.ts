@@ -1,9 +1,9 @@
 /**
- * Glass-specific types (formerly in @glass/contracts).
+ * UI session types (formerly in @multi/contracts).
  *
- * Types that already exist in @t3tools/contracts (ProviderKind, ThreadId,
+ * Types that already exist in @multi/contracts (ProviderKind, ThreadId,
  * ModelSelection, ProviderInteractionMode, etc.) are NOT duplicated here --
- * import those directly from @t3tools/contracts.
+ * import those directly from @multi/contracts.
  */
 
 // ── Primitive ────────────────────────────────────────────────────────
@@ -12,24 +12,24 @@ export type Json = null | boolean | number | string | Json[] | { readonly [k: st
 
 // ── Blocks ───────────────────────────────────────────────────────────
 
-export interface GlassTextBlock {
+export interface UiTextBlock {
   type: "text";
   text: string;
 }
 
-export interface GlassThinkingBlock {
+export interface UiThinkingBlock {
   type: "thinking";
   thinking: string;
   summary?: string;
 }
 
-export interface GlassImageBlock {
+export interface UiImageBlock {
   type: "image";
   mimeType?: string;
   data?: string;
 }
 
-export interface GlassToolCallBlock {
+export interface UiToolCallBlock {
   type: "toolCall";
   id?: string;
   name: string;
@@ -37,69 +37,69 @@ export interface GlassToolCallBlock {
   [key: string]: unknown;
 }
 
-export interface GlassUnknownBlock {
+export interface UiUnknownBlock {
   type: string;
   [key: string]: unknown;
 }
 
-export type GlassBlock =
-  | GlassTextBlock
-  | GlassThinkingBlock
-  | GlassImageBlock
-  | GlassToolCallBlock
-  | GlassUnknownBlock;
+export type UiBlock =
+  | UiTextBlock
+  | UiThinkingBlock
+  | UiImageBlock
+  | UiToolCallBlock
+  | UiUnknownBlock;
 
 // ── Prompt ───────────────────────────────────────────────────────────
 
-export interface GlassPromptPathAttachment {
+export interface UiPromptPathAttachment {
   type: "path";
   path: string;
   name?: string;
 }
 
-export interface GlassPromptInlineAttachment {
+export interface UiPromptInlineAttachment {
   type: "inline";
   name: string;
   mimeType: string;
   data: string;
 }
 
-export type GlassPromptAttachment = GlassPromptPathAttachment | GlassPromptInlineAttachment;
+export type UiPromptAttachment = UiPromptPathAttachment | UiPromptInlineAttachment;
 
-export interface GlassPromptInput {
+export interface UiPromptInput {
   text: string;
-  attachments?: GlassPromptAttachment[];
+  attachments?: UiPromptAttachment[];
 }
 
 // ── Messages ─────────────────────────────────────────────────────────
 
-export interface GlassUserMessage {
+export interface UiUserMessage {
   role: "user";
-  content: string | GlassBlock[];
+  content: string | UiBlock[];
 }
 
-export interface GlassUserAttachmentMessage {
+export interface UiUserAttachmentMessage {
   role: "user-with-attachments";
-  content: string | GlassBlock[];
+  content: string | UiBlock[];
 }
 
-export interface GlassAssistantMessage {
+export interface UiAssistantMessage {
   role: "assistant";
-  content: GlassBlock[];
+  content: UiBlock[];
   stopReason?: string;
   errorMessage?: string;
 }
 
-export interface GlassToolResultMessage {
+export interface UiToolResultMessage {
   role: "toolResult";
   toolCallId?: string;
-  content: GlassBlock[];
+  content: UiBlock[];
   toolName?: string;
   isError?: boolean;
   details?: Record<string, unknown>;
 }
 
-export interface GlassBashExecutionMessage {
+export interface UiBashExecutionMessage {
   role: "bashExecution";
   command: string;
   output: string;
@@ -110,57 +110,57 @@ export interface GlassBashExecutionMessage {
   excludeFromContext?: boolean;
 }
 
-export interface GlassCustomMessage {
+export interface UiCustomMessage {
   role: "custom";
   customType: string;
-  content: string | GlassBlock[];
+  content: string | UiBlock[];
   display: boolean;
   details?: unknown;
 }
 
-export interface GlassBranchSummaryMessage {
+export interface UiBranchSummaryMessage {
   role: "branchSummary";
   summary: string;
   fromId: string;
 }
 
-export interface GlassCompactionSummaryMessage {
+export interface UiCompactionSummaryMessage {
   role: "compactionSummary";
   summary: string;
   tokensBefore: number;
 }
 
-export interface GlassSystemMessage {
+export interface UiSystemMessage {
   role: "system";
-  content: string | GlassBlock[];
+  content: string | UiBlock[];
 }
 
-export interface GlassUnknownMessage {
+export interface UiUnknownMessage {
   role: string;
   [key: string]: unknown;
 }
 
-export type GlassMessage =
-  | GlassUserMessage
-  | GlassUserAttachmentMessage
-  | GlassAssistantMessage
-  | GlassToolResultMessage
-  | GlassBashExecutionMessage
-  | GlassCustomMessage
-  | GlassBranchSummaryMessage
-  | GlassCompactionSummaryMessage
-  | GlassSystemMessage
-  | GlassUnknownMessage;
+export type UiMessage =
+  | UiUserMessage
+  | UiUserAttachmentMessage
+  | UiAssistantMessage
+  | UiToolResultMessage
+  | UiBashExecutionMessage
+  | UiCustomMessage
+  | UiBranchSummaryMessage
+  | UiCompactionSummaryMessage
+  | UiSystemMessage
+  | UiUnknownMessage;
 
 // ── Session ──────────────────────────────────────────────────────────
 
-export interface GlassSessionItem {
+export interface UiSessionItem {
   id: string;
   createdAt: string;
-  message: GlassMessage;
+  message: UiMessage;
 }
 
-export interface GlassSessionSummary {
+export interface SessionListSummary {
   id: string;
   harness?: HarnessKind;
   path: string;
@@ -174,14 +174,14 @@ export interface GlassSessionSummary {
   isStreaming: boolean;
 }
 
-export interface GlassSessionPending {
+export interface UiSessionPending {
   steering: string[];
   followUp: string[];
 }
 
-export type GlassSessionActiveEvent = Record<string, unknown>;
+export type UiSessionActiveEvent = Record<string, unknown>;
 
-export interface GlassSessionSnapshot {
+export interface UiSessionSnapshot {
   id: string;
   harness?: HarnessKind;
   file: string | null;
@@ -189,52 +189,52 @@ export interface GlassSessionSnapshot {
   name: string | null;
   model: HarnessModelRef | null;
   thinkingLevel: ThinkingLevel;
-  messages: GlassSessionItem[];
-  live: GlassSessionItem | null;
-  working: GlassWorkingState | null;
+  messages: UiSessionItem[];
+  live: UiSessionItem | null;
+  working: UiWorkingState | null;
   isStreaming: boolean;
-  pending: GlassSessionPending;
+  pending: UiSessionPending;
 }
 
 // ── Working state ────────────────────────────────────────────────────
 
-export interface GlassWorkingTool {
+export interface UiWorkingTool {
   itemId: string;
   title: string | null;
   detail: string | null;
 }
 
-export interface GlassWorkingTask {
+export interface UiWorkingTask {
   id: string;
   description: string | null;
   summary: string | null;
 }
 
-export type GlassWorkingStatus = "running" | "interrupted" | "error";
+export type UiWorkingStatus = "running" | "interrupted" | "error";
 
-export interface GlassWorkingState {
+export interface UiWorkingState {
   threadId: string;
   turnId: string | null;
   provider: string;
-  status: GlassWorkingStatus;
+  status: UiWorkingStatus;
   startedAt: string | null;
   updatedAt: string;
   summary: string | null;
   text: string;
-  tool: GlassWorkingTool | null;
-  task: GlassWorkingTask | null;
+  tool: UiWorkingTool | null;
+  task: UiWorkingTask | null;
 }
 
-export interface GlassWorkingUpdate {
+export interface UiWorkingUpdate {
   threadId: string;
-  working: GlassWorkingState | null;
+  working: UiWorkingState | null;
 }
 
 // ── Ask ──────────────────────────────────────────────────────────────
 
 export type ThreadInteractiveKind = "select" | "confirm" | "input" | "editor";
 
-export interface GlassAskOption {
+export interface UiAskOption {
   id: string;
   label: string;
   shortcut?: string;
@@ -242,25 +242,25 @@ export interface GlassAskOption {
   other?: boolean;
 }
 
-export interface GlassAskQuestion {
+export interface UiAskQuestion {
   id: string;
   text: string;
-  options: GlassAskOption[];
+  options: UiAskOption[];
   multi?: boolean;
   optional?: boolean;
 }
 
-export interface GlassAskState {
+export interface UiAskState {
   sessionId: string;
   toolCallId: string;
   kind: ThreadInteractiveKind;
-  questions: GlassAskQuestion[];
+  questions: UiAskQuestion[];
   current: number;
   values: Record<string, string[]>;
   custom: Record<string, string>;
 }
 
-export type GlassAskReply =
+export type UiAskReply =
   | { type: "next"; questionId: string; values: string[]; custom?: string }
   | { type: "back"; questionId: string; values: string[]; custom?: string }
   | { type: "skip"; questionId: string; values?: string[]; custom?: string }
@@ -320,14 +320,14 @@ export interface ShellFilePreview {
 
 // ── Skills ───────────────────────────────────────────────────────────
 
-export interface GlassSkill {
+export interface UiSkill {
   id: string;
   name: string;
   description?: string;
   body: string;
 }
 
-// ── Git (Glass-specific shapes, not in @t3tools/contracts) ───────────
+// ── Git (Glass-specific shapes, not in @multi/contracts) ───────────
 
 export type GitFileState =
   | "modified"

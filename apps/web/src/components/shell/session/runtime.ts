@@ -1,20 +1,20 @@
 // @ts-nocheck
-import type { CommandId, MessageId, ProviderInteractionMode, ThreadId } from "@t3tools/contracts";
+import type { CommandId, MessageId, ProviderInteractionMode, ThreadId } from "@multi/contracts";
 import type {
-  GlassAskReply,
-  GlassAskState,
-  GlassPromptInput,
-  GlassSessionItem,
+  UiAskReply,
+  UiAskState,
+  UiPromptInput,
+  UiSessionItem,
   HarnessKind,
   ThinkingLevel,
-} from "~/lib/glass-types";
+} from "~/lib/ui-session-types";
 import { startTransition, useCallback, useEffect, useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useNavigate } from "@tanstack/react-router";
 
 import { useRuntimeDefaults } from "~/hooks/use-runtime-models";
 import { useShellState } from "~/hooks/use-shell-cwd";
-import { readGlassRuntimeApi } from "~/native-api";
+import { readNativeRuntimeApi } from "~/native-api";
 import { useServerProviders } from "~/rpc/server-state";
 import {
   applyFastMode,
@@ -28,7 +28,7 @@ import {
   type RuntimeModelItem,
 } from "~/lib/runtime-models";
 import { hasTurnThinking } from "~/lib/assistant-content";
-import { useGlassChatDraftStore } from "~/lib/glass-chat-draft-store";
+import { useChatDraftStore } from "~/lib/chat-draft-store";
 import {
   clearThreadPending,
   markThreadPending,
@@ -41,13 +41,13 @@ import {
   useStore,
 } from "~/store";
 
-const empty: GlassSessionItem[] = [];
+const empty: UiSessionItem[] = [];
 
 const commandId = () => crypto.randomUUID() as CommandId;
 const newThreadId = () => crypto.randomUUID() as ThreadId;
 const newMessageId = () => crypto.randomUUID() as MessageId;
 
-function foldAttachments(input: GlassPromptInput) {
+function foldAttachments(input: UiPromptInput) {
   const inline = (input.attachments ?? []).flatMap((item) => {
     if (item.type !== "inline") return [];
     return [
@@ -68,7 +68,7 @@ function foldAttachments(input: GlassPromptInput) {
   return { text, attachments: inline };
 }
 
-function approvalAsk(threadId: string, requestId: string, detail?: string): GlassAskState {
+function approvalAsk(threadId: string, requestId: string, detail?: string): UiAskState {
   return {
     sessionId: threadId,
     toolCallId: requestId,
@@ -95,7 +95,7 @@ function inputAsk(
   threadId: string,
   requestId: string,
   questions: ReturnType<typeof derivePendingUserInputs>[number]["questions"],
-): GlassAskState {
+): UiAskState {
   return {
     sessionId: threadId,
     toolCallId: requestId,
@@ -164,7 +164,7 @@ export function useRuntimeSession(sessionId: string | null, harness?: HarnessKin
     return shellProject ?? threadProject ?? projects[0] ?? null;
   }, [projects, shell.cwd, thread]);
   const environmentId = thread?.environmentId ?? project?.environmentId ?? null;
-  const api = readGlassRuntimeApi(environmentId, { allowPrimaryEnvironmentFallback: true });
+  const api = readNativeRuntimeApi(environmentId, { allowPrimaryEnvironmentFallback: true });
   const orchestrationApi = api?.orchestration ?? null;
 
   const pendingInputs = useMemo(
@@ -270,7 +270,7 @@ export function useRuntimeSession(sessionId: string | null, harness?: HarnessKin
         : defs.selection;
 
     const interactionMode =
-      draft?.interactionMode ?? useGlassChatDraftStore.getState().root.interactionMode;
+      draft?.interactionMode ?? useChatDraftStore.getState().root.interactionMode;
 
     await orchestrationApi.dispatchCommand({
       type: "thread.create",
@@ -286,7 +286,7 @@ export function useRuntimeSession(sessionId: string | null, harness?: HarnessKin
       createdAt: new Date().toISOString(),
     });
     if (draft?.id) {
-      useGlassChatDraftStore.getState().promote(draft.id);
+      useChatDraftStore.getState().promote(draft.id);
     }
 
     startTransition(() => {
@@ -300,7 +300,7 @@ export function useRuntimeSession(sessionId: string | null, harness?: HarnessKin
   };
 
   const send = async (
-    input: string | GlassPromptInput,
+    input: string | UiPromptInput,
     draft?: { id: string; title: string | null; interactionMode?: ProviderInteractionMode } | null,
   ) => {
     const payload =
@@ -419,7 +419,7 @@ export function useRuntimeSession(sessionId: string | null, harness?: HarnessKin
     [orchestrationApi, sessionId, thread],
   );
 
-  const answerAsk = (reply: GlassAskReply) => {
+  const answerAsk = (reply: UiAskReply) => {
     if (!orchestrationApi || !thread || !askBox) return;
     if (askBox.mode === "approval") {
       const decision =

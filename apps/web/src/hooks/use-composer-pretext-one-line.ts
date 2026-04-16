@@ -8,12 +8,12 @@ function wellFormed(s: string) {
   return typeof fn === "function" ? fn.call(s) : s;
 }
 
-function useGlassPretextFont(px: number) {
+function useComposerPretextFont(px: number) {
   const [font, setFont] = useState(`400 ${px}px ui-sans-serif, system-ui, sans-serif`);
 
   useLayoutEffect(() => {
     const stack = getComputedStyle(document.documentElement)
-      .getPropertyValue("--glass-font-ui")
+      .getPropertyValue("--chrome-font-ui")
       .trim();
     if (stack) setFont(`400 ${px}px ${stack}`);
   }, [px]);
@@ -26,7 +26,7 @@ export function usePretextOneLine(opts: { text: string; fontPx?: number; lineHei
   const [w, setW] = useState(0);
   const px = opts.fontPx ?? 12;
   const line = opts.lineHeightPx ?? Math.round(px * 1.3);
-  const font = useGlassPretextFont(px);
+  const font = useComposerPretextFont(px);
   const t = useMemo(() => {
     if (!opts.text) return "";
     return wellFormed(opts.text);

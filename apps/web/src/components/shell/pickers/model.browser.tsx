@@ -1,13 +1,13 @@
 import "../../styles/tailwind.css";
 import "../../styles/app.css";
-import "../../styles/glass.css";
+import "../../styles/chrome-tokens.css";
 
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { page } from "vitest/browser";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { GlassModelPicker } from "./model";
+import { ModelPicker } from "./model";
 import type { RuntimeModelItem } from "~/lib/runtime-models";
 
 const fastModel: RuntimeModelItem = {
@@ -32,7 +32,7 @@ const slowModel: RuntimeModelItem = {
 function Harness(props: { item: RuntimeModelItem }) {
   const [fast, setFast] = useState(false);
   return (
-    <GlassModelPicker
+    <ModelPicker
       items={[props.item]}
       selection={{
         model: {
@@ -66,7 +66,7 @@ async function mount(item: RuntimeModelItem) {
   };
 }
 
-describe("GlassModelPicker", () => {
+describe("ModelPicker", () => {
   afterEach(() => {
     document.body.innerHTML = "";
   });

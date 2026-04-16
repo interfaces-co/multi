@@ -68,8 +68,8 @@
 }
 
 body {
-  font-family: var(--glass-font-ui);
-  font-size: var(--glass-ui-font-size-user, 13px);
+  font-family: var(--chrome-font-ui);
+  font-size: var(--chrome-ui-font-size-user, 13px);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   margin: 0;
@@ -91,8 +91,8 @@ body,
 
 pre,
 code {
-  font-family: var(--glass-font-mono);
-  font-size: var(--glass-code-font-size-user, 12px);
+  font-family: var(--chrome-font-mono);
+  font-size: var(--chrome-code-font-size-user, 12px);
 }
 
 /* Window drag region (frameless titlebar) */
@@ -206,15 +206,15 @@ label:has(> select#reasoning-effort) select {
 /* Embedded diffs: compact pierre/diffs inside tool panels */
 .embed-diff {
   /* Pierre :host uses light-dark(var(--diffs-light-bg), var(--diffs-dark-bg)) — inherit these so the diff isn’t a separate white slab */
-  --diffs-light-bg: color-mix(in srgb, var(--color-glass-bubble) 55%, var(--background));
-  --diffs-dark-bg: color-mix(in srgb, var(--color-glass-bubble) 48%, var(--background));
-  --diffs-bg-addition-override: var(--glass-diff-addition-bg);
-  --diffs-bg-deletion-override: var(--glass-diff-deletion-bg);
+  --diffs-light-bg: color-mix(in srgb, var(--color-chrome-bubble) 55%, var(--background));
+  --diffs-dark-bg: color-mix(in srgb, var(--color-chrome-bubble) 48%, var(--background));
+  --diffs-bg-addition-override: var(--chrome-diff-addition-bg);
+  --diffs-bg-deletion-override: var(--chrome-diff-deletion-bg);
   /* Pierre tints the gutter column by default — reads as a left green/red strip; tint only the code column */
   --diffs-bg-addition-number-override: transparent;
   --diffs-bg-deletion-number-override: transparent;
-  --diffs-addition-color-override: var(--glass-diff-addition);
-  --diffs-deletion-color-override: var(--glass-diff-deletion);
+  --diffs-addition-color-override: var(--chrome-diff-addition);
+  --diffs-deletion-color-override: var(--chrome-diff-deletion);
   --diffs-bg-context-override: color-mix(in srgb, var(--foreground) 2.5%, var(--diffs-light-bg));
   --diffs-bg-buffer-override: transparent;
   --diffs-bg-hover-override: transparent;
@@ -321,21 +321,21 @@ label:has(> select#reasoning-effort) select {
   animation: ultrathink-rainbow 10s linear infinite;
 }
 
-/* Dev: React Grab plugin toggles `html.glass-overlay-debug` — outlines overlay hosts (see `react-grab-overlay-debug.ts`). */
-html.glass-overlay-debug [data-slot="tooltip-content"],
-html.glass-overlay-debug [data-slot="popover-token-menu"],
-html.glass-overlay-debug [data-slot="context-menu-popup"] {
+/* Dev: React Grab plugin toggles `html.chrome-overlay-debug` — outlines overlay hosts (see `react-grab-overlay-debug.ts`). */
+html.chrome-overlay-debug [data-slot="tooltip-content"],
+html.chrome-overlay-debug [data-slot="popover-token-menu"],
+html.chrome-overlay-debug [data-slot="context-menu-popup"] {
   outline: 2px solid hsl(280 85% 58% / 0.88);
   outline-offset: 2px;
 }
 
-html.glass-overlay-debug [data-slot="tooltip-trigger"],
-html.glass-overlay-debug [data-slot="context-menu-trigger"] {
+html.chrome-overlay-debug [data-slot="tooltip-trigger"],
+html.chrome-overlay-debug [data-slot="context-menu-trigger"] {
   outline: 1px dashed hsl(200 78% 52% / 0.85);
   outline-offset: 2px;
 }
 
-html.glass-overlay-debug [data-slot="context-menu-root"] {
+html.chrome-overlay-debug [data-slot="context-menu-root"] {
   outline: 1px dotted hsl(45 90% 55% / 0.45);
   outline-offset: 1px;
 }

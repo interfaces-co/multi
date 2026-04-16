@@ -1,4 +1,4 @@
-import { ThreadId } from "@t3tools/contracts";
+import { ThreadId } from "@multi/contracts";
 
 const WORKBENCH_BROWSER_DEFAULT_SCOPE = "workbench:browser:default";
 

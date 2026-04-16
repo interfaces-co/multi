@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from "react";
 
-import { GLASS_TINT_PAD } from "~/lib/glass-tint";
+import { TINT_PAD } from "~/lib/ui-tint";
 import { hueSatFromXY, xyFromHueSat, type PadRect } from "~/lib/tint-pad-geometry";
 import { cn } from "~/lib/utils";
 
@@ -14,12 +14,12 @@ function commit(
   onHue: (n: number) => void,
   onSat: (n: number) => void,
 ) {
-  const { hue, saturation } = hueSatFromXY(clientX, clientY, rect, GLASS_TINT_PAD.inset);
+  const { hue, saturation } = hueSatFromXY(clientX, clientY, rect, TINT_PAD.inset);
   onHue(Math.round(hue) % 360);
   onSat(Math.min(100, Math.max(0, Math.round(saturation))));
 }
 
-export function GlassTintPad(props: {
+export function TintPad(props: {
   hue: number;
   saturation: number;
   disabled?: boolean;
@@ -35,7 +35,7 @@ export function GlassTintPad(props: {
     if (!el) return;
     const sync = () => {
       const r = el.getBoundingClientRect();
-      const p = xyFromHueSat(props.hue, props.saturation, r, GLASS_TINT_PAD.inset);
+      const p = xyFromHueSat(props.hue, props.saturation, r, TINT_PAD.inset);
       setDot(p);
     };
     sync();
@@ -59,7 +59,7 @@ export function GlassTintPad(props: {
         props.disabled && "pointer-events-none opacity-50",
         props.className,
       )}
-      style={{ height: GLASS_TINT_PAD.h, width: GLASS_TINT_PAD.w }}
+        style={{ height: TINT_PAD.h, width: TINT_PAD.w }}
     >
       <div
         aria-hidden
@@ -67,7 +67,7 @@ export function GlassTintPad(props: {
         style={{ background: field }}
       />
       <div
-        aria-label="Glass tint"
+        aria-label="Accent tint"
         tabIndex={props.disabled ? -1 : 0}
         className="absolute inset-0 z-10 cursor-crosshair touch-none outline-none focus-visible:ring-0"
         onPointerDown={(e) => {

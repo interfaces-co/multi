@@ -1,15 +1,15 @@
 // @ts-nocheck
-import { CommandId, type ServerProvider } from "@t3tools/contracts";
-import type { HarnessDescriptor, HarnessKind } from "~/lib/glass-types";
+import { CommandId, type ServerProvider } from "@multi/contracts";
+import type { HarnessDescriptor, HarnessKind } from "~/lib/ui-session-types";
 import { useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 
-import { readGlassEnvironmentApi, readNativeApi } from "../native-api";
+import { readNativeEnvironmentApi, readNativeApi } from "../native-api";
 import { getServerConfig, useServerProviders } from "../rpc/server-state";
 import { getDefaultServerModel } from "../providerModels";
 import { selectProjectsAcrossEnvironments, useStore } from "../store";
 
-const WORKSPACE_KEY = "glass:workspace-cwd";
+const WORKSPACE_KEY = "multi:workspace-cwd";
 
 export interface HarnessState {
   descriptors: HarnessDescriptor[];
@@ -102,7 +102,7 @@ export async function setDefaultHarness(kind: HarnessKind): Promise<void> {
   const project = projects.find((item) => item.cwd === storedCwd()) ?? projects[0] ?? null;
   if (!localApi || !project) return;
   const providers = getServerConfig()?.providers ?? (await localApi.server.getConfig()).providers;
-  const orchestration = readGlassEnvironmentApi(project.environmentId)?.orchestration;
+  const orchestration = readNativeEnvironmentApi(project.environmentId)?.orchestration;
   if (!orchestration) return;
   const provider = toProvider(kind);
   await orchestration.dispatchCommand({

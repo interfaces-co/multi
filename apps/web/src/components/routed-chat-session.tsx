@@ -1,21 +1,21 @@
 // @ts-nocheck
-import type { EnvironmentId, ThreadId, ProviderInteractionMode } from "@t3tools/contracts";
-import type { GlassPromptInput, GlassSessionItem, GlassWorkingState } from "~/lib/glass-types";
+import type { EnvironmentId, ThreadId, ProviderInteractionMode } from "@multi/contracts";
+import type { UiPromptInput, UiSessionItem, UiWorkingState } from "~/lib/ui-session-types";
 import type { RuntimeModelItem } from "~/lib/runtime-models";
-import type { ThinkingLevel } from "~/lib/glass-types";
+import type { ThinkingLevel } from "~/lib/ui-session-types";
 
 import { useCallback, useMemo, useRef } from "react";
 
-import { GlassChatComposer, type GlassChatComposerHandle } from "./glass/composer/chat";
-import { GlassChatMessages } from "./glass/chat/messages";
-import { useGlassChatDraftStore } from "~/lib/glass-chat-draft-store";
+import { ChatComposer, type ChatComposerHandle } from "./shell/composer/chat";
+import { ChatMessages } from "./shell/chat/messages";
+import { useChatDraftStore } from "~/lib/chat-draft-store";
 import { useStore } from "~/store";
 import { createThreadSelectorByRef } from "~/storeSelectors";
 import { readEnvironmentApi } from "~/environmentApi";
 import { newCommandId } from "~/lib/utils";
-import { sendGlassPrompt, type SendGlassPromptContext } from "~/lib/glass-send-adapter";
+import { sendChatPrompt, type SendChatPromptContext } from "~/lib/chat-send-adapter";
 
-function mapMessagesToGlassItems(
+function mapMessagesToSessionItems(
   messages: ReadonlyArray<{
     id?: string;
     messageId?: string;
@@ -24,7 +24,7 @@ function mapMessagesToGlassItems(
     content?: unknown;
     createdAt?: string;
   }>,
-): GlassSessionItem[] {
+): UiSessionItem[] {
   return messages.map((msg, i) => ({
     id: (msg as { id?: string }).id ?? (msg as { messageId?: string }).messageId ?? String(i),
     createdAt: (msg as { createdAt?: string }).createdAt ?? new Date().toISOString(),
@@ -41,14 +41,14 @@ function mapMessagesToGlassItems(
   }));
 }
 
-export function GlassChatSession(props: {
+export function RoutedChatSession(props: {
   threadId?: ThreadId;
   environmentId: EnvironmentId;
   routeKind: "server" | "draft";
   draftId?: string;
 }) {
   const { threadId, environmentId } = props;
-  const composerRef = useRef<GlassChatComposerHandle>(null);
+  const composerRef = useRef<ChatComposerHandle>(null);
 
   const threadSelector = useMemo(
     () => createThreadSelectorByRef(threadId ? { environmentId, threadId } : null),
@@ -56,16 +56,16 @@ export function GlassChatSession(props: {
   );
   const thread = useStore(threadSelector) ?? null;
 
-  const draft = useGlassChatDraftStore((s) => s.root);
-  const saveRoot = useGlassChatDraftStore((s) => s.saveRoot);
+  const draft = useChatDraftStore((s) => s.root);
+  const saveRoot = useChatDraftStore((s) => s.saveRoot);
 
-  const items = useMemo<GlassSessionItem[]>(() => {
+  const items = useMemo<UiSessionItem[]>(() => {
     if (!thread) return [];
-    return mapMessagesToGlassItems(thread.messages as never);
+    return mapMessagesToSessionItems(thread.messages as never);
   }, [thread]);
 
   const busy = thread?.session?.orchestrationStatus === "running";
-  const work: GlassWorkingState | null = null;
+  const work: UiWorkingState | null = null;
 
   const onDraft = useCallback(
     (value: string) => saveRoot(value, draft.files, draft.skills),
@@ -73,9 +73,9 @@ export function GlassChatSession(props: {
   );
 
   const onSend = useCallback(
-    async (input: GlassPromptInput): Promise<{ clear: boolean } | false> => {
+    async (input: UiPromptInput): Promise<{ clear: boolean } | false> => {
       if (!threadId || !environmentId || !thread) return false;
-      const ctx: SendGlassPromptContext = {
+      const ctx: SendChatPromptContext = {
         environmentId,
         threadId,
         modelSelection: thread.modelSelection,
@@ -83,7 +83,7 @@ export function GlassChatSession(props: {
         interactionMode: thread.interactionMode,
         titleSeed: input.text.slice(0, 80),
       };
-      return sendGlassPrompt(input, ctx);
+      return sendChatPrompt(input, ctx);
     },
     [environmentId, thread, threadId],
   );
@@ -114,7 +114,7 @@ export function GlassChatSession(props: {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-        <GlassChatMessages
+        <ChatMessages
           items={items}
           work={work}
           workLog={[]}
@@ -127,7 +127,7 @@ export function GlassChatSession(props: {
       </div>
 
       <div className="shrink-0">
-        <GlassChatComposer
+        <ChatComposer
           ref={composerRef}
           variant="dock"
           sessionId={threadId ?? null}

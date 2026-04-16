@@ -1,4 +1,4 @@
-import { CursorNativePreview } from "~/components/glass/debug/cursor-native-previews";
+import { CursorNativePreview } from "~/components/shell/debug/cursor-native-previews";
 
 const tools = [
   "ShellToolCallHeaderActions",
@@ -9,12 +9,12 @@ const tools = [
   "AgentPanelToolStack",
   "McpToolCallBlock",
   "ChatToolInvocation",
-  "GlassToolCardShell",
+  "ToolCardShell",
 ] as const;
 
 export function ToolRendererGallery() {
   return (
-    <section className="scroll-mt-[4.5rem] font-glass space-y-6" id="debug-tool-renderers">
+    <section className="scroll-mt-[4.5rem] font-chrome space-y-6" id="debug-tool-renderers">
       <div className="space-y-1">
         <h2 className="text-[17px] leading-[22px] font-semibold text-foreground">
           Cursor tool components
@@ -30,7 +30,7 @@ export function ToolRendererGallery() {
             <div className="text-caption font-medium text-muted-foreground">{title}</div>
             <div
               data-cursor-preview
-              className="overflow-hidden rounded-glass-card border border-glass-border/35 bg-background/20 p-3"
+              className="overflow-hidden rounded-chrome-card border border-chrome-border/35 bg-background/20 p-3"
             >
               <CursorNativePreview title={title} />
             </div>

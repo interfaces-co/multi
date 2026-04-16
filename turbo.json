@@ -5,23 +5,23 @@
     "PORT",
     "VITE_WS_URL",
     "VITE_DEV_SERVER_URL",
-    "T3CODE_LOG_WS_EVENTS",
-    "T3CODE_MODE",
-    "T3CODE_PORT",
-    "T3CODE_NO_BROWSER",
-    "T3CODE_HOME",
-    "T3CODE_AUTH_TOKEN",
-    "T3CODE_DESKTOP_WS_URL",
-    "T3CODE_TRACE_MIN_LEVEL",
-    "T3CODE_TRACE_TIMING_ENABLED",
-    "T3CODE_TRACE_FILE",
-    "T3CODE_TRACE_MAX_BYTES",
-    "T3CODE_TRACE_MAX_FILES",
-    "T3CODE_TRACE_BATCH_WINDOW_MS",
-    "T3CODE_OTLP_TRACES_URL",
-    "T3CODE_OTLP_METRICS_URL",
-    "T3CODE_OTLP_EXPORT_INTERVAL_MS",
-    "T3CODE_OTLP_SERVICE_NAME"
+    "MULTI_LOG_WS_EVENTS",
+    "MULTI_MODE",
+    "MULTI_PORT",
+    "MULTI_NO_BROWSER",
+    "MULTI_HOME",
+    "MULTI_AUTH_TOKEN",
+    "MULTI_DESKTOP_WS_URL",
+    "MULTI_TRACE_MIN_LEVEL",
+    "MULTI_TRACE_TIMING_ENABLED",
+    "MULTI_TRACE_FILE",
+    "MULTI_TRACE_MAX_BYTES",
+    "MULTI_TRACE_MAX_FILES",
+    "MULTI_TRACE_BATCH_WINDOW_MS",
+    "MULTI_OTLP_TRACES_URL",
+    "MULTI_OTLP_METRICS_URL",
+    "MULTI_OTLP_EXPORT_INTERVAL_MS",
+    "MULTI_OTLP_SERVICE_NAME"
   ],
   "tasks": {
     "build": {
@@ -29,12 +29,12 @@
       "outputs": ["dist/**", "dist-electron/**"]
     },
     "dev": {
-      "dependsOn": ["@t3tools/contracts#build"],
+      "dependsOn": ["@multi/contracts#build"],
       "cache": false,
       "persistent": true
     },
     "dev:stack": {
-      "dependsOn": ["@t3tools/contracts#build"],
+      "dependsOn": ["@multi/contracts#build"],
       "cache": false,
       "persistent": true
     },

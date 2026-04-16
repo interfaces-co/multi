@@ -8,7 +8,7 @@
   min-width: 0;
   overflow-wrap: anywhere;
   word-break: break-word;
-  --monaco-monospace-font: var(--glass-font-mono);
+  --monaco-monospace-font: var(--chrome-font-mono);
   --vscode-widget-shadow: color-mix(in srgb, var(--foreground) 10%, transparent);
   --vscode-textCodeBlock-background: color-mix(in srgb, var(--foreground) 6.5%, var(--background));
   --vscode-textBlockQuote-background: color-mix(in srgb, var(--foreground) 4%, var(--background));
@@ -300,7 +300,7 @@
   align-items: center;
   padding: 6px 8px 4px !important;
   color: var(--muted-foreground);
-  font-size: var(--glass-text-detail);
+  font-size: var(--chrome-text-detail);
   line-height: 1.25;
 }
 

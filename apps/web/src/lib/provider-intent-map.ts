@@ -3,7 +3,7 @@ import {
   PROVIDER_RUNTIME_EVENT_INTENTS,
   PROVIDER_RUNTIME_EVENT_TYPES,
   type ProviderRuntimeEventType,
-} from "@t3tools/contracts";
+} from "@multi/contracts";
 import { TOOL_RENDERER_KEYS } from "./tool-renderers";
 
 export type ProviderIntentStatus = "rendered" | "hidden" | "not-mapped-yet";
@@ -192,17 +192,17 @@ export const PROVIDER_INTENT_COMPONENTS = {
     note: "Hook completion events are not yet mapped to chat rows.",
   },
   "tool.progress": {
-    componentName: "GlassChatWorking",
+    componentName: "ChatWorkingRow",
     status: "rendered",
     note: "Tool progress emitted as activities; surfaced in working state and activity feed.",
   },
   "tool.summary": {
-    componentName: "GlassChatWorking",
+    componentName: "ChatWorkingRow",
     status: "rendered",
     note: "Tool summaries emitted as activities; surfaced in working state and activity feed.",
   },
   "auth.status": {
-    componentName: "GlassProviderNoticeBanner",
+    componentName: "ProviderNoticeBanner",
     status: "rendered",
     note: "Auth notices render in the provider notice banner.",
   },
@@ -212,7 +212,7 @@ export const PROVIDER_INTENT_COMPONENTS = {
     note: "Account metadata changes are not shown in chat UI.",
   },
   "account.rate-limits.updated": {
-    componentName: "GlassProviderNoticeBanner",
+    componentName: "ProviderNoticeBanner",
     status: "rendered",
     note: "Rate-limit notices render in the provider notice banner.",
   },
@@ -232,7 +232,7 @@ export const PROVIDER_INTENT_COMPONENTS = {
     note: "Model reroute notices are not currently mapped in chat.",
   },
   "config.warning": {
-    componentName: "GlassProviderNoticeBanner",
+    componentName: "ProviderNoticeBanner",
     status: "rendered",
     note: "Configuration warnings render in the provider notice banner.",
   },

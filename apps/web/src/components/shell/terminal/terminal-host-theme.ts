@@ -102,7 +102,7 @@ export function readWorkbenchFallbackTheme(el: HTMLElement, mode: "light" | "dar
   } satisfies ITheme;
 }
 
-export function readGlassHostTheme(el: HTMLElement, mode: "light" | "dark"): ITheme {
+export function readTerminalHostTheme(el: HTMLElement, mode: "light" | "dark"): ITheme {
   const base = readWorkbenchFallbackTheme(el, mode);
   const doc = el.ownerDocument;
   const v = (kind: "fg" | "bg", expr: string, fb: string) => readVarPaint(doc, kind, expr, fb);

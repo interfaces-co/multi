@@ -233,6 +233,37 @@ function SelectGroupLabel(props: SelectPrimitive.GroupLabel.Props) {
   );
 }
 
+export type SimpleSelectProps = {
+  value: string;
+  onValueChange: (next: string) => void;
+  options: ReadonlyArray<{ value: string; label: string }>;
+  disabled?: boolean;
+};
+
+/** Small controlled select for settings rows (value + options list). */
+function SimpleSelect({ value, onValueChange, options, disabled }: SimpleSelectProps) {
+  return (
+    <Select
+      value={value}
+      onValueChange={(next) => {
+        if (next != null) onValueChange(next);
+      }}
+      disabled={disabled}
+    >
+      <SelectTrigger className="w-full min-w-36" disabled={disabled}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectPopup>
+        {options.map((opt) => (
+          <SelectItem key={opt.value} value={opt.value}>
+            {opt.label}
+          </SelectItem>
+        ))}
+      </SelectPopup>
+    </Select>
+  );
+}
+
 export {
   Select,
   SelectTrigger,
@@ -245,4 +276,5 @@ export {
   SelectSeparator,
   SelectGroup,
   SelectGroupLabel,
+  SimpleSelect,
 };

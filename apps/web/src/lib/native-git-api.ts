@@ -1,9 +1,9 @@
-import type { EnvironmentId } from "@t3tools/contracts";
+import type { EnvironmentId } from "@multi/contracts";
 import type { WsRpcClient } from "~/ws-rpc-client";
 
-import { readGlassEnvironmentApi, readGlassRuntimeApi } from "~/native-api";
+import { readNativeEnvironmentApi, readNativeRuntimeApi } from "~/native-api";
 
-export interface GlassGitApi {
+export interface NativeGitApi {
   refreshStatus: WsRpcClient["git"]["refreshStatus"];
   onStatus: WsRpcClient["git"]["onStatus"];
   init: WsRpcClient["git"]["init"];
@@ -11,11 +11,11 @@ export interface GlassGitApi {
   getFilePatch?: (input: { cwd: string; path: string }) => Promise<{ unifiedDiff: string }>;
 }
 
-function isGlassGitApi(nativeGit: unknown): nativeGit is GlassGitApi {
+function isNativeGitApi(nativeGit: unknown): nativeGit is NativeGitApi {
   if (!nativeGit || typeof nativeGit !== "object") {
     return false;
   }
-  const gitApi = nativeGit as Partial<GlassGitApi>;
+  const gitApi = nativeGit as Partial<NativeGitApi>;
   if (
     typeof gitApi.refreshStatus !== "function" ||
     typeof gitApi.onStatus !== "function" ||
@@ -26,16 +26,16 @@ function isGlassGitApi(nativeGit: unknown): nativeGit is GlassGitApi {
   return true;
 }
 
-export function readGlassGitApi(environmentId?: EnvironmentId | null): GlassGitApi | null {
-  const runtimeGit = readGlassRuntimeApi(environmentId, {
+export function readNativeGitApi(environmentId?: EnvironmentId | null): NativeGitApi | null {
+  const runtimeGit = readNativeRuntimeApi(environmentId, {
     allowPrimaryEnvironmentFallback: true,
   })?.git;
-  if (isGlassGitApi(runtimeGit)) {
+  if (isNativeGitApi(runtimeGit)) {
     return runtimeGit;
   }
 
-  const environmentGit = readGlassEnvironmentApi(environmentId, {
+  const environmentGit = readNativeEnvironmentApi(environmentId, {
     allowPrimaryEnvironmentFallback: true,
   })?.git;
-  return isGlassGitApi(environmentGit) ? environmentGit : null;
+  return isNativeGitApi(environmentGit) ? environmentGit : null;
 }

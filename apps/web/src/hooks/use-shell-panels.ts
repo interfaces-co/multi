@@ -26,9 +26,9 @@ const init = {
   rightW: 400,
 };
 
-export function useGlassShellPanels(cwdKey: string | null) {
-  const key = `glass.shell.v1:${cwdKey ?? "default"}`;
-  const tabKey = `glass.shell.tab.v1:${cwdKey ?? "default"}`;
+export function useShellPanels(cwdKey: string | null) {
+  const key = `multi.shell.v1:${cwdKey ?? "default"}`;
+  const tabKey = `multi.shell.tab.v1:${cwdKey ?? "default"}`;
   const [state, set] = useLocalStorage(key, init, State);
   const [tab, setTab] = useLocalStorage<WorkbenchTab, WorkbenchTab>(tabKey, "git", TabSchema);
 

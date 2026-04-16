@@ -1,10 +1,10 @@
 // @ts-nocheck
 import type { FileDiffMetadata } from "@pierre/diffs";
-import type { EnvironmentId } from "@t3tools/contracts";
+import type { EnvironmentId } from "@multi/contracts";
 import { parsePatchFiles } from "@pierre/diffs";
 import { queryOptions } from "@tanstack/react-query";
 
-import { readGlassGitApi } from "~/lib/glass-git-api";
+import { readNativeGitApi } from "~/lib/native-git-api";
 
 export interface GitPatchData {
   patch: string;
@@ -41,7 +41,7 @@ export function gitPatchQueryOptions(input: {
     queryKey: gitQueryKeys.patch(input.environmentId, input.cwd ?? "", input.path),
     queryFn: async () => {
       if (!input.cwd) throw new Error("No workspace");
-      const api = readGlassGitApi(input.environmentId);
+      const api = readNativeGitApi(input.environmentId);
       if (!api || typeof api.getFilePatch !== "function") {
         throw new Error("Git patch API not available");
       }

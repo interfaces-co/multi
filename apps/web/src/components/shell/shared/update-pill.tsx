@@ -17,7 +17,7 @@ import {
 } from "../../desktopUpdate.logic";
 import { toast } from "sonner";
 
-export function GlassUpdatePill() {
+export function UpdatePill() {
   const qc = useQueryClient();
   const state = useDesktopUpdateState().data ?? null;
   const [dismissed, setDismissed] = useState(false);
@@ -58,7 +58,7 @@ export function GlassUpdatePill() {
       disabled={disabled}
       onClick={handle}
       onDoubleClick={() => setDismissed(true)}
-      className="flex w-full items-center justify-start gap-2 rounded-glass-control px-0 py-1.5 text-left text-body font-medium text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
+      className="flex w-full items-center justify-start gap-2 rounded-chrome-control px-0 py-1.5 text-left text-body font-medium text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
     >
       {action === "install" ? (
         <>

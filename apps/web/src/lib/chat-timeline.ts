@@ -1,4 +1,4 @@
-import type { Json, GlassBlock, GlassSessionItem, GlassToolCallBlock } from "~/lib/glass-types";
+import type { Json, UiBlock, UiSessionItem, UiToolCallBlock } from "~/lib/ui-session-types";
 import type { WorkLogEntry } from "./work-log";
 import type { ProposedPlan } from "../types";
 import { resolvedToolName as resolve } from "./tool-renderers";
@@ -80,7 +80,7 @@ export type ChatRow =
       args: string;
       result: string;
       error: boolean;
-      call: GlassToolCallBlock | null;
+      call: UiToolCallBlock | null;
       details: Json | null;
     }
   | { id: string; kind: "custom"; name: string; text: string }
@@ -118,7 +118,7 @@ export type ChatRow =
 // ── Timeline types ──────────────────────────────────────────────────
 
 export type TimelineEntry =
-  | { kind: "message"; id: string; createdAt: string; item: GlassSessionItem }
+  | { kind: "message"; id: string; createdAt: string; item: UiSessionItem }
   | { kind: "work"; id: string; createdAt: string; entry: WorkLogEntry }
   | { kind: "proposed-plan"; id: string; createdAt: string; plan: ProposedPlan };
 
@@ -136,7 +136,7 @@ export interface StableTimelineRowsState {
 // ── Timeline pipeline ───────────────────────────────────────────────
 
 export function deriveTimelineEntries(
-  items: GlassSessionItem[],
+  items: UiSessionItem[],
   plans: ProposedPlan[],
   work: WorkLogEntry[],
 ): TimelineEntry[] {
@@ -242,7 +242,7 @@ function list(value: Json) {
     if (!item || typeof item !== "object") return [];
     const r = item as Record<string, Json>;
     if (typeof r.type !== "string") return [];
-    return [item as GlassBlock];
+    return [item as UiBlock];
   });
 }
 
@@ -415,7 +415,7 @@ function toolCallFromEntry(
   name: string,
   id: string | null,
   details: Json | undefined,
-): GlassToolCallBlock | null {
+): UiToolCallBlock | null {
   const args = toolArgsFromEntry(details);
   if (!args && !name) return null;
   return { type: "toolCall", ...(id ? { id } : {}), name, ...(args ? { arguments: args } : {}) };
@@ -425,7 +425,7 @@ function isChatRow(row: TimelineRow): row is ChatRow {
   return row.kind !== "work" && row.kind !== "proposed-plan" && row.kind !== "working";
 }
 
-function appendMessageRows(rows: TimelineRow[], map: Map<string, number>, entry: GlassSessionItem) {
+function appendMessageRows(rows: TimelineRow[], map: Map<string, number>, entry: UiSessionItem) {
   const msg = entry.message as Record<string, Json>;
   const role = typeof msg.role === "string" ? msg.role : "unknown";
 
@@ -482,7 +482,7 @@ function appendMessageRows(rows: TimelineRow[], map: Map<string, number>, entry:
           args: a,
           result: "",
           error: false,
-          call: part as GlassToolCallBlock,
+          call: part as UiToolCallBlock,
           details: null,
         });
         map.set(key, rows.length - 1);
@@ -642,13 +642,13 @@ function appendMessageRows(rows: TimelineRow[], map: Map<string, number>, entry:
   rows.push({ id: entry.id, kind: "other", role, text: plain(msg.content) });
 }
 
-export function parseMessageRows(entry: GlassSessionItem): ChatRow[] {
+export function parseMessageRows(entry: UiSessionItem): ChatRow[] {
   const rows: TimelineRow[] = [];
   appendMessageRows(rows, new Map<string, number>(), entry);
   return rows.flatMap((row) => (isChatRow(row) ? [row] : []));
 }
 
-export function buildChatRows(items: GlassSessionItem[]): ChatRow[] {
+export function buildChatRows(items: UiSessionItem[]): ChatRow[] {
   const rows: TimelineRow[] = [];
   const map = new Map<string, number>();
   for (const item of items) {

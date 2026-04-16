@@ -1,5 +1,5 @@
 {
-  "name": "@t3tools/desktop",
+  "name": "@multi/desktop",
   "version": "0.0.17",
   "private": true,
   "main": "dist-electron/main.js",
@@ -19,12 +19,12 @@
     "electron-updater": "^6.8.3"
   },
   "devDependencies": {
-    "@t3tools/contracts": "workspace:*",
-    "@t3tools/shared": "workspace:*",
+    "@multi/contracts": "workspace:*",
+    "@multi/shared": "workspace:*",
     "@types/node": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },
-  "productName": "T3 Code (Alpha)"
+  "productName": "Multi (Alpha)"
 }

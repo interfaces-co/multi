@@ -3,16 +3,16 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, type ReactNode } from "react";
 
-import { useGlassHeroFxStore } from "~/lib/glass-hero-fx-store";
+import { useHeroFxStore } from "~/lib/hero-fx-store";
 import { cn } from "~/lib/utils";
 
-export function GlassHeroStage(props: { children: ReactNode; footer?: ReactNode; scene?: string }) {
+export function HeroStage(props: { children: ReactNode; footer?: ReactNode; scene?: string }) {
   const reduce = useReducedMotion();
   const scene = props.scene ?? "hero";
 
   return (
     <div className="relative flex h-full min-h-0 w-full flex-1 flex-col items-center justify-center overflow-hidden outline-hidden">
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-36 bg-gradient-to-t from-glass-chat via-glass-chat/78 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-36 bg-gradient-to-t from-chrome-chat via-chrome-chat/78 to-transparent" />
 
       <motion.div
         key={scene}
@@ -33,7 +33,7 @@ export function GlassHeroStage(props: { children: ReactNode; footer?: ReactNode;
 
       <div className="relative z-10 flex h-full min-h-0 w-full flex-1 flex-col items-center justify-center px-6 py-12 outline-hidden">
         <div className="relative w-full max-w-[720px]">
-          <GlassHeroBurst />
+          <HeroBurst />
           <div className="relative mx-auto flex w-full max-w-[640px] flex-col items-start gap-2 px-4 pt-2 pb-8">
             {props.children}
             {props.footer}
@@ -44,10 +44,10 @@ export function GlassHeroStage(props: { children: ReactNode; footer?: ReactNode;
   );
 }
 
-function GlassHeroBurst() {
+function HeroBurst() {
   const reduce = useReducedMotion();
-  const shot = useGlassHeroFxStore((state) => state.shot);
-  const clear = useGlassHeroFxStore((state) => state.clear);
+  const shot = useHeroFxStore((state) => state.shot);
+  const clear = useHeroFxStore((state) => state.clear);
 
   useEffect(() => {
     if (!shot) return;

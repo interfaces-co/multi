@@ -2,16 +2,16 @@ import { useState } from "react";
 import type { ComponentType, ReactNode } from "react";
 
 import {
-  glassComposerAttachmentChip,
-  glassComposerAttachmentStrip,
-  glassComposerImageThumbnail,
-} from "~/lib/glass-attachment-styles";
+  composerAttachmentChip,
+  composerAttachmentStrip,
+  composerImageThumbnail,
+} from "~/lib/chat-attachment-styles";
 import { cn } from "~/lib/utils";
 
 const css = `
 [data-cursor-preview] {
   color: var(--foreground);
-  font-family: var(--glass-font-ui, ui-sans-serif, system-ui, sans-serif);
+  font-family: var(--chrome-font-ui, ui-sans-serif, system-ui, sans-serif);
 }
 
 /* Transcript shell + conversation vars (workbench.desktop.main — §6.7) */
@@ -23,10 +23,10 @@ const css = `
   --conversation-font-size: var(--conversation-tool-font-size, 13px);
   --conversation-classic-text-inset: 9px;
   --conversation-classic-block-inset: 9px;
-  --conversation-glass-text-inset: 8px;
-  --conversation-glass-block-inset: -8px;
-  --conversation-text-inset: var(--conversation-glass-text-inset);
-  --conversation-block-inset: var(--conversation-glass-block-inset);
+  --conversation-chrome-text-inset: 8px;
+  --conversation-chrome-block-inset: -8px;
+  --conversation-text-inset: var(--conversation-chrome-text-inset);
+  --conversation-block-inset: var(--conversation-chrome-block-inset);
   --conversation-tool-card-padding-x: 8px;
   --conversation-tool-card-padding-tight-x: calc(var(--conversation-tool-card-padding-x, 8px) - 2px);
   --card-border-color: color-mix(in srgb, var(--foreground) 14%, transparent);
@@ -209,11 +209,11 @@ const css = `
 }
 
 [data-cursor-preview] .smart-review-panel__lines-changed.added {
-  color: var(--glass-diff-addition);
+  color: var(--chrome-diff-addition);
 }
 
 [data-cursor-preview] .smart-review-panel__lines-changed.removed {
-  color: var(--glass-diff-deletion);
+  color: var(--chrome-diff-deletion);
 }
 
 [data-cursor-preview] .smart-review-panel__divider {
@@ -378,7 +378,7 @@ const css = `
   background: color-mix(in srgb, var(--muted) 72%, transparent);
 }
 
-[data-cursor-preview] .glass-in-app-menubar {
+[data-cursor-preview] .chrome-in-app-menubar {
   align-items: stretch;
   background: color-mix(in srgb, var(--background) 92%, var(--muted));
   border-bottom: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
@@ -387,7 +387,7 @@ const css = `
   height: 32px;
 }
 
-[data-cursor-preview] .glass-in-app-menubar__menus {
+[data-cursor-preview] .chrome-in-app-menubar__menus {
   align-items: center;
   display: flex;
   flex-shrink: 0;
@@ -395,19 +395,19 @@ const css = `
   padding: 0 6px;
 }
 
-[data-cursor-preview] .glass-in-app-menubar__drag-tail {
+[data-cursor-preview] .chrome-in-app-menubar__drag-tail {
   flex: 1;
   min-width: 0;
 }
 
-[data-cursor-preview] .glass-in-app-menubar__window-controls {
+[data-cursor-preview] .chrome-in-app-menubar__window-controls {
   align-items: stretch;
   display: flex;
   flex-shrink: 0;
 }
 
-[data-cursor-preview] .glass-in-app-menubar__text-trigger,
-[data-cursor-preview] .glass-in-app-menubar__logo-btn {
+[data-cursor-preview] .chrome-in-app-menubar__text-trigger,
+[data-cursor-preview] .chrome-in-app-menubar__logo-btn {
   background: transparent;
   border: none;
   border-radius: 4px;
@@ -418,40 +418,40 @@ const css = `
   padding: 4px 10px;
 }
 
-[data-cursor-preview] .glass-in-app-menubar__text-trigger:hover,
-[data-cursor-preview] .glass-in-app-menubar__logo-btn:hover {
+[data-cursor-preview] .chrome-in-app-menubar__text-trigger:hover,
+[data-cursor-preview] .chrome-in-app-menubar__logo-btn:hover {
   background: color-mix(in srgb, var(--muted) 72%, transparent);
 }
 
-[data-cursor-preview] .glass-in-app-menubar__shortcut {
+[data-cursor-preview] .chrome-in-app-menubar__shortcut {
   font-size: 11px;
   margin-left: 12px;
   opacity: 0.65;
   white-space: nowrap;
 }
 
-[data-cursor-preview] .glass-window-controls {
+[data-cursor-preview] .chrome-window-controls {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 0 10px 0 8px;
 }
 
-[data-cursor-preview] .glass-window-controls__button {
+[data-cursor-preview] .chrome-window-controls__button {
   width: 10px;
   height: 10px;
   border-radius: 999px;
 }
 
-[data-cursor-preview] .glass-window-controls__button[data-kind='close'] {
+[data-cursor-preview] .chrome-window-controls__button[data-kind='close'] {
   background: #ff5f57;
 }
 
-[data-cursor-preview] .glass-window-controls__button[data-kind='minimize'] {
+[data-cursor-preview] .chrome-window-controls__button[data-kind='minimize'] {
   background: #febc2e;
 }
 
-[data-cursor-preview] .glass-window-controls__button[data-kind='maximize'] {
+[data-cursor-preview] .chrome-window-controls__button[data-kind='maximize'] {
   background: #28c840;
 }
 
@@ -491,7 +491,7 @@ const css = `
   gap: 6px;
 }
 
-[data-cursor-preview] .ui-shell-tool-call__glass-stop.ui-icon-button {
+[data-cursor-preview] .ui-shell-tool-call__chrome-stop.ui-icon-button {
   position: relative;
   width: 24px;
   height: 24px;
@@ -500,7 +500,7 @@ const css = `
   background-color: color-mix(in srgb, var(--foreground) 80%, transparent);
 }
 
-[data-cursor-preview] .ui-shell-tool-call__glass-stop-mark {
+[data-cursor-preview] .ui-shell-tool-call__chrome-stop-mark {
   position: absolute;
   left: 50%;
   top: 50%;
@@ -585,11 +585,11 @@ const css = `
   padding: 0 10px 10px;
 }
 
-[data-cursor-preview] .ui-slash-menu__content--glass {
+[data-cursor-preview] .ui-slash-menu__content--chrome {
   border-radius: 18px;
   border: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
   background: color-mix(in srgb, var(--background) 94%, transparent);
-  box-shadow: var(--glass-shadow-popup, 0 18px 48px hsla(0, 0%, 0%, 0.2));
+  box-shadow: var(--chrome-shadow-popup, 0 18px 48px hsla(0, 0%, 0%, 0.2));
   backdrop-filter: blur(24px);
   max-height: min(288px, 40vh);
   overflow: hidden;
@@ -624,7 +624,7 @@ const css = `
   background: color-mix(in srgb, var(--muted) 85%, transparent);
 }
 
-[data-cursor-preview] .ui-mention-menu-side-preview--glass {
+[data-cursor-preview] .ui-mention-menu-side-preview--chrome {
   display: grid;
   grid-template-columns: minmax(0, 12rem) minmax(0, 1fr);
   border-radius: 18px;
@@ -666,7 +666,7 @@ const css = `
   overflow: auto;
 }
 
-[data-cursor-preview] .ui-gallery-glass-chrome {
+[data-cursor-preview] .ui-gallery-shell-chrome {
   display: flex;
   flex-direction: column;
   min-height: 120px;
@@ -676,7 +676,7 @@ const css = `
   overflow: hidden;
 }
 
-[data-cursor-preview] .ui-gallery-glass-chrome__header {
+[data-cursor-preview] .ui-gallery-shell-chrome__header {
   align-items: center;
   display: flex;
   height: 36px;
@@ -686,20 +686,20 @@ const css = `
   font-weight: 500;
 }
 
-[data-cursor-preview] .ui-gallery-glass-chrome__grid {
+[data-cursor-preview] .ui-gallery-shell-chrome__grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
   padding: 8px;
 }
 
-[data-cursor-preview] .ui-gallery-glass-chrome__tile {
+[data-cursor-preview] .ui-gallery-shell-chrome__tile {
   aspect-ratio: 1;
   border-radius: 8px;
   background: color-mix(in srgb, var(--muted) 50%, transparent);
 }
 
-[data-cursor-preview] .glass-model-picker-wrapper {
+[data-cursor-preview] .chrome-model-picker-wrapper {
   position: relative;
   display: inline-flex;
   min-width: 0;
@@ -716,7 +716,7 @@ const css = `
   cursor: default;
 }
 
-[data-cursor-preview] .glass-model-picker__popover {
+[data-cursor-preview] .chrome-model-picker__popover {
   position: absolute;
   left: 0;
   top: 100%;
@@ -726,11 +726,11 @@ const css = `
   border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
   background: color-mix(in srgb, var(--background) 96%, transparent);
-  box-shadow: var(--glass-shadow-popup, 0 12px 32px hsla(0, 0%, 0%, 0.25));
+  box-shadow: var(--chrome-shadow-popup, 0 12px 32px hsla(0, 0%, 0%, 0.25));
   padding: 4px 0;
 }
 
-[data-cursor-preview] .glass-model-picker__row {
+[data-cursor-preview] .chrome-model-picker__row {
   border: none;
   background: transparent;
   display: flex;
@@ -742,7 +742,7 @@ const css = `
   cursor: default;
 }
 
-[data-cursor-preview] .glass-model-picker__row--active {
+[data-cursor-preview] .chrome-model-picker__row--active {
   background: color-mix(in srgb, var(--muted) 85%, transparent);
 }
 
@@ -761,7 +761,7 @@ const css = `
 /* ui-default-diff: Cursor light theme hex — charts.green #55A583, charts.red #E75E78 */
 /* ui-default-diff: Cursor dark  theme hex — charts.green #3FA266, charts.red #E34671 */
 [data-cursor-preview] .ui-default-diff {
-  font-family: var(--glass-font-mono, ui-monospace, monospace);
+  font-family: var(--chrome-font-mono, ui-monospace, monospace);
   font-size: 12px;
   line-height: 18px;
   overflow: hidden;
@@ -776,7 +776,7 @@ const css = `
 [data-cursor-preview] .ui-default-diff__line {
   display: flex;
   gap: 0;
-  font-family: var(--glass-font-mono, ui-monospace, monospace);
+  font-family: var(--chrome-font-mono, ui-monospace, monospace);
   font-size: 12px;
   line-height: 18px;
 }
@@ -967,7 +967,7 @@ const css = `
 }
 
 [data-cursor-preview] .cursor-composer-markdown-facsimile code {
-  font-family: var(--glass-font-mono, ui-monospace, monospace);
+  font-family: var(--chrome-font-mono, ui-monospace, monospace);
   font-size: 12.5px;
   padding: 1px 5px;
   border-radius: 4px;
@@ -1008,7 +1008,7 @@ const css = `
 [data-cursor-preview] .cursor-composer-code-block-facsimile {
   margin: 0;
   padding: 10px 12px;
-  font-family: var(--glass-font-mono, ui-monospace, monospace);
+  font-family: var(--chrome-font-mono, ui-monospace, monospace);
   font-size: 12px;
   line-height: 1.5;
   white-space: pre-wrap;
@@ -1164,9 +1164,9 @@ const css = `
 [data-cursor-preview] .cursor-composer-thinking__fade--layer-1 {
   background: linear-gradient(
     to top,
-    color-mix(in srgb, var(--glass-chat-surface-background, var(--background)) 72%, transparent)
+    color-mix(in srgb, var(--chrome-chat-surface-background, var(--background)) 72%, transparent)
       0%,
-    color-mix(in srgb, var(--glass-chat-surface-background, var(--background)) 18%, transparent)
+    color-mix(in srgb, var(--chrome-chat-surface-background, var(--background)) 18%, transparent)
       55%,
     transparent 100%
   );
@@ -1181,7 +1181,7 @@ const css = `
   top: 38%;
   background: linear-gradient(
     to top,
-    color-mix(in srgb, var(--glass-chat-surface-background, var(--background)) 88%, transparent) 0%,
+    color-mix(in srgb, var(--chrome-chat-surface-background, var(--background)) 88%, transparent) 0%,
     transparent 100%
   );
   backdrop-filter: blur(18px) saturate(1.04);
@@ -1198,7 +1198,7 @@ const css = `
 }
 
 [data-cursor-preview] .cursor-composer-thinking__prose code {
-  font-family: var(--glass-font-mono, ui-monospace, monospace);
+  font-family: var(--chrome-font-mono, ui-monospace, monospace);
   font-size: 12px;
   padding: 1px 5px;
   border-radius: 4px;
@@ -1210,7 +1210,7 @@ const css = `
   margin: 0;
   padding: 8px 0;
   border-radius: 0;
-  font-family: var(--glass-font-mono, ui-monospace, monospace);
+  font-family: var(--chrome-font-mono, ui-monospace, monospace);
   font-size: 12px;
   line-height: 1.5;
   white-space: pre-wrap;
@@ -1309,7 +1309,7 @@ const css = `
 /* shell tool call: command tokens */
 [data-cursor-preview] .ui-shell-tool-call__command {
   display: block;
-  font-family: var(--glass-font-mono, ui-monospace, monospace);
+  font-family: var(--chrome-font-mono, ui-monospace, monospace);
   font-size: 12px;
   line-height: 1.6;
   padding: 6px 10px;
@@ -1342,7 +1342,7 @@ const css = `
 /* shell tool call: output */
 [data-cursor-preview] .ui-shell-tool-call__output {
   margin: 0;
-  font-family: var(--glass-font-mono, ui-monospace, monospace);
+  font-family: var(--chrome-font-mono, ui-monospace, monospace);
   font-size: 12px;
   line-height: 1.5;
   white-space: pre-wrap;
@@ -1532,7 +1532,7 @@ function Cell(props: { prefix: string; name: string; right?: string }) {
         <span className="review-changes-path-prefix-inner">{props.prefix}</span>
       </span>
       <span className="review-changes-file-name">{props.name}</span>
-      {props.right ? <span className="glass-in-app-menubar__shortcut">{props.right}</span> : null}
+      {props.right ? <span className="chrome-in-app-menubar__shortcut">{props.right}</span> : null}
     </div>
   );
 }
@@ -1543,17 +1543,17 @@ function Panel() {
       <SummaryHead />
       <div className="review-changes-group__body">
         <Cell
-          prefix="apps/web/src/components/glass/debug/"
+          prefix="apps/web/src/components/shell/debug/"
           name="cursor-composer-intents-feed.tsx"
           right="+120"
         />
         <Cell
-          prefix="apps/web/src/components/glass/debug/"
+          prefix="apps/web/src/components/shell/debug/"
           name="cursor-native-previews.tsx"
           right="+312"
         />
         <Cell
-          prefix="apps/web/src/components/glass/debug/"
+          prefix="apps/web/src/components/shell/debug/"
           name="debug-gallery-page.tsx"
           right="+48"
         />
@@ -1575,7 +1575,7 @@ function Selectable() {
       />
       <div className="flex flex-col gap-1">
         <Cell prefix="apps/server/src/provider/" name="CodexAdapter.ts" right="Copy" />
-        <Cell prefix="apps/web/src/components/glass/" name="chat/rows.tsx" right="Open" />
+        <Cell prefix="apps/web/src/components/shell/" name="chat/rows.tsx" right="Open" />
       </div>
     </div>
   );
@@ -1597,24 +1597,24 @@ function Menubar() {
   const items = ["File", "Edit", "View", "Agent"];
 
   return (
-    <div className="glass-in-app-menubar" data-component="glass-in-app-menubar">
-      <div className="glass-in-app-menubar__menus">
-        <button className="glass-in-app-menubar__logo-btn" type="button">
+    <div className="chrome-in-app-menubar" data-component="chrome-in-app-menubar">
+      <div className="chrome-in-app-menubar__menus">
+        <button className="chrome-in-app-menubar__logo-btn" type="button">
           Cursor
         </button>
         {items.map((item) => (
-          <button key={item} className="glass-in-app-menubar__text-trigger" type="button">
+          <button key={item} className="chrome-in-app-menubar__text-trigger" type="button">
             {item}
           </button>
         ))}
-        <span className="glass-in-app-menubar__shortcut">cmd+k</span>
+        <span className="chrome-in-app-menubar__shortcut">cmd+k</span>
       </div>
-      <div aria-hidden="true" className="glass-in-app-menubar__drag-tail" />
-      <div className="glass-in-app-menubar__window-controls">
-        <div className="glass-window-controls">
-          <span className="glass-window-controls__button" data-kind="close" />
-          <span className="glass-window-controls__button" data-kind="minimize" />
-          <span className="glass-window-controls__button" data-kind="maximize" />
+      <div aria-hidden="true" className="chrome-in-app-menubar__drag-tail" />
+      <div className="chrome-in-app-menubar__window-controls">
+        <div className="chrome-window-controls">
+          <span className="chrome-window-controls__button" data-kind="close" />
+          <span className="chrome-window-controls__button" data-kind="minimize" />
+          <span className="chrome-window-controls__button" data-kind="maximize" />
         </div>
       </div>
     </div>
@@ -1630,12 +1630,12 @@ function Shell() {
           <div className="ui-shell-tool-call__header-actions">
             <button
               type="button"
-              className="ui-icon-button ui-shell-tool-call__glass-stop"
+              className="ui-icon-button ui-shell-tool-call__chrome-stop"
               data-variant="default"
               data-size="sm"
               aria-label="Stop command"
             >
-              <span className="ui-shell-tool-call__glass-stop-mark" aria-hidden />
+              <span className="ui-shell-tool-call__chrome-stop-mark" aria-hidden />
             </button>
             <div className="ui-shell-tool-call__menu">Copy Command</div>
           </div>
@@ -1653,7 +1653,7 @@ function PreviewAgentTray() {
     <div className="ui-agent-tray__prompt-wrap" data-component="agent-panel">
       <div className="ui-prompt-input ui-prompt-input--agent-tray-stack">
         <div className="ui-prompt-input__attachments-row">
-          <span className="rounded-full border border-glass-border/40 px-2 py-0.5 text-caption text-muted-foreground">
+          <span className="rounded-full border border-chrome-border/40 px-2 py-0.5 text-caption text-muted-foreground">
             plan.md
           </span>
         </div>
@@ -1665,7 +1665,7 @@ function PreviewAgentTray() {
             rows={2}
           />
           <div className="ui-prompt-input__footer">
-            <div className="glass-model-picker-wrapper">
+            <div className="chrome-model-picker-wrapper">
               <button type="button" className="ui-model-picker__trigger">
                 Model
               </button>
@@ -1684,7 +1684,7 @@ function PreviewSlashMenu() {
     { id: "2", title: "search", rest: "", desc: "Search workspace", active: false },
   ];
   return (
-    <div className="ui-slash-menu__content--glass" role="presentation">
+    <div className="ui-slash-menu__content--chrome" role="presentation">
       <div className="ui-slash-menu__list" role="listbox" aria-label="Slash">
         {rows.map((row) => (
           <button
@@ -1707,7 +1707,7 @@ function PreviewSlashMenu() {
 
 function PreviewMention() {
   return (
-    <div className="ui-mention-menu-side-preview--glass" role="presentation">
+    <div className="ui-mention-menu-side-preview--chrome" role="presentation">
       <div className="ui-mention-menu__list" role="listbox">
         <button type="button" className="ui-mention-menu__row ui-mention-menu__row--active">
           src/routes/api.ts
@@ -1717,7 +1717,7 @@ function PreviewMention() {
         </button>
       </div>
       <div className="ui-mention-menu__preview">
-        <pre className="m-0 whitespace-pre-wrap font-glass-mono text-[11px]">{`export async function GET() {
+        <pre className="m-0 whitespace-pre-wrap font-chrome-mono text-[11px]">{`export async function GET() {
   return json({ ok: true });
 }`}</pre>
       </div>
@@ -1727,12 +1727,12 @@ function PreviewMention() {
 
 function PreviewGalleryChrome() {
   return (
-    <div className="ui-gallery-glass-chrome">
-      <header className="ui-gallery-glass-chrome__header">Screenshots · 6</header>
-      <div className="ui-gallery-glass-chrome__grid">
-        <div className="ui-gallery-glass-chrome__tile" />
-        <div className="ui-gallery-glass-chrome__tile" />
-        <div className="ui-gallery-glass-chrome__tile" />
+    <div className="ui-gallery-shell-chrome">
+      <header className="ui-gallery-shell-chrome__header">Screenshots · 6</header>
+      <div className="ui-gallery-shell-chrome__grid">
+        <div className="ui-gallery-shell-chrome__tile" />
+        <div className="ui-gallery-shell-chrome__tile" />
+        <div className="ui-gallery-shell-chrome__tile" />
       </div>
     </div>
   );
@@ -1740,15 +1740,15 @@ function PreviewGalleryChrome() {
 
 function PreviewModelPicker() {
   return (
-    <div className="glass-model-picker-wrapper">
+    <div className="chrome-model-picker-wrapper">
       <button type="button" className="ui-model-picker__trigger">
         GPT-5.2
       </button>
-      <div className="glass-model-picker__popover" role="listbox">
-        <button type="button" className="glass-model-picker__row glass-model-picker__row--active">
+      <div className="chrome-model-picker__popover" role="listbox">
+        <button type="button" className="chrome-model-picker__row chrome-model-picker__row--active">
           GPT-5.2
         </button>
-        <button type="button" className="glass-model-picker__row">
+        <button type="button" className="chrome-model-picker__row">
           Claude Opus
         </button>
       </div>
@@ -1947,9 +1947,9 @@ function PreviewDiffSplit() {
 
 function PreviewAttachmentStrip() {
   return (
-    <div className={cn(glassComposerAttachmentStrip, "prompt-attachment px-2 pt-2")}>
-      <div className={cn(glassComposerImageThumbnail, "composer-image-thumbnail")} />
-      <div className={cn(glassComposerAttachmentChip, "composer-file-chip")}>
+    <div className={cn(composerAttachmentStrip, "prompt-attachment px-2 pt-2")}>
+      <div className={cn(composerImageThumbnail, "composer-image-thumbnail")} />
+      <div className={cn(composerAttachmentChip, "composer-file-chip")}>
         <span className="truncate">release-notes.md</span>
       </div>
     </div>
@@ -2003,12 +2003,12 @@ export function CursorPreviewShellToolCallFull(props: CursorPreviewShellToolCall
           <div className="ui-shell-tool-call__header-actions">
             <button
               type="button"
-              className="ui-icon-button ui-shell-tool-call__glass-stop"
+              className="ui-icon-button ui-shell-tool-call__chrome-stop"
               data-variant="default"
               data-size="sm"
               aria-label="Stop command"
             >
-              <span className="ui-shell-tool-call__glass-stop-mark" aria-hidden />
+              <span className="ui-shell-tool-call__chrome-stop-mark" aria-hidden />
             </button>
           </div>
         </div>
@@ -2172,7 +2172,7 @@ function PreviewFileToolEdit() {
               <div className="flex flex-col gap-0.5" style={{ padding: "6px 10px" }}>
                 <div
                   className="ui-default-diff__line"
-                  style={{ color: "var(--glass-diff-deletion, hsl(0 70% 60%))" }}
+                  style={{ color: "var(--chrome-diff-deletion, hsl(0 70% 60%))" }}
                 >
                   <span className="ui-default-diff__gutter" style={{ opacity: 0.5 }}>
                     3
@@ -2374,7 +2374,7 @@ function PreviewChatToolInvocation() {
           <pre
             style={{
               margin: 0,
-              fontFamily: "var(--glass-font-mono, ui-monospace, monospace)",
+              fontFamily: "var(--chrome-font-mono, ui-monospace, monospace)",
               fontSize: 12,
               lineHeight: 1.5,
               whiteSpace: "pre-wrap",
@@ -2393,7 +2393,7 @@ const CURSOR_NATIVE_PREVIEWS = {
   ReviewChangesMarkdownDescription: Description,
   ReviewChangesSelectableCell: Selectable,
   ReviewChangesFindWidget: Find,
-  GlassInAppMenubar: Menubar,
+  InAppMenubarPreview: Menubar,
   ShellToolCallHeaderActions: Shell,
   ShellToolCallFull: CursorPreviewShellToolCallFull,
   ShellToolCallCompleted: CursorPreviewShellToolCallCollapsed,
@@ -2406,7 +2406,7 @@ const CURSOR_NATIVE_PREVIEWS = {
   UiSlashMenuContentGlass: PreviewSlashMenu,
   UiMentionMenuSidePreviewGlass: PreviewMention,
   UiGalleryGlassChrome: PreviewGalleryChrome,
-  GlassModelPickerWrapper: PreviewModelPicker,
+  ModelPickerPreviewFrame: PreviewModelPicker,
   UiVibrancyStickyRoundedMask: PreviewVibrancyMask,
   UiDefaultDiffUnified: PreviewDiff,
   UiDefaultDiffSplit: PreviewDiffSplit,

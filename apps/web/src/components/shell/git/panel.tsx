@@ -1,7 +1,7 @@
 // @ts-nocheck
 "use client";
 
-import type { GitFileState } from "~/lib/glass-types";
+import type { GitFileState } from "~/lib/ui-session-types";
 import {
   IconArrowRotateCounterClockwise,
   IconBarsThree,
@@ -29,14 +29,14 @@ import {
 import { isElectron } from "~/env";
 import {
   type DiffRow,
-  type GlassGitPanelModel,
-  useGlassDiffStylePreference,
-} from "~/hooks/use-glass-git";
-import { useGitViewed } from "~/hooks/use-glass-git-viewed";
+  type GitPanelModel,
+  useDiffStylePreference,
+} from "~/hooks/use-environment-git";
+import { useGitViewed } from "~/hooks/use-git-viewed-state";
 import { cn } from "~/lib/utils";
 import { VsFileIcon } from "~/lib/vscode-file-icon";
 import { BranchCommitDialog, CommitDialog } from "./commit-dialog";
-import { GlassDiffViewer } from "./diff-viewer";
+import { DiffViewer } from "./diff-viewer";
 
 const kindVariant: Record<string, "warning" | "addition" | "deletion" | "neutral" | "destructive"> =
   {
@@ -73,7 +73,7 @@ function splitPath(path: string) {
   return { prefix: path.slice(0, idx + 1), name: path.slice(idx + 1) };
 }
 
-export function GlassGitPanel(props: { git: GlassGitPanelModel }) {
+export function GitPanel(props: { git: GitPanelModel }) {
   const git = props.git;
 
   if (!isElectron) {
@@ -81,7 +81,7 @@ export function GlassGitPanel(props: { git: GlassGitPanelModel }) {
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 px-4 py-8 text-center">
         <p className="text-body/[1.4] font-medium text-foreground/85">Source control</p>
         <p className="max-w-[18rem] text-detail/[1.45] text-muted-foreground/72">
-          Git status and diffs are available in the Glass desktop app.
+          Git status and diffs are available in the Multi desktop app.
         </p>
       </div>
     );
@@ -120,7 +120,7 @@ export function GlassGitPanel(props: { git: GlassGitPanelModel }) {
         <button
           type="button"
           onClick={() => git.init()}
-          className="rounded-glass-control border border-glass-border/60 bg-glass-active/40 px-3 py-2 text-body/[1.2] font-medium text-foreground transition-colors hover:bg-glass-hover"
+          className="rounded-chrome-control border border-chrome-border/60 bg-chrome-active/40 px-3 py-2 text-body/[1.2] font-medium text-foreground transition-colors hover:bg-chrome-hover"
         >
           Init Git
         </button>
@@ -142,12 +142,12 @@ export function GlassGitPanel(props: { git: GlassGitPanelModel }) {
   return <GitPanelInner git={git} />;
 }
 
-function GitPanelInner(props: { git: GlassGitPanelModel }) {
+function GitPanelInner(props: { git: GitPanelModel }) {
   const git = props.git;
   const files = git.rows;
   const root = git.snap?.gitRoot ?? null;
   const viewed = useGitViewed(root);
-  const [diffStyle, setDiffStyle] = useGlassDiffStylePreference();
+  const [diffStyle, setDiffStyle] = useDiffStylePreference();
   const [pending, setPending] = useState<DiffRow | null>(null);
   const [commitOpen, setCommitOpen] = useState(false);
   const [branchOpen, setBranchOpen] = useState(false);
@@ -227,7 +227,7 @@ function LocalBranchBar(props: { branch: string | null; onBranchCommit: () => vo
   };
 
   return (
-    <div className="flex shrink-0 items-center gap-2 border-b border-glass-border/30 px-3 py-2">
+    <div className="flex shrink-0 items-center gap-2 border-b border-chrome-border/30 px-3 py-2">
       <IconBranch className="size-3.5 shrink-0 text-muted-foreground/60" />
       <button
         type="button"
@@ -265,12 +265,12 @@ function ChangesHeader(props: {
         {props.count} file{props.count === 1 ? "" : "s"} changed
       </span>
       {props.add > 0 && (
-        <span className="tabular-nums font-medium text-[var(--glass-diff-addition)]">
+        <span className="tabular-nums font-medium text-[var(--chrome-diff-addition)]">
           +{props.add}
         </span>
       )}
       {props.del > 0 && (
-        <span className="tabular-nums font-medium text-[var(--glass-diff-deletion)]">
+        <span className="tabular-nums font-medium text-[var(--chrome-diff-deletion)]">
           -{props.del}
         </span>
       )}
@@ -294,15 +294,15 @@ function DiffStyleToggle(props: {
   onChange: (next: "unified" | "split") => void;
 }) {
   return (
-    <div className="flex shrink-0 items-center rounded-glass-control border border-glass-border/45 bg-glass-hover/14 p-0.5">
+    <div className="flex shrink-0 items-center rounded-chrome-control border border-chrome-border/45 bg-chrome-hover/14 p-0.5">
       <button
         type="button"
         onClick={() => props.onChange("unified")}
         className={cn(
-          "flex size-5 items-center justify-center rounded-glass-control transition-colors",
+          "flex size-5 items-center justify-center rounded-chrome-control transition-colors",
           props.style === "unified"
-            ? "bg-glass-active/60 text-foreground"
-            : "text-muted-foreground/70 hover:bg-glass-hover hover:text-foreground",
+            ? "bg-chrome-active/60 text-foreground"
+            : "text-muted-foreground/70 hover:bg-chrome-hover hover:text-foreground",
         )}
         aria-label="Unified diff"
         aria-pressed={props.style === "unified"}
@@ -313,10 +313,10 @@ function DiffStyleToggle(props: {
         type="button"
         onClick={() => props.onChange("split")}
         className={cn(
-          "flex size-5 items-center justify-center rounded-glass-control transition-colors",
+          "flex size-5 items-center justify-center rounded-chrome-control transition-colors",
           props.style === "split"
-            ? "bg-glass-active/60 text-foreground"
-            : "text-muted-foreground/70 hover:bg-glass-hover hover:text-foreground",
+            ? "bg-chrome-active/60 text-foreground"
+            : "text-muted-foreground/70 hover:bg-chrome-hover hover:text-foreground",
         )}
         aria-label="Split diff"
         aria-pressed={props.style === "split"}
@@ -341,7 +341,7 @@ function OverflowMenu(props: {
       <button
         type="button"
         onClick={() => props.onOpenChange(!props.open)}
-        className="flex size-6 items-center justify-center rounded-glass-control text-muted-foreground/70 hover:bg-glass-hover hover:text-foreground"
+        className="flex size-6 items-center justify-center rounded-chrome-control text-muted-foreground/70 hover:bg-chrome-hover hover:text-foreground"
         aria-label="Git actions"
       >
         <IconDotGrid1x3Horizontal className="size-3.5" />
@@ -349,7 +349,7 @@ function OverflowMenu(props: {
       {props.open ? (
         <>
           <div className="fixed inset-0 z-40" onClick={() => props.onOpenChange(false)} />
-          <div className="absolute top-full right-0 z-50 mt-1 min-w-[160px] rounded-glass-card border border-glass-stroke bg-glass-bubble p-1 text-[12px] leading-4 shadow-glass-popup backdrop-blur-xl">
+          <div className="absolute top-full right-0 z-50 mt-1 min-w-[160px] rounded-chrome-card border border-chrome-stroke bg-chrome-bubble p-1 text-[12px] leading-4 shadow-chrome-popup backdrop-blur-xl">
             <MenuItem
               label="Expand All"
               onClick={() => {
@@ -371,7 +371,7 @@ function OverflowMenu(props: {
                 props.onOpenChange(false);
               }}
             />
-            <div className="my-1 h-px bg-glass-border/30" />
+            <div className="my-1 h-px bg-chrome-border/30" />
             <MenuItem
               label="Commit..."
               onClick={() => {
@@ -398,7 +398,7 @@ function MenuItem(props: { label: string; onClick: () => void }) {
     <button
       type="button"
       onClick={props.onClick}
-      className="flex w-full items-center rounded-sm px-2 py-1 text-left text-foreground/82 transition-colors hover:bg-glass-active hover:text-foreground"
+      className="flex w-full items-center rounded-sm px-2 py-1 text-left text-foreground/82 transition-colors hover:bg-chrome-active hover:text-foreground"
     >
       {props.label}
     </button>
@@ -430,8 +430,8 @@ const GitFileCard = memo(function GitFileCard(props: CardProps) {
 
   return (
     <Collapsible.Root open={props.expanded} onOpenChange={props.onToggle}>
-      <div className="overflow-hidden rounded-glass-card border border-glass-border/30 bg-glass-bubble/40">
-        <Collapsible.Trigger className="flex w-full items-center gap-1.5 px-2 py-1.5 text-[12px] leading-4 text-left transition-colors hover:bg-glass-hover/30">
+      <div className="overflow-hidden rounded-chrome-card border border-chrome-border/30 bg-chrome-bubble/40">
+        <Collapsible.Trigger className="flex w-full items-center gap-1.5 px-2 py-1.5 text-[12px] leading-4 text-left transition-colors hover:bg-chrome-hover/30">
           <input
             type="checkbox"
             checked={props.viewed}
@@ -440,7 +440,7 @@ const GitFileCard = memo(function GitFileCard(props: CardProps) {
               props.onToggleViewed();
             }}
             onClick={(e) => e.stopPropagation()}
-            className="size-3.5 shrink-0 rounded border-glass-border/60 accent-primary"
+            className="size-3.5 shrink-0 rounded border-chrome-border/60 accent-primary"
             aria-label="Mark as viewed"
           />
           <VsFileIcon path={props.file.path} className="size-3.5 shrink-0" />
@@ -462,12 +462,12 @@ const GitFileCard = memo(function GitFileCard(props: CardProps) {
           </button>
           <div className="flex shrink-0 items-center gap-0.5 tabular-nums">
             {props.file.add > 0 && (
-              <span className="font-medium text-[var(--glass-diff-addition)]">
+              <span className="font-medium text-[var(--chrome-diff-addition)]">
                 +{props.file.add}
               </span>
             )}
             {props.file.del > 0 && (
-              <span className="font-medium text-[var(--glass-diff-deletion)]">
+              <span className="font-medium text-[var(--chrome-diff-deletion)]">
                 -{props.file.del}
               </span>
             )}
@@ -479,7 +479,7 @@ const GitFileCard = memo(function GitFileCard(props: CardProps) {
               e.stopPropagation();
               props.onRevert();
             }}
-            className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground/50 hover:bg-glass-hover hover:text-foreground"
+            className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground/50 hover:bg-chrome-hover hover:text-foreground"
             aria-label="Revert file"
           >
             <IconArrowRotateCounterClockwise className="size-3" />
@@ -493,7 +493,7 @@ const GitFileCard = memo(function GitFileCard(props: CardProps) {
           </span>
         </Collapsible.Trigger>
         <Collapsible.Panel keepMounted className="overflow-hidden">
-          <div className="border-t border-glass-border/20">
+          <div className="border-t border-chrome-border/20">
             {props.loading ? (
               <div className="flex flex-col gap-2 px-3 py-3">
                 <div className="h-3 w-full max-w-[14rem] animate-pulse rounded bg-muted/35" />
@@ -503,7 +503,7 @@ const GitFileCard = memo(function GitFileCard(props: CardProps) {
             ) : props.error ? (
               <div className="px-3 py-3 text-detail text-destructive/90">{props.error}</div>
             ) : (
-              <GlassDiffViewer
+              <DiffViewer
                 fileDiff={props.diff}
                 filePatch={props.patch}
                 path={props.file.path}

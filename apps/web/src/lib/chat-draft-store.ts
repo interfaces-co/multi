@@ -1,15 +1,14 @@
 /**
- * Shim for Glass's draft store. The actual draft management is handled by
- * c-t3's composerDraftStore. This file re-exports the subset of types and
- * store API that Glass UI components depend on, backed by c-t3's store.
+ * Draft store shim: orchestration-backed state owns real drafts; this module exposes
+ * the subset of types and APIs the shell composer expects (backed by composerDraftStore).
  *
  * TODO: Wire the real c-t3 composerDraftStore methods into the hooks below.
  */
 
-import type { HarnessKind } from "~/lib/glass-types";
+import type { HarnessKind } from "~/lib/ui-session-types";
 import { create } from "zustand";
 
-export interface GlassDraftFile {
+export interface ChatDraftFile {
   type: "path" | "inline";
   path: string;
   name: string;
@@ -19,16 +18,16 @@ export interface GlassDraftFile {
   size?: number;
 }
 
-export interface GlassDraftSkill {
+export interface ChatDraftSkill {
   id: string;
   name: string;
 }
 
-export interface GlassDraftChat {
+export interface ChatDraftSnapshot {
   id: string;
   text: string;
-  files: GlassDraftFile[];
-  skills: GlassDraftSkill[];
+  files: ChatDraftFile[];
+  skills: ChatDraftSkill[];
   cwd: string;
   harness: HarnessKind;
   interactionMode: "default" | "plan";
@@ -36,26 +35,26 @@ export interface GlassDraftChat {
   modifiedAt: string;
 }
 
-interface GlassChatDraftState {
+interface ChatDraftState {
   root: {
     text: string;
-    files: GlassDraftFile[];
-    skills: GlassDraftSkill[];
+    files: ChatDraftFile[];
+    skills: ChatDraftSkill[];
     interactionMode: "default" | "plan";
   };
-  items: Record<string, GlassDraftChat>;
+  items: Record<string, ChatDraftSnapshot>;
   cur: string | null;
   pick: (id: string | null) => void;
   park: (cwd: string, harness: HarnessKind) => string | null;
-  save: (id: string, text: string, files: GlassDraftFile[], skills: GlassDraftSkill[]) => void;
-  saveRoot: (text: string, files: GlassDraftFile[], skills: GlassDraftSkill[]) => void;
+  save: (id: string, text: string, files: ChatDraftFile[], skills: ChatDraftSkill[]) => void;
+  saveRoot: (text: string, files: ChatDraftFile[], skills: ChatDraftSkill[]) => void;
   toggleRootPlanInteraction: () => void;
   setActiveInteractionMode: (mode: "default" | "plan") => void;
   drop: (id: string) => void;
   promote: (id: string) => void;
 }
 
-export const useGlassChatDraftStore = create<GlassChatDraftState>()((set) => ({
+export const useChatDraftStore = create<ChatDraftState>()((set) => ({
   root: { text: "", files: [], skills: [], interactionMode: "default" },
   items: {},
   cur: null,
@@ -75,6 +74,6 @@ export const useGlassChatDraftStore = create<GlassChatDraftState>()((set) => ({
   promote: () => {},
 }));
 
-export function hasDraft(text: string, files: GlassDraftFile[]): boolean {
+export function hasDraft(text: string, files: ChatDraftFile[]): boolean {
   return text.trim().length > 0 || files.length > 0;
 }

@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { TurnId } from "@t3tools/contracts";
+import { TurnId } from "@multi/contracts";
 import { describe, expect, it } from "vitest";
 
 import { assistantBlocks, hasStreamingThinking, hasTurnThinking } from "./assistant-content";
@@ -61,8 +61,8 @@ describe("hasStreamingThinking", () => {
 });
 
 describe("hasTurnThinking", () => {
-  const turn = TurnId.makeUnsafe("turn-thinking");
-  const old = TurnId.makeUnsafe("turn-old");
+  const turn = TurnId.make("turn-thinking");
+  const old = TurnId.make("turn-old");
 
   it("keeps reasoning visible for the active turn after streaming stops", () => {
     expect(

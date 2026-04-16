@@ -1,4 +1,4 @@
-import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
+import type { EnvironmentId, ThreadId } from "@multi/contracts";
 import { useCallback, useMemo } from "react";
 import { cn } from "~/lib/utils";
 import { resolveSplitViewPaneThreadId, type SplitView, type SplitViewPane } from "~/splitViewStore";

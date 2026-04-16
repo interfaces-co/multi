@@ -1,5 +1,5 @@
 // @ts-nocheck
-import type { GlassBlock } from "~/lib/glass-types";
+import type { UiBlock } from "~/lib/ui-session-types";
 
 import type { ChatMessage } from "../types";
 
@@ -18,13 +18,13 @@ function hasMessageThinking(message: Pick<ChatMessage, "content">) {
   return Boolean(message.content?.some(hasThinking));
 }
 
-export function assistantBlocks(message: Pick<ChatMessage, "text" | "content">): GlassBlock[] {
+export function assistantBlocks(message: Pick<ChatMessage, "text" | "content">): UiBlock[] {
   if (!message.content || message.content.length === 0) {
     return message.text.length > 0 ? [{ type: "text", text: message.text }] : [];
   }
 
   let rest = message.text;
-  const out: GlassBlock[] = [];
+  const out: UiBlock[] = [];
 
   for (const block of message.content) {
     if (block.type === "thinking") {

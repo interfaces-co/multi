@@ -3,19 +3,19 @@ import { IconChevronBottom, IconToolbox } from "central-icons";
 import { cn } from "~/lib/utils";
 
 const cardShell =
-  "min-w-0 rounded-glass-card border border-glass-border/45 bg-glass-bubble/55 px-2 py-0 shadow-glass-card";
+  "min-w-0 rounded-chrome-card border border-chrome-border/45 bg-chrome-bubble/55 px-2 py-0 shadow-chrome-card";
 
 export function TranscriptChromeGallery() {
   return (
-    <section className="scroll-mt-[4.5rem] font-glass space-y-4" id="debug-transcript-chrome">
+    <section className="scroll-mt-[4.5rem] font-chrome space-y-4" id="debug-transcript-chrome">
       <div className="space-y-1">
         <h2 className="text-[17px] leading-[22px] font-semibold text-foreground">
           Transcript card chrome
         </h2>
         <p className="text-detail/[1.45] text-muted-foreground">
           Static shells that mirror{" "}
-          <code className="font-glass-mono text-detail">RuntimeRailCard</code> outer classes from{" "}
-          <code className="font-glass-mono text-detail">rows.tsx</code> without importing private
+          <code className="font-chrome-mono text-detail">RuntimeRailCard</code> outer classes from{" "}
+          <code className="font-chrome-mono text-detail">rows.tsx</code> without importing private
           components.
         </p>
       </div>
@@ -31,7 +31,7 @@ export function TranscriptChromeGallery() {
             <span className="text-caption text-muted-foreground">Completed</span>
             <IconChevronBottom className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
           </button>
-          <div className="border-t border-glass-border/30 px-2 pb-2 text-detail text-muted-foreground">
+          <div className="border-t border-chrome-border/30 px-2 pb-2 text-detail text-muted-foreground">
             Collapsed header row only — body would be tool output.
           </div>
         </div>
@@ -42,7 +42,7 @@ export function TranscriptChromeGallery() {
             <span className="min-w-0 flex-1 truncate">Bash · pnpm run lint</span>
             <span className="text-caption text-foreground/48">Running</span>
           </div>
-          <div className="border-t border-glass-border/30 px-2 pb-2 font-glass-mono text-detail text-foreground/80">
+          <div className="border-t border-chrome-border/30 px-2 pb-2 font-chrome-mono text-detail text-foreground/80">
             $ pnpm run lint
             <br />…
           </div>

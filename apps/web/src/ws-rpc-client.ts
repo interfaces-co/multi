@@ -1,4 +1,4 @@
-import type { EnvironmentId } from "@t3tools/contracts";
+import type { EnvironmentId } from "@multi/contracts";
 
 import { getPrimaryEnvironmentConnection, readEnvironmentConnection } from "./environments/runtime";
 import type { WsRpcClient } from "./rpc/wsRpcClient";

@@ -2,19 +2,19 @@ import { Popover } from "@base-ui/react/popover";
 import { IconChevronDownSmall } from "central-icons";
 
 import { buttonVariants } from "~/components/ui/button";
-import { GLASS_TINT_PAD, glassTintPreviewCss } from "~/lib/glass-tint";
+import { TINT_PAD, tintPreviewCss } from "~/lib/ui-tint";
 import { cn } from "~/lib/utils";
 
-import { GlassTintPad } from "./tint-pad";
+import { TintPad } from "./tint-pad";
 
-export function GlassTintPopover(props: {
+export function TintPopover(props: {
   hue: number;
   saturation: number;
   disabled?: boolean;
   onHueChange: (value: number) => void;
   onSatChange: (value: number) => void;
 }) {
-  const fill = glassTintPreviewCss(props.hue, props.saturation);
+  const fill = tintPreviewCss(props.hue, props.saturation);
 
   return (
     <Popover.Root modal={false}>
@@ -37,10 +37,10 @@ export function GlassTintPopover(props: {
         <Popover.Positioner align="end" className="z-50 outline-none" side="bottom" sideOffset={8}>
           <Popover.Popup
             initialFocus={false}
-            className="origin-(--transform-origin) overflow-hidden rounded-glass-card border border-glass-stroke bg-glass-bubble p-0 shadow-glass-popup backdrop-blur-xl"
-            style={{ width: GLASS_TINT_PAD.w }}
+            className="origin-(--transform-origin) overflow-hidden rounded-chrome-card border border-chrome-stroke bg-chrome-bubble p-0 shadow-chrome-popup backdrop-blur-xl"
+            style={{ width: TINT_PAD.w }}
           >
-            <GlassTintPad
+            <TintPad
               disabled={props.disabled ?? false}
               hue={props.hue}
               saturation={props.saturation}

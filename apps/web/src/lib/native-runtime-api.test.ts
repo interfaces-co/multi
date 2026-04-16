@@ -1,4 +1,4 @@
-import type { EnvironmentApi, LocalApi } from "@t3tools/contracts";
+import type { EnvironmentApi, LocalApi } from "@multi/contracts";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../localApi", () => ({
@@ -19,10 +19,10 @@ import { readLocalApi } from "../localApi";
 import { getWsRpcClientForEnvironment } from "../ws-rpc-client";
 
 import {
-  ensureGlassEnvironmentApi,
-  readGlassEnvironmentApi,
-  readGlassRuntimeApi,
-} from "./glass-runtime-api";
+  ensureNativeEnvironmentApi,
+  readNativeEnvironmentApi,
+  readNativeRuntimeApi,
+} from "./native-runtime-api";
 
 const localApi = {
   dialogs: { pickFolder: vi.fn(), confirm: vi.fn() },
@@ -54,7 +54,7 @@ const environmentApi = {
   orchestration: {} as EnvironmentApi["orchestration"],
 } as EnvironmentApi;
 
-describe("glass-runtime-api", () => {
+describe("native-runtime-api", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -63,7 +63,7 @@ describe("glass-runtime-api", () => {
     vi.mocked(readLocalApi).mockReturnValue(localApi);
     vi.mocked(readEnvironmentApi).mockReturnValue(undefined);
 
-    const result = readGlassRuntimeApi("env-a" as never);
+    const result = readNativeRuntimeApi("env-a" as never);
     expect(result).toBe(localApi);
   });
 
@@ -71,7 +71,7 @@ describe("glass-runtime-api", () => {
     vi.mocked(readLocalApi).mockReturnValue(localApi);
     vi.mocked(readEnvironmentApi).mockReturnValue(environmentApi);
 
-    const result = readGlassRuntimeApi("env-a" as never);
+    const result = readNativeRuntimeApi("env-a" as never);
     expect(result).toMatchObject({
       dialogs: localApi.dialogs,
       server: localApi.server,
@@ -88,15 +88,15 @@ describe("glass-runtime-api", () => {
     vi.mocked(getWsRpcClientForEnvironment).mockReturnValue({} as never);
     vi.mocked(createEnvironmentApi).mockReturnValue(environmentApi);
 
-    const result = readGlassRuntimeApi(null, { allowPrimaryEnvironmentFallback: true });
+    const result = readNativeRuntimeApi(null, { allowPrimaryEnvironmentFallback: true });
     expect(getWsRpcClientForEnvironment).toHaveBeenCalledWith(null);
     expect(createEnvironmentApi).toHaveBeenCalledTimes(1);
     expect(result?.git).toBe(environmentApi.git);
   });
 
-  it("throws when ensureGlassEnvironmentApi cannot resolve an environment api", () => {
+  it("throws when ensureNativeEnvironmentApi cannot resolve an environment api", () => {
     vi.mocked(readEnvironmentApi).mockReturnValue(undefined);
-    expect(() => ensureGlassEnvironmentApi("env-a" as never)).toThrow(
+    expect(() => ensureNativeEnvironmentApi("env-a" as never)).toThrow(
       "Environment API not found for environment env-a",
     );
   });
@@ -106,7 +106,7 @@ describe("glass-runtime-api", () => {
     vi.mocked(getWsRpcClientForEnvironment).mockReturnValue({} as never);
     vi.mocked(createEnvironmentApi).mockReturnValue(environmentApi);
 
-    const result = readGlassEnvironmentApi(undefined, { allowPrimaryEnvironmentFallback: true });
+    const result = readNativeEnvironmentApi(undefined, { allowPrimaryEnvironmentFallback: true });
     expect(result).toBe(environmentApi);
   });
 });

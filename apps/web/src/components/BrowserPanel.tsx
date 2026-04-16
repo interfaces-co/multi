@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
-import { type ThreadId } from "@t3tools/contracts";
+import { type ThreadId } from "@multi/contracts";
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
@@ -17,7 +17,7 @@ import {
   XIcon,
 } from "lucide-react";
 
-import type { DesktopBrowserBridge } from "@t3tools/contracts";
+import type { DesktopBrowserBridge } from "@multi/contracts";
 import { cn } from "~/lib/utils";
 
 function readBrowserBridge(): DesktopBrowserBridge | null {

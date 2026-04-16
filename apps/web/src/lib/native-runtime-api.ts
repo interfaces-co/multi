@@ -1,19 +1,19 @@
-import type { EnvironmentApi, EnvironmentId, LocalApi } from "@t3tools/contracts";
+import type { EnvironmentApi, EnvironmentId, LocalApi } from "@multi/contracts";
 
 import { createEnvironmentApi, readEnvironmentApi } from "~/environmentApi";
 import { readLocalApi } from "~/localApi";
 import { getWsRpcClientForEnvironment } from "~/ws-rpc-client";
 
-export interface ReadGlassRuntimeApiOptions {
+export interface ReadNativeRuntimeApiOptions {
   allowPrimaryEnvironmentFallback?: boolean;
 }
 
-export type GlassRuntimeApi = LocalApi &
+export type NativeRuntimeApi = LocalApi &
   Partial<Pick<EnvironmentApi, "terminal" | "projects" | "filesystem" | "git" | "orchestration">>;
 
 function readEnvironmentApiWithFallback(
   environmentId: EnvironmentId | null | undefined,
-  options?: ReadGlassRuntimeApiOptions,
+  options?: ReadNativeRuntimeApiOptions,
 ): EnvironmentApi | undefined {
   if (environmentId) {
     return readEnvironmentApi(environmentId);
@@ -30,18 +30,18 @@ function readEnvironmentApiWithFallback(
   }
 }
 
-export function readGlassEnvironmentApi(
+export function readNativeEnvironmentApi(
   environmentId: EnvironmentId | null | undefined,
-  options?: ReadGlassRuntimeApiOptions,
+  options?: ReadNativeRuntimeApiOptions,
 ): EnvironmentApi | undefined {
   return readEnvironmentApiWithFallback(environmentId, options);
 }
 
-export function ensureGlassEnvironmentApi(
+export function ensureNativeEnvironmentApi(
   environmentId: EnvironmentId | null | undefined,
-  options?: ReadGlassRuntimeApiOptions,
+  options?: ReadNativeRuntimeApiOptions,
 ): EnvironmentApi {
-  const api = readGlassEnvironmentApi(environmentId, options);
+  const api = readNativeEnvironmentApi(environmentId, options);
   if (!api) {
     throw new Error(
       environmentId
@@ -52,9 +52,9 @@ export function ensureGlassEnvironmentApi(
   return api;
 }
 
-const mergedRuntimeByLocalApi = new WeakMap<LocalApi, WeakMap<EnvironmentApi, GlassRuntimeApi>>();
+const mergedRuntimeByLocalApi = new WeakMap<LocalApi, WeakMap<EnvironmentApi, NativeRuntimeApi>>();
 
-function getMergedRuntimeApi(localApi: LocalApi, environmentApi: EnvironmentApi): GlassRuntimeApi {
+function getMergedRuntimeApi(localApi: LocalApi, environmentApi: EnvironmentApi): NativeRuntimeApi {
   let byEnvironmentApi = mergedRuntimeByLocalApi.get(localApi);
   if (!byEnvironmentApi) {
     byEnvironmentApi = new WeakMap();
@@ -64,7 +64,7 @@ function getMergedRuntimeApi(localApi: LocalApi, environmentApi: EnvironmentApi)
   const cached = byEnvironmentApi.get(environmentApi);
   if (cached) return cached;
 
-  const merged: GlassRuntimeApi = {
+  const merged: NativeRuntimeApi = {
     ...localApi,
     terminal: environmentApi.terminal,
     projects: environmentApi.projects,
@@ -76,10 +76,10 @@ function getMergedRuntimeApi(localApi: LocalApi, environmentApi: EnvironmentApi)
   return merged;
 }
 
-export function readGlassRuntimeApi(
+export function readNativeRuntimeApi(
   environmentId: EnvironmentId | null | undefined,
-  options?: ReadGlassRuntimeApiOptions,
-): GlassRuntimeApi | undefined {
+  options?: ReadNativeRuntimeApiOptions,
+): NativeRuntimeApi | undefined {
   const localApi = readLocalApi();
   if (!localApi) {
     return undefined;

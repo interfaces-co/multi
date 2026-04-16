@@ -6,7 +6,7 @@ import {
   buildSubagentIdentityDirectory,
   extractSubagentIdentityHints as extractParsedSubagentIdentityHints,
   resolveSubagentIdentityFromDirectory,
-} from "@t3tools/shared/subagents";
+} from "@multi/shared/subagents";
 
 const SUBAGENT_ACCENT_PALETTE = [
   "#b84e44",
