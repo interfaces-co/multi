@@ -7,7 +7,7 @@ import {
   ProjectId,
   ThreadId,
   TrimmedNonEmptyString,
-} from "./baseSchemas";
+} from "./base-schemas";
 import { KeybindingRule, ResolvedKeybindingsConfig } from "./keybindings";
 import { EditorId } from "./editor";
 import { ModelCapabilities } from "./model";

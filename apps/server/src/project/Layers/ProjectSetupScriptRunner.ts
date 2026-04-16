@@ -1,4 +1,4 @@
-import { projectScriptRuntimeEnv, setupProjectScript } from "@multi/shared/projectScripts";
+import { projectScriptRuntimeEnv, setupProjectScript } from "@multi/shared/project-scripts";
 import { Effect, Layer } from "effect";
 
 import { OrchestrationEngineService } from "../../orchestration/Services/OrchestrationEngine.ts";

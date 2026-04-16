@@ -59,7 +59,7 @@ export function TintPad(props: {
         props.disabled && "pointer-events-none opacity-50",
         props.className,
       )}
-        style={{ height: TINT_PAD.h, width: TINT_PAD.w }}
+      style={{ height: TINT_PAD.h, width: TINT_PAD.w }}
     >
       <div
         aria-hidden

@@ -1,8 +1,10 @@
 import type { EnvironmentApi, EnvironmentId, LocalApi } from "@multi/contracts";
 
-import { createEnvironmentApi, readEnvironmentApi } from "~/environmentApi";
-import { readLocalApi } from "~/localApi";
+import { createEnvironmentApi, readEnvironmentApi } from "~/environment-api";
+import { ensureLocalApi, readLocalApi } from "~/local-api";
 import { getWsRpcClientForEnvironment } from "~/ws-rpc-client";
+
+export { readLocalApi as readNativeApi, ensureLocalApi as ensureNativeApi };
 
 export interface ReadNativeRuntimeApiOptions {
   allowPrimaryEnvironmentFallback?: boolean;

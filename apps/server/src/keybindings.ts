@@ -45,7 +45,7 @@ import {
 } from "effect";
 import * as Semaphore from "effect/Semaphore";
 import { ServerConfig } from "./config";
-import { fromLenientJson } from "@multi/shared/schemaJson";
+import { fromLenientJson } from "@multi/shared/schema-json";
 
 type WhenToken =
   | { type: "identifier"; value: string }

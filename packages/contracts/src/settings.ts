@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 import * as Schema from "effect/Schema";
 import * as SchemaTransformation from "effect/SchemaTransformation";
-import { TrimmedNonEmptyString, TrimmedString } from "./baseSchemas";
+import { TrimmedNonEmptyString, TrimmedString } from "./base-schemas";
 import {
   ClaudeModelOptions,
   CodexModelOptions,

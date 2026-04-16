@@ -13,7 +13,7 @@ import type {
 } from "~/lib/ui-session-types";
 import { create } from "zustand";
 
-import { readNativeApi } from "../native-api";
+import { readNativeApi } from "./native-runtime-api";
 import { getServerConfig } from "../rpc/server-state";
 import {
   selectProjectsAcrossEnvironments,

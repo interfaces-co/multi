@@ -35,7 +35,7 @@ export const setLocalStorageItem = <T, E>(key: string, value: T, schema: Schema.
   isomorphicLocalStorage.setItem(key, valueToSet);
 };
 
-const removeLocalStorageItem = (key: string) => {
+export const removeLocalStorageItem = (key: string) => {
   isomorphicLocalStorage.removeItem(key);
 };
 
@@ -43,13 +43,21 @@ const LOCAL_STORAGE_CHANGE_EVENT = "multi:local_storage_change";
 
 interface LocalStorageChangeDetail {
   key: string;
+  origin: string;
 }
 
-function dispatchLocalStorageChange(key: string) {
+let localStorageOriginId = 0;
+
+function nextLocalStorageOriginId(): string {
+  localStorageOriginId += 1;
+  return `origin:${localStorageOriginId}`;
+}
+
+function dispatchLocalStorageChange(key: string, origin: string) {
   if (typeof window === "undefined") return;
   window.dispatchEvent(
     new CustomEvent<LocalStorageChangeDetail>(LOCAL_STORAGE_CHANGE_EVENT, {
-      detail: { key },
+      detail: { key, origin },
     }),
   );
 }
@@ -59,6 +67,7 @@ export function useLocalStorage<T, E>(
   initialValue: T,
   schema: Schema.Codec<T, E>,
 ): [T, (value: T | ((val: T) => T)) => void] {
+  const originRef = useRef(nextLocalStorageOriginId());
   const [storedValue, setStoredValue] = useState<T>(() => {
     try {
       const item = getLocalStorageItem(key, schema);
@@ -79,7 +88,7 @@ export function useLocalStorage<T, E>(
           } else {
             setLocalStorageItem(key, valueToStore, schema);
           }
-          queueMicrotask(() => dispatchLocalStorageChange(key));
+          queueMicrotask(() => dispatchLocalStorageChange(key, originRef.current));
           return valueToStore;
         });
       } catch (error) {
@@ -120,7 +129,7 @@ export function useLocalStorage<T, E>(
     };
 
     const handleLocalChange = (event: CustomEvent<LocalStorageChangeDetail>) => {
-      if (event.detail.key === key) {
+      if (event.detail.key === key && event.detail.origin !== originRef.current) {
         syncFromStorage();
       }
     };

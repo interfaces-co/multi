@@ -6,9 +6,9 @@ import {
   PROVIDER_SEND_TURN_MAX_IMAGE_BYTES,
 } from "@multi/contracts";
 
-import { createAttachmentId, resolveAttachmentPath } from "../attachmentStore";
+import { createAttachmentId, resolveAttachmentPath } from "../attachment-store";
 import { ServerConfig } from "../config";
-import { parseBase64DataUrl } from "../imageMime";
+import { parseBase64DataUrl } from "../image-mime";
 import { WorkspacePaths } from "../workspace/Services/WorkspacePaths";
 
 export const normalizeDispatchCommand = (command: ClientOrchestrationCommand) =>

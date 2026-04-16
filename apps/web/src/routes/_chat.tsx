@@ -1,19 +1,19 @@
 import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect } from "react";
 
-import { useCommandPaletteStore } from "../commandPaletteStore";
-import { useHandleNewThread } from "../hooks/useHandleNewThread";
+import { useCommandPaletteStore } from "../command-palette-store";
+import { useHandleNewThread } from "../hooks/use-handle-new-thread";
 import {
   startNewLocalThreadFromContext,
   startNewThreadFromContext,
-} from "../lib/chatThreadActions";
-import { isTerminalFocused } from "../lib/terminalFocus";
+} from "../lib/chat-thread-actions";
+import { isTerminalFocused } from "../lib/terminal-focus";
 import { resolveShortcutCommand } from "../keybindings";
-import { selectThreadTerminalState, useTerminalStateStore } from "../terminalStateStore";
-import { useThreadSelectionStore } from "../threadSelectionStore";
-import { resolveSidebarNewThreadEnvMode } from "~/components/Sidebar.logic";
-import { useSettings } from "~/hooks/useSettings";
-import { useServerKeybindings } from "~/rpc/serverState";
+import { selectThreadTerminalState, useTerminalStateStore } from "../terminal-state-store";
+import { useThreadSelectionStore } from "../thread-selection-store";
+import { resolveSidebarNewThreadEnvMode } from "~/lib/thread-sidebar";
+import { useSettings } from "~/hooks/use-settings";
+import { useServerKeybindings } from "~/rpc/server-state";
 
 function ChatRouteGlobalShortcuts() {
   const clearSelection = useThreadSelectionStore((state) => state.clearSelection);

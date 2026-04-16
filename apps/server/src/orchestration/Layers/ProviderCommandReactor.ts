@@ -27,7 +27,7 @@ import {
   ProviderCommandReactor,
   type ProviderCommandReactorShape,
 } from "../Services/ProviderCommandReactor.ts";
-import { ServerSettingsService } from "../../serverSettings.ts";
+import { ServerSettingsService } from "../../server-settings.ts";
 
 type ProviderIntentEvent = Extract<
   OrchestrationEvent,

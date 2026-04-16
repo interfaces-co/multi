@@ -28,7 +28,7 @@ import {
   terminalRestartsTotal,
   terminalSessionsTotal,
 } from "../../observability/Metrics";
-import { runProcess } from "../../processRunner";
+import { runProcess } from "../../process-runner";
 import {
   TerminalCwdError,
   TerminalHistoryError,

@@ -35,9 +35,9 @@ import {
   parseRemoteNames,
   parseRemoteNamesInGitOrder,
   parseRemoteRefWithRemoteNames,
-} from "../remoteRefs.ts";
+} from "../remote-refs.ts";
 import { ServerConfig } from "../../config.ts";
-import { decodeJsonResult } from "@multi/shared/schemaJson";
+import { decodeJsonResult } from "@multi/shared/schema-json";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const DEFAULT_MAX_OUTPUT_BYTES = 1_000_000;

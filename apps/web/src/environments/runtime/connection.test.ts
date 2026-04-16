@@ -2,7 +2,7 @@ import { EnvironmentId } from "@multi/contracts";
 import { describe, expect, it, vi } from "vitest";
 
 import { createEnvironmentConnection } from "./connection";
-import type { WsRpcClient } from "~/rpc/wsRpcClient";
+import type { WsRpcClient } from "~/rpc/ws-rpc-client";
 
 function createTestClient() {
   const lifecycleListeners = new Set<(event: any) => void>();

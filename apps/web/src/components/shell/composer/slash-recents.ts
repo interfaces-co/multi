@@ -51,11 +51,7 @@ export function readSlashRecents(): SlashRecentsSnapshot {
 }
 
 /** Higher rank = more recent (0 = not in list). */
-export function recentBoost(
-  id: string,
-  kind: SlashItemKind,
-  snap: SlashRecentsSnapshot,
-): number {
+export function recentBoost(id: string, kind: SlashItemKind, snap: SlashRecentsSnapshot): number {
   const g = snap.global.indexOf(id);
   const k = kind === "skill" ? snap.skills.indexOf(id) : snap.commands.indexOf(id);
   let boost = 0;

@@ -1,2 +1,2 @@
-export * from "./knownEnvironment";
+export * from "./known-environment";
 export * from "./scoped";

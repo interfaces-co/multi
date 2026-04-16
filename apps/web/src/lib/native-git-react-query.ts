@@ -1,4 +1,3 @@
-// @ts-nocheck
 import type { FileDiffMetadata } from "@pierre/diffs";
 import type { EnvironmentId } from "@multi/contracts";
 import { parsePatchFiles } from "@pierre/diffs";
@@ -42,7 +41,7 @@ export function gitPatchQueryOptions(input: {
     queryFn: async () => {
       if (!input.cwd) throw new Error("No workspace");
       const api = readNativeGitApi(input.environmentId);
-      if (!api || typeof api.getFilePatch !== "function") {
+      if (!api) {
         throw new Error("Git patch API not available");
       }
       const result = await api.getFilePatch({ cwd: input.cwd, path: input.path });

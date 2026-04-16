@@ -14,7 +14,7 @@ import { useNavigate } from "@tanstack/react-router";
 
 import { useRuntimeDefaults } from "~/hooks/use-runtime-models";
 import { useShellState } from "~/hooks/use-shell-cwd";
-import { readNativeRuntimeApi } from "~/native-api";
+import { readNativeRuntimeApi } from "~/lib/native-runtime-api";
 import { useServerProviders } from "~/rpc/server-state";
 import {
   applyFastMode,

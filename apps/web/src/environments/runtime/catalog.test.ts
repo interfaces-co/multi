@@ -28,14 +28,14 @@ describe("environment runtime catalog stores", () => {
         },
       } satisfies Pick<LocalApi, "persistence">,
     });
-    const { __resetLocalApiForTests } = await import("../../localApi");
+    const { __resetLocalApiForTests } = await import("../../local-api");
     await __resetLocalApiForTests();
   });
 
   afterEach(async () => {
     resetSavedEnvironmentRegistryStoreForTests();
     resetSavedEnvironmentRuntimeStoreForTests();
-    const { __resetLocalApiForTests } = await import("../../localApi");
+    const { __resetLocalApiForTests } = await import("../../local-api");
     await __resetLocalApiForTests();
     vi.unstubAllGlobals();
   });
@@ -77,7 +77,7 @@ describe("environment runtime catalog stores", () => {
   it("does not throw when local api lookup fails during registry persistence", async () => {
     vi.unstubAllGlobals();
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const { __resetLocalApiForTests } = await import("../../localApi");
+    const { __resetLocalApiForTests } = await import("../../local-api");
     await __resetLocalApiForTests();
 
     expect(() =>
@@ -116,7 +116,7 @@ describe("environment runtime catalog stores", () => {
       } satisfies Pick<LocalApi, "persistence">,
     });
 
-    const { __resetLocalApiForTests } = await import("../../localApi");
+    const { __resetLocalApiForTests } = await import("../../local-api");
     await __resetLocalApiForTests();
 
     const hydrationPromise = waitForSavedEnvironmentRegistryHydration();

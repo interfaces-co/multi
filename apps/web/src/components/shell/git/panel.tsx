@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use client";
 
 import type { GitFileState } from "~/lib/ui-session-types";
@@ -12,7 +11,7 @@ import {
   IconBranch,
   IconSplit,
 } from "central-icons";
-import { memo, useCallback, useState } from "react";
+import { memo, type MouseEvent, useCallback, useState } from "react";
 import { toast } from "sonner";
 
 import { Badge } from "~/components/ui/badge";
@@ -38,23 +37,26 @@ import { VsFileIcon } from "~/lib/vscode-file-icon";
 import { BranchCommitDialog, CommitDialog } from "./commit-dialog";
 import { DiffViewer } from "./diff-viewer";
 
-const kindVariant: Record<string, "warning" | "addition" | "deletion" | "neutral" | "destructive"> =
-  {
-    untracked: "warning",
-    added: "addition",
-    deleted: "deletion",
-    renamed: "neutral",
-    conflicted: "destructive",
-    typechange: "neutral",
-  };
+const kindVariant: Partial<
+  Record<GitFileState, "warning" | "success" | "destructive" | "secondary" | "outline">
+> = {
+  untracked: "warning",
+  added: "success",
+  deleted: "destructive",
+  renamed: "secondary",
+  copied: "secondary",
+  ignored: "outline",
+  conflict: "destructive",
+};
 
-const kindLabel: Record<string, string> = {
+const kindLabel: Partial<Record<GitFileState, string>> = {
   untracked: "untracked",
   added: "new",
   deleted: "deleted",
   renamed: "renamed",
-  conflicted: "conflict",
-  typechange: "type",
+  copied: "copied",
+  ignored: "ignored",
+  conflict: "conflict",
 };
 
 function KindBadge(props: { state: GitFileState }) {
@@ -87,66 +89,67 @@ export function GitPanel(props: { git: GitPanelModel }) {
     );
   }
 
-  if (!git.snap && !git.error) {
-    return (
-      <div className="flex min-h-0 flex-1 flex-col gap-2 px-3 py-3">
-        <div className="h-3 w-24 animate-pulse rounded bg-muted/40" />
-        <div className="h-3 w-full animate-pulse rounded bg-muted/30" />
-        <div className="h-3 w-full animate-pulse rounded bg-muted/30" />
-      </div>
-    );
-  }
-
-  if (git.error) {
-    return (
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 px-4 py-8 text-center">
-        <p className="text-body/[1.4] font-medium text-destructive/90">Git error</p>
-        <p className="max-w-[20rem] text-detail/[1.45] text-muted-foreground/80">{git.error}</p>
-      </div>
-    );
-  }
-
-  const snap = git.snap;
-
-  if (snap && !snap.repo) {
-    return (
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 py-10 text-center">
-        <div className="space-y-1 px-4 py-3">
-          <p className="text-body/[1.4] font-medium text-foreground/85">No repository</p>
-          <p className="max-w-[18rem] text-detail/[1.45] text-muted-foreground/72">
-            Initialize Git in this workspace to track changes and review diffs.
+  switch (git.view.kind) {
+    case "idle":
+    case "loading":
+      return (
+        <div className="flex min-h-0 flex-1 flex-col gap-2 px-3 py-3">
+          <div className="h-3 w-24 animate-pulse rounded bg-muted/40" />
+          <div className="h-3 w-full animate-pulse rounded bg-muted/30" />
+          <div className="h-3 w-full animate-pulse rounded bg-muted/30" />
+        </div>
+      );
+    case "error":
+      return (
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 px-4 py-8 text-center">
+          <p className="text-body/[1.4] font-medium text-destructive/90">Git error</p>
+          <p className="max-w-[20rem] text-detail/[1.45] text-muted-foreground/80">
+            {git.view.message}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => git.init()}
-          className="rounded-chrome-control border border-chrome-border/60 bg-chrome-active/40 px-3 py-2 text-body/[1.2] font-medium text-foreground transition-colors hover:bg-chrome-hover"
-        >
-          Init Git
-        </button>
-      </div>
-    );
+      );
+    case "no-repo":
+      return (
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 py-10 text-center">
+          <div className="space-y-1 px-4 py-3">
+            <p className="text-body/[1.4] font-medium text-foreground/85">No repository</p>
+            <p className="max-w-[18rem] text-detail/[1.45] text-muted-foreground/72">
+              Initialize Git in this workspace to track changes and review diffs.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              void git
+                .init()
+                .catch((error: unknown) =>
+                  toast.error(error instanceof Error ? error.message : String(error)),
+                );
+            }}
+            className="rounded-chrome-control border border-chrome-border/60 bg-chrome-active/40 px-3 py-2 text-body/[1.2] font-medium text-foreground transition-colors hover:bg-chrome-hover"
+          >
+            Init Git
+          </button>
+        </div>
+      );
+    case "clean":
+      return (
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 px-4 py-12 text-center">
+          <p className="text-body/[1.4] font-medium text-foreground/85">Working tree clean</p>
+          <p className="max-w-[18rem] text-detail/[1.45] text-muted-foreground/72">
+            No staged or unstaged changes in this repository.
+          </p>
+        </div>
+      );
+    case "changed":
+      return <GitPanelInner git={git} />;
   }
-
-  if (snap && snap.repo && snap.clean) {
-    return (
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 px-4 py-12 text-center">
-        <p className="text-body/[1.4] font-medium text-foreground/85">Working tree clean</p>
-        <p className="max-w-[18rem] text-detail/[1.45] text-muted-foreground/72">
-          No staged or unstaged changes in this repository.
-        </p>
-      </div>
-    );
-  }
-
-  return <GitPanelInner git={git} />;
 }
 
 function GitPanelInner(props: { git: GitPanelModel }) {
   const git = props.git;
   const files = git.rows;
-  const root = git.snap?.gitRoot ?? null;
-  const viewed = useGitViewed(root);
+  const viewed = useGitViewed(git.cwd);
   const [diffStyle, setDiffStyle] = useDiffStylePreference();
   const [pending, setPending] = useState<DiffRow | null>(null);
   const [commitOpen, setCommitOpen] = useState(false);
@@ -155,7 +158,11 @@ function GitPanelInner(props: { git: GitPanelModel }) {
 
   const confirmDiscard = useCallback(() => {
     if (!pending) return;
-    void git.discard([pending.path]);
+    void git
+      .discard([pending.path])
+      .catch((error: unknown) =>
+        toast.error(error instanceof Error ? error.message : String(error)),
+      );
     setPending(null);
   }, [git, pending]);
 
@@ -422,7 +429,7 @@ interface CardProps {
 const GitFileCard = memo(function GitFileCard(props: CardProps) {
   const { prefix, name } = splitPath(props.file.path);
 
-  const copyPath = (e: React.MouseEvent) => {
+  const copyPath = (e: MouseEvent) => {
     e.stopPropagation();
     void navigator.clipboard.writeText(props.file.path);
     toast.success("Path copied");

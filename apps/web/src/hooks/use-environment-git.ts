@@ -1,16 +1,14 @@
-// @ts-nocheck
 import type { FileDiffMetadata } from "@pierre/diffs";
-import type { EnvironmentId, GitStatusResult } from "@multi/contracts";
-import type { GitFileSummary, GitState } from "~/lib/ui-session-types";
+import type { EnvironmentId, GitManagerServiceError, GitStatusResult } from "@multi/contracts";
+import type { GitFileState } from "~/lib/ui-session-types";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
 import * as Schema from "effect/Schema";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { refreshGitStatus, useGitStatus } from "../lib/git-status-state";
 import { gitPatchQueryOptions, gitQueryKeys } from "../lib/native-git-react-query";
 import { readNativeGitApi } from "../lib/native-git-api";
 import { useShellLayoutStore } from "../lib/shell-layout-store";
-import { selectBootstrapCompleteForActiveEnvironment, useStore } from "../store";
-import { getWsRpcClientForEnvironment } from "../ws-rpc-client";
 import { useLocalStorage } from "./use-local-storage";
 import { useShellState } from "./use-shell-cwd";
 
@@ -24,21 +22,33 @@ export function useDiffStylePreference() {
   );
 }
 
-export interface DiffRow extends GitFileSummary {
+export interface DiffRow {
+  id: string;
+  path: string;
+  prevPath: string | null;
+  state: GitFileState;
+  staged: boolean;
+  unstaged: boolean;
   add: number;
   del: number;
 }
 
+export type GitPanelViewState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "error"; message: string }
+  | { kind: "no-repo" }
+  | { kind: "clean" }
+  | { kind: "changed" };
+
 export interface GitPanelModel {
-  snap: GitState | null;
-  loading: boolean;
-  error: string | null;
+  cwd: string | null;
+  view: GitPanelViewState;
   count: number;
   branch: string | null;
   rows: DiffRow[];
   totalAdd: number;
   totalDel: number;
-  statsById: Map<string, { add: number; del: number }>;
   focusId: string | null;
   diffsByPath: Map<string, FileDiffMetadata | null>;
   patchesByPath: Map<string, string>;
@@ -48,20 +58,27 @@ export interface GitPanelModel {
   toggleExpand: (id: string, open?: boolean) => void;
   expandAll: () => void;
   collapseAll: () => void;
-  refresh: () => Promise<GitState | null>;
-  init: () => Promise<GitState | null>;
-  discard: (paths: string[]) => Promise<GitState | null>;
+  refresh: () => Promise<void>;
+  init: () => Promise<void>;
+  discard: (paths: string[]) => Promise<void>;
   runCommit: (input: { message: string; push?: boolean }) => Promise<void>;
   runBranchCommit: (input: { message: string; push?: boolean }) => Promise<void>;
   runPush: () => Promise<void>;
 }
 
-function clean(path: string) {
+interface GitStatusSnapshot {
+  readonly data: GitStatusResult | null;
+  readonly error: GitManagerServiceError | null;
+  readonly isPending: boolean;
+}
+
+function clean(path: string): string {
   const raw = path.replace(/\\/g, "/");
   const win = /^[A-Za-z]:\//.test(raw) ? raw.slice(0, 2) : "";
   const abs = win.length > 0 || raw.startsWith("/");
   const body = (win ? raw.slice(2) : raw).split("/");
   const out: string[] = [];
+
   for (const seg of body) {
     if (!seg || seg === ".") continue;
     if (seg === "..") {
@@ -70,18 +87,19 @@ function clean(path: string) {
     }
     out.push(seg);
   }
+
   if (win) return out.length > 0 ? `${win}/${out.join("/")}` : `${win}/`;
   if (abs) return out.length > 0 ? `/${out.join("/")}` : "/";
   return out.join("/");
 }
 
-function join(base: string, path: string) {
+function join(base: string, path: string): string {
   const next = clean(path);
   if (next.startsWith("/") || /^[A-Za-z]:\//.test(next)) return next;
   return clean(`${clean(base)}/${next}`);
 }
 
-function rel(path: string, root: string) {
+function rel(path: string, root: string): string | null {
   const file = clean(path);
   const base = clean(root).replace(/\/+$/, "");
   if (file === base) return "";
@@ -89,45 +107,58 @@ function rel(path: string, root: string) {
   return file.slice(base.length + 1);
 }
 
-function pick(path: string, cwd: string, root: string | null) {
+function pick(path: string, cwd: string, root: string | null): string | null {
   if (!root) return null;
   if (path.startsWith("~/")) return null;
   const file = path.startsWith("/") || /^[A-Za-z]:\//.test(path) ? clean(path) : join(cwd, path);
   return rel(file, root);
 }
 
-function hit(paths: string[], cwd: string, root: string | null, files: DiffRow[]) {
+function hit(paths: string[], cwd: string, root: string | null, files: DiffRow[]): DiffRow | null {
   for (const path of paths) {
     const next = pick(path, cwd, root);
     if (next === null) continue;
-    const file = files.find((r) => r.path === next || r.prevPath === next);
+    const file = files.find((row) => row.path === next || row.prevPath === next);
     if (file) return file;
   }
   return null;
 }
 
-function toItem(item: GitStatusResult["workingTree"]["files"][number]) {
+function toRow(file: GitStatusResult["workingTree"]["files"][number]): DiffRow {
   return {
-    id: item.path,
-    path: item.path,
-    prevPath: item.prevPath,
-    state: item.state,
+    id: file.path,
+    path: file.path,
+    prevPath: null,
+    state: "modified",
     staged: false,
     unstaged: true,
-  } satisfies GitFileSummary;
+    add: file.insertions,
+    del: file.deletions,
+  };
 }
 
-function toRow(item: GitStatusResult["workingTree"]["files"][number]) {
-  return {
-    ...toItem(item),
-    add: item.insertions,
-    del: item.deletions,
-  } satisfies DiffRow;
-}
-
-function toRows(status: GitStatusResult | null) {
-  if (!status) return [] as DiffRow[];
+function toRows(status: GitStatusResult | null): DiffRow[] {
+  if (!status) return [];
   return status.workingTree.files.map(toRow);
+}
+
+function getGitErrorMessage(error: GitManagerServiceError | null): string {
+  if (!error) {
+    return "Unable to load Git status.";
+  }
+
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message;
+  }
+
+  if (typeof error === "object" && error !== null) {
+    const detail = "detail" in error ? (error.detail as string | undefined) : undefined;
+    if (typeof detail === "string" && detail.trim().length > 0) {
+      return detail;
+    }
+  }
+
+  return "Unable to load Git status.";
 }
 
 export function syncRows(prev: DiffRow[], next: DiffRow[]) {
@@ -137,14 +168,14 @@ export function syncRows(prev: DiffRow[], next: DiffRow[]) {
 
   for (const row of next) {
     ids.add(row.id);
-    const cur = rows.get(row.id);
-    if (!cur) continue;
+    const current = rows.get(row.id);
+    if (!current) continue;
     if (
-      cur.path === row.path &&
-      cur.prevPath === row.prevPath &&
-      cur.state === row.state &&
-      cur.add === row.add &&
-      cur.del === row.del
+      current.path === row.path &&
+      current.prevPath === row.prevPath &&
+      current.state === row.state &&
+      current.add === row.add &&
+      current.del === row.del
     ) {
       continue;
     }
@@ -154,181 +185,100 @@ export function syncRows(prev: DiffRow[], next: DiffRow[]) {
   return { ids, drop };
 }
 
-function toSnap(cwd: string, status: GitStatusResult): GitState {
-  return {
-    cwd,
-    gitRoot: status.isRepo ? cwd : null,
-    repo: status.isRepo,
-    clean: !status.hasWorkingTreeChanges || status.workingTree.files.length === 0,
-    count: status.workingTree.files.length,
-    files: status.workingTree.files.map(toItem),
-    patch: "",
-  };
+export function deriveGitPanelViewState(input: {
+  cwd: string | null;
+  status: GitStatusSnapshot;
+}): GitPanelViewState {
+  if (input.cwd === null) {
+    return { kind: "idle" };
+  }
+
+  if (input.status.error) {
+    return { kind: "error", message: getGitErrorMessage(input.status.error) };
+  }
+
+  if (!input.status.data) {
+    return input.status.isPending ? { kind: "loading" } : { kind: "idle" };
+  }
+
+  if (!input.status.data.isRepo) {
+    return { kind: "no-repo" };
+  }
+
+  if (
+    !input.status.data.hasWorkingTreeChanges ||
+    input.status.data.workingTree.files.length === 0
+  ) {
+    return { kind: "clean" };
+  }
+
+  return { kind: "changed" };
 }
 
 export function useEnvironmentGitPanel(environmentId?: EnvironmentId | null): GitPanelModel {
   const { cwd } = useShellState();
-  const boot = useStore(selectBootstrapCompleteForActiveEnvironment);
+  const queryClient = useQueryClient();
+  const status = useGitStatus({ environmentId: environmentId ?? null, cwd });
+  const view = deriveGitPanelViewState({ cwd, status });
   const paths = useShellLayoutStore((state) => state.paths);
-  const tick = useShellLayoutStore((state) => state.tick);
-  const qc = useQueryClient();
 
-  const [git, setGit] = useState(() => ({
-    cwd: null as string | null,
-    snap: null as GitState | null,
-    status: null as GitStatusResult | null,
-    err: null as string | null,
-    loading: false,
-  }));
-
-  const seq = useRef(0);
+  const rows = useMemo(
+    () => (view.kind === "changed" ? toRows(status.data) : []),
+    [status.data, view.kind],
+  );
 
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
   const prevRows = useRef<DiffRow[]>([]);
 
-  const load = useCallback(
-    async (opts?: { reset?: boolean }) => {
-      const api = readNativeGitApi(environmentId);
-      if (!api || !cwd) return null;
-      const id = ++seq.current;
-      setGit((state) =>
-        state.cwd === cwd && !opts?.reset
-          ? { ...state, loading: true }
-          : { cwd, snap: null, status: null, err: null, loading: true },
-      );
-      try {
-        const next = await api.refreshStatus({ cwd });
-        if (seq.current !== id) return null;
-        const snap = toSnap(cwd, next);
-        setGit({ cwd, snap, status: next, err: null, loading: false });
-        return snap;
-      } catch (err) {
-        if (seq.current !== id) return null;
-        setGit({
-          cwd,
-          snap: null,
-          status: null,
-          err: err instanceof Error ? err.message : String(err),
-          loading: false,
-        });
-        return null;
-      }
-    },
-    [cwd, environmentId],
-  );
-
   useEffect(() => {
-    const api = readNativeGitApi(environmentId);
-    if (!api || !cwd) {
-      seq.current += 1;
-      prevRows.current = [];
-      setGit({ cwd: null, snap: null, status: null, err: null, loading: false });
-      setExpandedIds(new Set());
-      return;
-    }
+    const previousRows = prevRows.current;
+    const next = syncRows(previousRows, rows);
+    prevRows.current = rows;
 
-    let active = true;
-    let off: () => void = () => {};
-
-    void load({ reset: true }).then(() => {
-      if (!active) return;
-      off = api.onStatus(
-        { cwd },
-        (next) => {
-          setGit((state) => {
-            if (state.cwd !== cwd) return state;
-            return { cwd, snap: toSnap(cwd, next), status: next, err: null, loading: false };
-          });
-        },
-        { onResubscribe: () => void load() },
-      );
-    });
-
-    return () => {
-      active = false;
-      off();
-    };
-  }, [cwd, environmentId, load]);
-
-  const cur = git.cwd === cwd ? git : null;
-
-  useEffect(() => {
-    if (!cwd) return;
-    const sync = () => {
-      if (document.visibilityState === "hidden") return;
-      void load();
-    };
-    window.addEventListener("focus", sync);
-    document.addEventListener("visibilitychange", sync);
-    return () => {
-      window.removeEventListener("focus", sync);
-      document.removeEventListener("visibilitychange", sync);
-    };
-  }, [cwd, load]);
-
-  useEffect(() => {
-    if (!cwd || tick < 1) return;
-    void load();
-  }, [cwd, load, tick]);
-
-  const curSnap = cur?.snap ?? null;
-  const curErr = cur?.err ?? null;
-  const rows = useMemo(() => toRows(cur?.status ?? null), [cur?.status]);
-  const curRows = useMemo(() => (curSnap ? rows : []), [curSnap, rows]);
-  const pending =
-    (cwd !== null && cur === null) || Boolean(cur?.loading) || (!boot && cwd === null);
-
-  const branch = cur?.status?.branch ?? null;
-
-  const recent = useMemo(() => {
-    if (!cwd || !curSnap) return null;
-    return hit(paths, cwd, curSnap.gitRoot ?? null, curRows);
-  }, [curRows, curSnap, cwd, paths]);
-
-  useEffect(() => {
-    const prev = prevRows.current;
-    const next = syncRows(prevRows.current, curRows);
-    prevRows.current = curRows;
-    setExpandedIds((prev) => {
+    setExpandedIds((current) => {
       let changed = false;
-      const ids = new Set<string>();
-      for (const id of prev) {
+      const kept = new Set<string>();
+      for (const id of current) {
         if (!next.ids.has(id)) {
           changed = true;
           continue;
         }
-        ids.add(id);
+        kept.add(id);
       }
-      return changed ? ids : prev;
+      return changed ? kept : current;
     });
-    if (!cwd) return;
 
-    const gone = new Set(prev.map((row) => row.id));
-    for (const row of curRows) {
-      gone.delete(row.id);
+    if (!cwd) {
+      return;
     }
 
-    for (const id of gone) {
-      qc.removeQueries({
+    const removed = new Set(previousRows.map((row) => row.id));
+    for (const row of rows) {
+      removed.delete(row.id);
+    }
+
+    for (const id of removed) {
+      queryClient.removeQueries({
         queryKey: gitQueryKeys.patch(environmentId ?? null, cwd, id),
         exact: true,
       });
     }
+
     for (const id of next.drop) {
-      void qc.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: gitQueryKeys.patch(environmentId ?? null, cwd, id),
         exact: true,
       });
     }
-  }, [curRows, cwd, environmentId, qc]);
+  }, [cwd, environmentId, queryClient, rows]);
 
-  const open = useMemo(
-    () => curRows.filter((row) => expandedIds.has(row.id)).map((row) => row.id),
-    [curRows, expandedIds],
+  const expandedPaths = useMemo(
+    () => rows.filter((row) => expandedIds.has(row.id)).map((row) => row.path),
+    [expandedIds, rows],
   );
 
-  const files = useQueries({
-    queries: open.map((path) =>
+  const patchQueries = useQueries({
+    queries: expandedPaths.map((path) =>
       gitPatchQueryOptions({
         environmentId: environmentId ?? null,
         cwd,
@@ -338,147 +288,178 @@ export function useEnvironmentGitPanel(environmentId?: EnvironmentId | null): Gi
     ),
   });
 
-  const diffs = new Map<string, FileDiffMetadata | null>();
-  const patches = new Map<string, string>();
-  const loading = new Set<string>();
-  const errors = new Map<string, string>();
+  const diffsByPath = new Map<string, FileDiffMetadata | null>();
+  const patchesByPath = new Map<string, string>();
+  const diffLoadingByPath = new Set<string>();
+  const diffErrorByPath = new Map<string, string>();
 
-  for (const [index, path] of open.entries()) {
-    const file = files[index];
-    if (!file) continue;
-    if (file.data) {
-      diffs.set(path, file.data.diff);
-      patches.set(path, file.data.patch);
+  for (const [index, path] of expandedPaths.entries()) {
+    const query = patchQueries[index];
+    if (!query) continue;
+
+    if (query.data) {
+      diffsByPath.set(path, query.data.diff);
+      patchesByPath.set(path, query.data.patch);
     }
-    if (!file.data && (file.isPending || file.fetchStatus === "fetching")) {
-      loading.add(path);
+
+    if (!query.data && (query.isPending || query.fetchStatus === "fetching")) {
+      diffLoadingByPath.add(path);
     }
-    if (!file.data && file.error) {
-      errors.set(path, file.error instanceof Error ? file.error.message : String(file.error));
+
+    if (!query.data && query.error) {
+      diffErrorByPath.set(
+        path,
+        query.error instanceof Error ? query.error.message : String(query.error),
+      );
     }
   }
 
-  const toggleExpand = useCallback((id: string, open?: boolean) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      const show = open ?? !next.has(id);
-      if (!show) {
-        next.delete(id);
-      } else {
-        next.add(id);
+  const focusId = useMemo(() => {
+    if (!cwd || rows.length === 0) {
+      return null;
+    }
+    return hit(paths, cwd, cwd, rows)?.id ?? null;
+  }, [cwd, paths, rows]);
+
+  const refresh = useCallback(async () => {
+    if (!cwd) {
+      return;
+    }
+
+    const api = readNativeGitApi(environmentId);
+    if (!api) {
+      return;
+    }
+
+    await refreshGitStatus({ environmentId: environmentId ?? null, cwd }, api);
+  }, [cwd, environmentId]);
+
+  const init = useCallback(async () => {
+    if (!cwd) {
+      throw new Error("No workspace");
+    }
+
+    const api = readNativeGitApi(environmentId);
+    if (!api) {
+      throw new Error("Git API not available");
+    }
+
+    await api.init({ cwd });
+    await refreshGitStatus({ environmentId: environmentId ?? null, cwd }, api);
+  }, [cwd, environmentId]);
+
+  const discard = useCallback(
+    async (pathsToDiscard: string[]) => {
+      if (!cwd) {
+        throw new Error("No workspace");
       }
-      return next;
-    });
-  }, []);
 
-  const expandAll = useCallback(() => {
-    setExpandedIds(new Set(curRows.map((row) => row.id)));
-  }, [curRows]);
+      if (pathsToDiscard.length === 0) {
+        return;
+      }
 
-  const collapseAll = useCallback(() => {
-    setExpandedIds(new Set());
-  }, []);
+      const api = readNativeGitApi(environmentId);
+      if (!api) {
+        throw new Error("Git API not available");
+      }
 
-  const statsById = useMemo(
-    () => new Map(curRows.map((r) => [r.id, { add: r.add, del: r.del }])),
-    [curRows],
+      await api.discardPaths({ cwd, paths: pathsToDiscard });
+      await refreshGitStatus({ environmentId: environmentId ?? null, cwd }, api);
+    },
+    [cwd, environmentId],
   );
 
   const runCommit = useCallback(
     async (input: { message: string; push?: boolean }) => {
-      if (!cwd) throw new Error("No workspace");
-      const rpc = getWsRpcClientForEnvironment(environmentId ?? null);
-      await rpc.git.runStackedAction({
-        actionId: crypto.randomUUID(),
+      if (!cwd) {
+        throw new Error("No workspace");
+      }
+
+      const api = readNativeGitApi(environmentId);
+      if (!api) {
+        throw new Error("Git API not available");
+      }
+
+      await api.runStackedAction({
         cwd,
         action: input.push ? "commit_push" : "commit",
         commitMessage: input.message,
       });
+      await refreshGitStatus({ environmentId: environmentId ?? null, cwd }, api);
     },
     [cwd, environmentId],
   );
 
   const runBranchCommit = useCallback(
     async (input: { message: string; push?: boolean }) => {
-      if (!cwd) throw new Error("No workspace");
-      const rpc = getWsRpcClientForEnvironment(environmentId ?? null);
-      await rpc.git.runStackedAction({
-        actionId: crypto.randomUUID(),
+      if (!cwd) {
+        throw new Error("No workspace");
+      }
+
+      const api = readNativeGitApi(environmentId);
+      if (!api) {
+        throw new Error("Git API not available");
+      }
+
+      await api.runStackedAction({
         cwd,
         action: input.push ? "commit_push" : "commit",
         commitMessage: input.message,
         featureBranch: true,
       });
+      await refreshGitStatus({ environmentId: environmentId ?? null, cwd }, api);
     },
     [cwd, environmentId],
   );
 
   const runPush = useCallback(async () => {
-    if (!cwd) throw new Error("No workspace");
-    const rpc = getWsRpcClientForEnvironment(environmentId ?? null);
-    await rpc.git.runStackedAction({
-      actionId: crypto.randomUUID(),
+    if (!cwd) {
+      throw new Error("No workspace");
+    }
+
+    const api = readNativeGitApi(environmentId);
+    if (!api) {
+      throw new Error("Git API not available");
+    }
+
+    await api.runStackedAction({
       cwd,
       action: "push",
     });
+    await refreshGitStatus({ environmentId: environmentId ?? null, cwd }, api);
   }, [cwd, environmentId]);
 
   return {
-    snap: curSnap,
-    loading: pending,
-    error: curErr,
-    count: curSnap?.count ?? 0,
-    branch,
-    rows: curRows,
-    totalAdd: curRows.reduce((sum, r) => sum + r.add, 0),
-    totalDel: curRows.reduce((sum, r) => sum + r.del, 0),
-    statsById,
-    focusId: recent?.id ?? null,
-    diffsByPath: diffs,
-    patchesByPath: patches,
-    diffLoadingByPath: loading,
-    diffErrorByPath: errors,
+    cwd,
+    view,
+    count: rows.length,
+    branch: status.data?.branch ?? null,
+    rows,
+    totalAdd: rows.reduce((sum, row) => sum + row.add, 0),
+    totalDel: rows.reduce((sum, row) => sum + row.del, 0),
+    focusId,
+    diffsByPath,
+    patchesByPath,
+    diffLoadingByPath,
+    diffErrorByPath,
     expandedIds,
-    toggleExpand,
-    expandAll,
-    collapseAll,
-    refresh: load,
-    init: async () => {
-      const api = readNativeGitApi(environmentId);
-      if (!api || !cwd) return null;
-      try {
-        await api.init({ cwd });
-      } catch (err) {
-        setGit((state) =>
-          state.cwd !== cwd
-            ? state
-            : {
-                ...state,
-                err: err instanceof Error ? err.message : String(err),
-                loading: false,
-              },
-        );
-      }
-      return load();
+    toggleExpand: (id, open) => {
+      setExpandedIds((current) => {
+        const next = new Set(current);
+        const shouldOpen = open ?? !next.has(id);
+        if (shouldOpen) {
+          next.add(id);
+        } else {
+          next.delete(id);
+        }
+        return next;
+      });
     },
-    discard: async (paths) => {
-      const api = readNativeGitApi(environmentId);
-      if (!api || !cwd) return curSnap;
-      try {
-        await api.discardPaths({ cwd, paths });
-      } catch (err) {
-        setGit((state) =>
-          state.cwd !== cwd
-            ? state
-            : {
-                ...state,
-                err: err instanceof Error ? err.message : String(err),
-                loading: false,
-              },
-        );
-      }
-      return load();
-    },
+    expandAll: () => setExpandedIds(new Set(rows.map((row) => row.id))),
+    collapseAll: () => setExpandedIds(new Set()),
+    refresh,
+    init,
+    discard,
     runCommit,
     runBranchCommit,
     runPush,

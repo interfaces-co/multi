@@ -9,7 +9,7 @@ import {
 } from "central-icons";
 
 import { usePreferredEditor } from "~/editor-preferences";
-import { ensureNativeApi } from "~/native-api";
+import { ensureNativeApi } from "~/lib/native-runtime-api";
 import { useShellState } from "~/hooks/use-shell-cwd";
 import { useTheme } from "~/hooks/use-theme";
 import { cn } from "~/lib/utils";
@@ -68,7 +68,9 @@ export function OpenPicker(props: { variant?: "hero" | "settings" }) {
       className={cn(hero ? "composer-toolbar-icon opacity-80" : "size-4 opacity-70")}
     />
   ) : active?.id === "file-manager" ? (
-    <IconFolderOpen className={cn(hero ? "composer-toolbar-icon opacity-60" : "size-4 opacity-70")} />
+    <IconFolderOpen
+      className={cn(hero ? "composer-toolbar-icon opacity-60" : "size-4 opacity-70")}
+    />
   ) : (
     <IconArrowOutOfBox
       className={cn(hero ? "composer-toolbar-icon opacity-60" : "size-4 opacity-70")}

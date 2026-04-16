@@ -11,7 +11,7 @@ import {
   normalizeSearchQuery,
   scoreQueryMatch,
   type RankedSearchResult,
-} from "@multi/shared/searchRanking";
+} from "@multi/shared/search-ranking";
 
 import { GitCore } from "../../git/Services/GitCore.ts";
 import {

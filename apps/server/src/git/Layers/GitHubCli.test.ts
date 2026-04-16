@@ -2,11 +2,11 @@ import { assert, it } from "@effect/vitest";
 import { Effect } from "effect";
 import { afterEach, expect, vi } from "vitest";
 
-vi.mock("../../processRunner", () => ({
+vi.mock("../../process-runner", () => ({
   runProcess: vi.fn(),
 }));
 
-import { runProcess } from "../../processRunner";
+import { runProcess } from "../../process-runner";
 import { GitHubCli } from "../Services/GitHubCli.ts";
 import { GitHubCliLive } from "./GitHubCli.ts";
 

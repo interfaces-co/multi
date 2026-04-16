@@ -13,7 +13,7 @@ import type {
 import {
   getPairingTokenFromUrl,
   stripPairingTokenFromUrl as stripPairingTokenUrl,
-} from "../../pairingUrl";
+} from "../../pairing-url";
 
 import { resolvePrimaryEnvironmentHttpUrl } from "./target";
 import { Data, Predicate } from "effect";

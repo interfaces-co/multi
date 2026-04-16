@@ -1,6 +1,9 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 
-import { PairingPendingSurface, PairingRouteSurface } from "../components/auth/PairingRouteSurface";
+import {
+  PairingPendingSurface,
+  PairingRouteSurface,
+} from "../components/auth/pairing-route-surface";
 
 export const Route = createFileRoute("/pair")({
   beforeLoad: async ({ context }) => {

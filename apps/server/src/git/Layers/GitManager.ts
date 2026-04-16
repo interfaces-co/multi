@@ -42,13 +42,13 @@ import { GitCore, GitStatusDetails } from "../Services/GitCore.ts";
 import { GitHubCli, type GitHubPullRequestSummary } from "../Services/GitHubCli.ts";
 import { TextGeneration } from "../Services/TextGeneration.ts";
 import { ProjectSetupScriptRunner } from "../../project/Services/ProjectSetupScriptRunner.ts";
-import { extractBranchNameFromRemoteRef } from "../remoteRefs.ts";
-import { ServerSettingsService } from "../../serverSettings.ts";
+import { extractBranchNameFromRemoteRef } from "../remote-refs.ts";
+import { ServerSettingsService } from "../../server-settings.ts";
 import type { GitManagerServiceError } from "@multi/contracts";
 import {
   decodeGitHubPullRequestListJson,
   formatGitHubJsonDecodeError,
-} from "../githubPullRequests.ts";
+} from "../github-pull-requests.ts";
 
 const COMMIT_TIMEOUT_MS = 10 * 60_000;
 const MAX_PROGRESS_TEXT_LENGTH = 500;

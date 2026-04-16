@@ -9,7 +9,7 @@ import { describe, expect, vi } from "vitest";
 import { GitCoreLive, makeGitCore } from "./GitCore.ts";
 import { GitCore, type GitCoreShape } from "../Services/GitCore.ts";
 import { GitCommandError } from "@multi/contracts";
-import { type ProcessRunResult, runProcess } from "../../processRunner.ts";
+import { type ProcessRunResult, runProcess } from "../../process-runner.ts";
 import { ServerConfig } from "../../config.ts";
 
 // ── Helpers ──

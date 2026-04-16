@@ -3,7 +3,7 @@ import { expect, it } from "@effect/vitest";
 import { Duration, Effect, FileSystem, Layer } from "effect";
 import { TestClock } from "effect/testing";
 
-import { runProcess } from "../../processRunner.ts";
+import { runProcess } from "../../process-runner.ts";
 import { RepositoryIdentityResolver } from "../Services/RepositoryIdentityResolver.ts";
 import {
   makeRepositoryIdentityResolver,

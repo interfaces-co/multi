@@ -21,7 +21,7 @@ vi.mock("../remote/api", () => ({
   resolveRemoteWebSocketConnectionUrl: vi.fn(),
 }));
 
-vi.mock("~/localApi", () => ({
+vi.mock("~/local-api", () => ({
   ensureLocalApi: () => ({
     persistence: {
       setSavedEnvironmentRegistry: mockSetSavedEnvironmentRegistry,

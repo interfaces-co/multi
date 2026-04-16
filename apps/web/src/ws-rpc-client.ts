@@ -1,9 +1,9 @@
 import type { EnvironmentId } from "@multi/contracts";
 
 import { getPrimaryEnvironmentConnection, readEnvironmentConnection } from "./environments/runtime";
-import type { WsRpcClient } from "./rpc/wsRpcClient";
+import type { WsRpcClient } from "./rpc/ws-rpc-client";
 
-export type { WsRpcClient } from "./rpc/wsRpcClient";
+export type { WsRpcClient } from "./rpc/ws-rpc-client";
 
 export function getWsRpcClient(): WsRpcClient {
   return getPrimaryEnvironmentConnection().client;

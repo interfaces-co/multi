@@ -2,28 +2,28 @@ import { createFileRoute, retainSearchParams, useNavigate } from "@tanstack/reac
 import { Suspense, lazy, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
 import { RoutedChatSession } from "../components/routed-chat-session";
-import { threadHasStarted } from "../components/ChatView.logic";
-import { DiffWorkerPoolProvider } from "../components/DiffWorkerPoolProvider";
+import { threadHasStarted } from "../components/chat-view.logic";
+import { DiffWorkerPoolProvider } from "../components/diff-worker-pool-provider";
 import {
   DiffPanelHeaderSkeleton,
   DiffPanelLoadingState,
   DiffPanelShell,
   type DiffPanelMode,
-} from "../components/DiffPanelShell";
-import { finalizePromotedDraftThreadByRef, useComposerDraftStore } from "../composerDraftStore";
+} from "../components/diff-panel-shell";
+import { finalizePromotedDraftThreadByRef, useComposerDraftStore } from "../composer-draft-store";
 import {
   type DiffRouteSearch,
   parseDiffRouteSearch,
   stripDiffSearchParams,
-} from "../diffRouteSearch";
-import { useMediaQuery } from "../hooks/useMediaQuery";
+} from "../diff-route-search";
+import { useMediaQuery } from "../hooks/use-media-query";
 import { selectEnvironmentState, selectThreadExistsByRef, useStore } from "../store";
-import { createThreadSelectorByRef } from "../storeSelectors";
-import { resolveThreadRouteRef, buildThreadRouteParams } from "../threadRoutes";
+import { createThreadSelectorByRef } from "../store-selectors";
+import { resolveThreadRouteRef, buildThreadRouteParams } from "../thread-routes";
 import { Sheet, SheetPopup } from "../components/ui/sheet";
 import { Sidebar, SidebarProvider, SidebarRail } from "~/components/ui/sidebar";
 
-const DiffPanel = lazy(() => import("../components/DiffPanel"));
+const DiffPanel = lazy(() => import("../components/diff-panel"));
 const DIFF_INLINE_LAYOUT_MEDIA_QUERY = "(max-width: 1180px)";
 const DIFF_INLINE_SIDEBAR_WIDTH_STORAGE_KEY = "chat_diff_sidebar_width";
 const DIFF_INLINE_DEFAULT_WIDTH = "clamp(28rem,48vw,44rem)";

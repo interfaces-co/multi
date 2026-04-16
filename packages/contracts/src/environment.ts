@@ -1,6 +1,6 @@
 import { Effect, Schema } from "effect";
 
-import { EnvironmentId, ProjectId, ThreadId, TrimmedNonEmptyString } from "./baseSchemas";
+import { EnvironmentId, ProjectId, ThreadId, TrimmedNonEmptyString } from "./base-schemas";
 
 export const ExecutionEnvironmentPlatformOs = Schema.Literals([
   "darwin",

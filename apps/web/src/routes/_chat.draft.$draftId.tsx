@@ -1,11 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
 import { RoutedChatSession } from "../components/routed-chat-session";
-import { threadHasStarted } from "../components/ChatView.logic";
-import { useComposerDraftStore, DraftId } from "../composerDraftStore";
-import { createThreadSelectorAcrossEnvironments } from "../storeSelectors";
+import { threadHasStarted } from "../components/chat-view.logic";
+import { useComposerDraftStore, DraftId } from "../composer-draft-store";
+import { createThreadSelectorAcrossEnvironments } from "../store-selectors";
 import { useStore } from "../store";
-import { buildThreadRouteParams } from "../threadRoutes";
+import { buildThreadRouteParams } from "../thread-routes";
 
 function DraftChatThreadRouteView() {
   const navigate = useNavigate();

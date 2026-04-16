@@ -4,7 +4,7 @@ import { Effect, Layer } from "effect";
 import { ServerConfig } from "../../config.ts";
 import { ServerAuthPolicy, type ServerAuthPolicyShape } from "../Services/ServerAuthPolicy.ts";
 import { resolveSessionCookieName } from "../utils.ts";
-import { isLoopbackHost, isWildcardHost } from "../../startupAccess.ts";
+import { isLoopbackHost, isWildcardHost } from "../../startup-access.ts";
 
 export const makeServerAuthPolicy = Effect.gen(function* () {
   const config = yield* ServerConfig;

@@ -35,15 +35,15 @@ import { autoUpdater } from "electron-updater";
 
 import type { ContextMenuItem } from "@multi/contracts";
 import { RotatingFileSink } from "@multi/shared/logging";
-import { parsePersistedServerObservabilitySettings } from "@multi/shared/serverSettings";
-import { DEFAULT_DESKTOP_BACKEND_PORT, resolveDesktopBackendPort } from "./backendPort";
+import { parsePersistedServerObservabilitySettings } from "@multi/shared/server-settings";
+import { DEFAULT_DESKTOP_BACKEND_PORT, resolveDesktopBackendPort } from "./backend-port";
 import {
   DEFAULT_DESKTOP_SETTINGS,
   readDesktopSettings,
   setDesktopServerExposurePreference,
   setDesktopUpdateChannelPreference,
   writeDesktopSettings,
-} from "./desktopSettings";
+} from "./desktop-settings";
 import {
   readClientSettings,
   readSavedEnvironmentRegistry,
@@ -52,13 +52,13 @@ import {
   writeClientSettings,
   writeSavedEnvironmentRegistry,
   writeSavedEnvironmentSecret,
-} from "./clientPersistence";
-import { isBackendReadinessAborted, waitForHttpReady } from "./backendReadiness";
-import { showDesktopConfirmDialog } from "./confirmDialog";
-import { resolveDesktopServerExposure } from "./serverExposure";
-import { syncShellEnvironment } from "./syncShellEnvironment";
-import { getAutoUpdateDisabledReason, shouldBroadcastDownloadProgress } from "./updateState";
-import { ServerListeningDetector } from "./serverListeningDetector";
+} from "./client-persistence";
+import { isBackendReadinessAborted, waitForHttpReady } from "./backend-readiness";
+import { showDesktopConfirmDialog } from "./confirm-dialog";
+import { resolveDesktopServerExposure } from "./server-exposure";
+import { syncShellEnvironment } from "./sync-shell-environment";
+import { getAutoUpdateDisabledReason, shouldBroadcastDownloadProgress } from "./update-state";
+import { ServerListeningDetector } from "./server-listening-detector";
 import {
   createInitialDesktopUpdateState,
   reduceDesktopUpdateStateOnCheckFailure,
@@ -70,9 +70,9 @@ import {
   reduceDesktopUpdateStateOnInstallFailure,
   reduceDesktopUpdateStateOnNoUpdate,
   reduceDesktopUpdateStateOnUpdateAvailable,
-} from "./updateMachine";
-import { isArm64HostRunningIntelBuild, resolveDesktopRuntimeInfo } from "./runtimeArch";
-import { resolveDesktopAppBranding } from "./appBranding";
+} from "./update-machine";
+import { isArm64HostRunningIntelBuild, resolveDesktopRuntimeInfo } from "./runtime-arch";
+import { resolveDesktopAppBranding } from "./app-branding";
 
 syncShellEnvironment();
 
@@ -154,6 +154,7 @@ function resolvePickFolderDefaultPath(rawOptions: unknown): string | undefined {
 }
 const DESKTOP_LOOPBACK_HOST = "127.0.0.1";
 const DESKTOP_REQUIRED_PORT_PROBE_HOSTS = ["0.0.0.0", "::"] as const;
+const BACKEND_READINESS_PATH = "/.well-known/multi/environment";
 const TITLEBAR_HEIGHT = 40;
 const TITLEBAR_COLOR = "#01000000"; // #00000000 does not work correctly on Linux
 const TITLEBAR_LIGHT_SYMBOL_COLOR = "#1f2937";
@@ -414,6 +415,7 @@ async function waitForBackendHttpReady(
   try {
     await waitForHttpReady(baseUrl, {
       ...options,
+      path: options?.path ?? BACKEND_READINESS_PATH,
       signal: controller.signal,
     });
   } finally {

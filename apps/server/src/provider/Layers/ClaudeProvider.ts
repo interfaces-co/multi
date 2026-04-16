@@ -9,7 +9,7 @@ import type {
 } from "@multi/contracts";
 import { Cache, Duration, Effect, Equal, Layer, Option, Result, Schema, Stream } from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
-import { decodeJsonResult } from "@multi/shared/schemaJson";
+import { decodeJsonResult } from "@multi/shared/schema-json";
 import {
   query as claudeQuery,
   type SlashCommand as ClaudeSlashCommand,
@@ -25,10 +25,10 @@ import {
   providerModelsFromSettings,
   spawnAndCollect,
   type CommandResult,
-} from "../providerSnapshot";
-import { makeManagedServerProvider } from "../makeManagedServerProvider";
+} from "../provider-snapshot";
+import { makeManagedServerProvider } from "../make-managed-server-provider";
 import { ClaudeProvider } from "../Services/ClaudeProvider";
-import { ServerSettingsService } from "../../serverSettings";
+import { ServerSettingsService } from "../../server-settings";
 import { ServerSettingsError } from "@multi/contracts";
 
 const DEFAULT_CLAUDE_MODEL_CAPABILITIES: ModelCapabilities = {

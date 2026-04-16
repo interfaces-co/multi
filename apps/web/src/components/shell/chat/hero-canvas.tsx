@@ -23,12 +23,8 @@ export function HeroCanvas() {
   const root = useChatDraftStore((state) => state.root);
   const save = useChatDraftStore((state) => state.save);
   const saveRoot = useChatDraftStore((state) => state.saveRoot);
-  const setActiveInteractionMode = useChatDraftStore(
-    (state) => state.setActiveInteractionMode,
-  );
-  const toggleRootPlanInteraction = useChatDraftStore(
-    (state) => state.toggleRootPlanInteraction,
-  );
+  const setActiveInteractionMode = useChatDraftStore((state) => state.setActiveInteractionMode);
+  const toggleRootPlanInteraction = useChatDraftStore((state) => state.toggleRootPlanInteraction);
   const draft = cur ? (items[cur] ?? null) : null;
   const kind = draft?.harness ?? defaultKind;
   const harnessDescriptor = useHarnessDescriptor(kind);

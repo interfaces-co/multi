@@ -19,7 +19,7 @@ import {
   type SDKUserMessage,
   ModelUsage,
 } from "@anthropic-ai/claude-agent-sdk";
-import { parseCliArgs } from "@multi/shared/cliArgs";
+import { parseCliArgs } from "@multi/shared/cli-args";
 import {
   ApprovalRequestId,
   type CanonicalItemType,
@@ -63,9 +63,9 @@ import {
   Stream,
 } from "effect";
 
-import { resolveAttachmentPath } from "../../attachmentStore.ts";
+import { resolveAttachmentPath } from "../../attachment-store.ts";
 import { ServerConfig } from "../../config.ts";
-import { ServerSettingsService } from "../../serverSettings.ts";
+import { ServerSettingsService } from "../../server-settings.ts";
 import { getClaudeModelCapabilities } from "./ClaudeProvider.ts";
 import {
   ProviderAdapterProcessError,

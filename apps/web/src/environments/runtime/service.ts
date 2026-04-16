@@ -23,12 +23,12 @@ import {
   markPromotedDraftThreadByRef,
   markPromotedDraftThreadsByRef,
   useComposerDraftStore,
-} from "~/composerDraftStore";
-import { ensureLocalApi } from "~/localApi";
-import { collectActiveTerminalThreadIds } from "~/lib/terminalStateCleanup";
-import { deriveOrchestrationBatchEffects } from "~/orchestrationEventEffects";
-import { projectQueryKeys } from "~/lib/projectReactQuery";
-import { providerQueryKeys } from "~/lib/providerReactQuery";
+} from "~/composer-draft-store";
+import { ensureLocalApi } from "~/local-api";
+import { collectActiveTerminalThreadIds } from "~/lib/terminal-state-cleanup";
+import { deriveOrchestrationBatchEffects } from "~/orchestration-event-effects";
+import { projectQueryKeys } from "~/lib/project-react-query";
+import { providerQueryKeys } from "~/lib/provider-react-query";
 import { getPrimaryKnownEnvironment } from "../primary";
 import {
   bootstrapRemoteBearerSession,
@@ -58,10 +58,10 @@ import {
   selectThreadByRef,
   selectThreadsAcrossEnvironments,
 } from "~/store";
-import { useTerminalStateStore } from "~/terminalStateStore";
-import { useUiStateStore } from "~/uiStateStore";
-import { WsTransport } from "../../rpc/wsTransport";
-import { createWsRpcClient, type WsRpcClient } from "../../rpc/wsRpcClient";
+import { useTerminalStateStore } from "~/terminal-state-store";
+import { useUiStateStore } from "~/ui-state-store";
+import { WsTransport } from "../../rpc/ws-transport";
+import { createWsRpcClient, type WsRpcClient } from "../../rpc/ws-rpc-client";
 
 type EnvironmentServiceState = {
   readonly queryClient: QueryClient;

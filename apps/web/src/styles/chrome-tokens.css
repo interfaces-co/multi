@@ -194,11 +194,16 @@
 
 .dark {
   --chrome-ring: oklch(0.68 0.04 240 / 0.2);
-  --chrome-plan-mode-selected-fg: color-mix(in srgb, rgb(var(--chrome-cursor-action-rgb)) 72%, white);
+  --chrome-plan-mode-selected-fg: color-mix(
+    in srgb,
+    rgb(var(--chrome-cursor-action-rgb)) 72%,
+    white
+  );
   --chrome-base-sidebar: color-mix(
     in srgb,
     var(--background) 90%,
-    oklch(0.35 calc(0.03 + var(--chrome-intensity, 33) / 100 * 0.04) var(--chrome-user-hue, 255)) 10%
+    oklch(0.35 calc(0.03 + var(--chrome-intensity, 33) / 100 * 0.04) var(--chrome-user-hue, 255))
+      10%
   );
   --chrome-base-chat: color-mix(
     in srgb,
@@ -208,12 +213,14 @@
   --chrome-base-editor: color-mix(
     in srgb,
     var(--background) 96%,
-    oklch(0.34 calc(0.018 + var(--chrome-intensity, 33) / 100 * 0.022) var(--chrome-user-hue, 255)) 4%
+    oklch(0.34 calc(0.018 + var(--chrome-intensity, 33) / 100 * 0.022) var(--chrome-user-hue, 255))
+      4%
   );
   --chrome-base-surface: color-mix(
     in srgb,
     var(--background) 93%,
-    oklch(0.33 calc(0.02 + var(--chrome-intensity, 33) / 100 * 0.028) var(--chrome-user-hue, 255)) 7%
+    oklch(0.33 calc(0.02 + var(--chrome-intensity, 33) / 100 * 0.028) var(--chrome-user-hue, 255))
+      7%
   );
   --chrome-base-elevated: color-mix(
     in srgb,

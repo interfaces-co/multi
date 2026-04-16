@@ -12,7 +12,7 @@ import type { ThreadId } from "@multi/contracts";
 import { RotatingFileSink } from "@multi/shared/logging";
 import { Effect, Exit, Logger, Scope, SynchronizedRef } from "effect";
 
-import { toSafeThreadAttachmentSegment } from "../../attachmentStore.ts";
+import { toSafeThreadAttachmentSegment } from "../../attachment-store.ts";
 
 const DEFAULT_MAX_BYTES = 10 * 1024 * 1024;
 const DEFAULT_MAX_FILES = 10;

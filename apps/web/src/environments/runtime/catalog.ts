@@ -8,7 +8,7 @@ import type {
 } from "@multi/contracts";
 import { create } from "zustand";
 
-import { ensureLocalApi } from "../../localApi";
+import { ensureLocalApi } from "../../local-api";
 import { getPrimaryKnownEnvironment } from "../primary";
 
 export interface SavedEnvironmentRecord {

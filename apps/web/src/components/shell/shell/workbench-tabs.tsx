@@ -3,7 +3,7 @@
 import { IconBranch, IconConsole, IconGlobe, IconSidebarHiddenRightWide } from "central-icons";
 import type { ComponentType } from "react";
 
-import type { WorkbenchTab } from "~/hooks/use-shell-panels";
+import type { WorkbenchTab } from "~/lib/shell-panels-store";
 import { cn } from "~/lib/utils";
 
 interface Tab {

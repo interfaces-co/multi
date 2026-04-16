@@ -28,8 +28,8 @@ describe("resolveMarkdownFileLinkTarget", () => {
   });
 
   it("resolves relative file paths against cwd", () => {
-    expect(resolveMarkdownFileLinkTarget("src/processRunner.ts:71", "/Users/julius/project")).toBe(
-      "/Users/julius/project/src/processRunner.ts:71",
+    expect(resolveMarkdownFileLinkTarget("src/process-runner.ts:71", "/Users/julius/project")).toBe(
+      "/Users/julius/project/src/process-runner.ts:71",
     );
   });
 
@@ -75,11 +75,12 @@ describe("resolveMarkdownFileLinkTarget", () => {
   it("formats tooltip display paths relative to the cwd for slash-prefixed windows paths", () => {
     expect(
       resolveMarkdownFileLinkMeta(
-        "/C:/Users/mike/dev-stuff/multi/apps/web/src/components/chat/MessagesTimeline.virtualization.browser.tsx",
+        "/C:/Users/mike/dev-stuff/multi/apps/web/src/components/chat/messages-timeline.virtualization.browser.tsx",
         "C:/Users/mike/dev-stuff/multi",
       ),
     ).toMatchObject({
-      displayPath: "multi/apps/web/src/components/chat/MessagesTimeline.virtualization.browser.tsx",
+      displayPath:
+        "multi/apps/web/src/components/chat/messages-timeline.virtualization.browser.tsx",
     });
   });
 

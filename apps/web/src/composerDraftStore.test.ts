@@ -25,12 +25,12 @@ import {
   useComposerDraftStore,
   DraftId,
 } from "./composerDraftStore";
-import { removeLocalStorageItem, setLocalStorageItem } from "./hooks/useLocalStorage";
+import { removeLocalStorageItem, setLocalStorageItem } from "./hooks/use-local-storage";
 import {
   INLINE_TERMINAL_CONTEXT_PLACEHOLDER,
   insertInlineTerminalContextPlaceholder,
   type TerminalContextDraft,
-} from "./lib/terminalContext";
+} from "./lib/terminal-context";
 import { createDebouncedStorage } from "./lib/storage";
 
 function makeImage(input: {

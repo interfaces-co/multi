@@ -8,7 +8,7 @@
 import { Context } from "effect";
 import type { Effect } from "effect";
 
-import type { ProcessRunResult } from "../../processRunner";
+import type { ProcessRunResult } from "../../process-runner";
 import type { GitHubCliError } from "@multi/contracts";
 
 export interface GitHubPullRequestSummary {

@@ -16,14 +16,14 @@ import {
   resolveSelectableModel,
 } from "@multi/shared/model";
 
-import { readNativeEnvironmentApi } from "../native-api";
+import { readNativeEnvironmentApi } from "./native-runtime-api";
 import { getServerConfig } from "../rpc/server-state";
 import {
   getDefaultServerModel,
   getProviderModelCapabilities,
   getProviderModels,
   resolveSelectableProvider,
-} from "../providerModels";
+} from "../provider-models";
 import { useStore } from "../store";
 import type { Project } from "../types";
 

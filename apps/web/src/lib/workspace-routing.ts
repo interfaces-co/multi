@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { CommandId, ProjectId } from "@multi/contracts";
 
-import { readNativeEnvironmentApi, readNativeApi } from "../native-api";
+import { readNativeEnvironmentApi, readNativeApi } from "./native-runtime-api";
 import { useStore } from "../store";
 import { SHELL_LAYOUT_CHANGED_EVENT } from "./shell-runtime-constants";
 
@@ -21,7 +21,9 @@ export async function pickWorkspace() {
 
   const hit = useStore.getState().projects.find((item) => item.cwd === cwd);
   if (!hit) {
-    const environmentApi = readNativeEnvironmentApi(null, { allowPrimaryEnvironmentFallback: true });
+    const environmentApi = readNativeEnvironmentApi(null, {
+      allowPrimaryEnvironmentFallback: true,
+    });
     if (!environmentApi) {
       return null;
     }

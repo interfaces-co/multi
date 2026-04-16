@@ -32,37 +32,37 @@
       "types": "./src/KeyedCoalescingWorker.ts",
       "import": "./src/KeyedCoalescingWorker.ts"
     },
-    "./schemaJson": {
-      "types": "./src/schemaJson.ts",
-      "import": "./src/schemaJson.ts"
+    "./schema-json": {
+      "types": "./src/schema-json.ts",
+      "import": "./src/schema-json.ts"
     },
     "./Struct": {
       "types": "./src/Struct.ts",
       "import": "./src/Struct.ts"
     },
-    "./serverSettings": {
-      "types": "./src/serverSettings.ts",
-      "import": "./src/serverSettings.ts"
+    "./server-settings": {
+      "types": "./src/server-settings.ts",
+      "import": "./src/server-settings.ts"
     },
     "./String": {
       "types": "./src/String.ts",
       "import": "./src/String.ts"
     },
-    "./projectScripts": {
-      "types": "./src/projectScripts.ts",
-      "import": "./src/projectScripts.ts"
+    "./project-scripts": {
+      "types": "./src/project-scripts.ts",
+      "import": "./src/project-scripts.ts"
     },
-    "./searchRanking": {
-      "types": "./src/searchRanking.ts",
-      "import": "./src/searchRanking.ts"
+    "./search-ranking": {
+      "types": "./src/search-ranking.ts",
+      "import": "./src/search-ranking.ts"
     },
-    "./qrCode": {
-      "types": "./src/qrCode.ts",
-      "import": "./src/qrCode.ts"
+    "./qr-code": {
+      "types": "./src/qr-code.ts",
+      "import": "./src/qr-code.ts"
     },
-    "./cliArgs": {
-      "types": "./src/cliArgs.ts",
-      "import": "./src/cliArgs.ts"
+    "./cli-args": {
+      "types": "./src/cli-args.ts",
+      "import": "./src/cli-args.ts"
     },
     "./path": {
       "types": "./src/path.ts",

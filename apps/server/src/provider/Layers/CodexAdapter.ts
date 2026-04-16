@@ -36,10 +36,10 @@ import { CodexAdapter, type CodexAdapterShape } from "../Services/CodexAdapter.t
 import {
   CodexAppServerManager,
   type CodexAppServerStartSessionInput,
-} from "../../codexAppServerManager.ts";
-import { resolveAttachmentPath } from "../../attachmentStore.ts";
+} from "../../codex-app-server-manager.ts";
+import { resolveAttachmentPath } from "../../attachment-store.ts";
 import { ServerConfig } from "../../config.ts";
-import { ServerSettingsService } from "../../serverSettings.ts";
+import { ServerSettingsService } from "../../server-settings.ts";
 import { type EventNdjsonLogger, makeEventNdjsonLogger } from "./EventNdjsonLogger.ts";
 
 const PROVIDER = "codex" as const;

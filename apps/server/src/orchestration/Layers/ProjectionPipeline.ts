@@ -47,7 +47,7 @@ import {
   parseAttachmentIdFromRelativePath,
   parseThreadSegmentFromAttachmentId,
   toSafeThreadAttachmentSegment,
-} from "../../attachmentStore.ts";
+} from "../../attachment-store.ts";
 
 export const ORCHESTRATION_PROJECTOR_NAMES = {
   projects: "projection.projects",

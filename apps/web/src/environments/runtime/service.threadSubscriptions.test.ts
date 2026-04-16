@@ -63,11 +63,11 @@ vi.mock("./connection", () => ({
   createEnvironmentConnection: mockCreateEnvironmentConnection,
 }));
 
-vi.mock("../../rpc/wsRpcClient", () => ({
+vi.mock("../../rpc/ws-rpc-client", () => ({
   createWsRpcClient: mockCreateWsRpcClient,
 }));
 
-vi.mock("../../rpc/wsTransport", () => ({
+vi.mock("../../rpc/ws-transport", () => ({
   WsTransport: MockWsTransport,
 }));
 

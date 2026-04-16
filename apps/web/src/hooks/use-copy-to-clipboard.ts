@@ -1,24 +1,65 @@
-import { useEffect, useState } from "react";
+import * as React from "react";
 
-export function useCopyToClipboard(timeout = 1500) {
-  const [isCopied, setIsCopied] = useState(false);
+export function useCopyToClipboard<TContext = void>({
+  timeout = 2000,
+  onCopy,
+  onError,
+}: {
+  timeout?: number;
+  onCopy?: (ctx: TContext) => void;
+  onError?: (error: Error, ctx: TContext) => void;
+} = {}): { copyToClipboard: (value: string, ctx: TContext) => void; isCopied: boolean } {
+  const [isCopied, setIsCopied] = React.useState(false);
+  const timeoutIdRef = React.useRef<NodeJS.Timeout | null>(null);
+  const onCopyRef = React.useRef(onCopy);
+  const onErrorRef = React.useRef(onError);
+  const timeoutRef = React.useRef(timeout);
 
-  useEffect(() => {
-    if (!isCopied || typeof window === "undefined") return;
-    const id = window.setTimeout(() => {
-      setIsCopied(false);
-    }, timeout);
-    return () => {
-      window.clearTimeout(id);
+  onCopyRef.current = onCopy;
+  onErrorRef.current = onError;
+  timeoutRef.current = timeout;
+
+  const copyToClipboard = React.useCallback((value: string, ctx: TContext): void => {
+    if (typeof window === "undefined" || !navigator.clipboard?.writeText) {
+      onErrorRef.current?.(new Error("Clipboard API unavailable."), ctx);
+      return;
+    }
+
+    if (!value) return;
+
+    navigator.clipboard.writeText(value).then(
+      () => {
+        if (timeoutIdRef.current) {
+          clearTimeout(timeoutIdRef.current);
+        }
+        setIsCopied(true);
+
+        onCopyRef.current?.(ctx);
+
+        if (timeoutRef.current !== 0) {
+          timeoutIdRef.current = setTimeout(() => {
+            setIsCopied(false);
+            timeoutIdRef.current = null;
+          }, timeoutRef.current);
+        }
+      },
+      (error) => {
+        if (onErrorRef.current) {
+          onErrorRef.current(error, ctx);
+        } else {
+          console.error(error);
+        }
+      },
+    );
+  }, []);
+
+  React.useEffect(() => {
+    return (): void => {
+      if (timeoutIdRef.current) {
+        clearTimeout(timeoutIdRef.current);
+      }
     };
-  }, [isCopied, timeout]);
-
-  const copyToClipboard = async (text: string) => {
-    if (typeof navigator === "undefined" || !navigator.clipboard) return false;
-    await navigator.clipboard.writeText(text);
-    setIsCopied(true);
-    return true;
-  };
+  }, []);
 
   return { copyToClipboard, isCopied };
 }

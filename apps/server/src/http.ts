@@ -15,8 +15,8 @@ import {
   ATTACHMENTS_ROUTE_PREFIX,
   normalizeAttachmentRelativePath,
   resolveAttachmentRelativePath,
-} from "./attachmentPaths";
-import { resolveAttachmentPathById } from "./attachmentStore";
+} from "./attachment-paths";
+import { resolveAttachmentPathById } from "./attachment-store";
 import { resolveStaticDir, ServerConfig } from "./config";
 import { decodeOtlpTraceRecords } from "./observability/TraceRecord.ts";
 import { BrowserTraceCollector } from "./observability/Services/BrowserTraceCollector.ts";

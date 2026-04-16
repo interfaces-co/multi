@@ -6,7 +6,7 @@ import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 import { CodexModelSelection } from "@multi/contracts";
 import { sanitizeBranchFragment, sanitizeFeatureBranchName } from "@multi/shared/git";
 
-import { resolveAttachmentPath } from "../../attachmentStore.ts";
+import { resolveAttachmentPath } from "../../attachment-store.ts";
 import { ServerConfig } from "../../config.ts";
 import { TextGenerationError } from "@multi/contracts";
 import {
@@ -29,7 +29,7 @@ import {
   toJsonSchemaObject,
 } from "../Utils.ts";
 import { getCodexModelCapabilities } from "../../provider/Layers/CodexProvider.ts";
-import { ServerSettingsService } from "../../serverSettings.ts";
+import { ServerSettingsService } from "../../server-settings.ts";
 import { normalizeCodexModelOptionsWithCapabilities } from "@multi/shared/model";
 
 const CODEX_GIT_TEXT_GENERATION_REASONING_EFFORT = "low";

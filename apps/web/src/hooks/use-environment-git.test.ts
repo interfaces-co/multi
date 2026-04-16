@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { describe, expect, it } from "vitest";
 
 import { type DiffRow, syncRows } from "./use-environment-git";

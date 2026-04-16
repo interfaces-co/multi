@@ -7,7 +7,7 @@ import { useAppearanceSettings } from "../../hooks/use-appearance-settings";
 import { useRuntimeDefaults } from "../../hooks/use-runtime-models";
 import { useShellState } from "../../hooks/use-shell-cwd";
 import { useTheme } from "../../hooks/use-theme";
-import { readNativeEnvironmentApi, readNativeApi } from "../../native-api";
+import { readNativeEnvironmentApi, readNativeApi } from "../../lib/native-runtime-api";
 import {
   clearRuntimeDefaultModel,
   writeRuntimeDefaultFastMode,

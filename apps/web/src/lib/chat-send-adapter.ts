@@ -6,7 +6,7 @@ import type {
   ThreadId,
 } from "@multi/contracts";
 import type { UiPromptInput } from "~/lib/ui-session-types";
-import { readEnvironmentApi } from "~/environmentApi";
+import { readEnvironmentApi } from "~/environment-api";
 import { newCommandId, newMessageId } from "~/lib/utils";
 
 interface ChatImageAttachment {

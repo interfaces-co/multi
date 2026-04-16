@@ -1,4 +1,4 @@
-import { formatWorkspaceRelativePath } from "./filePathDisplay";
+import { formatWorkspaceRelativePath } from "./file-path-display";
 import { resolvePathLinkTarget, splitPathAndPosition } from "./terminal-links";
 
 const WINDOWS_DRIVE_PATH_PATTERN = /^[A-Za-z]:[\\/]/;

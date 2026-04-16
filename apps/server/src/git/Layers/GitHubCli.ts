@@ -1,7 +1,7 @@
 import { Effect, Layer, Result, Schema, SchemaIssue } from "effect";
 import { TrimmedNonEmptyString } from "@multi/contracts";
 
-import { runProcess } from "../../processRunner";
+import { runProcess } from "../../process-runner";
 import { GitHubCliError } from "@multi/contracts";
 import {
   GitHubCli,
@@ -12,7 +12,7 @@ import {
   decodeGitHubPullRequestJson,
   decodeGitHubPullRequestListJson,
   formatGitHubJsonDecodeError,
-} from "../githubPullRequests.ts";
+} from "../github-pull-requests.ts";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 

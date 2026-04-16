@@ -1,7 +1,11 @@
 import type { EnvironmentId, ThreadId } from "@multi/contracts";
 import { useCallback, useMemo } from "react";
 import { cn } from "~/lib/utils";
-import { resolveSplitViewPaneThreadId, type SplitView, type SplitViewPane } from "~/splitViewStore";
+import {
+  resolveSplitViewPaneThreadId,
+  type SplitView,
+  type SplitViewPane,
+} from "~/split-view-store";
 
 interface SplitSurfaceProps {
   splitView: SplitView;

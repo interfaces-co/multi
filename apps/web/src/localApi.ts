@@ -1,9 +1,9 @@
 import type { ContextMenuItem, LocalApi } from "@multi/contracts";
 
-import { resetGitStatusStateForTests } from "./lib/gitStatusState";
-import { resetRequestLatencyStateForTests } from "./rpc/requestLatencyState";
-import { resetServerStateForTests } from "./rpc/serverState";
-import { resetWsConnectionStateForTests } from "./rpc/wsConnectionState";
+import { resetGitStatusStateForTests } from "./lib/git-status-state";
+import { resetRequestLatencyStateForTests } from "./rpc/request-latency-state";
+import { resetServerStateForTests } from "./rpc/server-state";
+import { resetWsConnectionStateForTests } from "./rpc/ws-connection-state";
 import {
   resetSavedEnvironmentRegistryStoreForTests,
   resetSavedEnvironmentRuntimeStoreForTests,
@@ -12,8 +12,8 @@ import {
   getPrimaryEnvironmentConnection,
   resetEnvironmentServiceForTests,
 } from "./environments/runtime";
-import { type WsRpcClient } from "./rpc/wsRpcClient";
-import { showContextMenuFallback } from "./contextMenuFallback";
+import { type WsRpcClient } from "./rpc/ws-rpc-client";
+import { showContextMenuFallback } from "./context-menu-fallback";
 import {
   readBrowserClientSettings,
   readBrowserSavedEnvironmentRegistry,
@@ -142,7 +142,7 @@ export function ensureLocalApi(): LocalApi {
 
 export async function __resetLocalApiForTests() {
   cachedApi = undefined;
-  const { __resetClientSettingsPersistenceForTests } = await import("./hooks/useSettings");
+  const { __resetClientSettingsPersistenceForTests } = await import("./hooks/use-settings");
   __resetClientSettingsPersistenceForTests();
   await resetEnvironmentServiceForTests();
   resetGitStatusStateForTests();

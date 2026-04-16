@@ -7,14 +7,14 @@ import { isElectron } from "~/env";
 import {
   setDesktopUpdateStateQueryData,
   useDesktopUpdateState,
-} from "~/lib/desktopUpdateReactQuery";
+} from "~/lib/desktop-update-react-query";
 import {
   getDesktopUpdateButtonTooltip,
   getDesktopUpdateInstallConfirmationMessage,
   isDesktopUpdateButtonDisabled,
   resolveDesktopUpdateButtonAction,
   shouldShowDesktopUpdateButton,
-} from "../../desktopUpdate.logic";
+} from "../../desktop-update.logic";
 import { toast } from "sonner";
 
 export function UpdatePill() {

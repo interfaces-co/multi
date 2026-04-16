@@ -1,11 +1,11 @@
 import type { EnvironmentApi, LocalApi } from "@multi/contracts";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../localApi", () => ({
+vi.mock("../local-api", () => ({
   readLocalApi: vi.fn(),
 }));
 
-vi.mock("../environmentApi", () => ({
+vi.mock("../environment-api", () => ({
   createEnvironmentApi: vi.fn(),
   readEnvironmentApi: vi.fn(),
 }));
@@ -14,8 +14,8 @@ vi.mock("../ws-rpc-client", () => ({
   getWsRpcClientForEnvironment: vi.fn(),
 }));
 
-import { createEnvironmentApi, readEnvironmentApi } from "../environmentApi";
-import { readLocalApi } from "../localApi";
+import { createEnvironmentApi, readEnvironmentApi } from "../environment-api";
+import { readLocalApi } from "../local-api";
 import { getWsRpcClientForEnvironment } from "../ws-rpc-client";
 
 import {

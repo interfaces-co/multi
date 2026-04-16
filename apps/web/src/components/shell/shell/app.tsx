@@ -1,21 +1,43 @@
 "use client";
 
 import { IconArrowLeft, IconSidebar, IconSidebarHiddenLeftWide } from "central-icons";
-import { type PointerEvent as Evt, type ReactNode, useEffect, useRef, useState } from "react";
+import {
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { isElectronHost } from "~/env";
-import type { WorkbenchTab } from "~/hooks/use-shell-panels";
+import {
+  type WorkbenchTab,
+  shellPanelsActions,
+  useActiveTab,
+  useIsMuted,
+  useLeftOpen,
+  useLeftWidth,
+  useRightOpen,
+  useRightWidth,
+} from "~/lib/shell-panels-store";
 import { cn } from "~/lib/utils";
 import { WorkbenchTabBar } from "./workbench-tabs";
 
-type Side = "left" | "right";
+const LEFT_LIMITS = { min: 180, max: 400 } as const;
+const RIGHT_LIMITS = { min: 340, max: 600 } as const;
 
-const limit = {
-  left: { min: 180, max: 400 },
-  right: { min: 340, max: 600 },
-} as const;
+interface ResizeState {
+  base: number;
+  pointerId: number;
+  raf: number | null;
+  rail: HTMLDivElement;
+  startX: number;
+  width: number;
+}
 
-export type AppShellPanels = {
+type RightPanels = Record<WorkbenchTab, ReactNode>;
+
+export interface AppShellPanels {
   leftOpen: boolean;
   rightOpen: boolean;
   setLeftOpen: (open: boolean) => void;
@@ -28,169 +50,440 @@ export type AppShellPanels = {
   setRightWidth: (n: number) => void;
   activeTab: WorkbenchTab;
   setActiveTab: (tab: WorkbenchTab) => void;
-};
+}
 
-export function AppShell(props: {
-  left: ReactNode;
-  center: ReactNode;
-  right: ReactNode | null;
-  title: string;
-  changesCount: number;
-  panels: AppShellPanels;
-  onBack?: () => void;
-}) {
-  const p = props.panels;
-  const electron = isElectronHost();
-  const showRight = props.right !== null;
-  const leftRef = useRef<HTMLElement | null>(null);
-  const rightRef = useRef<HTMLElement | null>(null);
-  const live = useRef({ left: p.leftW, right: p.rightW });
-  const drag = useRef<{
-    base: number;
-    id: number;
-    next: number;
-    raf: number | null;
-    rail: HTMLDivElement;
-    side: Side;
-    start: number;
-    w: number;
-  } | null>(null);
-  const [side, setSide] = useState<Side | null>(null);
+function clampWidth(width: number, limits: { min: number; max: number }): number {
+  return Math.min(limits.max, Math.max(limits.min, width));
+}
 
-  useEffect(() => {
-    if (side !== "left") {
-      live.current.left = p.leftW;
-    }
-  }, [p.leftW, side]);
+function resolveEffectiveRightOpen(input: {
+  storedRightOpen: boolean;
+  routeThreadId: string | null;
+  gitFocusId: string | null;
+  muted: boolean;
+}): boolean {
+  return input.storedRightOpen || Boolean(input.routeThreadId && input.gitFocusId && !input.muted);
+}
 
-  useEffect(() => {
-    if (side !== "right") {
-      live.current.right = p.rightW;
-    }
-  }, [p.rightW, side]);
+function setRightPanelOpen(cwd: string | null, open: boolean): void {
+  shellPanelsActions.setRightOpen(cwd, open);
+  shellPanelsActions.setMuted(cwd, !open);
+}
+
+function LeftAside(props: { cwd: string | null; children: ReactNode }) {
+  const leftOpen = useLeftOpen(props.cwd);
+  const leftWidth = useLeftWidth(props.cwd);
+  const [dragging, setDragging] = useState(false);
+  const railStateRef = useRef<ResizeState | null>(null);
+  const liveWidthRef = useRef(leftWidth);
+  const asideRef = useRef<HTMLElement | null>(null);
+
+  if (!dragging) {
+    liveWidthRef.current = leftWidth;
+  }
 
   useEffect(() => {
     return () => {
-      const item = drag.current;
-      if (item?.raf != null) {
-        window.cancelAnimationFrame(item.raf);
+      const drag = railStateRef.current;
+      if (drag && drag.raf !== null) {
+        window.cancelAnimationFrame(drag.raf);
       }
       document.body.style.removeProperty("cursor");
       document.body.style.removeProperty("user-select");
     };
   }, []);
 
-  const stop = (id: number) => {
-    const item = drag.current;
-    if (!item || item.id !== id) return;
-
-    const next = item.raf === null ? item.w : item.next;
-    if (item.raf != null) {
-      window.cancelAnimationFrame(item.raf);
+  const stopResize = (pointerId: number) => {
+    const drag = railStateRef.current;
+    if (!drag || drag.pointerId !== pointerId) {
+      return;
     }
 
-    live.current[item.side] = next;
-    drag.current = null;
-    setSide(null);
-
-    if (item.rail.hasPointerCapture(id)) {
-      item.rail.releasePointerCapture(id);
+    if (drag.raf !== null) {
+      window.cancelAnimationFrame(drag.raf);
     }
+
+    const nextWidth = drag.width;
+    if (drag.rail.hasPointerCapture(pointerId)) {
+      drag.rail.releasePointerCapture(pointerId);
+    }
+
+    railStateRef.current = null;
+    setDragging(false);
     document.body.style.removeProperty("cursor");
     document.body.style.removeProperty("user-select");
-
-    if (item.side === "left") {
-      p.setLeftWidth(next);
-      return;
-    }
-    p.setRightWidth(next);
+    shellPanelsActions.setLeftWidth(props.cwd, nextWidth);
   };
 
-  const begin = (side: Side) => (e: Evt<HTMLDivElement>) => {
-    if (e.button !== 0) return;
-    const node = side === "left" ? leftRef.current : rightRef.current;
-    if (!node) return;
+  const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) {
+      return;
+    }
 
-    const w = live.current[side];
-    drag.current = {
-      base: w,
-      id: e.pointerId,
-      next: w,
+    const node = asideRef.current;
+    if (!node) {
+      return;
+    }
+
+    const width = liveWidthRef.current;
+    node.style.width = `${width}px`;
+    railStateRef.current = {
+      base: width,
+      pointerId: event.pointerId,
       raf: null,
-      rail: e.currentTarget,
-      side,
-      start: e.clientX,
-      w,
+      rail: event.currentTarget,
+      startX: event.clientX,
+      width,
     };
-    setSide(side);
-    node.style.width = `${w}px`;
-    e.currentTarget.setPointerCapture(e.pointerId);
+    setDragging(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
-    e.preventDefault();
+    event.preventDefault();
   };
 
-  const move = (e: Evt<HTMLDivElement>) => {
-    const item = drag.current;
-    if (!item || item.id !== e.pointerId) return;
-
-    const delta = item.side === "left" ? e.clientX - item.start : item.start - e.clientX;
-    item.next = Math.max(limit[item.side].min, Math.min(limit[item.side].max, item.base + delta));
-    if (item.raf !== null) {
-      e.preventDefault();
+  const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = railStateRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) {
       return;
     }
 
-    item.raf = window.requestAnimationFrame(() => {
-      const next = drag.current;
-      if (!next) return;
+    const delta = event.clientX - drag.startX;
+    const nextWidth = clampWidth(drag.base + delta, LEFT_LIMITS);
+    drag.width = nextWidth;
+    liveWidthRef.current = nextWidth;
 
-      next.raf = null;
-      next.w = next.next;
-      live.current[next.side] = next.next;
-      const node = next.side === "left" ? leftRef.current : rightRef.current;
-      if (!node) return;
-      node.style.width = `${next.next}px`;
+    if (drag.raf !== null) {
+      event.preventDefault();
+      return;
+    }
+
+    drag.raf = window.requestAnimationFrame(() => {
+      const activeDrag = railStateRef.current;
+      if (!activeDrag) {
+        return;
+      }
+      activeDrag.raf = null;
+      if (asideRef.current) {
+        asideRef.current.style.width = `${activeDrag.width}px`;
+      }
     });
-    e.preventDefault();
+
+    event.preventDefault();
   };
 
-  const up = (e: Evt<HTMLDivElement>) => {
-    stop(e.pointerId);
-    e.preventDefault();
+  const handlePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    stopResize(event.pointerId);
+    event.preventDefault();
   };
 
-  const leftW = p.leftOpen ? (side === "left" ? live.current.left : p.leftW) : 0;
-  const rightW = p.rightOpen ? (side === "right" ? live.current.right : p.rightW) : 0;
+  return (
+    <aside
+      className={cn(
+        "chrome-shell-sidebar relative flex shrink-0 flex-col overflow-hidden border-chrome-border/50",
+        dragging
+          ? "transition-none"
+          : "transition-[width,border-right-width] duration-150 ease-out motion-reduce:transition-none",
+      )}
+      ref={asideRef}
+      style={{
+        width: leftOpen ? leftWidth : 0,
+        borderRightWidth: leftOpen ? 1 : 0,
+      }}
+    >
+      <div
+        aria-hidden={!leftOpen}
+        className={cn(
+          "flex h-full min-h-0 w-full flex-col transition-opacity duration-150 ease-out motion-reduce:transition-none",
+          leftOpen ? "opacity-100" : "opacity-0",
+        )}
+      >
+        {props.children}
+      </div>
+      {leftOpen ? (
+        <div
+          className="absolute top-0 right-0 z-10 h-full w-1 touch-none cursor-col-resize"
+          onPointerCancel={handlePointerUp}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+        >
+          <div className="h-full w-full hover:bg-chrome-hover/70" />
+        </div>
+      ) : null}
+    </aside>
+  );
+}
+
+function RightAside(props: {
+  cwd: string | null;
+  changesCount: number;
+  rightPanels: RightPanels;
+  routeThreadId: string | null;
+  gitFocusId: string | null;
+}) {
+  const storedRightOpen = useRightOpen(props.cwd);
+  const rightWidth = useRightWidth(props.cwd);
+  const activeTab = useActiveTab(props.cwd);
+  const muted = useIsMuted(props.cwd);
+  const rightOpen = resolveEffectiveRightOpen({
+    storedRightOpen,
+    routeThreadId: props.routeThreadId,
+    gitFocusId: props.gitFocusId,
+    muted,
+  });
+
+  const [dragging, setDragging] = useState(false);
+  const railStateRef = useRef<ResizeState | null>(null);
+  const liveWidthRef = useRef(rightWidth);
+  const asideRef = useRef<HTMLElement | null>(null);
+
+  if (!dragging) {
+    liveWidthRef.current = rightWidth;
+  }
+
+  useEffect(() => {
+    return () => {
+      const drag = railStateRef.current;
+      if (drag && drag.raf !== null) {
+        window.cancelAnimationFrame(drag.raf);
+      }
+      document.body.style.removeProperty("cursor");
+      document.body.style.removeProperty("user-select");
+    };
+  }, []);
+
+  const stopResize = (pointerId: number) => {
+    const drag = railStateRef.current;
+    if (!drag || drag.pointerId !== pointerId) {
+      return;
+    }
+
+    if (drag.raf !== null) {
+      window.cancelAnimationFrame(drag.raf);
+    }
+
+    const nextWidth = drag.width;
+    if (drag.rail.hasPointerCapture(pointerId)) {
+      drag.rail.releasePointerCapture(pointerId);
+    }
+
+    railStateRef.current = null;
+    setDragging(false);
+    document.body.style.removeProperty("cursor");
+    document.body.style.removeProperty("user-select");
+    shellPanelsActions.setRightWidth(props.cwd, nextWidth);
+  };
+
+  const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) {
+      return;
+    }
+
+    const node = asideRef.current;
+    if (!node) {
+      return;
+    }
+
+    const width = liveWidthRef.current;
+    node.style.width = `${width}px`;
+    railStateRef.current = {
+      base: width,
+      pointerId: event.pointerId,
+      raf: null,
+      rail: event.currentTarget,
+      startX: event.clientX,
+      width,
+    };
+    setDragging(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    event.preventDefault();
+  };
+
+  const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = railStateRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const delta = drag.startX - event.clientX;
+    const nextWidth = clampWidth(drag.base + delta, RIGHT_LIMITS);
+    drag.width = nextWidth;
+    liveWidthRef.current = nextWidth;
+
+    if (drag.raf !== null) {
+      event.preventDefault();
+      return;
+    }
+
+    drag.raf = window.requestAnimationFrame(() => {
+      const activeDrag = railStateRef.current;
+      if (!activeDrag) {
+        return;
+      }
+      activeDrag.raf = null;
+      if (asideRef.current) {
+        asideRef.current.style.width = `${activeDrag.width}px`;
+      }
+    });
+
+    event.preventDefault();
+  };
+
+  const handlePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    stopResize(event.pointerId);
+    event.preventDefault();
+  };
+
+  return (
+    <aside
+      className={cn(
+        "chrome-shell-surface relative flex shrink-0 flex-col overflow-hidden border-chrome-border/50",
+        dragging
+          ? "transition-none"
+          : "transition-[width,border-left-width] duration-100 ease-[cubic-bezier(0.19,1,0.22,1)] motion-reduce:transition-none",
+      )}
+      ref={asideRef}
+      style={{
+        width: rightOpen ? rightWidth : 0,
+        borderLeftWidth: rightOpen ? 1 : 0,
+      }}
+    >
+      <div
+        aria-hidden={!rightOpen}
+        className={cn(
+          "flex h-full min-h-0 w-full flex-col transition-opacity duration-150 ease-out motion-reduce:transition-none",
+          rightOpen ? "opacity-100" : "opacity-0",
+        )}
+      >
+        <WorkbenchTabBar
+          active={activeTab}
+          count={props.changesCount}
+          onTab={(tab) => {
+            shellPanelsActions.setActiveTab(props.cwd, tab);
+            shellPanelsActions.setMuted(props.cwd, false);
+          }}
+          onToggle={() => setRightPanelOpen(props.cwd, !rightOpen)}
+        />
+        {props.rightPanels[activeTab]}
+      </div>
+      {rightOpen ? (
+        <div
+          className="absolute top-0 left-0 z-10 h-full w-1 touch-none cursor-col-resize"
+          onPointerCancel={handlePointerUp}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+        >
+          <div className="h-full w-full hover:bg-chrome-hover/70" />
+        </div>
+      ) : null}
+    </aside>
+  );
+}
+
+function ElectronHeaderControls(props: {
+  cwd: string | null;
+  showRight: boolean;
+  onBack?: () => void;
+  routeThreadId: string | null;
+  gitFocusId: string | null;
+}) {
+  const leftOpen = useLeftOpen(props.cwd);
+  const storedRightOpen = useRightOpen(props.cwd);
+  const rightWidth = useRightWidth(props.cwd);
+  const muted = useIsMuted(props.cwd);
+  const rightOpen = resolveEffectiveRightOpen({
+    storedRightOpen,
+    routeThreadId: props.routeThreadId,
+    gitFocusId: props.gitFocusId,
+    muted,
+  });
+
+  return (
+    <div
+      className="pointer-events-none absolute top-0 left-0 z-10 h-(--chrome-header-height) drag-region"
+      style={{ right: rightOpen ? rightWidth : 0 }}
+    >
+      <div className="pointer-events-none absolute top-(--chrome-titlebar-control-row-top) left-(--chrome-workbench-toggle-left) flex gap-1">
+        {props.onBack ? (
+          <button
+            type="button"
+            onClick={() => props.onBack?.()}
+            className="pointer-events-auto no-drag flex h-(--chrome-titlebar-control-height) w-(--chrome-titlebar-control-height) shrink-0 items-center justify-center rounded-chrome-control bg-transparent p-0 leading-none text-muted-foreground [&_svg]:block hover:bg-chrome-hover hover:text-foreground"
+            aria-label="Back to chat"
+          >
+            <IconArrowLeft className="size-4 shrink-0" />
+          </button>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => shellPanelsActions.toggleLeft(props.cwd)}
+          className="pointer-events-auto no-drag flex h-(--chrome-titlebar-control-height) w-(--chrome-titlebar-control-height) shrink-0 items-center justify-center rounded-chrome-control bg-transparent p-0 leading-none text-muted-foreground [&_svg]:block hover:bg-chrome-hover hover:text-foreground"
+          aria-label={leftOpen ? "Collapse chats" : "Expand chats"}
+        >
+          {leftOpen ? (
+            <IconSidebarHiddenLeftWide className="size-4 shrink-0" />
+          ) : (
+            <IconSidebar className="size-4 shrink-0" />
+          )}
+        </button>
+      </div>
+      {props.showRight && !rightOpen ? (
+        <div className="pointer-events-none absolute top-(--chrome-titlebar-control-row-top) right-0 flex pr-(--chrome-workbench-toggle-right)">
+          <button
+            type="button"
+            onClick={() => setRightPanelOpen(props.cwd, true)}
+            className="pointer-events-auto no-drag flex h-(--chrome-titlebar-control-height) w-(--chrome-titlebar-control-height) shrink-0 items-center justify-center rounded-chrome-control bg-transparent p-0 leading-none text-muted-foreground/70 [&_svg]:block hover:bg-chrome-hover hover:text-foreground"
+            aria-label="Expand panel"
+          >
+            <IconSidebar className="size-4 shrink-0 opacity-60" />
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function LeftExpandButton(props: { cwd: string | null }) {
+  const leftOpen = useLeftOpen(props.cwd);
+  if (leftOpen) {
+    return null;
+  }
+
+  return (
+    <div className="pointer-events-none absolute top-2 left-2 z-10">
+      <button
+        type="button"
+        onClick={() => shellPanelsActions.toggleLeft(props.cwd)}
+        className="pointer-events-auto flex size-7 items-center justify-center rounded-chrome-control bg-chrome-sidebar/80 text-muted-foreground shadow-sm backdrop-blur-sm [&_svg]:block hover:bg-chrome-hover hover:text-foreground"
+        aria-label="Expand chats"
+      >
+        <IconSidebar className="size-4 shrink-0" />
+      </button>
+    </div>
+  );
+}
+
+export function AppShell(props: {
+  cwd: string | null;
+  left: ReactNode;
+  center: ReactNode;
+  right: RightPanels | null;
+  title: string;
+  changesCount: number;
+  routeThreadId?: string | null;
+  gitFocusId?: string | null;
+  onBack?: () => void;
+}) {
+  const electron = isElectronHost();
+  const showRight = props.right !== null;
 
   return (
     <div className="relative flex h-full min-w-0 flex-1 flex-row bg-transparent">
-      <aside
-        className={cn(
-          "chrome-shell-sidebar relative flex shrink-0 flex-col overflow-hidden border-chrome-border/50",
-          side === "left" ? "transition-none" : "transition-[width] duration-150 ease-out",
-        )}
-        ref={leftRef}
-        style={{
-          width: leftW,
-          borderRightWidth: p.leftOpen ? 1 : 0,
-        }}
-      >
-        <div aria-hidden={!p.leftOpen} className="flex h-full min-h-0 w-full flex-col">
-          {props.left}
-        </div>
-        {p.leftOpen ? (
-          <div
-            className="absolute top-0 right-0 z-10 h-full w-1 touch-none cursor-col-resize"
-            onPointerCancel={up}
-            onPointerDown={begin("left")}
-            onPointerMove={move}
-            onPointerUp={up}
-          >
-            <div className="h-full w-full hover:bg-chrome-hover/70" />
-          </div>
-        ) : null}
-      </aside>
+      <LeftAside cwd={props.cwd}>{props.left}</LeftAside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="relative flex min-h-0 flex-1 flex-row">
@@ -208,105 +501,30 @@ export function AppShell(props: {
               {props.center}
             </div>
           </main>
-          {showRight ? (
-            <aside
-              className={cn(
-                "chrome-shell-surface relative flex shrink-0 flex-col overflow-hidden border-chrome-border/50",
-                side === "right"
-                  ? "transition-none"
-                  : "transition-[width] duration-100 ease-[cubic-bezier(0.19,1,0.22,1)] motion-reduce:transition-none",
-              )}
-              ref={rightRef}
-              style={{
-                width: rightW,
-                borderLeftWidth: p.rightOpen ? 1 : 0,
-              }}
-            >
-              <div
-                aria-hidden={!p.rightOpen}
-                className={cn(
-                  "flex h-full min-h-0 w-full flex-col transition-opacity duration-150 ease-out motion-reduce:transition-none",
-                  p.rightOpen ? "opacity-100" : "opacity-0",
-                )}
-              >
-                <WorkbenchTabBar
-                  active={p.activeTab}
-                  onTab={p.setActiveTab}
-                  count={props.changesCount}
-                  onToggle={p.toggleRight}
-                />
-                {props.right}
-              </div>
-              {p.rightOpen ? (
-                <div
-                  className="absolute top-0 left-0 z-10 h-full w-1 touch-none cursor-col-resize"
-                  onPointerCancel={up}
-                  onPointerDown={begin("right")}
-                  onPointerMove={move}
-                  onPointerUp={up}
-                >
-                  <div className="h-full w-full hover:bg-chrome-hover/70" />
-                </div>
-              ) : null}
-            </aside>
+
+          {showRight && props.right ? (
+            <RightAside
+              cwd={props.cwd}
+              changesCount={props.changesCount}
+              rightPanels={props.right}
+              routeThreadId={props.routeThreadId ?? null}
+              gitFocusId={props.gitFocusId ?? null}
+            />
           ) : null}
         </div>
       </div>
 
       {electron ? (
-        <div
-          className="pointer-events-none absolute top-0 left-0 z-10 h-(--chrome-header-height) drag-region"
-          style={{ right: rightW }}
-        >
-          <div className="pointer-events-none absolute top-(--chrome-titlebar-control-row-top) left-(--chrome-workbench-toggle-left) flex gap-1">
-            {props.onBack ? (
-              <button
-                type="button"
-                onClick={() => props.onBack?.()}
-                className="pointer-events-auto no-drag flex h-(--chrome-titlebar-control-height) w-(--chrome-titlebar-control-height) shrink-0 items-center justify-center rounded-chrome-control bg-transparent p-0 leading-none text-muted-foreground [&_svg]:block hover:bg-chrome-hover hover:text-foreground"
-                aria-label="Back to chat"
-              >
-                <IconArrowLeft className="size-4 shrink-0" />
-              </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={() => p.toggleLeft()}
-              className="pointer-events-auto no-drag flex h-(--chrome-titlebar-control-height) w-(--chrome-titlebar-control-height) shrink-0 items-center justify-center rounded-chrome-control bg-transparent p-0 leading-none text-muted-foreground [&_svg]:block hover:bg-chrome-hover hover:text-foreground"
-              aria-label={p.leftOpen ? "Collapse chats" : "Expand chats"}
-            >
-              {p.leftOpen ? (
-                <IconSidebarHiddenLeftWide className="size-4 shrink-0" />
-              ) : (
-                <IconSidebar className="size-4 shrink-0" />
-              )}
-            </button>
-          </div>
-          {showRight && !p.rightOpen ? (
-            <div className="pointer-events-none absolute top-(--chrome-titlebar-control-row-top) right-0 flex pr-(--chrome-workbench-toggle-right)">
-              <button
-                type="button"
-                onClick={() => p.toggleRight()}
-                className="pointer-events-auto no-drag flex h-(--chrome-titlebar-control-height) w-(--chrome-titlebar-control-height) shrink-0 items-center justify-center rounded-chrome-control bg-transparent p-0 leading-none text-muted-foreground/70 [&_svg]:block hover:bg-chrome-hover hover:text-foreground"
-                aria-label="Expand panel"
-              >
-                <IconSidebar className="size-4 shrink-0 opacity-60" />
-              </button>
-            </div>
-          ) : null}
-        </div>
-      ) : !p.leftOpen ? (
-        <div className="pointer-events-none absolute top-2 left-2 z-10">
-          <button
-            type="button"
-            onClick={() => p.toggleLeft()}
-            className="pointer-events-auto flex size-7 items-center justify-center rounded-chrome-control bg-chrome-sidebar/80 text-muted-foreground shadow-sm backdrop-blur-sm [&_svg]:block hover:bg-chrome-hover hover:text-foreground"
-            aria-label="Expand chats"
-          >
-            <IconSidebar className="size-4 shrink-0" />
-          </button>
-        </div>
-      ) : null}
+        <ElectronHeaderControls
+          cwd={props.cwd}
+          showRight={showRight}
+          routeThreadId={props.routeThreadId ?? null}
+          gitFocusId={props.gitFocusId ?? null}
+          {...(props.onBack ? { onBack: props.onBack } : {})}
+        />
+      ) : (
+        <LeftExpandButton cwd={props.cwd} />
+      )}
     </div>
   );
 }

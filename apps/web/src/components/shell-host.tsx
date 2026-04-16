@@ -3,15 +3,14 @@ import { Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useCallback, useEffect, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 
-import { BrowserPanel } from "~/components/BrowserPanel";
+import { BrowserPanel } from "~/components/browser-panel";
 import { isElectron } from "~/env";
 import { useEnvironmentGitPanel } from "~/hooks/use-environment-git";
-import { useShellPanels } from "~/hooks/use-shell-panels";
 import { useRouteThreadId } from "~/hooks/use-route-thread-id";
 import { useChatDraftStore, hasDraft } from "~/lib/chat-draft-store";
 import type { ChatDraftSnapshot } from "~/lib/chat-draft-store";
+import { shellPanelsActions } from "~/lib/shell-panels-store";
 import { resolveWorkbenchBrowserThreadId } from "~/lib/workbench-browser-scope";
-import { useShellLayoutStore } from "~/lib/shell-layout-store";
 import { useThreadUnreadStore } from "~/lib/thread-unread-store";
 import { type SessionListSummary } from "~/lib/ui-session-types";
 import { buildWorkspaceChatSections } from "~/lib/sidebar-chat-view-model";
@@ -22,7 +21,7 @@ import {
   useStore,
 } from "~/store";
 import type { Project, Thread } from "~/types";
-import { AppShell, type AppShellPanels } from "./shell/shell/app";
+import { AppShell } from "./shell/shell/app";
 import { GitPanel } from "./shell/git/panel";
 import { ShellSidebarFooter } from "./shell/sidebar/footer";
 import { ShellSidebarHeader } from "./shell/sidebar/header";
@@ -112,7 +111,6 @@ export function ShellHost({ children }: { children?: ReactNode }) {
     projects.find((project) => project.cwd === activeCwd)?.environmentId ??
     projects[0]?.environmentId ??
     null;
-  const p = useShellPanels(activeCwd);
 
   const sections = useMemo(
     () => buildWorkspaceChatSections(summaries, drafts, activeCwd, null, unreadIds),
@@ -177,7 +175,7 @@ export function ShellHost({ children }: { children?: ReactNode }) {
       <div className={cn("shrink-0", isElectron && "no-drag")}>
         <ShellSidebarHeader
           onNewChat={create}
-          {...(isElectron ? {} : { onCollapse: p.toggleLeft })}
+          {...(isElectron ? {} : { onCollapse: () => shellPanelsActions.toggleLeft(activeCwd) })}
         />
       </div>
       <ThreadRail
@@ -203,9 +201,7 @@ export function ShellHost({ children }: { children?: ReactNode }) {
     return (
       <ShellSettingsProvider>
         <DesktopShellHost
-          panels={p}
           title={isSettings ? "Settings" : title}
-          isSettings={isSettings}
           {...(isSettings ? { onBack: () => void navigate({ to: "/" }) } : {})}
           left={isSettings ? settingsLeft : chatLeft}
           center={children ?? <Outlet />}
@@ -220,9 +216,9 @@ export function ShellHost({ children }: { children?: ReactNode }) {
   return (
     <ShellSettingsProvider>
       <AppShell
+        cwd={activeCwd}
         title={isSettings ? "Settings" : title}
         changesCount={0}
-        panels={p}
         {...(isSettings ? { onBack: () => void navigate({ to: "/" }) } : {})}
         left={isSettings ? settingsLeft : chatLeft}
         center={children ?? <Outlet />}
@@ -233,9 +229,7 @@ export function ShellHost({ children }: { children?: ReactNode }) {
 }
 
 function DesktopShellHost(props: {
-  panels: AppShellPanels;
   title: string;
-  isSettings: boolean;
   onBack?: () => void;
   left: ReactNode;
   center: ReactNode;
@@ -244,57 +238,46 @@ function DesktopShellHost(props: {
   environmentId: EnvironmentId | null;
 }) {
   const git = useEnvironmentGitPanel(props.environmentId);
-  const mute = useShellLayoutStore((state) => state.mute);
-  const unmute = useShellLayoutStore((state) => state.unmute);
-  const muted = useShellLayoutStore((state) =>
-    props.cwd ? Boolean(state.mutes[props.cwd]) : false,
-  );
-  const autoOpen = Boolean(props.routeThreadId && git.focusId && !muted);
-  const rightOpen = props.panels.rightOpen || autoOpen;
-  const tab = props.panels.activeTab;
   const browserThreadId = resolveWorkbenchBrowserThreadId(props.cwd);
 
   return (
     <AppShell
+      cwd={props.cwd}
       title={props.title}
       changesCount={git.count}
-      panels={{
-        ...props.panels,
-        rightOpen,
-        setRightOpen: (open) => {
-          if (props.cwd) {
-            if (open) unmute(props.cwd);
-            if (!open) mute(props.cwd);
-          }
-          props.panels.setRightOpen(open);
-        },
-        toggleRight: () => {
-          const next = !rightOpen;
-          if (props.cwd) {
-            if (next) unmute(props.cwd);
-            if (!next) mute(props.cwd);
-          }
-          props.panels.setRightOpen(next);
-        },
-      }}
+      routeThreadId={props.routeThreadId}
+      gitFocusId={git.focusId}
       {...(props.onBack ? { onBack: props.onBack } : {})}
       left={props.left}
       center={props.center}
-      right={
-        <WorkbenchPanel>
-          {tab === "git" && <GitPanel git={git} />}
-          {tab === "terminal" && (
+      right={{
+        git: (
+          <WorkbenchPanel>
+            <GitPanel git={git} />
+          </WorkbenchPanel>
+        ),
+        terminal: (
+          <WorkbenchPanel>
             <TerminalPanel cwd={props.cwd} environmentId={props.environmentId} />
-          )}
-          {tab === "browser" && (
+          </WorkbenchPanel>
+        ),
+        browser: (
+          <WorkbenchPanel>
             <BrowserPanel
               mode="sidebar"
               threadId={browserThreadId}
-              onClosePanel={() => props.panels.toggleRight()}
+              onClosePanel={() => {
+                setRightPanelOpen(props.cwd, false);
+              }}
             />
-          )}
-        </WorkbenchPanel>
-      }
+          </WorkbenchPanel>
+        ),
+      }}
     />
   );
+}
+
+function setRightPanelOpen(cwd: string | null, open: boolean): void {
+  shellPanelsActions.setRightOpen(cwd, open);
+  shellPanelsActions.setMuted(cwd, !open);
 }

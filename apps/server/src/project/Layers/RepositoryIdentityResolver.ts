@@ -2,7 +2,7 @@ import type { RepositoryIdentity } from "@multi/contracts";
 import { Cache, Duration, Effect, Exit, Layer } from "effect";
 import { detectGitHostingProviderFromRemoteUrl, normalizeGitRemoteUrl } from "@multi/shared/git";
 
-import { runProcess } from "../../processRunner.ts";
+import { runProcess } from "../../process-runner.ts";
 import {
   RepositoryIdentityResolver,
   type RepositoryIdentityResolverShape,

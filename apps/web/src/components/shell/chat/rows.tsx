@@ -18,10 +18,7 @@ import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { ChatMarkdown } from "~/lib/chat-markdown";
 import { useDiffStylePreference } from "~/hooks/use-environment-git";
 import { useTheme } from "~/hooks/use-theme";
-import {
-  userAttachmentFileRow,
-  userAttachmentImageCard,
-} from "~/lib/chat-attachment-styles";
+import { userAttachmentFileRow, userAttachmentImageCard } from "~/lib/chat-attachment-styles";
 import {
   type ChatRow,
   type ChatUserAttachment,

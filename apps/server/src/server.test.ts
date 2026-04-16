@@ -50,7 +50,7 @@ import { vi } from "vitest";
 import type { ServerConfigShape } from "./config.ts";
 import { deriveServerPaths, ServerConfig } from "./config.ts";
 import { makeRoutesLayer } from "./server.ts";
-import { resolveAttachmentRelativePath } from "./attachmentPaths.ts";
+import { resolveAttachmentRelativePath } from "./attachment-paths.ts";
 import {
   CheckpointDiffQuery,
   type CheckpointDiffQueryShape,
@@ -78,9 +78,12 @@ import {
   ProviderRegistry,
   type ProviderRegistryShape,
 } from "./provider/Services/ProviderRegistry.ts";
-import { ServerLifecycleEvents, type ServerLifecycleEventsShape } from "./serverLifecycleEvents.ts";
-import { ServerRuntimeStartup, type ServerRuntimeStartupShape } from "./serverRuntimeStartup.ts";
-import { ServerSettingsService, type ServerSettingsShape } from "./serverSettings.ts";
+import {
+  ServerLifecycleEvents,
+  type ServerLifecycleEventsShape,
+} from "./server-lifecycle-events.ts";
+import { ServerRuntimeStartup, type ServerRuntimeStartupShape } from "./server-runtime-startup.ts";
+import { ServerSettingsService, type ServerSettingsShape } from "./server-settings.ts";
 import { TerminalManager, type TerminalManagerShape } from "./terminal/Services/Manager.ts";
 import {
   BrowserTraceCollector,

@@ -1,5 +1,5 @@
 import { Schema } from "effect";
-import { TrimmedNonEmptyString } from "./baseSchemas";
+import { TrimmedNonEmptyString } from "./base-schemas";
 import {
   ApprovalRequestId,
   EventId,
@@ -7,7 +7,7 @@ import {
   ProviderItemId,
   ThreadId,
   TurnId,
-} from "./baseSchemas";
+} from "./base-schemas";
 import {
   ChatAttachment,
   ModelSelection,

@@ -51,7 +51,7 @@ import type {
   OrchestrationSubscribeThreadInput,
   OrchestrationThreadStreamItem,
 } from "./orchestration";
-import type { EnvironmentId, ThreadId } from "./baseSchemas";
+import type { EnvironmentId, ThreadId } from "./base-schemas";
 import { EditorId } from "./editor";
 import { ClientSettings, ServerSettings, ServerSettingsPatch } from "./settings";
 

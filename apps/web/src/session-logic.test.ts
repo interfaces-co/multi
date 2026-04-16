@@ -905,7 +905,7 @@ describe("deriveWorkLogEntries", () => {
           data: {
             item: {
               changes: [
-                { path: "apps/web/src/components/ChatView.tsx" },
+                { path: "apps/web/src/components/chat-view.tsx" },
                 { filename: "apps/web/src/session-logic.ts" },
               ],
             },
@@ -916,7 +916,7 @@ describe("deriveWorkLogEntries", () => {
 
     const [entry] = deriveWorkLogEntries(activities, undefined);
     expect(entry?.changedFiles).toEqual([
-      "apps/web/src/components/ChatView.tsx",
+      "apps/web/src/components/chat-view.tsx",
       "apps/web/src/session-logic.ts",
     ]);
   });

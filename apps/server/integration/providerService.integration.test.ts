@@ -13,7 +13,7 @@ import {
   ProviderService,
   type ProviderServiceShape,
 } from "../src/provider/Services/ProviderService.ts";
-import { ServerSettingsService } from "../src/serverSettings.ts";
+import { ServerSettingsService } from "../src/server-settings.ts";
 import { AnalyticsService } from "../src/telemetry/Services/AnalyticsService.ts";
 import { SqlitePersistenceMemory } from "../src/persistence/Layers/Sqlite.ts";
 import { ProviderSessionRuntimeRepositoryLive } from "../src/persistence/Layers/ProviderSessionRuntime.ts";
@@ -27,7 +27,7 @@ import {
   codexTurnApprovalFixture,
   codexTurnToolFixture,
   codexTurnTextFixture,
-} from "./fixtures/providerRuntime.ts";
+} from "./fixtures/provider-runtime.ts";
 
 const makeWorkspaceDirectory = Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem;

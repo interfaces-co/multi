@@ -10,8 +10,8 @@ import { ChatComposer, type ChatComposerHandle } from "./shell/composer/chat";
 import { ChatMessages } from "./shell/chat/messages";
 import { useChatDraftStore } from "~/lib/chat-draft-store";
 import { useStore } from "~/store";
-import { createThreadSelectorByRef } from "~/storeSelectors";
-import { readEnvironmentApi } from "~/environmentApi";
+import { createThreadSelectorByRef } from "~/store-selectors";
+import { readEnvironmentApi } from "~/environment-api";
 import { newCommandId } from "~/lib/utils";
 import { sendChatPrompt, type SendChatPromptContext } from "~/lib/chat-send-adapter";
 

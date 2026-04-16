@@ -1,5 +1,5 @@
 import { NetService } from "@multi/shared/Net";
-import { parsePersistedServerObservabilitySettings } from "@multi/shared/serverSettings";
+import { parsePersistedServerObservabilitySettings } from "@multi/shared/server-settings";
 import {
   AuthSessionId,
   CommandId,
@@ -50,18 +50,18 @@ import {
   formatIssuedSession,
   formatPairingCredentialList,
   formatSessionList,
-} from "./cliAuthFormat";
+} from "./cli-auth-format";
 import { AuthControlPlane, AuthControlPlaneShape } from "./auth/Services/AuthControlPlane.ts";
 import { OrchestrationEngineService } from "./orchestration/Services/OrchestrationEngine.ts";
 import { ProjectionSnapshotQuery } from "./orchestration/Services/ProjectionSnapshotQuery.ts";
-import { OrchestrationLayerLive } from "./orchestration/runtimeLayer";
+import { OrchestrationLayerLive } from "./orchestration/runtime-layer";
 import { layerConfig as SqlitePersistenceLayerLive } from "./persistence/Layers/Sqlite.ts";
 import { RepositoryIdentityResolverLive } from "./project/Layers/RepositoryIdentityResolver.ts";
-import { getAutoBootstrapDefaultModelSelection } from "./serverRuntimeStartup";
+import { getAutoBootstrapDefaultModelSelection } from "./server-runtime-startup";
 import {
   clearPersistedServerRuntimeState,
   readPersistedServerRuntimeState,
-} from "./serverRuntimeState";
+} from "./server-runtime-state";
 import { WorkspacePaths } from "./workspace/Services/WorkspacePaths";
 import { WorkspacePathsLive } from "./workspace/Layers/WorkspacePaths";
 

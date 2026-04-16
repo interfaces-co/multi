@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-import { AuthSessionId, TrimmedNonEmptyString } from "./baseSchemas";
+import { AuthSessionId, TrimmedNonEmptyString } from "./base-schemas";
 
 /**
  * Declares the server's overall authentication posture.

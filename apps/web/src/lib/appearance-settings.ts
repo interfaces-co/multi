@@ -66,7 +66,6 @@ function readTintSaturation() {
 export function getColorPalette(): ColorPaletteId {
   const raw = localStorage.getItem(STORAGE_COLOR_PALETTE);
   if (raw === "pierre") return "pierre";
-  if (raw === "glass") return "multi";
   return "multi";
 }
 

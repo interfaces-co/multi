@@ -2,11 +2,11 @@ import { afterEach, describe, expect, it } from "@effect/vitest";
 import { Effect, FileSystem } from "effect";
 import { vi } from "vitest";
 
-vi.mock("../../processRunner.ts", () => ({
+vi.mock("../../process-runner.ts", () => ({
   runProcess: vi.fn(),
 }));
 
-import { runProcess } from "../../processRunner.ts";
+import { runProcess } from "../../process-runner.ts";
 import { resolveServerEnvironmentLabel } from "./ServerEnvironmentLabel.ts";
 
 const mockedRunProcess = vi.mocked(runProcess);

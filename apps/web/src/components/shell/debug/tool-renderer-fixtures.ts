@@ -29,7 +29,7 @@ const bashCall = call("bash", { command: "pnpm run fmt", timeout: 120 });
 const grepCall = call("grep", { pattern: "toolBody", path: "apps/web/src/lib" });
 const grepResult = "apps/web/src/lib/tool-renderers.tsx:52:export function toolBody";
 
-const findCall = call("find", { glob: "*.tsx", query: "ChatComposer" });
+const findCall = call("find", { glob: "*.tsx", query: "chat-composer" });
 const findResult = "apps/web/src/components/shell/chat/messages.tsx";
 
 const askCall = call("ask", { prompt: "continue?" });

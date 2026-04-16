@@ -18,7 +18,7 @@ import "./styles/chat-markdown.css";
 import { isElectron } from "./env";
 import { getRouter } from "./router";
 import { APP_DISPLAY_NAME } from "./branding";
-import { syncDocumentWindowControlsOverlayClass } from "./lib/windowControlsOverlay";
+import { syncDocumentWindowControlsOverlayClass } from "./lib/window-controls-overlay";
 
 const history = isElectron ? createHashHistory() : createBrowserHistory();
 

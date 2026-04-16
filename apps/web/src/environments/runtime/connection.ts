@@ -8,7 +8,7 @@ import type {
 } from "@multi/contracts";
 import type { KnownEnvironment } from "@multi/client-runtime";
 
-import type { WsRpcClient } from "~/rpc/wsRpcClient";
+import type { WsRpcClient } from "~/rpc/ws-rpc-client";
 
 export interface EnvironmentConnection {
   readonly kind: "primary" | "saved";

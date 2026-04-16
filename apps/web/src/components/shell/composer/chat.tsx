@@ -39,7 +39,7 @@ import {
 import { flushSync } from "react-dom";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { useNavigate } from "@tanstack/react-router";
-import { readNativeRuntimeApi } from "~/native-api";
+import { readNativeRuntimeApi } from "~/lib/native-runtime-api";
 import { useRuntimeModels } from "~/hooks/use-runtime-models";
 import { fireHeroFx } from "~/lib/hero-fx-store";
 import { useShellState } from "~/hooks/use-shell-cwd";
@@ -54,7 +54,7 @@ import {
 import { cn } from "~/lib/utils";
 import { useShellSettings } from "~/components/shell/settings/context";
 import { selectProjectsAcrossEnvironments, useStore } from "~/store";
-import { createThreadSelectorAcrossEnvironments } from "~/storeSelectors";
+import { createThreadSelectorAcrossEnvironments } from "~/store-selectors";
 import { COMPOSER_EDITOR_SET_EVENT } from "~/lib/shell-runtime-constants";
 import { pushComposerDraft } from "~/lib/composer-draft-mirror";
 import {
@@ -531,7 +531,9 @@ const ChatComposerImpl = memo(
         [props.sessionId, shell.cwd],
       ),
     );
-    const api = readNativeRuntimeApi(activeEnvironmentId, { allowPrimaryEnvironmentFallback: true });
+    const api = readNativeRuntimeApi(activeEnvironmentId, {
+      allowPrimaryEnvironmentFallback: true,
+    });
     const area = useRef<HTMLTextAreaElement | null>(null);
     const modelPickerRef = useRef<ModelPickerHandle | null>(null);
     const shellRef = useRef<HTMLDivElement | null>(null);
@@ -1507,4 +1509,4 @@ const ChatComposerImpl = memo(
 );
 
 export const ChatComposer = ChatComposerImpl;
-ChatComposer.displayName = "ChatComposer";
+ChatComposer.displayName = "chat-composer";

@@ -142,11 +142,7 @@ function note(activity: OrchestrationThreadActivity, now: number): ProviderNotic
   };
 }
 
-function forced(input: {
-  force: ProviderNoticeForce;
-  provider: ProviderKind | null;
-  now: number;
-}) {
+function forced(input: { force: ProviderNoticeForce; provider: ProviderKind | null; now: number }) {
   const provider = input.force.provider ?? input.provider ?? "claudeAgent";
   const title =
     input.force.kind === PROVIDER_NOTICE_KIND.rateLimit

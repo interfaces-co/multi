@@ -7,7 +7,7 @@ import {
   acknowledgeRpcRequest,
   clearAllTrackedRpcRequests,
   trackRpcRequestSent,
-} from "./requestLatencyState";
+} from "./request-latency-state";
 import {
   getWsReconnectDelayMsForRetry,
   recordWsConnectionAttempt,
@@ -15,7 +15,7 @@ import {
   recordWsConnectionErrored,
   recordWsConnectionOpened,
   WS_RECONNECT_MAX_RETRIES,
-} from "./wsConnectionState";
+} from "./ws-connection-state";
 
 export interface WsProtocolLifecycleHandlers {
   readonly onAttempt?: (socketUrl: string) => void;

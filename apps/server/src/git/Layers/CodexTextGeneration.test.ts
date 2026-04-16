@@ -7,7 +7,7 @@ import { ServerConfig } from "../../config.ts";
 import { CodexTextGenerationLive } from "./CodexTextGeneration.ts";
 import { TextGenerationError } from "@multi/contracts";
 import { TextGeneration } from "../Services/TextGeneration.ts";
-import { ServerSettingsService } from "../../serverSettings.ts";
+import { ServerSettingsService } from "../../server-settings.ts";
 
 const DEFAULT_TEST_MODEL_SELECTION = {
   provider: "codex" as const,

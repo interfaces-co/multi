@@ -1,4 +1,4 @@
-import { getPairingTokenFromUrl } from "../../pairingUrl";
+import { getPairingTokenFromUrl } from "../../pairing-url";
 
 export interface ResolvedRemotePairingTarget {
   readonly credential: string;

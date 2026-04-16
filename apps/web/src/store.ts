@@ -35,8 +35,8 @@ import {
   type TurnDiffSummary,
 } from "./types";
 import { resolveEnvironmentHttpUrl } from "./environments/runtime";
-import { sanitizeThreadErrorMessage } from "./rpc/transportError";
-import { getThreadFromEnvironmentState } from "./threadDerivation";
+import { sanitizeThreadErrorMessage } from "./rpc/transport-error";
+import { getThreadFromEnvironmentState } from "./thread-derivation";
 
 export interface EnvironmentState {
   projectIds: ProjectId[];

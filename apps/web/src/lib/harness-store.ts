@@ -4,9 +4,9 @@ import type { HarnessDescriptor, HarnessKind } from "~/lib/ui-session-types";
 import { useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 
-import { readNativeEnvironmentApi, readNativeApi } from "../native-api";
+import { readNativeEnvironmentApi, readNativeApi } from "./native-runtime-api";
 import { getServerConfig, useServerProviders } from "../rpc/server-state";
-import { getDefaultServerModel } from "../providerModels";
+import { getDefaultServerModel } from "../provider-models";
 import { selectProjectsAcrossEnvironments, useStore } from "../store";
 
 const WORKSPACE_KEY = "multi:workspace-cwd";

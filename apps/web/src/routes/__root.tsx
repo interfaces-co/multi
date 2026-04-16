@@ -12,17 +12,17 @@ import { QueryClient, useQueryClient } from "@tanstack/react-query";
 
 import { APP_DISPLAY_NAME } from "../branding";
 import { ShellHost } from "../components/shell-host";
-import { CommandPalette } from "../components/CommandPalette";
+import { CommandPalette } from "../components/command-palette";
 import { TaskCompletionNotifications } from "../notifications/taskCompletion";
 import {
   SlowRpcAckToastCoordinator,
   WebSocketConnectionCoordinator,
   WebSocketConnectionSurface,
-} from "../components/WebSocketConnectionSurface";
+} from "../components/web-socket-connection-surface";
 import { Button } from "../components/ui/button";
 import { AnchoredToastProvider, ToastProvider, toastManager } from "../components/ui/toast";
-import { resolveAndPersistPreferredEditor } from "../editorPreferences";
-import { readLocalApi } from "../localApi";
+import { resolveAndPersistPreferredEditor } from "../editor-preferences";
+import { readLocalApi } from "../local-api";
 import {
   getServerConfigUpdatedNotification,
   ServerConfigUpdatedNotification,
@@ -30,10 +30,10 @@ import {
   useServerConfig,
   useServerConfigUpdatedSubscription,
   useServerWelcomeSubscription,
-} from "../rpc/serverState";
+} from "../rpc/server-state";
 import { useStore } from "../store";
-import { useUiStateStore } from "../uiStateStore";
-import { syncBrowserChromeTheme } from "../hooks/useTheme";
+import { useUiStateStore } from "../ui-state-store";
+import { syncBrowserChromeTheme } from "../hooks/use-theme";
 import {
   ensureEnvironmentConnectionBootstrapped,
   getPrimaryEnvironmentConnection,

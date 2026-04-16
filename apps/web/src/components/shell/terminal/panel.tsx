@@ -9,7 +9,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { readTerminalHostTheme } from "~/components/shell/terminal/terminal-host-theme";
 import { useTheme } from "~/hooks/use-theme";
-import { readNativeEnvironmentApi } from "~/native-api";
+import { readNativeEnvironmentApi } from "~/lib/native-runtime-api";
 
 function workbenchThreadId(cwd: string) {
   return `workbench:${cwd}`;
@@ -74,10 +74,7 @@ function readDesktopTheme(view: DesktopTerminalAppearance) {
   } satisfies ITheme;
 }
 
-export function TerminalPanel(props: {
-  cwd: string | null;
-  environmentId?: EnvironmentId | null;
-}) {
+export function TerminalPanel(props: { cwd: string | null; environmentId?: EnvironmentId | null }) {
   const ref = useRef<HTMLDivElement>(null);
   const term = useRef<Terminal | null>(null);
   const fit = useRef<FitAddon | null>(null);

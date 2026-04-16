@@ -11,7 +11,7 @@ import {
   useThreadSummary,
 } from "~/lib/thread-session-store";
 import { selectBootstrapCompleteForActiveEnvironment, useStore } from "~/store";
-import { createThreadSelectorAcrossEnvironments } from "~/storeSelectors";
+import { createThreadSelectorAcrossEnvironments } from "~/store-selectors";
 import { AskTool } from "./ask-tool";
 import { HeroComposerFooter } from "./hero-composer-footer";
 import { ChatComposer, type ChatComposerHandle } from "~/components/shell/composer/chat";

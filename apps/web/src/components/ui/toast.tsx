@@ -16,9 +16,9 @@ import {
 
 import { cn } from "~/lib/utils";
 import { buttonVariants } from "~/components/ui/button";
-import { useComposerDraftStore } from "~/composerDraftStore";
-import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
-import { resolveThreadRouteTarget } from "~/threadRoutes";
+import { useComposerDraftStore } from "~/composer-draft-store";
+import { useCopyToClipboard } from "~/hooks/use-copy-to-clipboard";
+import { resolveThreadRouteTarget } from "~/thread-routes";
 import {
   buildVisibleToastLayout,
   shouldHideCollapsedToastContent,

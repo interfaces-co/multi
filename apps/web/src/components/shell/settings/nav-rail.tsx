@@ -9,7 +9,7 @@ import {
 import type { ComponentType } from "react";
 
 import { Button } from "~/components/ui/button";
-import { useSettingsRestore } from "../../settings/SettingsPanels";
+import { useSettingsRestore } from "../../settings/settings-panels";
 import { cn } from "~/lib/utils";
 
 const items: {

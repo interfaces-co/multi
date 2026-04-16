@@ -86,10 +86,7 @@ function toolDetailsRecord(details: Json | null): Record<string, Json> | null {
   return details as Record<string, Json>;
 }
 
-export function toolFileDiff(
-  name: string,
-  call: UiToolCallBlock | null,
-): FileDiffMetadata | null {
+export function toolFileDiff(name: string, call: UiToolCallBlock | null): FileDiffMetadata | null {
   const r = resolvedToolName(name);
   const raw = (call?.arguments ?? {}) as Record<string, Json>;
   const path = editPath(raw);
@@ -190,10 +187,7 @@ function editPath(args: Record<string, Json>) {
   return "";
 }
 
-export function toolPathFromCall(
-  call: UiToolCallBlock | null,
-  argsJson?: string,
-): string | null {
+export function toolPathFromCall(call: UiToolCallBlock | null, argsJson?: string): string | null {
   const raw = call?.arguments;
   if (raw && typeof raw === "object") {
     const p = editPath(raw as Record<string, Json>).trim();
@@ -441,7 +435,10 @@ function unified(entry: EditEntry): React.ReactNode[] {
 
   for (const l of old) {
     lines.push(
-      <div key={`d${lines.length}`} className="bg-chrome-diff-deletion-bg text-chrome-diff-deletion">
+      <div
+        key={`d${lines.length}`}
+        className="bg-chrome-diff-deletion-bg text-chrome-diff-deletion"
+      >
         <span className="select-none opacity-50">- </span>
         {l}
       </div>,
@@ -449,7 +446,10 @@ function unified(entry: EditEntry): React.ReactNode[] {
   }
   for (const l of next) {
     lines.push(
-      <div key={`a${lines.length}`} className="bg-chrome-diff-addition-bg text-chrome-diff-addition">
+      <div
+        key={`a${lines.length}`}
+        className="bg-chrome-diff-addition-bg text-chrome-diff-addition"
+      >
         <span className="select-none opacity-50">+ </span>
         {l}
       </div>,
