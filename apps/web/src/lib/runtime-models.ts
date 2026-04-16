@@ -26,8 +26,7 @@ import {
 } from "../provider-models";
 import { useStore } from "../store";
 import type { Project } from "../types";
-
-const WORKSPACE_KEY = "multi:workspace-cwd";
+import { readStoredWorkspaceCwd } from "./workspace-state";
 
 export interface RuntimeModelItem extends HarnessModelRef {
   key: string;
@@ -52,9 +51,7 @@ export interface RuntimeDefaultsRead {
 const commandId = () => CommandId.makeUnsafe(crypto.randomUUID());
 
 export function readStoredCwd() {
-  if (typeof window === "undefined") return null;
-  const raw = window.localStorage.getItem(WORKSPACE_KEY)?.trim();
-  return raw && raw.length > 0 ? raw : null;
+  return readStoredWorkspaceCwd();
 }
 
 export function resolveActiveProject(projects: readonly Project[], cwd = readStoredCwd()) {

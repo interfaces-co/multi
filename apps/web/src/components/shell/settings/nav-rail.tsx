@@ -9,8 +9,8 @@ import {
 import type { ComponentType } from "react";
 
 import { Button } from "~/components/ui/button";
-import { useSettingsRestore } from "../../settings/settings-panels";
 import { cn } from "~/lib/utils";
+import { useSettingsRestoreState } from "../../settings/settings-restore-context";
 
 const items: {
   to: "/settings/general" | "/settings/connections" | "/settings/archived";
@@ -22,8 +22,8 @@ const items: {
   { to: "/settings/archived", label: "Archived", icon: IconArchive },
 ];
 
-export function SettingsNavRail(props: { onRestoreTick?: () => void }) {
-  const { changedSettingLabels, restoreDefaults } = useSettingsRestore(props.onRestoreTick);
+export function SettingsNavRail() {
+  const { changedSettingLabels, restoreDefaults } = useSettingsRestoreState();
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-1 px-2 pt-1.5 pb-2">

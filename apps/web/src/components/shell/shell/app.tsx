@@ -472,7 +472,6 @@ export function AppShell(props: {
   left: ReactNode;
   center: ReactNode;
   right: RightPanels | null;
-  title: string;
   changesCount: number;
   routeThreadId?: string | null;
   gitFocusId?: string | null;

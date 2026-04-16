@@ -62,6 +62,7 @@ import {
 } from "../lib/project-paths";
 import { isTerminalFocused } from "../lib/terminal-focus";
 import { getLatestThreadForProject } from "../lib/thread-sort";
+import { writeStoredWorkspaceCwd } from "../lib/workspace-state";
 import { cn, isMacPlatform, isWindowsPlatform, newCommandId, newProjectId } from "../lib/utils";
 import {
   selectProjectsAcrossEnvironments,
@@ -746,6 +747,7 @@ function OpenCommandPaletteDialog() {
         cwd,
       );
       if (existing) {
+        writeStoredWorkspaceCwd(cwd);
         const latestThread = getLatestThreadForProject(
           threads.filter((thread) => thread.environmentId === existing.environmentId),
           existing.id,
@@ -782,6 +784,7 @@ function OpenCommandPaletteDialog() {
           },
           createdAt: new Date().toISOString(),
         });
+        writeStoredWorkspaceCwd(cwd);
         await handleNewThread(scopeProjectRef(browseEnvironmentId, projectId), {
           envMode: settings.defaultThreadEnvMode,
         }).catch(() => undefined);

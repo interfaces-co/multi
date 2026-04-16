@@ -11,7 +11,6 @@ import { useEffect, useEffectEvent, useRef } from "react";
 import { QueryClient, useQueryClient } from "@tanstack/react-query";
 
 import { APP_DISPLAY_NAME } from "../branding";
-import { ShellHost } from "../components/shell-host";
 import { CommandPalette } from "../components/command-palette";
 import { TaskCompletionNotifications } from "../notifications/taskCompletion";
 import {
@@ -27,7 +26,7 @@ import {
   getServerConfigUpdatedNotification,
   ServerConfigUpdatedNotification,
   startServerStateSync,
-  useServerConfig,
+  useServerEnvironment,
   useServerConfigUpdatedSubscription,
   useServerWelcomeSubscription,
 } from "../rpc/server-state";
@@ -66,7 +65,6 @@ export const Route = createRootRouteWithContext<{
 });
 
 function RootRouteView() {
-  const pathname = useLocation({ select: (location) => location.pathname });
   const { authGateState } = Route.useRouteContext();
 
   useEffect(() => {
@@ -76,11 +74,7 @@ function RootRouteView() {
     return () => {
       window.cancelAnimationFrame(frame);
     };
-  }, [pathname]);
-
-  if (pathname === "/pair") {
-    return <Outlet />;
-  }
+  }, [authGateState.status]);
 
   if (authGateState.status !== "authenticated") {
     return <Outlet />;
@@ -97,9 +91,7 @@ function RootRouteView() {
         <TaskCompletionNotifications />
         <WebSocketConnectionSurface>
           <CommandPalette>
-            <ShellHost>
-              <Outlet />
-            </ShellHost>
+            <Outlet />
           </CommandPalette>
         </WebSocketConnectionSurface>
       </AnchoredToastProvider>
@@ -210,7 +202,7 @@ function EventRouter() {
   const handledBootstrapThreadIdRef = useRef<string | null>(null);
   const seenServerConfigUpdateIdRef = useRef(getServerConfigUpdatedNotification()?.id ?? 0);
   const disposedRef = useRef(false);
-  const serverConfig = useServerConfig();
+  const serverEnvironment = useServerEnvironment();
 
   const handleWelcome = useEffectEvent((payload: ServerLifecycleWelcomePayload | null) => {
     if (!payload) return;
@@ -288,7 +280,8 @@ function EventRouter() {
               return;
             }
 
-            void Promise.resolve(serverConfig ?? api.server.getConfig())
+            void api.server
+              .getConfig()
               .then((config) => {
                 const editor = resolveAndPersistPreferredEditor(config.availableEditors);
                 if (!editor) {
@@ -311,13 +304,13 @@ function EventRouter() {
   );
 
   useEffect(() => {
-    if (!serverConfig) {
+    if (!serverEnvironment) {
       return;
     }
 
-    updatePrimaryEnvironmentDescriptor(serverConfig.environment);
-    setActiveEnvironmentId(serverConfig.environment.environmentId);
-  }, [serverConfig, setActiveEnvironmentId]);
+    updatePrimaryEnvironmentDescriptor(serverEnvironment);
+    setActiveEnvironmentId(serverEnvironment.environmentId);
+  }, [serverEnvironment, setActiveEnvironmentId]);
 
   useEffect(() => {
     disposedRef.current = false;

@@ -1,18 +1,20 @@
 import type { EnvironmentId } from "@multi/contracts";
-import { Outlet, useLocation, useNavigate } from "@tanstack/react-router";
+import { Outlet, useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useCallback, useEffect, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import { BrowserPanel } from "~/components/browser-panel";
+import { useCommandPaletteStore } from "~/command-palette-store";
 import { isElectron } from "~/env";
 import { useEnvironmentGitPanel } from "~/hooks/use-environment-git";
 import { useRouteThreadId } from "~/hooks/use-route-thread-id";
 import { useChatDraftStore, hasDraft } from "~/lib/chat-draft-store";
 import type { ChatDraftSnapshot } from "~/lib/chat-draft-store";
 import { shellPanelsActions } from "~/lib/shell-panels-store";
-import { resolveWorkbenchBrowserThreadId } from "~/lib/workbench-browser-scope";
 import { useThreadUnreadStore } from "~/lib/thread-unread-store";
 import { type SessionListSummary } from "~/lib/ui-session-types";
+import { writeStoredWorkspaceCwd } from "~/lib/workspace-state";
+import { resolveWorkbenchBrowserThreadId } from "~/lib/workbench-browser-scope";
 import { buildWorkspaceChatSections } from "~/lib/sidebar-chat-view-model";
 import { cn } from "~/lib/utils";
 import {
@@ -21,15 +23,15 @@ import {
   useStore,
 } from "~/store";
 import type { Project, Thread } from "~/types";
-import { AppShell } from "./shell/shell/app";
 import { GitPanel } from "./shell/git/panel";
+import { AppShell } from "./shell/shell/app";
+import { WorkbenchPanel } from "./shell/shell/workbench-panel";
+import { ShellSettingsProvider } from "./shell/settings/context";
+import { SettingsNavRail } from "./shell/settings/nav-rail";
 import { ShellSidebarFooter } from "./shell/sidebar/footer";
 import { ShellSidebarHeader } from "./shell/sidebar/header";
 import { ThreadRail } from "./shell/sidebar/thread-rail";
-import { ShellSettingsProvider } from "./shell/settings/context";
-import { SettingsNavRail } from "./shell/settings/nav-rail";
 import { TerminalPanel } from "./shell/terminal/panel";
-import { WorkbenchPanel } from "./shell/shell/workbench-panel";
 
 function toHarness(provider: Thread["modelSelection"]["provider"]): "codex" | "claudeCode" {
   return provider === "claudeAgent" ? "claudeCode" : "codex";
@@ -55,22 +57,58 @@ function toSummary(thread: Thread, project: Project | undefined): SessionListSum
   };
 }
 
-export function ShellHost({ children }: { children?: ReactNode }) {
-  const pathname = useLocation({ select: (l) => l.pathname });
+export function ShellHost(props: { children?: ReactNode; mode: "chat" | "settings" }) {
+  return (
+    <ShellSettingsProvider>
+      {props.mode === "settings" ? (
+        <SettingsShellHost>{props.children}</SettingsShellHost>
+      ) : (
+        <ChatShellHost>{props.children}</ChatShellHost>
+      )}
+    </ShellSettingsProvider>
+  );
+}
+
+function SettingsShellHost(props: { children?: ReactNode }) {
   const navigate = useNavigate();
-  const isSettings = pathname.startsWith("/settings");
+  const firstProjectCwd = useStore(
+    (store) => selectProjectsAcrossEnvironments(store)[0]?.cwd ?? null,
+  );
+
+  const settingsLeft = (
+    <div className="thread-rail-pad flex min-h-0 flex-1 flex-col px-0">
+      <SettingsNavRail />
+      <ShellSidebarFooter settings />
+    </div>
+  );
+
+  return (
+    <AppShell
+      cwd={firstProjectCwd}
+      changesCount={0}
+      onBack={() => void navigate({ to: "/" })}
+      left={settingsLeft}
+      center={props.children ?? <Outlet />}
+      right={null}
+    />
+  );
+}
+
+function ChatShellHost(props: { children?: ReactNode }) {
+  const navigate = useNavigate();
+  const openAddProject = useCommandPaletteStore((store) => store.openAddProject);
   const routeThreadId = useRouteThreadId();
   const projects = useStore(useShallow(selectProjectsAcrossEnvironments));
   const threads = useStore(useShallow(selectThreadsAcrossEnvironments));
   const firstProjectCwd = projects[0]?.cwd ?? null;
 
-  const root = useChatDraftStore((s) => s.root);
-  const items = useChatDraftStore((s) => s.items);
-  const cur = useChatDraftStore((s) => s.cur);
-  const pick = useChatDraftStore((s) => s.pick);
-  const park = useChatDraftStore((s) => s.park);
+  const root = useChatDraftStore((store) => store.root);
+  const items = useChatDraftStore((store) => store.items);
+  const cur = useChatDraftStore((store) => store.cur);
+  const pick = useChatDraftStore((store) => store.pick);
+  const park = useChatDraftStore((store) => store.park);
   const drafts = useMemo(() => Object.values(items) as ChatDraftSnapshot[], [items]);
-  const unread = useThreadUnreadStore((s) => s.unread);
+  const unread = useThreadUnreadStore((store) => store.unread);
 
   const selectedId = routeThreadId ?? cur;
 
@@ -117,21 +155,10 @@ export function ShellHost({ children }: { children?: ReactNode }) {
     [activeCwd, drafts, summaries, unreadIds],
   );
 
-  const selected = useMemo(
-    () =>
-      selectedId
-        ? (sections.flatMap((section) => section.items).find((item) => item.id === selectedId) ??
-          null)
-        : null,
-    [sections, selectedId],
-  );
-
   useEffect(() => {
     if (!routeThreadId || cur === null) return;
     pick(null);
   }, [cur, pick, routeThreadId]);
-
-  const title = !selectedId ? "New chat" : selected?.title || "New chat";
 
   const create = useCallback(() => {
     if (routeThreadId) {
@@ -148,11 +175,15 @@ export function ShellHost({ children }: { children?: ReactNode }) {
     }
   }, [activeCwd, cur, firstProjectCwd, navigate, park, pick, root.files, root.text, routeThreadId]);
 
-  const clearThreadUnread = useThreadUnreadStore((s) => s.clear);
+  const clearThreadUnread = useThreadUnreadStore((store) => store.clear);
 
   const select = useCallback(
     (id: string) => {
       if (id in items) {
+        const draft = items[id];
+        if (draft?.cwd) {
+          writeStoredWorkspaceCwd(draft.cwd);
+        }
         pick(id);
         void navigate({ to: "/" });
         return;
@@ -161,13 +192,17 @@ export function ShellHost({ children }: { children?: ReactNode }) {
       pick(null);
       const thread = threads.find((entry: Thread) => entry.id === id);
       if (thread) {
+        const cwd = thread.worktreePath ?? projectById.get(thread.projectId)?.cwd;
+        if (cwd) {
+          writeStoredWorkspaceCwd(cwd);
+        }
         void navigate({
           to: "/$environmentId/$threadId",
           params: { environmentId: thread.environmentId, threadId: id },
         });
       }
     },
-    [clearThreadUnread, items, navigate, pick, threads],
+    [clearThreadUnread, items, navigate, pick, projectById, threads],
   );
 
   const chatLeft = (
@@ -175,6 +210,7 @@ export function ShellHost({ children }: { children?: ReactNode }) {
       <div className={cn("shrink-0", isElectron && "no-drag")}>
         <ShellSidebarHeader
           onNewChat={create}
+          onAddProject={openAddProject}
           {...(isElectron ? {} : { onCollapse: () => shellPanelsActions.toggleLeft(activeCwd) })}
         />
       </div>
@@ -190,47 +226,30 @@ export function ShellHost({ children }: { children?: ReactNode }) {
     </div>
   );
 
-  const settingsLeft = (
-    <div className="thread-rail-pad flex min-h-0 flex-1 flex-col px-0">
-      <SettingsNavRail />
-      <ShellSidebarFooter settings />
-    </div>
-  );
-
   if (isElectron) {
     return (
-      <ShellSettingsProvider>
-        <DesktopShellHost
-          title={isSettings ? "Settings" : title}
-          {...(isSettings ? { onBack: () => void navigate({ to: "/" }) } : {})}
-          left={isSettings ? settingsLeft : chatLeft}
-          center={children ?? <Outlet />}
-          routeThreadId={routeThreadId}
-          cwd={activeCwd}
-          environmentId={activeEnvironmentId}
-        />
-      </ShellSettingsProvider>
+      <DesktopChatShellHost
+        left={chatLeft}
+        center={props.children ?? <Outlet />}
+        routeThreadId={routeThreadId}
+        cwd={activeCwd}
+        environmentId={activeEnvironmentId}
+      />
     );
   }
 
   return (
-    <ShellSettingsProvider>
-      <AppShell
-        cwd={activeCwd}
-        title={isSettings ? "Settings" : title}
-        changesCount={0}
-        {...(isSettings ? { onBack: () => void navigate({ to: "/" }) } : {})}
-        left={isSettings ? settingsLeft : chatLeft}
-        center={children ?? <Outlet />}
-        right={null}
-      />
-    </ShellSettingsProvider>
+    <AppShell
+      cwd={activeCwd}
+      changesCount={0}
+      left={chatLeft}
+      center={props.children ?? <Outlet />}
+      right={null}
+    />
   );
 }
 
-function DesktopShellHost(props: {
-  title: string;
-  onBack?: () => void;
+function DesktopChatShellHost(props: {
   left: ReactNode;
   center: ReactNode;
   routeThreadId: string | null;
@@ -243,11 +262,9 @@ function DesktopShellHost(props: {
   return (
     <AppShell
       cwd={props.cwd}
-      title={props.title}
       changesCount={git.count}
       routeThreadId={props.routeThreadId}
       gitFocusId={git.focusId}
-      {...(props.onBack ? { onBack: props.onBack } : {})}
       left={props.left}
       center={props.center}
       right={{

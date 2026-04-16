@@ -121,6 +121,52 @@ type InputDraft = {
   custom: Record<string, string>;
 };
 
+function applyInputDraftAnswer(
+  next: InputDraft,
+  input: { questionId: string; custom?: string; values?: string[] },
+): InputDraft {
+  const custom = input.custom?.trim();
+  if (custom && custom.length > 0) {
+    return {
+      ...next,
+      custom: {
+        ...next.custom,
+        [input.questionId]: custom,
+      },
+      values: Object.fromEntries(
+        Object.entries(next.values).filter(([id]) => id !== input.questionId),
+      ),
+    };
+  }
+
+  const values = (input.values ?? [])
+    .filter((entry): entry is string => typeof entry === "string")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+  if (values.length > 0) {
+    return {
+      ...next,
+      values: {
+        ...next.values,
+        [input.questionId]: values,
+      },
+      custom: Object.fromEntries(
+        Object.entries(next.custom).filter(([id]) => id !== input.questionId),
+      ),
+    };
+  }
+
+  return {
+    ...next,
+    values: Object.fromEntries(
+      Object.entries(next.values).filter(([id]) => id !== input.questionId),
+    ),
+    custom: Object.fromEntries(
+      Object.entries(next.custom).filter(([id]) => id !== input.questionId),
+    ),
+  };
+}
+
 export function useRuntimeSession(sessionId: string | null, harness?: HarnessKind | null) {
   const navigate = useNavigate();
   const shell = useShellState();
@@ -485,59 +531,13 @@ export function useRuntimeSession(sessionId: string | null, harness?: HarnessKin
       return answers;
     };
 
-    const answer = (
-      next: InputDraft,
-      input: { questionId: string; custom?: string; values?: string[] },
-    ) => {
-      const custom = input.custom?.trim();
-      if (custom && custom.length > 0) {
-        return {
-          ...next,
-          custom: {
-            ...next.custom,
-            [input.questionId]: custom,
-          },
-          values: Object.fromEntries(
-            Object.entries(next.values).filter(([id]) => id !== input.questionId),
-          ),
-        };
-      }
-
-      const values = (input.values ?? [])
-        .filter((entry): entry is string => typeof entry === "string")
-        .map((entry) => entry.trim())
-        .filter((entry) => entry.length > 0);
-      if (values.length > 0) {
-        return {
-          ...next,
-          values: {
-            ...next.values,
-            [input.questionId]: values,
-          },
-          custom: Object.fromEntries(
-            Object.entries(next.custom).filter(([id]) => id !== input.questionId),
-          ),
-        };
-      }
-
-      return {
-        ...next,
-        values: Object.fromEntries(
-          Object.entries(next.values).filter(([id]) => id !== input.questionId),
-        ),
-        custom: Object.fromEntries(
-          Object.entries(next.custom).filter(([id]) => id !== input.questionId),
-        ),
-      };
-    };
-
     if (reply.type === "abort") {
       respond({});
       return;
     }
 
     if (reply.type === "back") {
-      const next = answer(
+      const next = applyInputDraftAnswer(
         {
           current,
           values: { ...cur.values },
@@ -579,7 +579,7 @@ export function useRuntimeSession(sessionId: string | null, harness?: HarnessKin
       return;
     }
 
-    const next = answer(
+    const next = applyInputDraftAnswer(
       {
         current,
         values: { ...cur.values },

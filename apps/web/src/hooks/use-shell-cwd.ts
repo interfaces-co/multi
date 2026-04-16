@@ -3,6 +3,7 @@ import { useMemo, useSyncExternalStore } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import { SHELL_LAYOUT_CHANGED_EVENT } from "../lib/shell-runtime-constants";
+import { readStoredWorkspaceCwd } from "../lib/workspace-state";
 import { useServerAvailableEditors } from "../rpc/server-state";
 import {
   selectProjectsAcrossEnvironments,
@@ -10,14 +11,6 @@ import {
   useStore,
 } from "../store";
 import { useRouteThreadId } from "./use-route-thread-id";
-
-const WORKSPACE_KEY = "multi:workspace-cwd";
-
-function readStoredCwd() {
-  if (typeof window === "undefined") return null;
-  const raw = window.localStorage.getItem(WORKSPACE_KEY)?.trim();
-  return raw && raw.length > 0 ? raw : null;
-}
 
 function basename(cwd: string | null) {
   if (!cwd) return null;
@@ -33,20 +26,31 @@ function subscribe(listener: () => void) {
   };
 }
 
+export function resolveShellCwd(input: {
+  projects: ReadonlyArray<{ id: string; cwd: string }>;
+  threads: ReadonlyArray<{ id: string; projectId: string; worktreePath: string | null }>;
+  routeThreadId: string | null;
+  stored: string | null;
+}) {
+  const byId = new Map(input.projects.map((item) => [item.id, item]));
+  const thread = input.routeThreadId
+    ? (input.threads.find((item) => item.id === input.routeThreadId) ?? null)
+    : null;
+  const storedProject = input.projects.find((item) => item.cwd === input.stored) ?? null;
+  const threadProject = thread ? (byId.get(thread.projectId) ?? null) : null;
+  const project = threadProject ?? storedProject ?? input.projects[0] ?? null;
+  return thread?.worktreePath ?? project?.cwd ?? null;
+}
+
 export function useShellState() {
   const editors = useServerAvailableEditors();
   const routeThreadId = useRouteThreadId();
   const projects = useStore(useShallow(selectProjectsAcrossEnvironments));
   const threads = useStore(useShallow(selectThreadsAcrossEnvironments));
-  const stored = useSyncExternalStore(subscribe, readStoredCwd, () => null);
+  const stored = useSyncExternalStore(subscribe, readStoredWorkspaceCwd, () => null);
 
   return useMemo(() => {
-    const byId = new Map(projects.map((item) => [item.id, item]));
-    const thread = routeThreadId ? threads.find((item) => item.id === routeThreadId) : null;
-    const storedProject = projects.find((item) => item.cwd === stored) ?? null;
-    const threadProject = thread ? (byId.get(thread.projectId) ?? null) : null;
-    const project = storedProject ?? threadProject ?? projects[0] ?? null;
-    const cwd = thread?.worktreePath ?? project?.cwd ?? null;
+    const cwd = resolveShellCwd({ projects, threads, routeThreadId, stored });
 
     return {
       cwd,
