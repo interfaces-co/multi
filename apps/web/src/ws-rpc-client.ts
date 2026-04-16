@@ -1,0 +1,25 @@
+import type { EnvironmentId } from "@t3tools/contracts";
+
+import { getPrimaryEnvironmentConnection, readEnvironmentConnection } from "./environments/runtime";
+import type { WsRpcClient } from "./rpc/wsRpcClient";
+
+export type { WsRpcClient } from "./rpc/wsRpcClient";
+
+export function getWsRpcClient(): WsRpcClient {
+  return getPrimaryEnvironmentConnection().client;
+}
+
+export function getWsRpcClientForEnvironment(
+  environmentId: EnvironmentId | null | undefined,
+): WsRpcClient {
+  if (!environmentId) {
+    return getWsRpcClient();
+  }
+
+  const connection = readEnvironmentConnection(environmentId);
+  if (!connection) {
+    return getWsRpcClient();
+  }
+
+  return connection.client;
+}

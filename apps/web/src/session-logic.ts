@@ -32,6 +32,30 @@ export const PROVIDER_OPTIONS: Array<{
   { value: "cursor", label: "Cursor", available: false },
 ];
 
+export interface WorkLogSubagent {
+  threadId: string;
+  providerThreadId?: string | undefined;
+  resolvedThreadId?: string | undefined;
+  agentId?: string | undefined;
+  nickname?: string | undefined;
+  role?: string | undefined;
+  model?: string | undefined;
+  prompt?: string | undefined;
+  rawStatus?: string | undefined;
+  latestUpdate?: string | undefined;
+  title?: string | undefined;
+  statusLabel?: string | undefined;
+  isActive?: boolean | undefined;
+}
+
+export interface WorkLogSubagentAction {
+  tool: string;
+  status: string;
+  summaryText: string;
+  model?: string | undefined;
+  prompt?: string | undefined;
+}
+
 export interface WorkLogEntry {
   id: string;
   createdAt: string;
@@ -44,6 +68,8 @@ export interface WorkLogEntry {
   toolTitle?: string;
   itemType?: ToolLifecycleItemType;
   requestKind?: PendingApproval["requestKind"];
+  subagents?: ReadonlyArray<WorkLogSubagent>;
+  subagentAction?: WorkLogSubagentAction;
 }
 
 interface DerivedWorkLogEntry extends WorkLogEntry {
@@ -62,6 +88,10 @@ export interface PendingUserInput {
   requestId: ApprovalRequestId;
   createdAt: string;
   questions: ReadonlyArray<UserInputQuestion>;
+}
+
+export interface ActiveBackgroundTasksState {
+  activeCount: number;
 }
 
 export interface ActivePlanState {
@@ -126,7 +156,10 @@ export function formatElapsed(startIso: string, endIso: string | undefined): str
   return formatDuration(endedAt - startedAt);
 }
 
-type LatestTurnTiming = Pick<OrchestrationLatestTurn, "turnId" | "startedAt" | "completedAt">;
+type LatestTurnTiming = Pick<
+  OrchestrationLatestTurn,
+  "turnId" | "state" | "startedAt" | "completedAt"
+>;
 type SessionActivityState = Pick<ThreadSession, "orchestrationStatus" | "activeTurnId">;
 
 export function isLatestTurnSettled(
@@ -135,9 +168,22 @@ export function isLatestTurnSettled(
 ): boolean {
   if (!latestTurn?.startedAt) return false;
   if (!latestTurn.completedAt) return false;
+  if (latestTurn.state === "interrupted" || latestTurn.state === "error") {
+    return true;
+  }
   if (!session) return true;
   if (session.orchestrationStatus === "running") return false;
   return true;
+}
+
+export function hasLiveLatestTurn(
+  latestTurn: LatestTurnTiming | null,
+  session: SessionActivityState | null,
+): boolean {
+  if (!latestTurn?.startedAt) {
+    return false;
+  }
+  return !isLatestTurnSettled(latestTurn, session);
 }
 
 export function deriveActiveWorkStartedAt(
@@ -147,16 +193,46 @@ export function deriveActiveWorkStartedAt(
 ): string | null {
   const runningTurnId =
     session?.orchestrationStatus === "running" ? (session.activeTurnId ?? null) : null;
+  if (runningTurnId !== null && runningTurnId === latestTurn?.turnId) {
+    return latestTurn?.startedAt ?? sendStartedAt;
+  }
   if (runningTurnId !== null) {
-    if (latestTurn?.turnId === runningTurnId) {
-      return latestTurn.startedAt ?? sendStartedAt;
-    }
     return sendStartedAt;
   }
   if (!isLatestTurnSettled(latestTurn, session)) {
     return latestTurn?.startedAt ?? sendStartedAt;
   }
   return sendStartedAt;
+}
+
+export function hasLiveTurnTailWork(input: {
+  latestTurn: Pick<OrchestrationLatestTurn, "turnId" | "completedAt"> | null;
+  messages: ReadonlyArray<Pick<ChatMessage, "role" | "streaming" | "turnId">>;
+  activities: ReadonlyArray<OrchestrationThreadActivity>;
+  session?: Pick<ThreadSession, "orchestrationStatus"> | null;
+}): boolean {
+  const latestTurnId = input.latestTurn?.turnId;
+  if (!latestTurnId) {
+    return false;
+  }
+
+  const hasStreamingAssistantText = input.messages.some(
+    (message) =>
+      message.role === "assistant" && message.turnId === latestTurnId && message.streaming,
+  );
+  if (hasStreamingAssistantText) {
+    return input.latestTurn?.completedAt == null;
+  }
+
+  if (input.session?.orchestrationStatus !== "running") {
+    return false;
+  }
+
+  if (deriveActiveBackgroundTasksState(input.activities, latestTurnId) !== null) {
+    return true;
+  }
+
+  return false;
 }
 
 function requestKindFromRequestType(requestType: unknown): PendingApproval["requestKind"] | null {
@@ -463,6 +539,66 @@ export function hasActionableProposedPlan(
   return proposedPlan !== null && proposedPlan.implementedAt === null;
 }
 
+export function deriveActiveBackgroundTasksState(
+  activities: ReadonlyArray<OrchestrationThreadActivity>,
+  latestTurnId: TurnId | undefined,
+): ActiveBackgroundTasksState | null {
+  const ordered = [...activities].toSorted(compareActivitiesByOrder);
+  const activeTasks = new Map<string, { taskType?: string | undefined }>();
+
+  for (const activity of ordered) {
+    if (
+      latestTurnId &&
+      activity.turnId &&
+      activity.turnId !== latestTurnId &&
+      activity.kind !== "task.completed"
+    ) {
+      continue;
+    }
+
+    if (
+      activity.kind !== "task.started" &&
+      activity.kind !== "task.progress" &&
+      activity.kind !== "task.completed"
+    ) {
+      continue;
+    }
+
+    const payload =
+      activity.payload && typeof activity.payload === "object"
+        ? (activity.payload as Record<string, unknown>)
+        : null;
+    const taskId = payload && typeof payload.taskId === "string" ? payload.taskId : null;
+    if (!taskId) {
+      continue;
+    }
+
+    if (activity.kind === "task.completed") {
+      activeTasks.delete(taskId);
+      continue;
+    }
+
+    const previous = activeTasks.get(taskId);
+    const taskType = payload && typeof payload.taskType === "string" ? payload.taskType : undefined;
+    activeTasks.set(taskId, {
+      taskType: taskType ?? previous?.taskType,
+    });
+  }
+
+  const activeCount = [...activeTasks.values()].filter((task) => task.taskType !== "plan").length;
+  return activeCount > 0 ? { activeCount } : null;
+}
+
+function isCollabAgentToolActivity(activity: OrchestrationThreadActivity): boolean {
+  const payload =
+    activity.payload && typeof activity.payload === "object"
+      ? (activity.payload as Record<string, unknown>)
+      : null;
+  return (
+    typeof payload?.itemType === "string" && payload.itemType.trim() === "collab_agent_tool_call"
+  );
+}
+
 export function deriveWorkLogEntries(
   activities: ReadonlyArray<OrchestrationThreadActivity>,
   latestTurnId: TurnId | undefined,
@@ -471,7 +607,9 @@ export function deriveWorkLogEntries(
   const entries = ordered
     .filter((activity) => (latestTurnId ? activity.turnId === latestTurnId : true))
     .filter((activity) => activity.kind !== "tool.started")
+    .filter((activity) => !isCollabAgentToolActivity(activity))
     .filter((activity) => activity.kind !== "task.started")
+    .filter((activity) => activity.kind !== "account.rate-limits.updated")
     .filter((activity) => activity.kind !== "context-window.updated")
     .filter((activity) => activity.summary !== "Checkpoint captured")
     .filter((activity) => !isPlanBoundaryToolActivity(activity))

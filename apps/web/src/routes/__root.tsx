@@ -11,8 +11,9 @@ import { useEffect, useEffectEvent, useRef } from "react";
 import { QueryClient, useQueryClient } from "@tanstack/react-query";
 
 import { APP_DISPLAY_NAME } from "../branding";
-import { AppSidebarLayout } from "../components/AppSidebarLayout";
+import { GlassShellHost } from "../components/glass-shell-host";
 import { CommandPalette } from "../components/CommandPalette";
+import { TaskCompletionNotifications } from "../notifications/taskCompletion";
 import {
   SlowRpcAckToastCoordinator,
   WebSocketConnectionCoordinator,
@@ -93,11 +94,12 @@ function RootRouteView() {
         <EventRouter />
         <WebSocketConnectionCoordinator />
         <SlowRpcAckToastCoordinator />
+        <TaskCompletionNotifications />
         <WebSocketConnectionSurface>
           <CommandPalette>
-            <AppSidebarLayout>
+            <GlassShellHost>
               <Outlet />
-            </AppSidebarLayout>
+            </GlassShellHost>
           </CommandPalette>
         </WebSocketConnectionSurface>
       </AnchoredToastProvider>

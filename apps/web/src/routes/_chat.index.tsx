@@ -1,9 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { NoActiveThreadState } from "../components/NoActiveThreadState";
+import { GlassChatSession } from "../components/glass-chat-session";
+import { usePrimaryEnvironmentId } from "~/environments/primary";
 
 function ChatIndexRouteView() {
-  return <NoActiveThreadState />;
+  const environmentId = usePrimaryEnvironmentId();
+  if (!environmentId) return null;
+
+  return <GlassChatSession environmentId={environmentId} routeKind="draft" />;
 }
 
 export const Route = createFileRoute("/_chat/")({

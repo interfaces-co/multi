@@ -1,9 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
-import ChatView from "../components/ChatView";
+import { GlassChatSession } from "../components/glass-chat-session";
 import { threadHasStarted } from "../components/ChatView.logic";
 import { useComposerDraftStore, DraftId } from "../composerDraftStore";
-import { SidebarInset } from "../components/ui/sidebar";
 import { createThreadSelectorAcrossEnvironments } from "../storeSelectors";
 import { useStore } from "../store";
 import { buildThreadRouteParams } from "../threadRoutes";
@@ -55,13 +54,13 @@ function DraftChatThreadRouteView() {
 
   if (canonicalThreadRef) {
     return (
-      <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none bg-background text-foreground">
-        <ChatView
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <GlassChatSession
           environmentId={canonicalThreadRef.environmentId}
           threadId={canonicalThreadRef.threadId}
           routeKind="server"
         />
-      </SidebarInset>
+      </div>
     );
   }
 
@@ -70,14 +69,14 @@ function DraftChatThreadRouteView() {
   }
 
   return (
-    <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none bg-background text-foreground">
-      <ChatView
-        draftId={draftId}
+    <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      <GlassChatSession
+        draftId={draftId as string}
         environmentId={draftSession.environmentId}
         threadId={draftSession.threadId}
         routeKind="draft"
       />
-    </SidebarInset>
+    </div>
   );
 }
 

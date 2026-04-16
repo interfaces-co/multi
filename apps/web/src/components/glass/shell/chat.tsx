@@ -1,0 +1,221 @@
+// @ts-nocheck
+"use client";
+
+import { Outlet, useNavigate } from "@tanstack/react-router";
+import { type ReactNode, useCallback, useEffect } from "react";
+import { useShallow } from "zustand/react/shallow";
+
+import { isElectron } from "~/env";
+import { useGlassAgents } from "~/hooks/use-glass-agents";
+import { useGlassGitPanel } from "~/hooks/use-glass-git";
+import { useGlassShellPanels } from "~/hooks/use-glass-shell-panels";
+import { useShellState } from "~/hooks/use-shell-cwd";
+import { useGlassChatDraftStore, hasDraft } from "~/lib/glass-chat-draft-store";
+import { useGlassThreadUnreadStore } from "~/lib/glass-thread-unread-store";
+import { switchWorkspace } from "~/lib/glass-workspace";
+import { cn } from "~/lib/utils";
+import { useDefaultHarness } from "~/lib/harness-picker";
+import { useGlassShellStore } from "~/lib/glass-shell-store";
+import { useThreadSummariesStatus } from "~/lib/thread-session-store";
+import { selectProjectsAcrossEnvironments, useStore } from "~/store";
+import { GlassAppShell } from "./app";
+import { GlassCommandPalette } from "./command-palette";
+import { PlaceholderPanel, WorkbenchPanel } from "./workbench-panel";
+import { GlassGitPanel } from "~/components/glass/git/panel";
+import { GlassTerminalPanel } from "~/components/glass/terminal/panel";
+import { GlassSidebarFooter } from "~/components/glass/sidebar/footer";
+import { GlassSidebarHeader } from "~/components/glass/sidebar/header";
+import { GlassThreadRail } from "~/components/glass/sidebar/thread-rail";
+
+export function GlassChatShell() {
+  const navigate = useNavigate();
+  const { cwd, home } = useShellState();
+  const p = useGlassShellPanels(cwd);
+  const { kind } = useDefaultHarness();
+  const projects = useStore(useShallow(selectProjectsAcrossEnvironments));
+  const sumsStatus = useThreadSummariesStatus();
+  const clear = useGlassShellStore((state) => state.clear);
+  const root = useGlassChatDraftStore((state) => state.root);
+  const items = useGlassChatDraftStore((state) => state.items);
+  const cur = useGlassChatDraftStore((state) => state.cur);
+  const pick = useGlassChatDraftStore((state) => state.pick);
+  const park = useGlassChatDraftStore((state) => state.park);
+  const { sections, routeThreadId, selectedId, selected, loading, error } = useGlassAgents(
+    cwd,
+    home,
+  );
+
+  useEffect(() => {
+    clear();
+  }, [clear, selectedId]);
+
+  useEffect(() => {
+    if (!routeThreadId || cur === null) return;
+    pick(null);
+  }, [cur, pick, routeThreadId]);
+
+  useEffect(() => {
+    if (!selected?.cwd) return;
+    if (cwd !== null && selected.cwd === cwd) return;
+
+    void switchWorkspace(selected.cwd);
+  }, [cwd, selected?.cwd]);
+
+  const title = !selectedId
+    ? "New chat"
+    : routeThreadId && sumsStatus === "loading"
+      ? "Loading chat"
+      : routeThreadId && sumsStatus === "error"
+        ? "Chat unavailable"
+        : selected?.title || "New chat";
+
+  const create = useCallback(
+    (next?: string) => {
+      void (async () => {
+        const base = cwd ?? projects[0]?.cwd ?? null;
+        const target = next ?? base;
+
+        if (routeThreadId) {
+          pick(null);
+          await navigate({ to: "/" });
+          if (target && target !== cwd) await switchWorkspace(target);
+          return;
+        }
+        if (cur) {
+          pick(null);
+          if (target && target !== cwd) await switchWorkspace(target);
+          return;
+        }
+        if (hasDraft(root.text, root.files)) {
+          park(cwd ?? projects[0]?.cwd ?? target ?? "/", kind);
+        }
+        if (target && target !== cwd) await switchWorkspace(target);
+      })();
+    },
+    [cur, cwd, kind, navigate, park, pick, projects, root.files, root.text, routeThreadId],
+  );
+
+  const clearThreadUnread = useGlassThreadUnreadStore((s) => s.clear);
+
+  const select = useCallback(
+    (id: string) => {
+      if (id in items) {
+        pick(id);
+        void navigate({ to: "/" });
+        return;
+      }
+      clearThreadUnread(id);
+      pick(null);
+      void navigate({
+        to: "/$environmentId/$threadId",
+        params: { environmentId: "", threadId: id },
+      });
+    },
+    [clearThreadUnread, items, navigate, pick],
+  );
+
+  const left = (
+    <div className="glass-thread-rail-pad flex min-h-0 flex-1 flex-col px-0">
+      <div className={cn("shrink-0", isElectron && "no-drag")}>
+        <GlassSidebarHeader onNewChat={create} />
+      </div>
+      <GlassThreadRail
+        loading={loading}
+        error={error}
+        sections={sections}
+        selectedId={selectedId}
+        onSelectAgent={select}
+        onNewAgent={create}
+      />
+      <GlassSidebarFooter />
+    </div>
+  );
+
+  return (
+    <>
+      <GlassCommandPalette panels={p} onNewChat={create} routeThreadId={routeThreadId} />
+      {isElectron ? (
+        <GlassDesktopShell
+          cwd={cwd}
+          left={left}
+          title={title}
+          routeThreadId={routeThreadId}
+          panels={p}
+        />
+      ) : (
+        <GlassWebShell left={left} title={title} panels={p} />
+      )}
+    </>
+  );
+}
+
+function GlassDesktopShell(props: {
+  cwd: string | null;
+  left: ReactNode;
+  title: string;
+  routeThreadId: string | null;
+  panels: ReturnType<typeof useGlassShellPanels>;
+}) {
+  const git = useGlassGitPanel();
+  const mute = useGlassShellStore((state) => state.mute);
+  const unmute = useGlassShellStore((state) => state.unmute);
+  const muted = useGlassShellStore((state) =>
+    props.cwd ? Boolean(state.mutes[props.cwd]) : false,
+  );
+  const autoOpen = Boolean(props.routeThreadId && git.focusId && !muted);
+  const rightOpen = props.panels.rightOpen || autoOpen;
+  const tab = props.panels.activeTab;
+
+  return (
+    <GlassAppShell
+      title={props.title}
+      changesCount={git.count}
+      panels={{
+        ...props.panels,
+        rightOpen,
+        setRightOpen: (open) => {
+          if (props.cwd) {
+            if (open) unmute(props.cwd);
+            if (!open) mute(props.cwd);
+          }
+          props.panels.setRightOpen(open);
+        },
+        toggleRight: () => {
+          const next = !rightOpen;
+          if (props.cwd) {
+            if (next) unmute(props.cwd);
+            if (!next) mute(props.cwd);
+          }
+          props.panels.setRightOpen(next);
+        },
+      }}
+      left={props.left}
+      center={<Outlet />}
+      right={
+        <WorkbenchPanel>
+          {tab === "git" && <GlassGitPanel git={git} />}
+          {tab === "terminal" && <GlassTerminalPanel cwd={props.cwd} />}
+          {tab === "web" && <PlaceholderPanel label="Web" />}
+          {tab === "files" && <PlaceholderPanel label="Files" />}
+        </WorkbenchPanel>
+      }
+    />
+  );
+}
+
+function GlassWebShell(props: {
+  left: ReactNode;
+  title: string;
+  panels: ReturnType<typeof useGlassShellPanels>;
+}) {
+  return (
+    <GlassAppShell
+      title={props.title}
+      changesCount={0}
+      panels={props.panels}
+      left={props.left}
+      center={<Outlet />}
+      right={null}
+    />
+  );
+}

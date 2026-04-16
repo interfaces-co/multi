@@ -1219,6 +1219,7 @@ describe("hasToolActivityForTurn", () => {
 describe("isLatestTurnSettled", () => {
   const latestTurn = {
     turnId: TurnId.make("turn-1"),
+    state: "completed" as const,
     startedAt: "2026-02-27T21:10:00.000Z",
     completedAt: "2026-02-27T21:10:06.000Z",
   } as const;
@@ -1250,11 +1251,40 @@ describe("isLatestTurnSettled", () => {
     ).toBe(true);
   });
 
+  it("returns true immediately for interrupted turns", () => {
+    expect(
+      isLatestTurnSettled(
+        {
+          turnId: TurnId.make("turn-1"),
+          state: "interrupted" as const,
+          startedAt: "2026-02-27T21:10:00.000Z",
+          completedAt: "2026-02-27T21:10:06.000Z",
+        },
+        { orchestrationStatus: "running", activeTurnId: TurnId.make("turn-1") },
+      ),
+    ).toBe(true);
+  });
+
+  it("returns true immediately for error turns", () => {
+    expect(
+      isLatestTurnSettled(
+        {
+          turnId: TurnId.make("turn-1"),
+          state: "error" as const,
+          startedAt: "2026-02-27T21:10:00.000Z",
+          completedAt: "2026-02-27T21:10:06.000Z",
+        },
+        { orchestrationStatus: "running", activeTurnId: TurnId.make("turn-1") },
+      ),
+    ).toBe(true);
+  });
+
   it("returns false when turn timestamps are incomplete", () => {
     expect(
       isLatestTurnSettled(
         {
           turnId: TurnId.make("turn-1"),
+          state: "running" as const,
           startedAt: null,
           completedAt: "2026-02-27T21:10:06.000Z",
         },
@@ -1267,6 +1297,7 @@ describe("isLatestTurnSettled", () => {
 describe("deriveActiveWorkStartedAt", () => {
   const latestTurn = {
     turnId: TurnId.make("turn-1"),
+    state: "completed" as const,
     startedAt: "2026-02-27T21:10:00.000Z",
     completedAt: "2026-02-27T21:10:06.000Z",
   } as const;
@@ -1315,6 +1346,7 @@ describe("deriveActiveWorkStartedAt", () => {
       deriveActiveWorkStartedAt(
         {
           turnId: TurnId.make("turn-1"),
+          state: "completed" as const,
           startedAt: "2026-02-27T21:10:00.000Z",
           completedAt: "2026-02-27T21:10:06.000Z",
         },

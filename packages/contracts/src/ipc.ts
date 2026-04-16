@@ -51,7 +51,7 @@ import type {
   OrchestrationSubscribeThreadInput,
   OrchestrationThreadStreamItem,
 } from "./orchestration";
-import type { EnvironmentId } from "./baseSchemas";
+import type { EnvironmentId, ThreadId } from "./baseSchemas";
 import { EditorId } from "./editor";
 import { ClientSettings, ServerSettings, ServerSettingsPatch } from "./settings";
 
@@ -145,6 +145,82 @@ export interface PickFolderOptions {
   initialPath?: string | null;
 }
 
+export interface BrowserTabState {
+  id: string;
+  url: string;
+  title: string;
+  status: "live" | "suspended";
+  isLoading: boolean;
+  canGoBack: boolean;
+  canGoForward: boolean;
+  faviconUrl: string | null;
+  lastCommittedUrl: string | null;
+  lastError: string | null;
+}
+
+export interface ThreadBrowserState {
+  threadId: ThreadId;
+  open: boolean;
+  activeTabId: string | null;
+  tabs: BrowserTabState[];
+  lastError: string | null;
+}
+
+export interface BrowserOpenInput {
+  threadId: ThreadId;
+  initialUrl?: string;
+}
+
+export interface BrowserThreadInput {
+  threadId: ThreadId;
+}
+
+export interface BrowserTabInput {
+  threadId: ThreadId;
+  tabId: string;
+}
+
+export interface BrowserNavigateInput {
+  threadId: ThreadId;
+  tabId?: string;
+  url: string;
+}
+
+export interface BrowserNewTabInput {
+  threadId: ThreadId;
+  url?: string;
+  activate?: boolean;
+}
+
+export interface BrowserPanelBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface BrowserSetPanelBoundsInput {
+  threadId: ThreadId;
+  bounds: BrowserPanelBounds | null;
+}
+
+export interface DesktopBrowserBridge {
+  open: (input: BrowserOpenInput) => Promise<ThreadBrowserState>;
+  close: (input: BrowserThreadInput) => Promise<void>;
+  hide: (input: BrowserThreadInput) => Promise<void>;
+  getState: (input: BrowserThreadInput) => Promise<ThreadBrowserState | null>;
+  setPanelBounds: (input: BrowserSetPanelBoundsInput) => Promise<void>;
+  navigate: (input: BrowserNavigateInput) => Promise<ThreadBrowserState>;
+  reload: (input: BrowserTabInput) => Promise<ThreadBrowserState>;
+  goBack: (input: BrowserTabInput) => Promise<ThreadBrowserState>;
+  goForward: (input: BrowserTabInput) => Promise<ThreadBrowserState>;
+  newTab: (input: BrowserNewTabInput) => Promise<ThreadBrowserState>;
+  closeTab: (input: BrowserTabInput) => Promise<ThreadBrowserState>;
+  selectTab: (input: BrowserTabInput) => Promise<ThreadBrowserState>;
+  openDevTools: (input: BrowserTabInput) => Promise<void>;
+  onState: (listener: (state: ThreadBrowserState) => void) => () => void;
+}
+
 export interface DesktopBridge {
   getAppBranding: () => DesktopAppBranding | null;
   getLocalEnvironmentBootstrap: () => DesktopEnvironmentBootstrap | null;
@@ -168,6 +244,16 @@ export interface DesktopBridge {
   ) => Promise<T | null>;
   openExternal: (url: string) => Promise<boolean>;
   onMenuAction: (listener: (action: string) => void) => () => void;
+  browser: DesktopBrowserBridge;
+  notifications: {
+    isSupported: () => Promise<boolean>;
+    show: (input: {
+      title: string;
+      body: string;
+      silent?: boolean;
+      threadId?: string;
+    }) => Promise<boolean>;
+  };
   getUpdateState: () => Promise<DesktopUpdateState>;
   setUpdateChannel: (channel: DesktopUpdateChannel) => Promise<DesktopUpdateState>;
   checkForUpdate: () => Promise<DesktopUpdateCheckResult>;

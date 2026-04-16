@@ -1,0 +1,341 @@
+/* Suppress all transitions during theme changes */
+.no-transitions,
+.no-transitions *,
+.no-transitions *::before,
+.no-transitions *::after {
+  transition-duration: 0s !important;
+  animation-duration: 0s !important;
+}
+
+:root {
+  color-scheme: light;
+  --radius: 0.5rem;
+  --background: var(--color-white);
+  --foreground: var(--color-neutral-800);
+  --card: var(--color-white);
+  --card-foreground: var(--color-neutral-800);
+  --popover: var(--color-white);
+  --popover-foreground: var(--color-neutral-800);
+  /* Neutral primary — Glass shell, not dashboard purple */
+  --primary: oklch(0.28 0.02 260);
+  --primary-foreground: var(--color-white);
+  --secondary: --alpha(var(--color-black) / 4%);
+  --secondary-foreground: var(--color-neutral-800);
+  --muted: --alpha(var(--color-black) / 4%);
+  --muted-foreground: color-mix(in srgb, var(--color-neutral-500) 90%, var(--color-black));
+  --accent: --alpha(var(--color-black) / 4%);
+  --accent-foreground: var(--color-neutral-800);
+  --destructive: var(--color-red-500);
+  --border: --alpha(var(--color-black) / 8%);
+  --input: --alpha(var(--color-black) / 10%);
+  --ring: oklch(0.28 0.02 260 / 38%);
+  --destructive-foreground: var(--color-red-700);
+  --info: var(--color-blue-500);
+  --info-foreground: var(--color-blue-700);
+  --success: var(--color-emerald-500);
+  --success-foreground: var(--color-emerald-700);
+  --warning: var(--color-amber-500);
+  --warning-foreground: var(--color-amber-700);
+
+  @variant dark {
+    color-scheme: dark;
+    --background: color-mix(in srgb, var(--color-neutral-950) 95%, var(--color-white));
+    --foreground: var(--color-neutral-100);
+    --card: color-mix(in srgb, var(--background) 98%, var(--color-white));
+    --card-foreground: var(--color-neutral-100);
+    --popover: color-mix(in srgb, var(--background) 98%, var(--color-white));
+    --popover-foreground: var(--color-neutral-100);
+    --primary: oklch(0.88 0.02 260);
+    --primary-foreground: var(--color-neutral-950);
+    --secondary: --alpha(var(--color-white) / 4%);
+    --secondary-foreground: var(--color-neutral-100);
+    --muted: --alpha(var(--color-white) / 4%);
+    --muted-foreground: color-mix(in srgb, var(--color-neutral-500) 90%, var(--color-white));
+    --accent: --alpha(var(--color-white) / 4%);
+    --accent-foreground: var(--color-neutral-100);
+    --destructive: color-mix(in srgb, var(--color-red-500) 90%, var(--color-white));
+    --border: --alpha(var(--color-white) / 6%);
+    --input: --alpha(var(--color-white) / 8%);
+    --ring: oklch(0.88 0.02 260 / 45%);
+    --destructive-foreground: var(--color-red-400);
+    --info: var(--color-blue-500);
+    --info-foreground: var(--color-blue-400);
+    --success: var(--color-emerald-500);
+    --success-foreground: var(--color-emerald-400);
+    --warning: var(--color-amber-500);
+    --warning-foreground: var(--color-amber-400);
+  }
+}
+
+body {
+  font-family: var(--glass-font-ui);
+  font-size: var(--glass-ui-font-size-user, 13px);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  max-width: 100%;
+  overflow-y: hidden;
+  overflow-x: hidden;
+  overflow-x: clip;
+  overscroll-behavior-y: none;
+}
+
+pre,
+code {
+  font-family: var(--glass-font-mono);
+  font-size: var(--glass-code-font-size-user, 12px);
+}
+
+/* Window drag region (frameless titlebar) */
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.drag-region button,
+.drag-region input,
+.drag-region textarea,
+.drag-region select,
+.drag-region a {
+  -webkit-app-region: no-drag;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.turn-chip-strip {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  overscroll-behavior-x: contain;
+}
+
+.turn-chip-strip::-webkit-scrollbar {
+  display: none;
+}
+
+/* Terminal drawer scrollbar parity with chat */
+.thread-terminal-drawer .xterm .xterm-scrollable-element > .scrollbar.vertical {
+  width: 6px !important;
+}
+
+.thread-terminal-drawer .xterm .xterm-scrollable-element > .scrollbar > .slider {
+  border-radius: 3px;
+}
+
+.thread-terminal-drawer .xterm .xterm-scrollable-element > .scrollbar.vertical > .slider {
+  width: 6px !important;
+  left: 0 !important;
+}
+
+/* Reasoning select -- clickable label surface */
+label:has(> select#reasoning-effort) {
+  position: relative;
+}
+label:has(> select#reasoning-effort) select {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+
+/* Chat collapsibles: no focus ring that reads as an extra outline on the header row */
+[data-slot="collapsible-trigger"]:focus,
+[data-slot="collapsible-trigger"]:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Tool / terminal output: one flat strip (not a second card inside the tool rail) */
+.tool-output-surface {
+  border-radius: 0.125rem;
+  background: color-mix(in srgb, var(--foreground) 3.5%, transparent);
+  padding: 0.375rem 0.5rem;
+}
+
+/* Plain tool transcript (grep, bash, errors): wrap long paths, match card surface — no white code-block card */
+.tool-terminal {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  border-radius: 0.25rem;
+  padding: 0.5rem 0.625rem;
+  background: color-mix(in srgb, var(--foreground) 4.5%, transparent);
+}
+
+.dark .tool-terminal {
+  background: color-mix(in srgb, var(--foreground) 7%, transparent);
+}
+
+.embed-diff.tool-output-surface {
+  padding: 0.375rem 0.5rem;
+}
+
+/* Embedded diffs: compact pierre/diffs inside tool panels */
+.embed-diff {
+  /* Pierre :host uses light-dark(var(--diffs-light-bg), var(--diffs-dark-bg)) — inherit these so the diff isn’t a separate white slab */
+  --diffs-light-bg: color-mix(in srgb, var(--color-glass-bubble) 55%, var(--background));
+  --diffs-dark-bg: color-mix(in srgb, var(--color-glass-bubble) 48%, var(--background));
+  --diffs-bg-addition-override: var(--glass-diff-addition-bg);
+  --diffs-bg-deletion-override: var(--glass-diff-deletion-bg);
+  /* Pierre tints the gutter column by default — reads as a left green/red strip; tint only the code column */
+  --diffs-bg-addition-number-override: transparent;
+  --diffs-bg-deletion-number-override: transparent;
+  --diffs-addition-color-override: var(--glass-diff-addition);
+  --diffs-deletion-color-override: var(--glass-diff-deletion);
+  --diffs-bg-context-override: color-mix(in srgb, var(--foreground) 2.5%, var(--diffs-light-bg));
+  --diffs-bg-buffer-override: transparent;
+  --diffs-bg-hover-override: transparent;
+  --diffs-bg-separator-override: transparent;
+}
+
+.dark .embed-diff {
+  --diffs-bg-context-override: color-mix(in srgb, var(--foreground) 4%, var(--diffs-dark-bg));
+}
+
+/* Line-level diff only: no rounded token-level emphasis boxes */
+.embed-diff [data-diff-span] {
+  background-color: transparent !important;
+  border-radius: 0;
+}
+
+.embed-diff [data-diffs-container] {
+  overflow: visible;
+}
+
+.embed-diff [data-disable-line-numbers] [data-gutter] [data-column-number],
+.embed-diff [data-disable-line-numbers] [data-gutter] [data-gutter-buffer] {
+  border-right: none !important;
+}
+
+.embed-diff .diff-render-file {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+/* Diffs theme bridge (match diff surfaces to app palette) */
+.diff-panel-viewport {
+  background: color-mix(in srgb, var(--background) 94%, var(--card));
+}
+
+.diff-render-file {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  overflow: clip;
+  background: color-mix(in srgb, var(--card) 92%, var(--background));
+}
+
+@keyframes ultrathink-rainbow {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+@keyframes ultrathink-chroma-shift {
+  0% {
+    filter: hue-rotate(0deg) saturate(1.2);
+  }
+  100% {
+    filter: hue-rotate(360deg) saturate(1.2);
+  }
+}
+
+.ultrathink-frame {
+  --ultrathink-spectrum: linear-gradient(
+    120deg,
+    #ff6b6b 0%,
+    #f59e0b 18%,
+    #22c55e 36%,
+    #14b8a6 54%,
+    #3b82f6 72%,
+    #ec4899 90%,
+    #ff6b6b 100%
+  );
+  background-image: var(--ultrathink-spectrum);
+  background-size: 220% 220%;
+  animation: ultrathink-rainbow 10s linear infinite;
+}
+
+.ultrathink-chroma {
+  animation: ultrathink-chroma-shift 10s linear infinite;
+}
+
+.ultrathink-pill {
+  background:
+    linear-gradient(var(--card), var(--card)) padding-box,
+    var(--ultrathink-spectrum) border-box;
+  background-size:
+    100% 100%,
+    220% 220%;
+  background-position:
+    0 0,
+    0% 50%;
+  animation: ultrathink-rainbow 10s linear infinite;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--card) 82%, transparent);
+}
+
+.ultrathink-word {
+  display: inline-block;
+  color: transparent;
+  background-image: var(--ultrathink-spectrum);
+  background-size: 220% 220%;
+  background-position: 0% 50%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  animation: ultrathink-rainbow 10s linear infinite;
+}
+
+/* Dev: React Grab plugin toggles `html.glass-overlay-debug` — outlines overlay hosts (see `react-grab-overlay-debug.ts`). */
+html.glass-overlay-debug [data-slot="tooltip-content"],
+html.glass-overlay-debug [data-slot="popover-token-menu"],
+html.glass-overlay-debug [data-slot="context-menu-popup"] {
+  outline: 2px solid hsl(280 85% 58% / 0.88);
+  outline-offset: 2px;
+}
+
+html.glass-overlay-debug [data-slot="tooltip-trigger"],
+html.glass-overlay-debug [data-slot="context-menu-trigger"] {
+  outline: 1px dashed hsl(200 78% 52% / 0.85);
+  outline-offset: 2px;
+}
+
+html.glass-overlay-debug [data-slot="context-menu-root"] {
+  outline: 1px dotted hsl(45 90% 55% / 0.45);
+  outline-offset: 1px;
+}

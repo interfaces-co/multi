@@ -1991,6 +1991,25 @@ function createWindow(): BrowserWindow {
   window.webContents.on("did-finish-load", () => {
     window.setTitle(APP_DISPLAY_NAME);
     emitUpdateState();
+    revealInitialWindow();
+  });
+  window.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedUrl) => {
+    writeDesktopLogHeader(
+      `window load failed code=${errorCode} message=${errorDescription} url=${validatedUrl}`,
+    );
+    console.error("[desktop] window load failed", {
+      errorCode,
+      errorDescription,
+      validatedUrl,
+    });
+    revealInitialWindow();
+  });
+  window.webContents.on("render-process-gone", (_event, details) => {
+    writeDesktopLogHeader(
+      `renderer process gone reason=${details.reason} exitCode=${details.exitCode}`,
+    );
+    console.error("[desktop] renderer process gone", details);
+    revealInitialWindow();
   });
 
   let initialRevealScheduled = false;

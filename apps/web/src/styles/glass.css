@@ -1,0 +1,419 @@
+:root {
+  --glass-font-ui:
+    "SF Pro Text", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
+  --glass-font-mono: "SF Mono", "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
+  --glass-header-height: var(--glass-header-height-user, 40px);
+  --glass-titlebar-control-height: 22px;
+  --glass-titlebar-control-row-top: calc(
+    (var(--glass-header-height) - var(--glass-titlebar-control-height)) / 2
+  );
+  /* macOS traffic lights + margin; keeps shell controls clear of the stoplight region */
+  --glass-electron-traffic-inset: 84px;
+  /* Vertical inset below traffic lights; 0 in browser, set on [data-electron] (desktop is mac-only) */
+  --glass-electron-traffic-padding-top: var(--glass-electron-traffic-padding-top-user, 0px);
+  /* User overrides: set --*-user on :root or [data-glass-theme] from Appearance settings */
+  --glass-sidebar-label-size: var(--glass-sidebar-label-size-user, 13px);
+  --glass-sidebar-label-weight: var(--glass-sidebar-label-weight-user, 400);
+  --glass-sidebar-label-leading: var(--glass-sidebar-label-leading-user, 1.35);
+  --glass-workbench-toggle-left: var(--glass-workbench-toggle-left-user, 12px);
+  --glass-workbench-toggle-right: var(--glass-workbench-toggle-right-user, 12px);
+  /* Width of floating Changes chip (label + count + icon) in GlassAppShell; right panel header pads by this + toggle-right */
+  --glass-workbench-changes-toggle-w: var(--glass-workbench-changes-toggle-w-user, 7rem);
+  /* Typography scale — relative to user preference */
+  --glass-text-caption: calc(var(--glass-ui-font-size-user, 13px) - 3px);
+  --glass-text-detail: calc(var(--glass-ui-font-size-user, 13px) - 2px);
+  --glass-text-body: var(--glass-ui-font-size-user, 13px);
+  --glass-text-title: calc(var(--glass-ui-font-size-user, 13px) + 2px);
+  --glass-text-heading: calc(var(--glass-ui-font-size-user, 13px) + 5px);
+  /* Border radius */
+  --glass-radius-control: 6px;
+  --glass-radius-card: var(--glass-radius-card-user, 10px);
+  --glass-radius-chip: var(--glass-radius-chip-user, 20px);
+  --glass-radius-pill: var(--glass-radius-chip-user, 20px);
+  /* Composer toolbar icons (+, send, model row, quick actions); override via Appearance */
+  --glass-composer-icon-size: var(--glass-composer-icon-size-user, 1rem);
+  --glass-user-hue: 255;
+  --glass-intensity: 33;
+  --glass-transparency: 18;
+  --glass-sidebar-opacity: calc((84 - var(--glass-transparency, 18) * 0.32) * 1%);
+  --glass-chat-opacity: calc((92 - var(--glass-transparency, 18) * 0.24) * 1%);
+  --glass-editor-opacity: calc((95 - var(--glass-transparency, 18) * 0.2) * 1%);
+  --glass-surface-opacity: calc((88 - var(--glass-transparency, 18) * 0.28) * 1%);
+  --glass-elevated-opacity: calc((86 - var(--glass-transparency, 18) * 0.24) * 1%);
+  --glass-bubble-opacity: calc((92 - var(--glass-transparency, 18) * 0.16) * 1%);
+  --glass-menubar-opacity: calc((88 - var(--glass-transparency, 18) * 0.3) * 1%);
+  /* Neutral panel like Cursor: slightly cooler than chat/editor; hue/saturation from Appearance when palette is Glass */
+  --glass-base-sidebar: oklch(
+    0.965 calc(0.006 + var(--glass-intensity, 33) / 100 * 0.012) var(--glass-user-hue, 255)
+  );
+  --glass-base-chat: color-mix(
+    in srgb,
+    var(--color-white) 90%,
+    oklch(0.96 calc(0.01 + var(--glass-intensity, 33) / 100 * 0.02) var(--glass-user-hue, 255))
+  );
+  --glass-base-editor: color-mix(
+    in srgb,
+    var(--color-white) 97%,
+    oklch(0.97 calc(0.01 + var(--glass-intensity, 33) / 100 * 0.015) var(--glass-user-hue, 255))
+  );
+  --glass-base-surface: color-mix(
+    in srgb,
+    var(--color-white) 94%,
+    oklch(0.96 calc(0.01 + var(--glass-intensity, 33) / 100 * 0.018) var(--glass-user-hue, 255))
+  );
+  --glass-base-elevated: color-mix(
+    in srgb,
+    var(--color-white) 84%,
+    oklch(0.94 calc(0.01 + var(--glass-intensity, 33) / 100 * 0.025) var(--glass-user-hue, 255))
+  );
+  --glass-color-sidebar: color-mix(
+    in srgb,
+    var(--glass-base-sidebar) var(--glass-sidebar-opacity),
+    transparent
+  );
+  --glass-color-chat: color-mix(
+    in srgb,
+    var(--glass-base-chat) var(--glass-chat-opacity),
+    transparent
+  );
+  /* Cursor workbench: assistant bubbles use var(--glass-chat-surface-background) */
+  --glass-chat-surface-background: var(--glass-color-chat);
+  --glass-color-editor: color-mix(
+    in srgb,
+    var(--glass-base-editor) var(--glass-editor-opacity),
+    transparent
+  );
+  --glass-color-surface: color-mix(
+    in srgb,
+    var(--glass-base-surface) var(--glass-surface-opacity),
+    transparent
+  );
+  --glass-color-elevated: color-mix(
+    in srgb,
+    var(--glass-base-elevated) var(--glass-elevated-opacity),
+    transparent
+  );
+  --glass-color-bubble: color-mix(
+    in srgb,
+    var(--glass-base-elevated) var(--glass-bubble-opacity),
+    transparent
+  );
+  --glass-color-bubble-opaque: color-mix(
+    in srgb,
+    var(--glass-base-elevated) 94%,
+    var(--background)
+  );
+  --glass-color-menubar: color-mix(
+    in srgb,
+    var(--glass-base-editor) var(--glass-menubar-opacity),
+    transparent
+  );
+  --glass-color-border: color-mix(in srgb, var(--color-black) 10%, transparent);
+  --glass-color-stroke: color-mix(in srgb, var(--glass-color-border) 88%, transparent);
+  --glass-color-stroke-tertiary: color-mix(in srgb, var(--glass-color-border) 94%, transparent);
+  --glass-color-stroke-strong: color-mix(
+    in srgb,
+    var(--glass-color-border) 72%,
+    var(--foreground) 16%
+  );
+  --glass-color-hover: color-mix(in srgb, var(--color-black) 4%, transparent);
+  --glass-color-active: color-mix(in srgb, var(--color-black) 7%, transparent);
+  --glass-shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --glass-shadow-popup: 0 16px 48px rgb(0 0 0 / 0.18);
+  --glass-shell-blur: 28px;
+  --glass-shell-saturate: 160%;
+  --glass-shell-sidebar-bg: var(--glass-color-sidebar);
+  --glass-shell-surface-bg: var(--glass-color-surface);
+  /* Cursor: `rgba(var(--cursor-action-icon-primary-rgb,129,161,193),.2)` — ring on drag/focus */
+  --glass-ring: oklch(0.68 0.04 240 / 0.2);
+  /* Same default as Cursor `--cursor-action-icon-primary-rgb` (Nord blue); plan chip + ring share hue */
+  --glass-cursor-action-rgb: 129 161 193;
+  --glass-plan-mode-selected-border: rgb(var(--glass-cursor-action-rgb) / 0.4);
+  --glass-plan-mode-selected-bg: rgb(var(--glass-cursor-action-rgb) / 0.12);
+  --glass-plan-mode-selected-border-hover: rgb(var(--glass-cursor-action-rgb) / 0.52);
+  --glass-plan-mode-selected-bg-hover: rgb(var(--glass-cursor-action-rgb) / 0.18);
+  --glass-plan-mode-selected-fg: color-mix(
+    in srgb,
+    rgb(var(--glass-cursor-action-rgb)) 45%,
+    var(--foreground)
+  );
+  --glass-composer-object-bg: var(--glass-plan-mode-selected-bg);
+  --glass-composer-object-bg-active: var(--glass-plan-mode-selected-bg-hover);
+  --glass-composer-object-border: var(--glass-plan-mode-selected-border);
+  --glass-composer-object-border-active: var(--glass-plan-mode-selected-border-hover);
+  --glass-composer-object-fg: var(--glass-plan-mode-selected-fg);
+  --glass-composer-object-fg-muted: color-mix(
+    in srgb,
+    var(--glass-plan-mode-selected-fg) 84%,
+    var(--foreground)
+  );
+}
+
+/*
+ * Cursor workbench parity (smart-review-panel, changes-list, review-changes-group):
+ * [data-glass-review-panel] pl-8 + summary row pr aligned to Changes toggle; list padding px-3 py-2.5; group body pl-[18px].
+ */
+
+[data-electron] {
+  --glass-workbench-toggle-left: var(
+    --glass-workbench-toggle-left-user,
+    var(--glass-electron-traffic-inset)
+  );
+  /* Pad shell chrome + left rail below the stoplight row (hiddenInset; trafficLightPosition in desktop main). */
+  --glass-electron-traffic-padding-top: var(--glass-electron-traffic-padding-top-user, 32px);
+}
+
+.glass-sidebar-label {
+  font-size: var(--glass-sidebar-label-size);
+  font-weight: var(--glass-sidebar-label-weight);
+  line-height: var(--glass-sidebar-label-leading);
+}
+
+.glass-composer-icon {
+  width: var(--glass-composer-icon-size);
+  height: var(--glass-composer-icon-size);
+  flex-shrink: 0;
+}
+
+/* Hero plan mode — selected state uses Cursor action blue tokens (see --glass-cursor-action-rgb) */
+.glass-plan-mode-chip--on {
+  border-color: var(--glass-plan-mode-selected-border);
+  background-color: var(--glass-plan-mode-selected-bg);
+  color: var(--glass-plan-mode-selected-fg);
+}
+.glass-plan-mode-chip--on:hover {
+  border-color: var(--glass-plan-mode-selected-border-hover);
+  background-color: var(--glass-plan-mode-selected-bg-hover);
+}
+
+/* Sidebar content clears traffic lights in Electron; 0 in browser. */
+.glass-thread-rail-pad {
+  padding-top: var(--glass-electron-traffic-padding-top);
+}
+
+.dark {
+  --glass-ring: oklch(0.68 0.04 240 / 0.2);
+  --glass-plan-mode-selected-fg: color-mix(in srgb, rgb(var(--glass-cursor-action-rgb)) 72%, white);
+  --glass-base-sidebar: color-mix(
+    in srgb,
+    var(--background) 90%,
+    oklch(0.35 calc(0.03 + var(--glass-intensity, 33) / 100 * 0.04) var(--glass-user-hue, 255)) 10%
+  );
+  --glass-base-chat: color-mix(
+    in srgb,
+    var(--background) 91%,
+    oklch(0.32 calc(0.02 + var(--glass-intensity, 33) / 100 * 0.03) var(--glass-user-hue, 255)) 9%
+  );
+  --glass-base-editor: color-mix(
+    in srgb,
+    var(--background) 96%,
+    oklch(0.34 calc(0.018 + var(--glass-intensity, 33) / 100 * 0.022) var(--glass-user-hue, 255)) 4%
+  );
+  --glass-base-surface: color-mix(
+    in srgb,
+    var(--background) 93%,
+    oklch(0.33 calc(0.02 + var(--glass-intensity, 33) / 100 * 0.028) var(--glass-user-hue, 255)) 7%
+  );
+  --glass-base-elevated: color-mix(
+    in srgb,
+    var(--background) 84%,
+    oklch(0.36 calc(0.022 + var(--glass-intensity, 33) / 100 * 0.032) var(--glass-user-hue, 255))
+      16%
+  );
+  --glass-color-border: color-mix(in srgb, var(--color-white) 10%, transparent);
+  --glass-color-hover: color-mix(in srgb, var(--color-white) 6%, transparent);
+  --glass-color-active: color-mix(in srgb, var(--color-white) 10%, transparent);
+  --glass-shadow-popup: 0 16px 48px rgb(0 0 0 / 0.32);
+}
+
+html.glass-reduce-transparency {
+  --glass-sidebar-opacity: 100%;
+  --glass-chat-opacity: 100%;
+  --glass-editor-opacity: 100%;
+  --glass-surface-opacity: 100%;
+  --glass-elevated-opacity: 100%;
+  --glass-bubble-opacity: 100%;
+  --glass-menubar-opacity: 100%;
+  --glass-color-bubble: var(--glass-color-bubble-opaque);
+  --glass-color-menubar: var(--glass-color-editor);
+  --glass-shell-blur: 0px;
+  --glass-shell-saturate: 100%;
+  --glass-shell-sidebar-bg: var(--glass-color-sidebar);
+  --glass-shell-surface-bg: var(--glass-color-surface);
+}
+
+.glass-shell-sidebar,
+.glass-shell-surface {
+  isolation: isolate;
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--background) 35%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--glass-color-border) 65%, transparent);
+  backdrop-filter: blur(var(--glass-shell-blur)) saturate(var(--glass-shell-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-shell-blur)) saturate(var(--glass-shell-saturate));
+}
+
+.glass-shell-sidebar {
+  background: var(--glass-shell-sidebar-bg);
+}
+
+.glass-shell-surface {
+  background: var(--glass-shell-surface-bg);
+}
+
+body {
+  background:
+    radial-gradient(
+      1200px 420px at 50% -12%,
+      color-mix(in srgb, var(--foreground) 4%, transparent),
+      transparent 58%
+    ),
+    var(--glass-color-surface);
+}
+
+.glass-settings-page {
+  font-family: var(--glass-font-ui);
+  font-size: var(--glass-ui-font-size-user, 13px);
+}
+
+.glass-settings-page button,
+.glass-settings-page input,
+.glass-settings-page [data-slot="button"],
+.glass-settings-page [data-slot="input-control"] {
+  font-family: inherit;
+  font-size: var(--glass-ui-font-size-user, 13px);
+}
+
+.glass-settings-page [data-glass-settings-title] {
+  font-size: calc(var(--glass-ui-font-size-user, 13px) * 2);
+  line-height: 1.08;
+}
+
+.glass-settings-page [data-glass-settings-lead],
+.glass-settings-page [data-glass-settings-section],
+.glass-settings-page [data-glass-settings-label],
+.glass-settings-page [data-glass-settings-description],
+.glass-settings-page [data-glass-settings-number] {
+  font-size: var(--glass-ui-font-size-user, 13px);
+}
+
+.glass-settings-page [data-glass-settings-description],
+.glass-settings-page [data-glass-settings-lead] {
+  line-height: 1.45;
+}
+
+/* Pierre diffs CSS bridge - maps to glass design tokens.
+ * Pierre renders inside Shadow DOM; inherited CSS properties and CSS custom
+ * properties pass through, but normal selectors don't.  We must set the
+ * --diffs-* variables that the shadow root reads for font/color control. */
+[data-diffs-container] {
+  --diffs-bg: var(--glass-color-surface);
+  --diffs-fg: var(--foreground);
+  --diffs-addition-color: oklch(0.72 0.19 142);
+  --diffs-deletion-color: oklch(0.63 0.24 18);
+  --diffs-light-bg: var(--glass-color-surface);
+  --diffs-dark-bg: var(--background);
+  --diffs-light: var(--foreground);
+  --diffs-dark: var(--foreground);
+  /* Font sizing — these custom properties inherit into Shadow DOM */
+  --diffs-font-family: var(--glass-font-mono);
+  --diffs-header-font-family: var(--glass-font-ui);
+  --diffs-font-size: var(--glass-code-font-size-user, 12px);
+  --diffs-line-height: calc(var(--glass-code-font-size-user, 12px) * 1.45);
+  --diffs-addition-color-override: var(--glass-diff-addition);
+  --diffs-deletion-color-override: var(--glass-diff-deletion);
+  --diffs-bg-addition-override: var(--glass-diff-addition-bg);
+  --diffs-bg-deletion-override: var(--glass-diff-deletion-bg);
+  font-family: var(--glass-font-mono);
+  font-size: var(--glass-code-font-size-user, 12px);
+  line-height: calc(var(--glass-code-font-size-user, 12px) * 1.45);
+}
+
+/* Pierre diffs container for web component */
+.web-component[data-diffs-container] {
+  background-color: var(--glass-color-surface);
+  border-radius: var(--glass-radius-card);
+}
+
+/* Let Pierre split/unified code panes scroll inside a bounded width (flex min-width:auto otherwise grows past the panel). */
+.web-component[data-diffs-container] > diffs-container {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/*
+ * Slash / @ mention launcher shell — selectors `.ui-slash-menu__content--glass`,
+ * `.ui-mention-menu-side-preview--glass`. Ported to Tailwind: `rounded-[18px]`,
+ * `border-glass-stroke`, `bg-glass-bubble`, `shadow-glass-popup`, `backdrop-blur-xl`.
+ */
+.glass-slash-menu-popup {
+  box-shadow: var(--glass-shadow-popup);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glass-composer-token-menu {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+.glass-composer-object-row--active {
+  background: var(--glass-composer-object-bg-active);
+  box-shadow: inset 0 0 0 1px var(--glass-composer-object-border-active);
+  color: var(--glass-composer-object-fg);
+}
+
+:root {
+  --glass-diff-addition: oklch(0.72 0.19 142);
+  --glass-diff-deletion: oklch(0.63 0.24 18);
+  --glass-diff-addition-bg: color-mix(in srgb, oklch(0.72 0.19 142) 10%, transparent);
+  --glass-diff-deletion-bg: color-mix(in srgb, oklch(0.63 0.24 18) 10%, transparent);
+}
+
+.dark {
+  --glass-diff-addition: oklch(0.65 0.17 142);
+  --glass-diff-deletion: oklch(0.65 0.22 18);
+  --glass-diff-addition-bg: color-mix(in srgb, oklch(0.65 0.17 142) 12%, transparent);
+  --glass-diff-deletion-bg: color-mix(in srgb, oklch(0.65 0.22 18) 12%, transparent);
+}
+
+.glass-diff-deletion-hatch {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 4px,
+    rgba(255, 255, 255, 0.03) 4px,
+    rgba(255, 255, 255, 0.03) 8px
+  );
+}
+
+.dark .glass-diff-deletion-hatch {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 4px,
+    rgba(255, 255, 255, 0.04) 4px,
+    rgba(255, 255, 255, 0.04) 8px
+  );
+}
+
+.diff-file-selected {
+  position: relative;
+}
+
+.diff-file-selected::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--primary);
+  border-radius: 0 2px 2px 0;
+}
+
+.traffic-lights-spacer {
+  flex-shrink: 0;
+  width: var(--glass-traffic-lights-spacer-width, var(--glass-electron-traffic-inset));
+}

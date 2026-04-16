@@ -9,6 +9,7 @@
     "dev": {
       "dependsOn": ["t3#build"],
       "persistent": true,
+      "with": ["@t3tools/web#dev"],
     },
     "start": {
       "dependsOn": ["build", "@t3tools/web#build", "t3#build"],

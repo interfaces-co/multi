@@ -1,0 +1,31 @@
+import { isElectronHost } from "../env";
+
+export const MACOS_TRAFFIC_LIGHTS = {
+  x: 14,
+  y: 14,
+  spacerWidth: 80,
+  paddingTop: 30,
+} as const;
+
+const TRAFFIC_LIGHT_CLUSTER_HEIGHT_PX = 16;
+const TITLEBAR_CONTROL_HEIGHT_PX = 24;
+export const TITLEBAR_CONTROL_OFFSET_TOP_PX =
+  MACOS_TRAFFIC_LIGHTS.y - (TITLEBAR_CONTROL_HEIGHT_PX - TRAFFIC_LIGHT_CLUSTER_HEIGHT_PX) / 2;
+
+const INSET = "--glass-electron-traffic-inset";
+const TOP = "--glass-electron-traffic-padding-top";
+const ROW_TOP = "--glass-titlebar-control-row-top";
+
+export function applyDesktopChromeMetrics() {
+  if (typeof document === "undefined") return;
+  const root = document.documentElement;
+  if (!isElectronHost()) {
+    root.style.removeProperty(INSET);
+    root.style.removeProperty(TOP);
+    root.style.removeProperty(ROW_TOP);
+    return;
+  }
+  root.style.setProperty(INSET, `${MACOS_TRAFFIC_LIGHTS.spacerWidth}px`);
+  root.style.setProperty(TOP, `${MACOS_TRAFFIC_LIGHTS.paddingTop}px`);
+  root.style.setProperty(ROW_TOP, `${TITLEBAR_CONTROL_OFFSET_TOP_PX}px`);
+}

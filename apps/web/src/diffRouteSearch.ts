@@ -1,6 +1,10 @@
 import { TurnId } from "@t3tools/contracts";
 
+export type ChatRightPanel = "browser" | "diff";
+
 export interface DiffRouteSearch {
+  splitViewId?: string | undefined;
+  panel?: ChatRightPanel | undefined;
   diff?: "1" | undefined;
   diffTurnId?: TurnId | undefined;
   diffFilePath?: string | undefined;
