@@ -2,10 +2,7 @@ import { IconCollaborationPointerRight, IconSidebarHiddenLeftWide } from "centra
 
 import { GlassRowButton } from "~/components/glass/shared/row-button";
 
-export function GlassSidebarHeader(props: {
-  onNewChat: () => void;
-  onCollapse?: () => void;
-}) {
+export function GlassSidebarHeader(props: { onNewChat: () => void; onCollapse?: () => void }) {
   return (
     <div className="relative z-30 flex shrink-0 items-center gap-1 px-2 pb-2 pt-1.5">
       <GlassRowButton variant="chrome" onClick={props.onNewChat} className="flex-1">

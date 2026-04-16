@@ -39,7 +39,7 @@ import {
 import { flushSync } from "react-dom";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { useNavigate } from "@tanstack/react-router";
-import { readNativeApi } from "~/native-api";
+import { readGlassRuntimeApi } from "~/native-api";
 import { useRuntimeModels } from "~/hooks/use-runtime-models";
 import { fireGlassHeroFx } from "~/lib/glass-hero-fx-store";
 import { useShellState } from "~/hooks/use-shell-cwd";
@@ -53,7 +53,7 @@ import {
 } from "~/lib/glass-attachment-styles";
 import { cn } from "~/lib/utils";
 import { useGlassSettings } from "~/components/glass/settings/context";
-import { useStore } from "~/store";
+import { selectProjectsAcrossEnvironments, useStore } from "~/store";
 import { createThreadSelectorAcrossEnvironments } from "~/storeSelectors";
 import { GLASS_EDITOR_SET_EVENT } from "~/lib/glass-runtime-constants";
 import { pushComposerDraft } from "~/lib/composer-draft-mirror";
@@ -88,7 +88,7 @@ type Pick = GlassDraftFile;
 
 /** Glass expects an optional `server.listSkills` host hook; c-t3 `LocalApi` does not define it yet. */
 async function fetchListSkillsIfSupported(
-  api: NonNullable<ReturnType<typeof readNativeApi>>,
+  api: NonNullable<ReturnType<typeof readGlassRuntimeApi>>,
 ): Promise<GlassSkill[] | null> {
   const list = (api.server as { listSkills?: () => Promise<GlassSkill[]> }).listSkills;
   if (typeof list !== "function") return null;
@@ -494,7 +494,6 @@ const AttachmentStrip = memo(function AttachmentStrip(props: {
 
 const GlassChatComposerImpl = memo(
   forwardRef<GlassChatComposerHandle, Props>(function GlassChatComposer(props, ref) {
-    const api = readNativeApi();
     const navigate = useNavigate();
     const settings = useGlassSettings();
     const shell = useShellState();
@@ -515,6 +514,24 @@ const GlassChatComposerImpl = memo(
         [props.sessionId],
       ),
     );
+    const activeEnvironmentId = useStore(
+      useMemo(
+        () => (state) => {
+          const thread = props.sessionId
+            ? createThreadSelectorAcrossEnvironments(props.sessionId)(state)
+            : null;
+          if (thread?.environmentId) {
+            return thread.environmentId;
+          }
+
+          const projects = selectProjectsAcrossEnvironments(state);
+          const shellProject = projects.find((item) => item.cwd === shell.cwd) ?? null;
+          return shellProject?.environmentId ?? projects[0]?.environmentId ?? null;
+        },
+        [props.sessionId, shell.cwd],
+      ),
+    );
+    const api = readGlassRuntimeApi(activeEnvironmentId, { allowPrimaryEnvironmentFallback: true });
     const area = useRef<HTMLTextAreaElement | null>(null);
     const modelPickerRef = useRef<GlassModelPickerHandle | null>(null);
     const shellRef = useRef<HTMLDivElement | null>(null);
@@ -628,11 +645,12 @@ const GlassChatComposerImpl = memo(
 
     useEffect(() => {
       const cwd = shell.cwd;
-      if (props.variant !== "hero" || !api || !cwd) {
+      const gitApi = api?.git;
+      if (props.variant !== "hero" || !gitApi || !cwd) {
         setGit(null);
         return;
       }
-      return api.git.onStatus({ cwd }, (next) => {
+      return gitApi.onStatus({ cwd }, (next) => {
         setGit(next.isRepo ? next.branch : null);
       });
     }, [api, props.variant, shell.cwd]);
@@ -896,7 +914,8 @@ const GlassChatComposerImpl = memo(
     }, [api, slashOpen]);
 
     useEffect(() => {
-      if (!api || !at || !shell.cwd) {
+      const projectsApi = api?.projects;
+      if (!projectsApi || !at || !shell.cwd) {
         setHits([]);
         setPreview(null);
         setLoading(false);
@@ -904,7 +923,7 @@ const GlassChatComposerImpl = memo(
       }
       let off = false;
       setLoading(true);
-      void api.projects
+      void projectsApi
         .searchEntries({ cwd: shell.cwd, query: at.query || ".", limit: 50 })
         .then((result) => {
           if (off) return;

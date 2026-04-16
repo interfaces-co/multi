@@ -1,16 +1,16 @@
 // @ts-nocheck
 import type { FileDiffMetadata } from "@pierre/diffs";
-import type { GitStatusResult } from "@t3tools/contracts";
+import type { EnvironmentId, GitStatusResult } from "@t3tools/contracts";
 import type { GitFileSummary, GitState } from "~/lib/glass-types";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
 import * as Schema from "effect/Schema";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { gitPatchQueryOptions, gitQueryKeys } from "../lib/glass-git-react-query";
+import { readGlassGitApi } from "../lib/glass-git-api";
 import { useGlassShellStore } from "../lib/glass-shell-store";
-import { readNativeApi } from "../native-api";
 import { selectBootstrapCompleteForActiveEnvironment, useStore } from "../store";
-import { getWsRpcClient } from "../ws-rpc-client";
+import { getWsRpcClientForEnvironment } from "../ws-rpc-client";
 import { useLocalStorage } from "./use-local-storage";
 import { useShellState } from "./use-shell-cwd";
 
@@ -166,9 +166,8 @@ function toSnap(cwd: string, status: GitStatusResult): GitState {
   };
 }
 
-export function useGlassGitPanel(): GlassGitPanelModel {
+export function useGlassGitPanel(environmentId?: EnvironmentId | null): GlassGitPanelModel {
   const { cwd } = useShellState();
-  const api = readNativeApi();
   const boot = useStore(selectBootstrapCompleteForActiveEnvironment);
   const paths = useGlassShellStore((state) => state.paths);
   const tick = useGlassShellStore((state) => state.tick);
@@ -189,6 +188,7 @@ export function useGlassGitPanel(): GlassGitPanelModel {
 
   const load = useCallback(
     async (opts?: { reset?: boolean }) => {
+      const api = readGlassGitApi(environmentId);
       if (!api || !cwd) return null;
       const id = ++seq.current;
       setGit((state) =>
@@ -197,7 +197,7 @@ export function useGlassGitPanel(): GlassGitPanelModel {
           : { cwd, snap: null, status: null, err: null, loading: true },
       );
       try {
-        const next = await api.git.refreshStatus({ cwd });
+        const next = await api.refreshStatus({ cwd });
         if (seq.current !== id) return null;
         const snap = toSnap(cwd, next);
         setGit({ cwd, snap, status: next, err: null, loading: false });
@@ -214,10 +214,11 @@ export function useGlassGitPanel(): GlassGitPanelModel {
         return null;
       }
     },
-    [api, cwd],
+    [cwd, environmentId],
   );
 
   useEffect(() => {
+    const api = readGlassGitApi(environmentId);
     if (!api || !cwd) {
       seq.current += 1;
       prevRows.current = [];
@@ -231,7 +232,7 @@ export function useGlassGitPanel(): GlassGitPanelModel {
 
     void load({ reset: true }).then(() => {
       if (!active) return;
-      off = api.git.onStatus(
+      off = api.onStatus(
         { cwd },
         (next) => {
           setGit((state) => {
@@ -247,12 +248,12 @@ export function useGlassGitPanel(): GlassGitPanelModel {
       active = false;
       off();
     };
-  }, [api, cwd, load]);
+  }, [cwd, environmentId, load]);
 
   const cur = git.cwd === cwd ? git : null;
 
   useEffect(() => {
-    if (!api || !cwd) return;
+    if (!cwd) return;
     const sync = () => {
       if (document.visibilityState === "hidden") return;
       void load();
@@ -263,20 +264,19 @@ export function useGlassGitPanel(): GlassGitPanelModel {
       window.removeEventListener("focus", sync);
       document.removeEventListener("visibilitychange", sync);
     };
-  }, [api, cwd, load]);
+  }, [cwd, load]);
 
   useEffect(() => {
-    if (!api || !cwd || tick < 1) return;
+    if (!cwd || tick < 1) return;
     void load();
-  }, [api, cwd, load, tick]);
+  }, [cwd, load, tick]);
 
   const curSnap = cur?.snap ?? null;
   const curErr = cur?.err ?? null;
   const rows = useMemo(() => toRows(cur?.status ?? null), [cur?.status]);
   const curRows = useMemo(() => (curSnap ? rows : []), [curSnap, rows]);
   const pending =
-    Boolean(api) &&
-    ((cwd !== null && cur === null) || Boolean(cur?.loading) || (!boot && cwd === null));
+    (cwd !== null && cur === null) || Boolean(cur?.loading) || (!boot && cwd === null);
 
   const branch = cur?.status?.branch ?? null;
 
@@ -309,12 +309,18 @@ export function useGlassGitPanel(): GlassGitPanelModel {
     }
 
     for (const id of gone) {
-      qc.removeQueries({ queryKey: gitQueryKeys.patch(cwd, id), exact: true });
+      qc.removeQueries({
+        queryKey: gitQueryKeys.patch(environmentId ?? null, cwd, id),
+        exact: true,
+      });
     }
     for (const id of next.drop) {
-      void qc.invalidateQueries({ queryKey: gitQueryKeys.patch(cwd, id), exact: true });
+      void qc.invalidateQueries({
+        queryKey: gitQueryKeys.patch(environmentId ?? null, cwd, id),
+        exact: true,
+      });
     }
-  }, [curRows, cwd, qc]);
+  }, [curRows, cwd, environmentId, qc]);
 
   const open = useMemo(
     () => curRows.filter((row) => expandedIds.has(row.id)).map((row) => row.id),
@@ -324,9 +330,10 @@ export function useGlassGitPanel(): GlassGitPanelModel {
   const files = useQueries({
     queries: open.map((path) =>
       gitPatchQueryOptions({
+        environmentId: environmentId ?? null,
         cwd,
         path,
-        enabled: Boolean(api && cwd),
+        enabled: Boolean(cwd),
       }),
     ),
   });
@@ -380,7 +387,7 @@ export function useGlassGitPanel(): GlassGitPanelModel {
   const runCommit = useCallback(
     async (input: { message: string; push?: boolean }) => {
       if (!cwd) throw new Error("No workspace");
-      const rpc = getWsRpcClient();
+      const rpc = getWsRpcClientForEnvironment(environmentId ?? null);
       await rpc.git.runStackedAction({
         actionId: crypto.randomUUID(),
         cwd,
@@ -388,13 +395,13 @@ export function useGlassGitPanel(): GlassGitPanelModel {
         commitMessage: input.message,
       });
     },
-    [cwd],
+    [cwd, environmentId],
   );
 
   const runBranchCommit = useCallback(
     async (input: { message: string; push?: boolean }) => {
       if (!cwd) throw new Error("No workspace");
-      const rpc = getWsRpcClient();
+      const rpc = getWsRpcClientForEnvironment(environmentId ?? null);
       await rpc.git.runStackedAction({
         actionId: crypto.randomUUID(),
         cwd,
@@ -403,18 +410,18 @@ export function useGlassGitPanel(): GlassGitPanelModel {
         featureBranch: true,
       });
     },
-    [cwd],
+    [cwd, environmentId],
   );
 
   const runPush = useCallback(async () => {
     if (!cwd) throw new Error("No workspace");
-    const rpc = getWsRpcClient();
+    const rpc = getWsRpcClientForEnvironment(environmentId ?? null);
     await rpc.git.runStackedAction({
       actionId: crypto.randomUUID(),
       cwd,
       action: "push",
     });
-  }, [cwd]);
+  }, [cwd, environmentId]);
 
   return {
     snap: curSnap,
@@ -437,9 +444,10 @@ export function useGlassGitPanel(): GlassGitPanelModel {
     collapseAll,
     refresh: load,
     init: async () => {
+      const api = readGlassGitApi(environmentId);
       if (!api || !cwd) return null;
       try {
-        await api.git.init({ cwd });
+        await api.init({ cwd });
       } catch (err) {
         setGit((state) =>
           state.cwd !== cwd
@@ -454,9 +462,10 @@ export function useGlassGitPanel(): GlassGitPanelModel {
       return load();
     },
     discard: async (paths) => {
+      const api = readGlassGitApi(environmentId);
       if (!api || !cwd) return curSnap;
       try {
-        await api.git.discardPaths({ cwd, paths });
+        await api.discardPaths({ cwd, paths });
       } catch (err) {
         setGit((state) =>
           state.cwd !== cwd

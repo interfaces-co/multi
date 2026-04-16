@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { CommandId, ProjectId } from "@t3tools/contracts";
 
-import { readNativeApi } from "../native-api";
+import { readGlassEnvironmentApi, readNativeApi } from "../native-api";
 import { useStore } from "../store";
 import { GLASS_SHELL_CHANGED_EVENT } from "./glass-runtime-constants";
 
@@ -13,15 +13,19 @@ function projectId() {
 }
 
 export async function pickWorkspace() {
-  const api = readNativeApi();
-  if (!api) return null;
+  const localApi = readNativeApi();
+  if (!localApi) return null;
 
-  const cwd = await api.dialogs.pickFolder();
+  const cwd = await localApi.dialogs.pickFolder();
   if (!cwd) return null;
 
   const hit = useStore.getState().projects.find((item) => item.cwd === cwd);
   if (!hit) {
-    await api.orchestration.dispatchCommand({
+    const environmentApi = readGlassEnvironmentApi(null, { allowPrimaryEnvironmentFallback: true });
+    if (!environmentApi) {
+      return null;
+    }
+    await environmentApi.orchestration.dispatchCommand({
       type: "project.create",
       commandId: CommandId.makeUnsafe(crypto.randomUUID()),
       projectId: projectId(),

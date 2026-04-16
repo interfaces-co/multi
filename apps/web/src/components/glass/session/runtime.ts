@@ -14,7 +14,7 @@ import { useNavigate } from "@tanstack/react-router";
 
 import { useRuntimeDefaults } from "~/hooks/use-runtime-models";
 import { useShellState } from "~/hooks/use-shell-cwd";
-import { readNativeApi } from "~/native-api";
+import { readGlassRuntimeApi } from "~/native-api";
 import { useServerProviders } from "~/rpc/server-state";
 import {
   applyFastMode,
@@ -122,7 +122,6 @@ type InputDraft = {
 };
 
 export function useRuntimeSession(sessionId: string | null, harness?: HarnessKind | null) {
-  const api = readNativeApi();
   const navigate = useNavigate();
   const shell = useShellState();
   const defs = useRuntimeDefaults();
@@ -164,6 +163,9 @@ export function useRuntimeSession(sessionId: string | null, harness?: HarnessKin
       : null;
     return shellProject ?? threadProject ?? projects[0] ?? null;
   }, [projects, shell.cwd, thread]);
+  const environmentId = thread?.environmentId ?? project?.environmentId ?? null;
+  const api = readGlassRuntimeApi(environmentId, { allowPrimaryEnvironmentFallback: true });
+  const orchestrationApi = api?.orchestration ?? null;
 
   const pendingInputs = useMemo(
     () => (thread ? derivePendingUserInputs(thread.activities) : []),
@@ -253,7 +255,7 @@ export function useRuntimeSession(sessionId: string | null, harness?: HarnessKin
     draft?: { id: string; title: string | null; interactionMode?: ProviderInteractionMode } | null,
   ) => {
     if (sessionId) return sessionId as ThreadId;
-    if (!api || !project) {
+    if (!orchestrationApi || !project) {
       throw new Error("No active project available.");
     }
 
@@ -270,7 +272,7 @@ export function useRuntimeSession(sessionId: string | null, harness?: HarnessKin
     const interactionMode =
       draft?.interactionMode ?? useGlassChatDraftStore.getState().root.interactionMode;
 
-    await api.orchestration.dispatchCommand({
+    await orchestrationApi.dispatchCommand({
       type: "thread.create",
       commandId: commandId(),
       threadId: nextThreadId,
@@ -304,13 +306,13 @@ export function useRuntimeSession(sessionId: string | null, harness?: HarnessKin
     const payload =
       typeof input === "string" ? { text: input.trim(), attachments: [] } : foldAttachments(input);
     if (!payload.text && payload.attachments.length === 0) return false;
-    if (!api) return false;
+    if (!orchestrationApi) return false;
 
     const nextThreadId = await ensureThread(payload.text.slice(0, 80), draft);
     markThreadPending(nextThreadId);
     try {
       const current = useStore.getState().threads.find((item) => item.id === nextThreadId) ?? null;
-      await api.orchestration.dispatchCommand({
+      await orchestrationApi.dispatchCommand({
         type: "thread.turn.start",
         commandId: commandId(),
         threadId: nextThreadId,
@@ -334,8 +336,8 @@ export function useRuntimeSession(sessionId: string | null, harness?: HarnessKin
   };
 
   const abort = () => {
-    if (!api || !thread?.session?.activeTurnId) return;
-    void api.orchestration.dispatchCommand({
+    if (!orchestrationApi || !thread?.session?.activeTurnId) return;
+    void orchestrationApi.dispatchCommand({
       type: "thread.turn.interrupt",
       commandId: commandId(),
       threadId: thread.id,
@@ -349,7 +351,7 @@ export function useRuntimeSession(sessionId: string | null, harness?: HarnessKin
       void writeRuntimeDefaultModel(next);
       return;
     }
-    if (!api || !thread) return;
+    if (!orchestrationApi || !thread) return;
     const selection = normalize({
       provider: next.provider as "codex" | "claudeAgent",
       model: next.id,
@@ -357,7 +359,7 @@ export function useRuntimeSession(sessionId: string | null, harness?: HarnessKin
         ? { options: thread.modelSelection.options }
         : {}),
     });
-    void api.orchestration.dispatchCommand({
+    void orchestrationApi.dispatchCommand({
       type: "thread.meta.update",
       commandId: commandId(),
       threadId: thread.id,
@@ -375,8 +377,8 @@ export function useRuntimeSession(sessionId: string | null, harness?: HarnessKin
       void writeRuntimeDefaultThinkingLevel(level);
       return;
     }
-    if (!api || !thread) return;
-    void api.orchestration.dispatchCommand({
+    if (!orchestrationApi || !thread) return;
+    void orchestrationApi.dispatchCommand({
       type: "thread.meta.update",
       commandId: commandId(),
       threadId: thread.id,
@@ -389,8 +391,8 @@ export function useRuntimeSession(sessionId: string | null, harness?: HarnessKin
       void writeRuntimeDefaultFastMode(on);
       return;
     }
-    if (!api || !thread) return;
-    void api.orchestration.dispatchCommand({
+    if (!orchestrationApi || !thread) return;
+    void orchestrationApi.dispatchCommand({
       type: "thread.meta.update",
       commandId: commandId(),
       threadId: thread.id,
@@ -405,8 +407,8 @@ export function useRuntimeSession(sessionId: string | null, harness?: HarnessKin
 
   const setInteractionMode = useCallback(
     (mode: ProviderInteractionMode) => {
-      if (!sessionId || !api || !thread) return;
-      void api.orchestration.dispatchCommand({
+      if (!sessionId || !orchestrationApi || !thread) return;
+      void orchestrationApi.dispatchCommand({
         type: "thread.interaction-mode.set",
         commandId: commandId(),
         threadId: thread.id,
@@ -414,11 +416,11 @@ export function useRuntimeSession(sessionId: string | null, harness?: HarnessKin
         createdAt: new Date().toISOString(),
       });
     },
-    [api, sessionId, thread],
+    [orchestrationApi, sessionId, thread],
   );
 
   const answerAsk = (reply: GlassAskReply) => {
-    if (!api || !thread || !askBox) return;
+    if (!orchestrationApi || !thread || !askBox) return;
     if (askBox.mode === "approval") {
       const decision =
         reply.type === "abort"
@@ -430,7 +432,7 @@ export function useRuntimeSession(sessionId: string | null, harness?: HarnessKin
                 | "decline"
                 | "cancel")
             : "cancel";
-      void api.orchestration.dispatchCommand({
+      void orchestrationApi.dispatchCommand({
         type: "thread.approval.respond",
         commandId: commandId(),
         threadId: thread.id,
@@ -451,7 +453,7 @@ export function useRuntimeSession(sessionId: string | null, harness?: HarnessKin
     };
 
     const respond = (answers: Record<string, unknown>) => {
-      void api.orchestration.dispatchCommand({
+      void orchestrationApi.dispatchCommand({
         type: "thread.user-input.respond",
         commandId: commandId(),
         threadId: thread.id,

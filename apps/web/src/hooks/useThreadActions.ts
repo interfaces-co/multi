@@ -57,6 +57,31 @@ export function useThreadActions() {
     return resolveThreadRouteRef(currentRouteParams);
   }, [router]);
 
+  const commitRename = useCallback(
+    async (target: ScopedThreadRef, newTitle: string, originalTitle: string) => {
+      const trimmed = newTitle.trim();
+      if (trimmed.length === 0) {
+        throw new Error("Thread title cannot be empty");
+      }
+      if (trimmed === originalTitle) {
+        return;
+      }
+
+      const api = readEnvironmentApi(target.environmentId);
+      if (!api) {
+        return;
+      }
+
+      await api.orchestration.dispatchCommand({
+        type: "thread.meta.update",
+        commandId: newCommandId(),
+        threadId: target.threadId,
+        title: trimmed,
+      });
+    },
+    [],
+  );
+
   const archiveThread = useCallback(
     async (target: ScopedThreadRef) => {
       const api = readEnvironmentApi(target.environmentId);
@@ -271,6 +296,7 @@ export function useThreadActions() {
   );
 
   return {
+    commitRename,
     archiveThread,
     unarchiveThread,
     deleteThread,

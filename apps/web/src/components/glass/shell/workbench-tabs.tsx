@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  IconBranch,
-  IconConsole,
-  IconFolder1,
-  IconGlobe,
-  IconSidebarHiddenRightWide,
-} from "central-icons";
+import { IconBranch, IconConsole, IconGlobe, IconSidebarHiddenRightWide } from "central-icons";
 import type { ComponentType } from "react";
 
 import type { WorkbenchTab } from "~/hooks/use-glass-shell-panels";
@@ -21,8 +15,7 @@ interface Tab {
 const tabs: Tab[] = [
   { id: "git", label: "Git", icon: IconBranch },
   { id: "terminal", label: "Terminal", icon: IconConsole },
-  { id: "web", label: "Web", icon: IconGlobe },
-  { id: "files", label: "Files", icon: IconFolder1 },
+  { id: "browser", label: "Browser", icon: IconGlobe },
 ];
 
 export function WorkbenchTabBar(props: {

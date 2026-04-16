@@ -16,7 +16,7 @@ import {
   resolveSelectableModel,
 } from "@t3tools/shared/model";
 
-import { readNativeApi } from "../native-api";
+import { readGlassEnvironmentApi } from "../native-api";
 import { getServerConfig } from "../rpc/server-state";
 import {
   getDefaultServerModel,
@@ -379,9 +379,10 @@ export function readRuntimeDefaults(
 }
 
 export async function writeRuntimeDefaultModel(model: HarnessModelRef) {
-  const api = readNativeApi();
   const project = resolveActiveProject(useStore.getState().projects);
-  if (!api || !project) return;
+  if (!project) return;
+  const orchestration = readGlassEnvironmentApi(project.environmentId)?.orchestration;
+  if (!orchestration) return;
   const providers = getServerConfig()?.providers ?? [];
   const current = project.defaultModelSelection;
   const next = resolveRuntimeSelection(providers, {
@@ -391,7 +392,7 @@ export async function writeRuntimeDefaultModel(model: HarnessModelRef) {
       ? { options: current.options }
       : {}),
   });
-  await api.orchestration.dispatchCommand({
+  await orchestration.dispatchCommand({
     type: "project.meta.update",
     commandId: commandId(),
     projectId: project.id,
@@ -400,10 +401,11 @@ export async function writeRuntimeDefaultModel(model: HarnessModelRef) {
 }
 
 export async function clearRuntimeDefaultModel() {
-  const api = readNativeApi();
   const project = resolveActiveProject(useStore.getState().projects);
-  if (!api || !project) return;
-  await api.orchestration.dispatchCommand({
+  if (!project) return;
+  const orchestration = readGlassEnvironmentApi(project.environmentId)?.orchestration;
+  if (!orchestration) return;
+  await orchestration.dispatchCommand({
     type: "project.meta.update",
     commandId: commandId(),
     projectId: project.id,
@@ -412,12 +414,13 @@ export async function clearRuntimeDefaultModel() {
 }
 
 export async function writeRuntimeDefaultThinkingLevel(level: ThinkingLevel) {
-  const api = readNativeApi();
   const project = resolveActiveProject(useStore.getState().projects);
-  if (!api || !project) return;
+  if (!project) return;
+  const orchestration = readGlassEnvironmentApi(project.environmentId)?.orchestration;
+  if (!orchestration) return;
   const providers = getServerConfig()?.providers ?? [];
   const selection = resolveRuntimeSelection(providers, project.defaultModelSelection);
-  await api.orchestration.dispatchCommand({
+  await orchestration.dispatchCommand({
     type: "project.meta.update",
     commandId: commandId(),
     projectId: project.id,
@@ -426,12 +429,13 @@ export async function writeRuntimeDefaultThinkingLevel(level: ThinkingLevel) {
 }
 
 export async function writeRuntimeDefaultFastMode(on: boolean) {
-  const api = readNativeApi();
   const project = resolveActiveProject(useStore.getState().projects);
-  if (!api || !project) return;
+  if (!project) return;
+  const orchestration = readGlassEnvironmentApi(project.environmentId)?.orchestration;
+  if (!orchestration) return;
   const providers = getServerConfig()?.providers ?? [];
   const selection = resolveRuntimeSelection(providers, project.defaultModelSelection);
-  await api.orchestration.dispatchCommand({
+  await orchestration.dispatchCommand({
     type: "project.meta.update",
     commandId: commandId(),
     projectId: project.id,

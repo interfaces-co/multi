@@ -1,30 +1,30 @@
 // @ts-nocheck
 "use client";
 
-import { DEFAULT_TERMINAL_ID, type TerminalEvent } from "@t3tools/contracts";
+import { type EnvironmentId, DEFAULT_TERMINAL_ID, type TerminalEvent } from "@t3tools/contracts";
+import { FitAddon } from "@xterm/addon-fit";
+import { Terminal, type ITheme } from "@xterm/xterm";
 import type { DesktopTerminalAppearance } from "~/lib/glass-types";
-import type { FitAddon, Ghostty, ITheme, Terminal as Term } from "ghostty-web";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { readGlassHostTheme } from "~/components/glass/terminal/glass-terminal-theme";
 import { useTheme } from "~/hooks/use-theme";
-import { readNativeApi } from "~/native-api";
-
-let shared: Promise<{ mod: typeof import("ghostty-web"); ghostty: Ghostty }> | undefined;
-
-function loadGhostty() {
-  if (shared) return shared;
-  shared = import("ghostty-web")
-    .then(async (mod) => ({ mod, ghostty: await mod.Ghostty.load() }))
-    .catch((err) => {
-      shared = undefined;
-      throw err;
-    });
-  return shared;
-}
+import { readGlassEnvironmentApi } from "~/native-api";
 
 function workbenchThreadId(cwd: string) {
   return `workbench:${cwd}`;
+}
+
+type WorkbenchTerminalApi = NonNullable<ReturnType<typeof readGlassEnvironmentApi>>["terminal"];
+
+function readWorkbenchTerminalApi(
+  environmentId: EnvironmentId | null | undefined,
+): WorkbenchTerminalApi | null {
+  return (
+    readGlassEnvironmentApi(environmentId, {
+      allowPrimaryEnvironmentFallback: true,
+    })?.terminal ?? null
+  );
 }
 
 function readFontFamily(el: HTMLElement) {
@@ -40,21 +40,21 @@ function readFontFamily(el: HTMLElement) {
 }
 
 function readDesktopTheme(view: DesktopTerminalAppearance) {
-  if (!view.theme) return null;
-
-  const palette = view.theme.palette;
+  const theme = view.theme;
+  if (!theme) return null;
+  const palette = theme.palette ?? [];
   const pick = (idx: number, fallback: string) => {
     const value = palette[idx];
     return typeof value === "string" ? value : fallback;
   };
 
   return {
-    background: view.theme.background ?? "#101010",
-    foreground: view.theme.foreground ?? "#ffffff",
-    cursor: view.theme.cursor ?? view.theme.foreground ?? "#ffffff",
-    cursorAccent: view.theme.cursorText ?? view.theme.background ?? "#101010",
-    selectionBackground: view.theme.selectionBackground ?? "#988049",
-    selectionForeground: view.theme.selectionForeground ?? view.theme.foreground ?? "#ffffff",
+    background: theme.background ?? "#101010",
+    foreground: theme.foreground ?? "#ffffff",
+    cursor: theme.cursor ?? theme.foreground ?? "#ffffff",
+    cursorAccent: theme.cursorText ?? theme.background ?? "#101010",
+    selectionBackground: theme.selectionBackground ?? "#988049",
+    selectionForeground: theme.selectionForeground ?? theme.foreground ?? "#ffffff",
     black: pick(0, "#101010"),
     red: pick(1, "#f5a191"),
     green: pick(2, "#90b99f"),
@@ -74,9 +74,12 @@ function readDesktopTheme(view: DesktopTerminalAppearance) {
   } satisfies ITheme;
 }
 
-export function GlassTerminalPanel(props: { cwd: string | null }) {
+export function GlassTerminalPanel(props: {
+  cwd: string | null;
+  environmentId?: EnvironmentId | null;
+}) {
   const ref = useRef<HTMLDivElement>(null);
-  const term = useRef<Term | null>(null);
+  const term = useRef<Terminal | null>(null);
   const fit = useRef<FitAddon | null>(null);
   const size = useRef<{ thread: string; cols: number; rows: number } | null>(null);
   const { resolvedTheme } = useTheme();
@@ -127,7 +130,7 @@ export function GlassTerminalPanel(props: { cwd: string | null }) {
 
   useEffect(() => {
     const el = ref.current;
-    const api = readNativeApi();
+    const api = readWorkbenchTerminalApi(props.environmentId);
     if (!el || !api || !props.cwd || view === undefined) return;
 
     const cwd = props.cwd;
@@ -139,122 +142,129 @@ export function GlassTerminalPanel(props: { cwd: string | null }) {
     let live = true;
     let off: (() => void) | undefined;
     let data: { dispose: () => void } | undefined;
+    let next: Terminal | null = null;
+    let addon: FitAddon | null = null;
 
     setBootErr(null);
 
-    void loadGhostty()
-      .then(({ mod, ghostty }) => {
-        if (!live) return;
-
-        const next = new mod.Terminal({
-          ghostty,
-          fontSize,
-          fontFamily: family,
-          cursorBlink: true,
-          theme: cfg,
-          scrollback: 10_000,
-        });
-        const addon = new mod.FitAddon();
-        next.loadAddon(addon);
+    try {
+      next = new Terminal({
+        fontSize,
+        fontFamily: family,
+        cursorBlink: true,
+        theme: cfg,
+        scrollback: 10_000,
+      });
+      addon = new FitAddon();
+      next.loadAddon(addon);
+      el.replaceChildren();
+      next.open(el);
+      addon.fit();
+      size.current = { thread, cols: next.cols, rows: next.rows };
+      term.current = next;
+      fit.current = addon;
+    } catch (err) {
+      if (dev) console.warn("[GlassTerminalPanel] xterm init failed", err);
+      setBootErr("Could not load terminal renderer.");
+      return () => {
+        live = false;
+        off?.();
+        data?.dispose();
+        next?.dispose();
+        term.current = null;
+        fit.current = null;
+        size.current = null;
         el.replaceChildren();
-        next.open(el);
-        addon.fit();
-        size.current = { thread, cols: next.cols, rows: next.rows };
+      };
+    }
 
-        term.current = next;
-        fit.current = addon;
+    let seed: string | null = null;
 
-        let seed: string | null = null;
+    const hydrate = (value: string | null | undefined) => {
+      const nextValue = value ?? "";
+      if (seed === nextValue) return;
+      seed = nextValue;
+      if (nextValue) next.write(nextValue);
+    };
 
-        const hydrate = (value: string | null | undefined) => {
-          const nextValue = value ?? "";
-          if (seed === nextValue) return;
-          seed = nextValue;
-          if (nextValue) next.write(nextValue);
-        };
+    const clear = () => {
+      seed = "";
+      next.clear();
+    };
 
-        const clear = () => {
-          seed = "";
-          next.clear();
-        };
+    next.attachCustomKeyEventHandler((event) => {
+      const hit =
+        event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        !event.shiftKey &&
+        event.code === "KeyK";
+      if (!hit) return true;
+      event.preventDefault();
+      event.stopPropagation();
+      clear();
+      void api.clear({
+        threadId: thread,
+        terminalId: DEFAULT_TERMINAL_ID,
+      });
+      return false;
+    });
 
-        next.attachCustomKeyEventHandler((event) => {
-          const hit =
-            event.metaKey &&
-            !event.ctrlKey &&
-            !event.altKey &&
-            !event.shiftKey &&
-            event.code === "KeyK";
-          if (!hit) return false;
-          clear();
-          void api.terminal.clear({
-            threadId: thread,
-            terminalId: DEFAULT_TERMINAL_ID,
-          });
-          return true;
-        });
+    data = next.onData((chunk) => {
+      void api.write({
+        threadId: thread,
+        terminalId: DEFAULT_TERMINAL_ID,
+        data: chunk,
+      });
+    });
 
-        data = next.onData((chunk) => {
-          void api.terminal.write({
-            threadId: thread,
-            terminalId: DEFAULT_TERMINAL_ID,
-            data: chunk,
-          });
-        });
+    const onEvent = (event: TerminalEvent) => {
+      if (!live) return;
+      if (event.threadId !== thread) return;
+      if (event.terminalId !== DEFAULT_TERMINAL_ID) return;
+      if (event.type === "output") {
+        next.write(event.data);
+        return;
+      }
+      if (event.type === "cleared") {
+        clear();
+        return;
+      }
+      if (event.type === "started" || event.type === "restarted") {
+        clear();
+      }
+    };
 
-        const onEvent = (event: TerminalEvent) => {
-          if (!live) return;
-          if (event.threadId !== thread) return;
-          if (event.terminalId !== DEFAULT_TERMINAL_ID) return;
-          if (event.type === "output") {
-            next.write(event.data);
-            return;
-          }
-          if (event.type === "cleared") {
-            clear();
-            return;
-          }
-          if (event.type === "started" || event.type === "restarted") {
-            clear();
-            return;
-          }
-        };
+    off = api.onEvent(onEvent);
 
-        off = api.terminal.onEvent(onEvent);
-
-        void api.terminal
-          .open({
-            threadId: thread,
-            terminalId: DEFAULT_TERMINAL_ID,
-            cwd,
-            cols: next.cols,
-            rows: next.rows,
-          })
-          .then((snap) => {
-            if (!live) return;
-            hydrate(snap.history);
-          })
-          .catch((err) => {
-            if (dev) console.warn("[GlassTerminalPanel] terminal.open failed", err);
-            if (live) setBootErr("Could not open terminal session.");
-          });
+    void api
+      .open({
+        threadId: thread,
+        terminalId: DEFAULT_TERMINAL_ID,
+        cwd,
+        cols: next.cols,
+        rows: next.rows,
+      })
+      .then((snap) => {
+        if (!live) return;
+        hydrate(snap.history);
       })
       .catch((err) => {
-        if (dev) console.warn("[GlassTerminalPanel] ghostty-web load failed", err);
-        if (live) setBootErr("Could not load terminal renderer.");
+        if (dev) console.warn("[GlassTerminalPanel] terminal.open failed", err);
+        if (live) setBootErr("Could not open terminal session.");
       });
 
     return () => {
       live = false;
       off?.();
       data?.dispose();
-      term.current?.dispose();
+      next?.dispose();
       term.current = null;
       fit.current = null;
       size.current = null;
       el.replaceChildren();
     };
-  }, [dev, ghost, mode, props.cwd, view]);
+  }, [dev, ghost, mode, props.cwd, props.environmentId, view]);
 
   useEffect(() => {
     const el = ref.current;
@@ -262,7 +272,7 @@ export function GlassTerminalPanel(props: { cwd: string | null }) {
     const obs = new ResizeObserver(() => {
       const addon = fit.current;
       const next = term.current;
-      const api = readNativeApi();
+      const api = readWorkbenchTerminalApi(props.environmentId);
       if (!addon || !next || !api || !props.cwd) return;
       addon.fit();
       const thread = workbenchThreadId(props.cwd);
@@ -271,7 +281,7 @@ export function GlassTerminalPanel(props: { cwd: string | null }) {
         return;
       }
       size.current = { thread, cols: next.cols, rows: next.rows };
-      void api.terminal.resize({
+      void api.resize({
         threadId: thread,
         terminalId: DEFAULT_TERMINAL_ID,
         cols: next.cols,
@@ -280,7 +290,7 @@ export function GlassTerminalPanel(props: { cwd: string | null }) {
     });
     obs.observe(el);
     return () => obs.disconnect();
-  }, [props.cwd]);
+  }, [props.cwd, props.environmentId]);
 
   if (!props.cwd) {
     return (

@@ -364,10 +364,21 @@ export interface GitState {
 
 // ── Terminal (Glass-specific shapes) ─────────────────────────────────
 
+export interface DesktopTerminalTheme {
+  background?: string;
+  foreground?: string;
+  cursor?: string;
+  cursorText?: string;
+  selectionBackground?: string;
+  selectionForeground?: string;
+  palette?: string[];
+  [key: string]: string | string[] | undefined;
+}
+
 export interface DesktopTerminalAppearance {
   fontFamily: string;
   fontSize: number;
-  theme: Record<string, string>;
+  theme: DesktopTerminalTheme | null;
 }
 
 // ── Provider notice ──────────────────────────────────────────────────

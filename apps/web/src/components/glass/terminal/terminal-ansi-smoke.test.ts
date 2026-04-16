@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 /**
- * PTY output is forwarded raw to ghostty-web; emulator should still parse these shapes.
+ * PTY output is forwarded raw to xterm; emulator should still parse these shapes.
  * Manual smoke: Glass workbench → Terminal →
  * `printf '\e[31mred\e[0m\n'; printf '\e[91mbright\e[0m\n'; printf '\e[38;5;208m256\e[0m\n'; printf '\e[38;2;255;128;64mrgb\e[0m\n'`
  */

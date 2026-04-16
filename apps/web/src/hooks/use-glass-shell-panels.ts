@@ -8,7 +8,7 @@ const leftMax = 400;
 const rightMin = 340;
 const rightMax = 600;
 
-export type WorkbenchTab = "git" | "web" | "terminal" | "files";
+export type WorkbenchTab = "git" | "terminal" | "browser";
 
 const State = Schema.Struct({
   leftOpen: Schema.Boolean,
@@ -17,7 +17,7 @@ const State = Schema.Struct({
   rightW: Schema.Finite,
 });
 
-const TabSchema = Schema.Literals(["git", "web", "terminal", "files"]);
+const TabSchema = Schema.Literals(["git", "terminal", "browser"]);
 
 const init = {
   leftOpen: true,

@@ -7,7 +7,7 @@ import { useGlassAppearance } from "../../hooks/use-glass-appearance";
 import { useRuntimeDefaults } from "../../hooks/use-runtime-models";
 import { useShellState } from "../../hooks/use-shell-cwd";
 import { useTheme } from "../../hooks/use-theme";
-import { readNativeApi } from "../../native-api";
+import { readGlassEnvironmentApi, readNativeApi } from "../../native-api";
 import {
   clearRuntimeDefaultModel,
   writeRuntimeDefaultFastMode,
@@ -459,7 +459,6 @@ export function AgentsSettingsPanel() {
 }
 
 export function ArchivedThreadsPanel() {
-  const api = readNativeApi();
   const projects = useStore(useShallow(selectProjectsAcrossEnvironments));
   const all = useStore(useShallow(selectThreadsAcrossEnvironments));
   const groups = useMemo(() => {
@@ -499,8 +498,11 @@ export function ArchivedThreadsPanel() {
                     size="sm"
                     variant="outline"
                     onClick={() => {
-                      if (!api) return;
-                      void api.orchestration.dispatchCommand({
+                      const orchestration = readGlassEnvironmentApi(
+                        thread.environmentId,
+                      )?.orchestration;
+                      if (!orchestration) return;
+                      void orchestration.dispatchCommand({
                         type: "thread.unarchive",
                         commandId: crypto.randomUUID() as import("@t3tools/contracts").CommandId,
                         threadId: thread.id,

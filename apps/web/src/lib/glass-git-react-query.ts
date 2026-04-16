@@ -1,9 +1,10 @@
 // @ts-nocheck
 import type { FileDiffMetadata } from "@pierre/diffs";
+import type { EnvironmentId } from "@t3tools/contracts";
 import { parsePatchFiles } from "@pierre/diffs";
 import { queryOptions } from "@tanstack/react-query";
 
-import { readNativeApi } from "~/native-api";
+import { readGlassGitApi } from "~/lib/glass-git-api";
 
 export interface GitPatchData {
   patch: string;
@@ -11,7 +12,8 @@ export interface GitPatchData {
 }
 
 export const gitQueryKeys = {
-  patch: (cwd: string, path: string) => ["git", "patch", cwd, path] as const,
+  patch: (environmentId: EnvironmentId | null, cwd: string, path: string) =>
+    ["git", "patch", environmentId ?? null, cwd, path] as const,
 };
 
 function firstFile(patch: string): FileDiffMetadata | null {
@@ -30,17 +32,20 @@ function firstFile(patch: string): FileDiffMetadata | null {
 }
 
 export function gitPatchQueryOptions(input: {
+  environmentId: EnvironmentId | null;
   cwd: string | null;
   path: string;
   enabled?: boolean;
 }) {
   return queryOptions({
-    queryKey: gitQueryKeys.patch(input.cwd ?? "", input.path),
+    queryKey: gitQueryKeys.patch(input.environmentId, input.cwd ?? "", input.path),
     queryFn: async () => {
       if (!input.cwd) throw new Error("No workspace");
-      const api = readNativeApi();
-      if (!api) throw new Error("Native API not found");
-      const result = await api.git.getFilePatch({ cwd: input.cwd, path: input.path });
+      const api = readGlassGitApi(input.environmentId);
+      if (!api || typeof api.getFilePatch !== "function") {
+        throw new Error("Git patch API not available");
+      }
+      const result = await api.getFilePatch({ cwd: input.cwd, path: input.path });
       return {
         patch: result.unifiedDiff,
         diff: firstFile(result.unifiedDiff),

@@ -1,14 +1,16 @@
+import { scopeThreadRef } from "@t3tools/client-runtime";
 import type { ThreadId } from "@t3tools/contracts";
 import { IconBell, IconFormCircle } from "central-icons";
-import { type KeyboardEvent, memo, useCallback, useEffect, useRef, useState } from "react";
+import { type KeyboardEvent, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { GlassThreadContextMenu } from "~/components/glass/sidebar/thread-context-menu";
 import { GlassRowButton } from "~/components/glass/shared/row-button";
-import { useThreadActions } from "~/hooks/use-thread-actions";
+import { useThreadActions } from "~/hooks/useThreadActions";
 import type { GlassSidebarChat } from "~/lib/glass-view-model";
 import { useGlassThreadUnreadStore } from "~/lib/glass-thread-unread-store";
 import { cn } from "~/lib/utils";
+import { selectThreadsAcrossEnvironments, useStore } from "~/store";
 
 function StatusDot(props: { item: GlassSidebarChat }) {
   if (props.item.kind === "draft") {
@@ -38,6 +40,19 @@ export const GlassAgentRow = memo(
     onSelectAgent: (id: string) => void;
   }) {
     const { commitRename, archiveThread } = useThreadActions();
+    const environmentId = useStore((state) =>
+      props.item.kind === "thread"
+        ? (selectThreadsAcrossEnvironments(state).find((item) => item.id === props.item.id)
+            ?.environmentId ?? null)
+        : null,
+    );
+    const targetThreadRef = useMemo(
+      () =>
+        environmentId && props.item.kind === "thread"
+          ? scopeThreadRef(environmentId, props.item.id as ThreadId)
+          : null,
+      [environmentId, props.item.kind, props.item.id],
+    );
     const mark = useGlassThreadUnreadStore((s) => s.mark);
     const [renaming, setRenaming] = useState(false);
     const [renameValue, setRenameValue] = useState("");
@@ -59,6 +74,10 @@ export const GlassAgentRow = memo(
 
     const applyRename = useCallback(async () => {
       if (props.item.kind !== "thread") return;
+      if (!targetThreadRef) {
+        finishRename();
+        return;
+      }
       const next = renameValue.trim();
       if (next.length === 0) {
         toast.warning("Thread title cannot be empty");
@@ -69,9 +88,16 @@ export const GlassAgentRow = memo(
         finishRename();
         return;
       }
-      await commitRename(props.item.id as ThreadId, next, props.item.title);
-      finishRename();
-    }, [commitRename, finishRename, props.item, renameValue]);
+      try {
+        await commitRename(targetThreadRef, next, props.item.title);
+      } catch (error) {
+        toast.error("Failed to rename thread", {
+          description: error instanceof Error ? error.message : "An error occurred.",
+        });
+      } finally {
+        finishRename();
+      }
+    }, [commitRename, finishRename, props.item, renameValue, targetThreadRef]);
 
     const onBlur = useCallback(() => {
       if (props.item.kind !== "thread") return;
@@ -126,7 +152,14 @@ export const GlassAgentRow = memo(
           mark(props.item.id);
         }}
         onArchive={() => {
-          void archiveThread(props.item.id as ThreadId);
+          if (!targetThreadRef) {
+            return;
+          }
+          void archiveThread(targetThreadRef).catch((error) => {
+            toast.error("Failed to archive thread", {
+              description: error instanceof Error ? error.message : "An error occurred.",
+            });
+          });
         }}
       >
         {renaming ? (

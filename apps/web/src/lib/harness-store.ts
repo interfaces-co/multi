@@ -4,7 +4,7 @@ import type { HarnessDescriptor, HarnessKind } from "~/lib/glass-types";
 import { useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 
-import { readNativeApi } from "../native-api";
+import { readGlassEnvironmentApi, readNativeApi } from "../native-api";
 import { getServerConfig, useServerProviders } from "../rpc/server-state";
 import { getDefaultServerModel } from "../providerModels";
 import { selectProjectsAcrossEnvironments, useStore } from "../store";
@@ -97,13 +97,15 @@ export async function setHarnessEnabled(kind: HarnessKind, enabled: boolean): Pr
 }
 
 export async function setDefaultHarness(kind: HarnessKind): Promise<void> {
-  const api = readNativeApi();
+  const localApi = readNativeApi();
   const projects = selectProjectsAcrossEnvironments(useStore.getState());
   const project = projects.find((item) => item.cwd === storedCwd()) ?? projects[0] ?? null;
-  if (!api || !project) return;
-  const providers = getServerConfig()?.providers ?? (await api.server.getConfig()).providers;
+  if (!localApi || !project) return;
+  const providers = getServerConfig()?.providers ?? (await localApi.server.getConfig()).providers;
+  const orchestration = readGlassEnvironmentApi(project.environmentId)?.orchestration;
+  if (!orchestration) return;
   const provider = toProvider(kind);
-  await api.orchestration.dispatchCommand({
+  await orchestration.dispatchCommand({
     type: "project.meta.update",
     commandId: CommandId.makeUnsafe(crypto.randomUUID()),
     projectId: project.id,

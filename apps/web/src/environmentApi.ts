@@ -5,8 +5,13 @@ import { readEnvironmentConnection } from "./environments/runtime";
 
 const environmentApiOverridesForTests = new Map<EnvironmentId, EnvironmentApi>();
 
+const environmentApiByClient = new WeakMap<WsRpcClient, EnvironmentApi>();
+
 export function createEnvironmentApi(rpcClient: WsRpcClient): EnvironmentApi {
-  return {
+  const cached = environmentApiByClient.get(rpcClient);
+  if (cached) return cached;
+
+  const api: EnvironmentApi = {
     terminal: {
       open: (input) => rpcClient.terminal.open(input as never),
       write: (input) => rpcClient.terminal.write(input as never),
@@ -46,6 +51,9 @@ export function createEnvironmentApi(rpcClient: WsRpcClient): EnvironmentApi {
         rpcClient.orchestration.subscribeThread(input, callback, options),
     },
   };
+
+  environmentApiByClient.set(rpcClient, api);
+  return api;
 }
 
 export function readEnvironmentApi(environmentId: EnvironmentId): EnvironmentApi | undefined {

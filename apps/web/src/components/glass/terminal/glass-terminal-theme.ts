@@ -1,4 +1,4 @@
-import type { ITheme } from "ghostty-web";
+import type { ITheme } from "@xterm/xterm";
 
 function readVarPaint(doc: Document, kind: "fg" | "bg", expr: string, fallback: string): string {
   const mount = doc.documentElement;
