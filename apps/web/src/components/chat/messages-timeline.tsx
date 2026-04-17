@@ -457,12 +457,12 @@ function TimelineRowContent({ row }: { row: TimelineRow }) {
       )}
 
       {row.kind === "working" && (
-        <div className="py-0.5 pl-1.5">
-          <div className="flex items-center gap-2 pt-1 text-[11px] text-muted-foreground/70">
+        <div className="py-0.5">
+          <div className="flex items-center gap-1 text-body text-muted-foreground/70">
             <span className="inline-flex items-center gap-[3px]">
-              <span className="h-1 w-1 rounded-full bg-muted-foreground/30 animate-pulse" />
-              <span className="h-1 w-1 rounded-full bg-muted-foreground/30 animate-pulse [animation-delay:200ms]" />
-              <span className="h-1 w-1 rounded-full bg-muted-foreground/30 animate-pulse [animation-delay:400ms]" />
+              <span className="size-1 rounded-full bg-muted-foreground/40 animate-pulse" />
+              <span className="size-1 rounded-full bg-muted-foreground/40 animate-pulse [animation-delay:200ms]" />
+              <span className="size-1 rounded-full bg-muted-foreground/40 animate-pulse [animation-delay:400ms]" />
             </span>
             <span>
               {row.createdAt ? (
@@ -522,8 +522,8 @@ function LiveMessageMeta({
 // re-render only the affected row, not the entire list.
 // ---------------------------------------------------------------------------
 
-/** Owns its own expand/collapse state so toggling re-renders only this row.
- *  State resets on unmount which is fine — work groups start collapsed. */
+/** Compact tool activity timeline — renders as inline lines, not grouped cards.
+ *  Follows Cursor's ui-tool-call-line pattern: aggregated activity as thin rows. */
 const WorkGroupSection = memo(function WorkGroupSection({
   groupedEntries,
 }: {
@@ -537,37 +537,34 @@ const WorkGroupSection = memo(function WorkGroupSection({
       ? groupedEntries.slice(-MAX_VISIBLE_WORK_LOG_ENTRIES)
       : groupedEntries;
   const hiddenCount = groupedEntries.length - visibleEntries.length;
-  const onlyToolEntries = groupedEntries.every((entry) => entry.tone === "tool");
-  const showHeader = hasOverflow || !onlyToolEntries;
-  const groupLabel = onlyToolEntries ? "Tool calls" : "Work log";
 
   return (
-    <div className="rounded-xl border border-border/45 bg-card/25 px-2 py-1.5">
-      {showHeader && (
-        <div className="mb-1.5 flex items-center justify-between gap-2 px-0.5">
-          <p className="text-[9px] uppercase tracking-[0.16em] text-muted-foreground/55">
-            {groupLabel} ({groupedEntries.length})
-          </p>
-          {hasOverflow && (
-            <button
-              type="button"
-              className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground/55 transition-colors duration-150 hover:text-foreground/75"
-              onClick={() => setIsExpanded((v) => !v)}
-            >
-              {isExpanded ? "Show less" : `Show ${hiddenCount} more`}
-            </button>
-          )}
-        </div>
+    <div className="space-y-0.5 py-0.5">
+      {hasOverflow && !isExpanded && (
+        <button
+          type="button"
+          className="mb-1 text-detail text-muted-foreground/50 transition-colors duration-150 hover:text-muted-foreground/75"
+          onClick={() => setIsExpanded(true)}
+        >
+          +{hiddenCount} more
+        </button>
       )}
-      <div className="space-y-0.5">
-        {visibleEntries.map((workEntry) => (
-          <SimpleWorkEntryRow
-            key={`work-row:${workEntry.id}`}
-            workEntry={workEntry}
-            workspaceRoot={workspaceRoot}
-          />
-        ))}
-      </div>
+      {visibleEntries.map((workEntry) => (
+        <CompactToolRow
+          key={`work-row:${workEntry.id}`}
+          workEntry={workEntry}
+          workspaceRoot={workspaceRoot}
+        />
+      ))}
+      {hasOverflow && isExpanded && (
+        <button
+          type="button"
+          className="mt-1 text-detail text-muted-foreground/50 transition-colors duration-150 hover:text-muted-foreground/75"
+          onClick={() => setIsExpanded(false)}
+        >
+          Show less
+        </button>
+      )}
     </div>
   );
 });
@@ -623,13 +620,13 @@ function AssistantChangedFilesSectionInner({
   const changedFileCountLabel = String(checkpointFiles.length);
 
   return (
-    <div className="mt-2 rounded-lg border border-border/80 bg-card/45 p-2.5">
-      <div className="mb-1.5 flex items-center justify-between gap-2">
-        <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground/65">
+    <div className="mt-2 rounded-lg border border-multi-stroke bg-multi-editor overflow-hidden">
+      <div className="flex h-7 items-center justify-between gap-2 border-b border-multi-stroke px-2">
+        <p className="text-body text-foreground/80">
           <span>Changed files ({changedFileCountLabel})</span>
           {hasNonZeroStat(summaryStat) && (
             <>
-              <span className="mx-1">•</span>
+              <span className="mx-1.5 text-muted-foreground/40">•</span>
               <DiffStatLabel additions={summaryStat.additions} deletions={summaryStat.deletions} />
             </>
           )}
@@ -638,30 +635,34 @@ function AssistantChangedFilesSectionInner({
           <Button
             type="button"
             size="xs"
-            variant="outline"
+            variant="ghost"
+            className="h-5 px-1.5 text-detail"
             data-scroll-anchor-ignore
             onClick={() => setExpanded(routeThreadKey, turnSummary.turnId, !allDirectoriesExpanded)}
           >
-            {allDirectoriesExpanded ? "Collapse all" : "Expand all"}
+            {allDirectoriesExpanded ? "Collapse" : "Expand"}
           </Button>
           <Button
             type="button"
             size="xs"
-            variant="outline"
+            variant="ghost"
+            className="h-5 px-1.5 text-detail"
             onClick={() => onOpenTurnDiff(turnSummary.turnId, checkpointFiles[0]?.path)}
           >
             View diff
           </Button>
         </div>
       </div>
-      <ChangedFilesTree
-        key={`changed-files-tree:${turnSummary.turnId}`}
-        turnId={turnSummary.turnId}
-        files={checkpointFiles}
-        allDirectoriesExpanded={allDirectoriesExpanded}
-        resolvedTheme={resolvedTheme}
-        onOpenTurnDiff={onOpenTurnDiff}
-      />
+      <div className="p-2">
+        <ChangedFilesTree
+          key={`changed-files-tree:${turnSummary.turnId}`}
+          turnId={turnSummary.turnId}
+          files={checkpointFiles}
+          allDirectoriesExpanded={allDirectoriesExpanded}
+          resolvedTheme={resolvedTheme}
+          onOpenTurnDiff={onOpenTurnDiff}
+        />
+      </div>
     </div>
   );
 }
@@ -930,90 +931,104 @@ function toolWorkEntryHeading(workEntry: TimelineWorkEntry): string {
   return capitalizePhrase(normalizeCompactToolLabel(workEntry.toolTitle));
 }
 
-const SimpleWorkEntryRow = memo(function SimpleWorkEntryRow(props: {
+/** Compact inline tool row — Cursor's ui-tool-call-line pattern.
+ *  Renders as a single thin line: icon + label + optional detail. */
+const CompactToolRow = memo(function CompactToolRow(props: {
   workEntry: TimelineWorkEntry;
   workspaceRoot: string | undefined;
 }) {
   const { workEntry, workspaceRoot } = props;
-  const iconConfig = workToneIcon(workEntry.tone);
   const EntryIcon = workEntryIcon(workEntry);
   const heading = toolWorkEntryHeading(workEntry);
   const preview = workEntryPreview(workEntry, workspaceRoot);
   const rawCommand = workEntryRawCommand(workEntry);
-  const displayText = preview ? `${heading} - ${preview}` : heading;
   const hasChangedFiles = (workEntry.changedFiles?.length ?? 0) > 0;
-  const previewIsChangedFiles = hasChangedFiles && !workEntry.command && !workEntry.detail;
+  const isShellCommand = workEntry.requestKind === "command" || workEntry.itemType === "command_execution";
+
+  if (isShellCommand) {
+    return (
+      <ShellToolCard
+        workEntry={workEntry}
+        heading={heading}
+        preview={preview}
+        rawCommand={rawCommand}
+      />
+    );
+  }
 
   return (
-    <div className="rounded-lg px-1 py-1">
-      <div className="flex items-center gap-2 transition-[opacity,translate] duration-200">
-        <span
-          className={cn("flex size-5 shrink-0 items-center justify-center", iconConfig.className)}
-        >
-          <EntryIcon className="size-3" />
-        </span>
-        <div className="min-w-0 flex-1 overflow-hidden">
-          <div className="max-w-full">
-            <p
-              className={cn(
-                "truncate text-xs leading-5",
-                workToneClass(workEntry.tone),
-                preview ? "text-muted-foreground/70" : "",
-              )}
-              title={rawCommand ? undefined : displayText}
+    <div className="flex items-center gap-1 text-body leading-[1.5]">
+      <span className="flex size-4 shrink-0 items-center justify-center text-muted-foreground/70">
+        <EntryIcon className="size-3" />
+      </span>
+      <span className="text-foreground/85">{heading}</span>
+      {preview && !hasChangedFiles && (
+        rawCommand ? (
+          <Tooltip>
+            <TooltipTrigger
+              closeDelay={0}
+              delay={75}
+              render={
+                <span className="cursor-default truncate text-muted-foreground/55 transition-colors hover:text-muted-foreground/75">
+                  {preview}
+                </span>
+              }
+            />
+            <TooltipPopup
+              align="start"
+              className="max-w-[min(56rem,calc(100vw-2rem))] px-0 py-0"
+              side="top"
             >
-              <span className={cn("text-foreground/80", workToneClass(workEntry.tone))}>
-                {heading}
-              </span>
-              {preview &&
-                (rawCommand ? (
-                  <Tooltip>
-                    <TooltipTrigger
-                      closeDelay={0}
-                      delay={75}
-                      render={
-                        <span className="max-w-full cursor-default text-muted-foreground/55 transition-colors hover:text-muted-foreground/75 focus-visible:text-muted-foreground/75">
-                          {" "}
-                          - {preview}
-                        </span>
-                      }
-                    />
-                    <TooltipPopup
-                      align="start"
-                      className="max-w-[min(56rem,calc(100vw-2rem))] px-0 py-0"
-                      side="top"
-                    >
-                      <div className="max-w-[min(56rem,calc(100vw-2rem))] overflow-x-auto px-1.5 py-1 font-mono text-[11px] leading-4 whitespace-nowrap">
-                        {rawCommand}
-                      </div>
-                    </TooltipPopup>
-                  </Tooltip>
-                ) : (
-                  <span className="text-muted-foreground/55"> - {preview}</span>
-                ))}
-            </p>
-          </div>
-        </div>
-      </div>
-      {hasChangedFiles && !previewIsChangedFiles && (
-        <div className="mt-1 flex flex-wrap gap-1 pl-6">
-          {workEntry.changedFiles?.slice(0, 4).map((filePath) => {
-            const displayPath = formatWorkspaceRelativePath(filePath, workspaceRoot);
-            return (
-              <span
-                key={`${workEntry.id}:${filePath}`}
-                className="rounded-md border border-border/55 bg-background/75 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground/75"
-                title={displayPath}
-              >
-                {displayPath}
-              </span>
-            );
-          })}
-          {(workEntry.changedFiles?.length ?? 0) > 4 && (
-            <span className="px-1 text-[10px] text-muted-foreground/55">
-              +{(workEntry.changedFiles?.length ?? 0) - 4}
-            </span>
-          )}
+              <div className="max-w-[min(56rem,calc(100vw-2rem))] overflow-x-auto px-1.5 py-1 font-multi-mono text-detail leading-4 whitespace-nowrap">
+                {rawCommand}
+              </div>
+            </TooltipPopup>
+          </Tooltip>
+        ) : (
+          <span className="truncate text-muted-foreground/55">{preview}</span>
+        )
+      )}
+      {hasChangedFiles && (
+        <span className="text-muted-foreground/55">
+          {workEntry.changedFiles?.length === 1
+            ? formatWorkspaceRelativePath(workEntry.changedFiles[0]!, workspaceRoot)
+            : `${workEntry.changedFiles?.length} files`}
+        </span>
+      )}
+    </div>
+  );
+});
+
+/** Shell command card — compact bordered card with command preview.
+ *  Follows Cursor's ui-shell-tool-call pattern. */
+const ShellToolCard = memo(function ShellToolCard(props: {
+  workEntry: TimelineWorkEntry;
+  heading: string;
+  preview: string | null;
+  rawCommand: string | null;
+}) {
+  const { workEntry, heading, preview, rawCommand } = props;
+  const [isExpanded, setIsExpanded] = useState(false);
+  const commandText = rawCommand || preview || "";
+
+  return (
+    <div className="rounded-lg border border-multi-stroke bg-multi-editor overflow-hidden">
+      <button
+        type="button"
+        className="flex h-7 w-full items-center gap-2 px-2 text-body transition-colors hover:bg-multi-hover"
+        onClick={() => setIsExpanded((v) => !v)}
+      >
+        <TerminalIcon className="size-3 shrink-0 text-muted-foreground/70" />
+        <span className="truncate text-foreground/85">{heading}</span>
+        {preview && preview !== rawCommand && (
+          <span className="truncate text-muted-foreground/55">{preview}</span>
+        )}
+      </button>
+      {isExpanded && commandText && (
+        <div className="border-t border-multi-stroke bg-background/50 px-2 py-1.5">
+          <pre className="font-multi-mono text-detail leading-4 whitespace-pre-wrap text-foreground/80">
+            {commandText}
+          </pre>
         </div>
       )}
     </div>
