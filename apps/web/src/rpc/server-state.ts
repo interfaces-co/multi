@@ -50,6 +50,7 @@ const selectAvailableEditors = (config: ServerConfig | null): ReadonlyArray<Edit
 const selectKeybindings = (config: ServerConfig | null) => config?.keybindings ?? EMPTY_KEYBINDINGS;
 const selectKeybindingsConfigPath = (config: ServerConfig | null) =>
   config?.keybindingsConfigPath ?? null;
+const selectEnvironment = (config: ServerConfig | null) => config?.environment ?? null;
 const selectObservability = (config: ServerConfig | null) => config?.observability ?? null;
 const selectProviders = (config: ServerConfig | null) =>
   config?.providers ?? EMPTY_SERVER_PROVIDERS;
@@ -260,6 +261,10 @@ function useLatestAtomSubscription<A>(
 
 export function useServerConfig(): ServerConfig | null {
   return useAtomValue(serverConfigAtom);
+}
+
+export function useServerEnvironment(): ServerConfig["environment"] | null {
+  return useAtomValue(serverConfigAtom, selectEnvironment);
 }
 
 export function useServerSettings(): ServerSettings {

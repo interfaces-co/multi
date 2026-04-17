@@ -1,7 +1,6 @@
 import type { UiToolCallBlock } from "~/lib/ui-session-types";
 
 import type { ToolData } from "~/lib/tool-renderers";
-import { TOOL_RENDERER_KEYS } from "~/lib/tool-renderers";
 
 function call(name: string, args: Record<string, unknown>): UiToolCallBlock {
   return { type: "toolCall", name, arguments: args };

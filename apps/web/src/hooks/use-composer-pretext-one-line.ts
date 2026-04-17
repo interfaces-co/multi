@@ -13,7 +13,7 @@ function useComposerPretextFont(px: number) {
 
   useLayoutEffect(() => {
     const stack = getComputedStyle(document.documentElement)
-      .getPropertyValue("--chrome-font-ui")
+      .getPropertyValue("--multi-font-ui")
       .trim();
     if (stack) setFont(`400 ${px}px ${stack}`);
   }, [px]);

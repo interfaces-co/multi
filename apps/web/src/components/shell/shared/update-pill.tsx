@@ -58,7 +58,7 @@ export function UpdatePill() {
       disabled={disabled}
       onClick={handle}
       onDoubleClick={() => setDismissed(true)}
-      className="flex w-full items-center justify-start gap-2 rounded-chrome-control px-0 py-1.5 text-left text-body font-medium text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
+      className="flex w-full items-center justify-start gap-2 rounded-multi-control px-0 py-1.5 text-left text-body font-medium text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
     >
       {action === "install" ? (
         <>

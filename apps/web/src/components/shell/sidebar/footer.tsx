@@ -18,10 +18,10 @@ export function ShellSidebarFooter(props: { settings?: boolean }) {
           <Link
             to={active ? "/" : "/settings/general"}
             className={cn(
-              "flex size-7 items-center justify-center rounded-chrome-control border border-transparent transition-colors",
+              "flex size-7 items-center justify-center rounded-multi-control border border-transparent transition-colors",
               active
-                ? "border-chrome-border/90 bg-chrome-active text-foreground hover:bg-chrome-active"
-                : "text-muted-foreground/60 hover:bg-chrome-hover hover:text-foreground",
+                ? "border-multi-border/90 bg-multi-active text-foreground hover:bg-multi-active"
+                : "text-muted-foreground/60 hover:bg-multi-hover hover:text-foreground",
             )}
             aria-current={active ? "page" : undefined}
             aria-label={active ? "Back to chat" : "Open settings"}

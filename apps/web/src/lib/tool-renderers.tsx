@@ -310,7 +310,7 @@ const ToolTerminal = memo(function ToolTerminal(props: { text: string; error?: b
   return (
     <pre
       className={cn(
-        "tool-terminal max-h-[min(24rem,50vh)] w-full max-w-full overflow-y-auto whitespace-pre-wrap break-words font-chrome-mono text-detail/[1.625]",
+        "tool-terminal max-h-[min(24rem,50vh)] w-full max-w-full overflow-y-auto whitespace-pre-wrap break-words font-multi-mono text-detail/[1.625]",
         props.error ? "text-destructive/90" : "text-foreground/85",
       )}
     >
@@ -437,7 +437,7 @@ function unified(entry: EditEntry): React.ReactNode[] {
     lines.push(
       <div
         key={`d${lines.length}`}
-        className="bg-chrome-diff-deletion-bg text-chrome-diff-deletion"
+        className="bg-multi-diff-deletion-bg text-multi-diff-deletion"
       >
         <span className="select-none opacity-50">- </span>
         {l}
@@ -448,7 +448,7 @@ function unified(entry: EditEntry): React.ReactNode[] {
     lines.push(
       <div
         key={`a${lines.length}`}
-        className="bg-chrome-diff-addition-bg text-chrome-diff-addition"
+        className="bg-multi-diff-addition-bg text-multi-diff-addition"
       >
         <span className="select-none opacity-50">+ </span>
         {l}
@@ -462,7 +462,7 @@ function DiffRaw(props: { entries: EditEntry[] }) {
   const lines = props.entries.flatMap(unified);
   if (lines.length === 0) return null;
   return (
-    <div className="font-[family-name:var(--chrome-font-mono)] text-detail/[1.4] whitespace-pre-wrap">
+    <div className="font-[family-name:var(--multi-font-mono)] text-detail/[1.4] whitespace-pre-wrap">
       {lines}
     </div>
   );
@@ -473,7 +473,7 @@ function Diff(props: { entries: EditEntry[] }) {
   if (lines.length === 0) return null;
   return (
     <div className="overflow-hidden">
-      <div className="max-h-[min(24rem,50vh)] overflow-auto font-[family-name:var(--chrome-font-mono)] text-detail/[1.4] whitespace-pre-wrap">
+      <div className="max-h-[min(24rem,50vh)] overflow-auto font-[family-name:var(--multi-font-mono)] text-detail/[1.4] whitespace-pre-wrap">
         {lines}
       </div>
     </div>

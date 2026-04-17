@@ -83,8 +83,8 @@ export function applyColorPalette() {
     for (const [k, v] of Object.entries(map)) {
       root.style.setProperty(k, v);
     }
-    root.style.removeProperty("--chrome-user-hue");
-    root.style.removeProperty("--chrome-intensity");
+    root.style.removeProperty("--multi-user-hue");
+    root.style.removeProperty("--multi-intensity");
     emit();
     return;
   }
@@ -92,8 +92,8 @@ export function applyColorPalette() {
   for (const k of ALL_PRESET_VAR_KEYS) {
     root.style.removeProperty(k);
   }
-  root.style.setProperty("--chrome-user-hue", String(hue));
-  root.style.setProperty("--chrome-intensity", String(saturation));
+  root.style.setProperty("--multi-user-hue", String(hue));
+  root.style.setProperty("--multi-intensity", String(saturation));
   emit();
 }
 
@@ -121,27 +121,27 @@ function applyChromeRoot() {
     0,
     100,
   );
-  root.classList.toggle("chrome-reduce-transparency", reduce);
-  root.classList.remove("chrome-hide-email");
-  root.style.setProperty("--chrome-transparency", String(transparency));
+  root.classList.toggle("multi-reduce-transparency", reduce);
+  root.classList.remove("multi-hide-email");
+  root.style.setProperty("--multi-transparency", String(transparency));
 
   const uiPx = parseIntStored(localStorage.getItem(STORAGE_UI_FONT_SIZE), 13, 11, 16);
   const codePx = parseIntStored(localStorage.getItem(STORAGE_CODE_FONT_SIZE), 12, 10, 18);
-  root.style.setProperty("--chrome-sidebar-label-size-user", `${uiPx}px`);
-  root.style.setProperty("--chrome-ui-font-size-user", `${uiPx}px`);
-  root.style.setProperty("--chrome-code-font-size-user", `${codePx}px`);
+  root.style.setProperty("--multi-sidebar-label-size-user", `${uiPx}px`);
+  root.style.setProperty("--multi-ui-font-size-user", `${uiPx}px`);
+  root.style.setProperty("--multi-code-font-size-user", `${codePx}px`);
 
   const uiFont = localStorage.getItem(STORAGE_UI_FONT)?.trim() ?? "";
   const codeFont = localStorage.getItem(STORAGE_CODE_FONT)?.trim() ?? "";
   if (uiFont) {
-    root.style.setProperty("--chrome-font-ui", uiFont);
+    root.style.setProperty("--multi-font-ui", uiFont);
   } else {
-    root.style.removeProperty("--chrome-font-ui");
+    root.style.removeProperty("--multi-font-ui");
   }
   if (codeFont) {
-    root.style.setProperty("--chrome-font-mono", codeFont);
+    root.style.setProperty("--multi-font-mono", codeFont);
   } else {
-    root.style.removeProperty("--chrome-font-mono");
+    root.style.removeProperty("--multi-font-mono");
   }
 
   applyColorPalette();

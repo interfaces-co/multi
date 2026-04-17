@@ -32,7 +32,7 @@ function readFontFamily(el: HTMLElement) {
   node.style.position = "absolute";
   node.style.opacity = "0";
   node.style.pointerEvents = "none";
-  node.style.fontFamily = "var(--font-chrome-mono), ui-monospace, monospace";
+  node.style.fontFamily = "var(--font-multi-mono), ui-monospace, monospace";
   el.append(node);
   const value = getComputedStyle(node).fontFamily || "ui-monospace, monospace";
   node.remove();

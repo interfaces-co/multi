@@ -12,7 +12,7 @@ import "@xterm/xterm/css/xterm.css";
 import "./index.css";
 import "./styles/tailwind.css";
 import "./styles/app.css";
-import "./styles/chrome-tokens.css";
+import "./styles/multi-tokens.css";
 import "./styles/chat-markdown.css";
 
 import { isElectron } from "./env";

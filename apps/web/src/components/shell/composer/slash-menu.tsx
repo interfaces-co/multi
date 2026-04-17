@@ -108,9 +108,9 @@ export function ComposerTokenMenu(props: {
             initialFocus={false}
             finalFocus={false}
             className={cn(
-              "chrome-slash-menu-popup chrome-composer-token-menu",
+              "multi-slash-menu-popup multi-composer-token-menu",
               "origin-[var(--transform-origin)]",
-              "overflow-hidden rounded-chrome-card border border-chrome-stroke bg-chrome-bubble shadow-chrome-popup backdrop-blur-xl",
+              "overflow-hidden rounded-multi-card border border-multi-stroke bg-multi-bubble shadow-multi-popup backdrop-blur-xl",
               "w-[min(320px,calc(100vw-2rem))] text-[12px] leading-[16px] select-none",
             )}
           >
@@ -161,8 +161,8 @@ function SlashPane(props: {
               className={cn(
                 "flex w-full items-center gap-[6px] rounded-sm px-1 py-[3px] text-left transition-colors motion-reduce:transition-none",
                 active
-                  ? "bg-chrome-active text-foreground"
-                  : "text-foreground/82 hover:bg-chrome-hover/40",
+                  ? "bg-multi-active text-foreground"
+                  : "text-foreground/82 hover:bg-multi-hover/40",
               )}
               onMouseDown={(event) => {
                 event.preventDefault();
@@ -213,8 +213,8 @@ function FilePane(props: {
   loading: boolean;
 }) {
   return (
-    <div className="grid bg-chrome-border/20 md:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
-      <div className="min-w-0 border-b border-chrome-border/20 md:border-r md:border-b-0">
+    <div className="grid bg-multi-border/20 md:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
+      <div className="min-w-0 border-b border-multi-border/20 md:border-r md:border-b-0">
         <ScrollArea className="max-h-74">
           {/* Menu content: 4px padding */}
           <div
@@ -242,8 +242,8 @@ function FilePane(props: {
                     className={cn(
                       "flex w-full items-center gap-[6px] rounded-sm px-1 py-[3px] text-left transition-colors motion-reduce:transition-none",
                       active
-                        ? "chrome-composer-object-row--active"
-                        : "text-foreground/82 hover:bg-chrome-hover/40",
+                        ? "multi-composer-object-row--active"
+                        : "text-foreground/82 hover:bg-multi-hover/40",
                     )}
                     onMouseDown={(event) => {
                       event.preventDefault();
@@ -257,7 +257,7 @@ function FilePane(props: {
                       className={cn(
                         "inline-flex h-4 w-3 shrink-0 items-center justify-center",
                         active
-                          ? "text-[color:var(--chrome-composer-object-fg-muted)]"
+                          ? "text-[color:var(--multi-composer-object-fg-muted)]"
                           : "text-muted-foreground/60",
                       )}
                     >
@@ -283,7 +283,7 @@ function FilePane(props: {
                           className={cn(
                             "min-w-0 truncate text-[11px] leading-[14px]",
                             active
-                              ? "text-[color:var(--chrome-composer-object-fg-muted)]"
+                              ? "text-[color:var(--multi-composer-object-fg-muted)]"
                               : "text-muted-foreground/40",
                           )}
                           style={{ direction: "rtl", textAlign: "left" }}
@@ -297,7 +297,7 @@ function FilePane(props: {
                         className={cn(
                           "size-2.5 shrink-0",
                           active
-                            ? "text-[color:var(--chrome-composer-object-fg-muted)]"
+                            ? "text-[color:var(--multi-composer-object-fg-muted)]"
                             : "text-muted-foreground/45",
                         )}
                       />

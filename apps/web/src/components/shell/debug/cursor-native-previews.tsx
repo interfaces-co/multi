@@ -11,7 +11,7 @@ import { cn } from "~/lib/utils";
 const css = `
 [data-cursor-preview] {
   color: var(--foreground);
-  font-family: var(--chrome-font-ui, ui-sans-serif, system-ui, sans-serif);
+  font-family: var(--multi-font-ui, ui-sans-serif, system-ui, sans-serif);
 }
 
 /* Transcript shell + conversation vars (workbench.desktop.main — §6.7) */
@@ -23,10 +23,10 @@ const css = `
   --conversation-font-size: var(--conversation-tool-font-size, 13px);
   --conversation-classic-text-inset: 9px;
   --conversation-classic-block-inset: 9px;
-  --conversation-chrome-text-inset: 8px;
-  --conversation-chrome-block-inset: -8px;
-  --conversation-text-inset: var(--conversation-chrome-text-inset);
-  --conversation-block-inset: var(--conversation-chrome-block-inset);
+  --conversation-multi-text-inset: 8px;
+  --conversation-multi-block-inset: -8px;
+  --conversation-text-inset: var(--conversation-multi-text-inset);
+  --conversation-block-inset: var(--conversation-multi-block-inset);
   --conversation-tool-card-padding-x: 8px;
   --conversation-tool-card-padding-tight-x: calc(var(--conversation-tool-card-padding-x, 8px) - 2px);
   --card-border-color: color-mix(in srgb, var(--foreground) 14%, transparent);
@@ -209,11 +209,11 @@ const css = `
 }
 
 [data-cursor-preview] .smart-review-panel__lines-changed.added {
-  color: var(--chrome-diff-addition);
+  color: var(--multi-diff-addition);
 }
 
 [data-cursor-preview] .smart-review-panel__lines-changed.removed {
-  color: var(--chrome-diff-deletion);
+  color: var(--multi-diff-deletion);
 }
 
 [data-cursor-preview] .smart-review-panel__divider {
@@ -589,7 +589,7 @@ const css = `
   border-radius: 18px;
   border: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
   background: color-mix(in srgb, var(--background) 94%, transparent);
-  box-shadow: var(--chrome-shadow-popup, 0 18px 48px hsla(0, 0%, 0%, 0.2));
+  box-shadow: var(--multi-shadow-popup, 0 18px 48px hsla(0, 0%, 0%, 0.2));
   backdrop-filter: blur(24px);
   max-height: min(288px, 40vh);
   overflow: hidden;
@@ -726,7 +726,7 @@ const css = `
   border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
   background: color-mix(in srgb, var(--background) 96%, transparent);
-  box-shadow: var(--chrome-shadow-popup, 0 12px 32px hsla(0, 0%, 0%, 0.25));
+  box-shadow: var(--multi-shadow-popup, 0 12px 32px hsla(0, 0%, 0%, 0.25));
   padding: 4px 0;
 }
 
@@ -761,7 +761,7 @@ const css = `
 /* ui-default-diff: Cursor light theme hex — charts.green #55A583, charts.red #E75E78 */
 /* ui-default-diff: Cursor dark  theme hex — charts.green #3FA266, charts.red #E34671 */
 [data-cursor-preview] .ui-default-diff {
-  font-family: var(--chrome-font-mono, ui-monospace, monospace);
+  font-family: var(--multi-font-mono, ui-monospace, monospace);
   font-size: 12px;
   line-height: 18px;
   overflow: hidden;
@@ -776,7 +776,7 @@ const css = `
 [data-cursor-preview] .ui-default-diff__line {
   display: flex;
   gap: 0;
-  font-family: var(--chrome-font-mono, ui-monospace, monospace);
+  font-family: var(--multi-font-mono, ui-monospace, monospace);
   font-size: 12px;
   line-height: 18px;
 }
@@ -967,7 +967,7 @@ const css = `
 }
 
 [data-cursor-preview] .cursor-composer-markdown-facsimile code {
-  font-family: var(--chrome-font-mono, ui-monospace, monospace);
+  font-family: var(--multi-font-mono, ui-monospace, monospace);
   font-size: 12.5px;
   padding: 1px 5px;
   border-radius: 4px;
@@ -1008,7 +1008,7 @@ const css = `
 [data-cursor-preview] .cursor-composer-code-block-facsimile {
   margin: 0;
   padding: 10px 12px;
-  font-family: var(--chrome-font-mono, ui-monospace, monospace);
+  font-family: var(--multi-font-mono, ui-monospace, monospace);
   font-size: 12px;
   line-height: 1.5;
   white-space: pre-wrap;
@@ -1164,9 +1164,9 @@ const css = `
 [data-cursor-preview] .cursor-composer-thinking__fade--layer-1 {
   background: linear-gradient(
     to top,
-    color-mix(in srgb, var(--chrome-chat-surface-background, var(--background)) 72%, transparent)
+    color-mix(in srgb, var(--multi-chat-surface-background, var(--background)) 72%, transparent)
       0%,
-    color-mix(in srgb, var(--chrome-chat-surface-background, var(--background)) 18%, transparent)
+    color-mix(in srgb, var(--multi-chat-surface-background, var(--background)) 18%, transparent)
       55%,
     transparent 100%
   );
@@ -1181,7 +1181,7 @@ const css = `
   top: 38%;
   background: linear-gradient(
     to top,
-    color-mix(in srgb, var(--chrome-chat-surface-background, var(--background)) 88%, transparent) 0%,
+    color-mix(in srgb, var(--multi-chat-surface-background, var(--background)) 88%, transparent) 0%,
     transparent 100%
   );
   backdrop-filter: blur(18px) saturate(1.04);
@@ -1198,7 +1198,7 @@ const css = `
 }
 
 [data-cursor-preview] .cursor-composer-thinking__prose code {
-  font-family: var(--chrome-font-mono, ui-monospace, monospace);
+  font-family: var(--multi-font-mono, ui-monospace, monospace);
   font-size: 12px;
   padding: 1px 5px;
   border-radius: 4px;
@@ -1210,7 +1210,7 @@ const css = `
   margin: 0;
   padding: 8px 0;
   border-radius: 0;
-  font-family: var(--chrome-font-mono, ui-monospace, monospace);
+  font-family: var(--multi-font-mono, ui-monospace, monospace);
   font-size: 12px;
   line-height: 1.5;
   white-space: pre-wrap;
@@ -1309,7 +1309,7 @@ const css = `
 /* shell tool call: command tokens */
 [data-cursor-preview] .ui-shell-tool-call__command {
   display: block;
-  font-family: var(--chrome-font-mono, ui-monospace, monospace);
+  font-family: var(--multi-font-mono, ui-monospace, monospace);
   font-size: 12px;
   line-height: 1.6;
   padding: 6px 10px;
@@ -1342,7 +1342,7 @@ const css = `
 /* shell tool call: output */
 [data-cursor-preview] .ui-shell-tool-call__output {
   margin: 0;
-  font-family: var(--chrome-font-mono, ui-monospace, monospace);
+  font-family: var(--multi-font-mono, ui-monospace, monospace);
   font-size: 12px;
   line-height: 1.5;
   white-space: pre-wrap;
@@ -1653,7 +1653,7 @@ function PreviewAgentTray() {
     <div className="ui-agent-tray__prompt-wrap" data-component="agent-panel">
       <div className="ui-prompt-input ui-prompt-input--agent-tray-stack">
         <div className="ui-prompt-input__attachments-row">
-          <span className="rounded-full border border-chrome-border/40 px-2 py-0.5 text-caption text-muted-foreground">
+          <span className="rounded-full border border-multi-border/40 px-2 py-0.5 text-caption text-muted-foreground">
             plan.md
           </span>
         </div>
@@ -1717,7 +1717,7 @@ function PreviewMention() {
         </button>
       </div>
       <div className="ui-mention-menu__preview">
-        <pre className="m-0 whitespace-pre-wrap font-chrome-mono text-[11px]">{`export async function GET() {
+        <pre className="m-0 whitespace-pre-wrap font-multi-mono text-[11px]">{`export async function GET() {
   return json({ ok: true });
 }`}</pre>
       </div>
@@ -2172,7 +2172,7 @@ function PreviewFileToolEdit() {
               <div className="flex flex-col gap-0.5" style={{ padding: "6px 10px" }}>
                 <div
                   className="ui-default-diff__line"
-                  style={{ color: "var(--chrome-diff-deletion, hsl(0 70% 60%))" }}
+                  style={{ color: "var(--multi-diff-deletion, hsl(0 70% 60%))" }}
                 >
                   <span className="ui-default-diff__gutter" style={{ opacity: 0.5 }}>
                     3
@@ -2374,7 +2374,7 @@ function PreviewChatToolInvocation() {
           <pre
             style={{
               margin: 0,
-              fontFamily: "var(--chrome-font-mono, ui-monospace, monospace)",
+              fontFamily: "var(--multi-font-mono, ui-monospace, monospace)",
               fontSize: 12,
               lineHeight: 1.5,
               whiteSpace: "pre-wrap",

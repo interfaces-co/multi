@@ -74,11 +74,11 @@ function BootView() {
   return (
     <div className="mx-auto flex min-h-0 w-full max-w-[43.875rem] flex-1 flex-col gap-6 px-4 py-4 md:px-8 md:py-6">
       <div className="flex flex-1 flex-col gap-4 pt-4">
-        <Skeleton className="h-18 w-[78%] rounded-chrome-card bg-muted/24" />
-        <Skeleton className="h-28 w-[90%] rounded-chrome-card bg-muted/18" />
-        <Skeleton className="h-22 w-[72%] rounded-chrome-card bg-muted/16" />
+        <Skeleton className="h-18 w-[78%] rounded-multi-card bg-muted/24" />
+        <Skeleton className="h-28 w-[90%] rounded-multi-card bg-muted/18" />
+        <Skeleton className="h-22 w-[72%] rounded-multi-card bg-muted/16" />
       </div>
-      <div className="shrink-0 rounded-[1.75rem] border border-white/8 bg-black/10 p-3 shadow-chrome-card backdrop-blur-xl">
+      <div className="shrink-0 rounded-[1.75rem] border border-white/8 bg-black/10 p-3 shadow-multi-card backdrop-blur-xl">
         <Skeleton className="h-28 w-full rounded-[1.25rem] bg-muted/18" />
       </div>
     </div>

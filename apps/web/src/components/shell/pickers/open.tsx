@@ -95,7 +95,7 @@ export function OpenPicker(props: { variant?: "hero" | "settings" }) {
               if (!shell.cwd || !editor) return;
               void ensureNativeApi().shell.openInEditor(shell.cwd, editor);
             }}
-            className="font-chrome relative inline-flex min-h-7 items-center gap-1.5 rounded-l-full border border-chrome-stroke border-r-0 bg-chrome-bubble px-2.5 text-detail/[17px] text-muted-foreground shadow-chrome-card outline-none backdrop-blur-md transition-colors pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 hover:border-chrome-stroke-strong hover:bg-chrome-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50"
+            className="font-multi relative inline-flex min-h-7 items-center gap-1.5 rounded-l-full border border-multi-stroke border-r-0 bg-multi-bubble px-2.5 text-detail/[17px] text-muted-foreground shadow-multi-card outline-none backdrop-blur-md transition-colors pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 hover:border-multi-stroke-strong hover:bg-multi-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50"
             aria-label={text}
             title={text}
           >
@@ -103,14 +103,14 @@ export function OpenPicker(props: { variant?: "hero" | "settings" }) {
             <span className="max-w-[16rem] truncate">{text}</span>
           </button>
           <div
-            className="pointer-events-none absolute inset-y-1.5 z-10 w-px bg-chrome-stroke"
+            className="pointer-events-none absolute inset-y-1.5 z-10 w-px bg-multi-stroke"
             style={{ left: "calc(100% - 1.75rem)" }}
             aria-hidden
           />
           <Menu.Trigger
             aria-label="Choose editor"
             disabled={locked}
-            className="font-chrome relative inline-flex min-h-7 w-7 items-center justify-center rounded-r-full border border-chrome-stroke border-l-0 bg-chrome-bubble text-muted-foreground shadow-chrome-card outline-none backdrop-blur-md transition-colors pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 hover:border-chrome-stroke-strong hover:bg-chrome-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50"
+            className="font-multi relative inline-flex min-h-7 w-7 items-center justify-center rounded-r-full border border-multi-stroke border-l-0 bg-multi-bubble text-muted-foreground shadow-multi-card outline-none backdrop-blur-md transition-colors pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 hover:border-multi-stroke-strong hover:bg-multi-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50"
             title="Choose editor"
           >
             <IconChevronDownSmall className="composer-toolbar-icon opacity-60" />
@@ -127,7 +127,7 @@ export function OpenPicker(props: { variant?: "hero" | "settings" }) {
             }}
             variant="outline"
             size="sm"
-            className="rounded-none rounded-l-[var(--chrome-radius-control)] border-r-0 px-2.5 pr-2 before:rounded-none before:rounded-l-[calc(var(--radius-chrome-control)-1px)]"
+            className="rounded-none rounded-l-[var(--multi-radius-control)] border-r-0 px-2.5 pr-2 before:rounded-none before:rounded-l-[calc(var(--radius-multi-control)-1px)]"
             aria-label={text}
             title={text}
           >
@@ -147,7 +147,7 @@ export function OpenPicker(props: { variant?: "hero" | "settings" }) {
               <Button
                 variant="outline"
                 size="sm"
-                className="w-8 shrink-0 rounded-none rounded-r-[var(--chrome-radius-control)] border-l-0 px-0 before:rounded-none before:rounded-r-[calc(var(--radius-chrome-control)-1px)]"
+                className="w-8 shrink-0 rounded-none rounded-r-[var(--multi-radius-control)] border-l-0 px-0 before:rounded-none before:rounded-r-[calc(var(--radius-multi-control)-1px)]"
               >
                 <IconChevronDownSmall className="size-3.5 opacity-70" />
               </Button>
@@ -162,7 +162,7 @@ export function OpenPicker(props: { variant?: "hero" | "settings" }) {
           align="end"
           sideOffset={4}
         >
-          <Menu.Popup className="w-[min(15rem,var(--available-width))] min-w-[10rem] overflow-hidden rounded border border-chrome-stroke bg-chrome-bubble text-foreground shadow-chrome-popup outline-none ring-0 backdrop-blur-xl focus:outline-none focus-visible:outline-none">
+          <Menu.Popup className="w-[min(15rem,var(--available-width))] min-w-[10rem] overflow-hidden rounded border border-multi-stroke bg-multi-bubble text-foreground shadow-multi-popup outline-none ring-0 backdrop-blur-xl focus:outline-none focus-visible:outline-none">
             {items.length === 0 ? (
               <div className="px-3 py-1.5 text-body/[1.3] text-muted-foreground">
                 No installed editors found.
@@ -173,7 +173,7 @@ export function OpenPicker(props: { variant?: "hero" | "settings" }) {
                   key={item.id}
                   onClick={() => setEditor(item.id)}
                   className={cn(
-                    "flex cursor-pointer items-center gap-2 px-3 py-1.5 text-body/[1.3] outline-none ring-0 transition-colors hover:bg-chrome-hover data-highlighted:bg-chrome-hover focus-visible:outline-none focus-visible:ring-0",
+                    "flex cursor-pointer items-center gap-2 px-3 py-1.5 text-body/[1.3] outline-none ring-0 transition-colors hover:bg-multi-hover data-highlighted:bg-multi-hover focus-visible:outline-none focus-visible:ring-0",
                     editor === item.id && "bg-primary/10",
                   )}
                 >

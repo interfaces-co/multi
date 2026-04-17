@@ -113,8 +113,8 @@ function segCls(kind: MirrorSeg["kind"], on: boolean) {
   return cn(
     "box-decoration-clone rounded-sm px-1.5 py-px [-webkit-box-decoration-break:clone]",
     on
-      ? "bg-[var(--chrome-composer-object-bg-active)] text-[color:var(--chrome-composer-object-fg)] shadow-[inset_0_0_0_1px_var(--chrome-composer-object-border-active)]"
-      : "bg-[var(--chrome-composer-object-bg)] text-[color:var(--chrome-composer-object-fg-muted)] shadow-[inset_0_0_0_1px_var(--chrome-composer-object-border)]",
+      ? "bg-[var(--multi-composer-object-bg-active)] text-[color:var(--multi-composer-object-fg)] shadow-[inset_0_0_0_1px_var(--multi-composer-object-border-active)]"
+      : "bg-[var(--multi-composer-object-bg)] text-[color:var(--multi-composer-object-fg-muted)] shadow-[inset_0_0_0_1px_var(--multi-composer-object-border)]",
   );
 }
 
@@ -414,7 +414,7 @@ const FileChip = memo(function FileChip(props: { item: Pick; onRemove: () => voi
   const Glyph = icon(props.item);
   return (
     <div className={composerAttachmentChip}>
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-chrome-hover/24 text-muted-foreground/75">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-multi-hover/24 text-muted-foreground/75">
         <Glyph className="size-4" />
       </span>
       <span className="min-w-0 flex-1">
@@ -428,7 +428,7 @@ const FileChip = memo(function FileChip(props: { item: Pick; onRemove: () => voi
       <button
         type="button"
         aria-label={`Remove ${props.item.name}`}
-        className="flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground/65 transition-colors hover:bg-chrome-hover/50 hover:text-foreground"
+        className="flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground/65 transition-colors hover:bg-multi-hover/50 hover:text-foreground"
         onClick={props.onRemove}
       >
         <IconCrossSmall className="size-3.5" />
@@ -1177,7 +1177,7 @@ const ChatComposerImpl = memo(
         className={cn(
           props.variant === "hero"
             ? "w-full"
-            : "relative isolate pb-2 before:pointer-events-none before:absolute before:inset-x-0 before:bottom-0 before:top-[-96px] before:bg-chrome-chat before:mask-[linear-gradient(0deg,#000_0,rgba(0,0,0,0.86)_28%,rgba(0,0,0,0.56)_62%,rgba(0,0,0,0.22)_84%,transparent)]",
+            : "relative isolate pb-2 before:pointer-events-none before:absolute before:inset-x-0 before:bottom-0 before:top-[-96px] before:bg-multi-chat before:mask-[linear-gradient(0deg,#000_0,rgba(0,0,0,0.86)_28%,rgba(0,0,0,0.56)_62%,rgba(0,0,0,0.22)_84%,transparent)]",
         )}
       >
         <div
@@ -1194,7 +1194,7 @@ const ChatComposerImpl = memo(
                   {branch ? (
                     <div className="flex min-w-0 flex-1 justify-end">
                       <span
-                        className="font-chrome inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-chrome-control px-2 py-0.5 text-detail text-muted-foreground/82"
+                        className="font-multi inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-multi-control px-2 py-0.5 text-detail text-muted-foreground/82"
                         title={branch}
                       >
                         <IconBranchSimple className="size-3.5 shrink-0 opacity-60" />
@@ -1208,8 +1208,8 @@ const ChatComposerImpl = memo(
                 ref={shellRef}
                 data-dragging={drag || undefined}
                 className={cn(
-                  "overflow-hidden rounded-chrome-card border border-chrome-stroke-tertiary bg-chrome-bubble shadow-chrome-card backdrop-blur-[10px] transition-none focus-within:border-chrome-stroke-strong",
-                  drag && "border-chrome-stroke-strong shadow-[0_0_0_2px_var(--chrome-ring)]",
+                  "overflow-hidden rounded-multi-card border border-multi-stroke-tertiary bg-multi-bubble shadow-multi-card backdrop-blur-[10px] transition-none focus-within:border-multi-stroke-strong",
+                  drag && "border-multi-stroke-strong shadow-[0_0_0_2px_var(--multi-ring)]",
                 )}
                 onDragLeave={(event) => {
                   const rect = event.currentTarget.getBoundingClientRect();
@@ -1236,7 +1236,7 @@ const ChatComposerImpl = memo(
                 ) : null}
                 <div className="relative min-h-10">
                   <div
-                    className="chrome-composer-mirror font-chrome pointer-events-none absolute inset-0 z-0 px-3 pt-3 pb-1 text-body whitespace-pre-wrap break-words"
+                    className="multi-composer-mirror font-multi pointer-events-none absolute inset-0 z-0 px-3 pt-3 pb-1 text-body whitespace-pre-wrap break-words"
                     aria-hidden
                   >
                     {composing ? (
@@ -1293,7 +1293,7 @@ const ChatComposerImpl = memo(
                     }}
                     placeholder={placeholderText}
                     rows={1}
-                    className="field-sizing-content font-chrome relative z-10 block min-h-10 max-h-56 w-full resize-none bg-transparent px-3 pt-3 pb-1 text-body text-transparent caret-foreground outline-hidden placeholder:text-muted-foreground selection:bg-primary/25"
+                    className="field-sizing-content font-multi relative z-10 block min-h-10 max-h-56 w-full resize-none bg-transparent px-3 pt-3 pb-1 text-body text-transparent caret-foreground outline-hidden placeholder:text-muted-foreground selection:bg-primary/25"
                     onKeyDown={(event: KeyboardEvent<HTMLTextAreaElement>) => {
                       const raw = text();
                       const { start, end } = span();
@@ -1391,7 +1391,7 @@ const ChatComposerImpl = memo(
                         type="button"
                         disabled={props.busy}
                         onClick={pickFiles}
-                        className="flex size-8 items-center justify-center rounded-chrome-card text-muted-foreground/62 transition-colors hover:bg-chrome-hover hover:text-foreground disabled:opacity-35"
+                        className="flex size-8 items-center justify-center rounded-multi-card text-muted-foreground/62 transition-colors hover:bg-multi-hover hover:text-foreground disabled:opacity-35"
                         aria-label="Add files"
                       >
                         <IconPlusLarge className="composer-toolbar-icon" />
@@ -1424,8 +1424,8 @@ const ChatComposerImpl = memo(
                         type="button"
                         disabled={props.busy}
                         className={cn(
-                          "font-chrome inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border border-chrome-stroke-strong pl-2 pr-1 text-body shadow-chrome-card outline-none backdrop-blur-md transition-colors",
-                          "bg-chrome-hover/70 hover:bg-chrome-hover focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50",
+                          "font-multi inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border border-multi-stroke-strong pl-2 pr-1 text-body shadow-multi-card outline-none backdrop-blur-md transition-colors",
+                          "bg-multi-hover/70 hover:bg-multi-hover focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50",
                         )}
                         onClick={() =>
                           props.onFastToggle
@@ -1446,8 +1446,8 @@ const ChatComposerImpl = memo(
                         type="button"
                         disabled={props.busy}
                         className={cn(
-                          "font-chrome chrome-plan-mode-chip--on inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border pl-2 pr-1 text-body shadow-chrome-card outline-none backdrop-blur-md transition-colors",
-                          "hover:border-chrome-stroke-strong hover:bg-chrome-hover focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50",
+                          "font-multi multi-plan-mode-chip--on inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border pl-2 pr-1 text-body shadow-multi-card outline-none backdrop-blur-md transition-colors",
+                          "hover:border-multi-stroke-strong hover:bg-multi-hover focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50",
                         )}
                         onClick={() => props.onPlanToggle?.()}
                         aria-pressed
@@ -1481,8 +1481,8 @@ const ChatComposerImpl = memo(
                   </button>
                 </div>
                 {drag ? (
-                  <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-chrome-card bg-chrome-active/15 backdrop-blur-[2px]">
-                    <div className="rounded-chrome-pill border border-chrome-border/40 bg-chrome-bubble px-3 py-2 text-body font-medium text-foreground/84 shadow-chrome-card">
+                  <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-multi-card bg-multi-active/15 backdrop-blur-[2px]">
+                    <div className="rounded-multi-pill border border-multi-border/40 bg-multi-bubble px-3 py-2 text-body font-medium text-foreground/84 shadow-multi-card">
                       Drop files to attach
                     </div>
                   </div>

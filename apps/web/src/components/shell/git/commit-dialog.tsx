@@ -63,7 +63,7 @@ export function CommitDialog(props: {
             onChange={(e) => setMsg(e.target.value)}
             placeholder="Commit message"
             rows={3}
-            className="w-full resize-none rounded-chrome-control border border-chrome-border/60 bg-transparent px-3 py-2 text-body text-foreground outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-primary/60"
+            className="w-full resize-none rounded-multi-control border border-multi-border/60 bg-transparent px-3 py-2 text-body text-foreground outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-primary/60"
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
@@ -76,7 +76,7 @@ export function CommitDialog(props: {
               type="checkbox"
               checked={push}
               onChange={(e) => setPush(e.target.checked)}
-              className="size-3.5 rounded border-chrome-border/60 accent-primary"
+              className="size-3.5 rounded border-multi-border/60 accent-primary"
             />
             Push after commit
           </label>
@@ -148,7 +148,7 @@ export function BranchCommitDialog(props: {
             onChange={(e) => setMsg(e.target.value)}
             placeholder="Commit message"
             rows={3}
-            className="w-full resize-none rounded-chrome-control border border-chrome-border/60 bg-transparent px-3 py-2 text-body text-foreground outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-primary/60"
+            className="w-full resize-none rounded-multi-control border border-multi-border/60 bg-transparent px-3 py-2 text-body text-foreground outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-primary/60"
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
@@ -161,7 +161,7 @@ export function BranchCommitDialog(props: {
               type="checkbox"
               checked={push}
               onChange={(e) => setPush(e.target.checked)}
-              className="size-3.5 rounded border-chrome-border/60 accent-primary"
+              className="size-3.5 rounded border-multi-border/60 accent-primary"
             />
             Push after commit
           </label>

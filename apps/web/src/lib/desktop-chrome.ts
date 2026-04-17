@@ -13,9 +13,9 @@ const TITLEBAR_CONTROL_HEIGHT_PX = 24;
 export const TITLEBAR_CONTROL_OFFSET_TOP_PX =
   MACOS_TRAFFIC_LIGHTS.y - (TITLEBAR_CONTROL_HEIGHT_PX - TRAFFIC_LIGHT_CLUSTER_HEIGHT_PX) / 2;
 
-const INSET = "--chrome-electron-traffic-inset";
-const TOP = "--chrome-electron-traffic-padding-top";
-const ROW_TOP = "--chrome-titlebar-control-row-top";
+const INSET = "--multi-electron-traffic-inset";
+const TOP = "--multi-electron-traffic-padding-top";
+const ROW_TOP = "--multi-titlebar-control-row-top";
 
 export function applyDesktopChromeMetrics() {
   if (typeof document === "undefined") return;

@@ -37,7 +37,7 @@ export function TintPopover(props: {
         <Popover.Positioner align="end" className="z-50 outline-none" side="bottom" sideOffset={8}>
           <Popover.Popup
             initialFocus={false}
-            className="origin-(--transform-origin) overflow-hidden rounded-chrome-card border border-chrome-stroke bg-chrome-bubble p-0 shadow-chrome-popup backdrop-blur-xl"
+            className="origin-(--transform-origin) overflow-hidden rounded-multi-card border border-multi-stroke bg-multi-bubble p-0 shadow-multi-popup backdrop-blur-xl"
             style={{ width: TINT_PAD.w }}
           >
             <TintPad

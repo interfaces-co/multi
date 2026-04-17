@@ -1,6 +1,6 @@
 import "../../styles/tailwind.css";
 import "../../styles/app.css";
-import "../../styles/chrome-tokens.css";
+import "../../styles/multi-tokens.css";
 
 import { useState } from "react";
 import { createRoot } from "react-dom/client";

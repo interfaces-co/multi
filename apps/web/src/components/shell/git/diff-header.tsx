@@ -67,7 +67,7 @@ export const DiffHeader = memo(function DiffHeader(props: Props) {
   return (
     <div
       className={cn(
-        "sticky top-0 z-[14] flex min-h-[22px] shrink-0 items-center gap-1 border-b border-[color-mix(in_srgb,var(--foreground)_6%,transparent)] bg-chrome-bubble/88 py-1 pr-3 pl-2.5 text-[12px] leading-4 backdrop-blur-xl",
+        "sticky top-0 z-[14] flex min-h-[22px] shrink-0 items-center gap-1 border-b border-[color-mix(in_srgb,var(--foreground)_6%,transparent)] bg-multi-bubble/88 py-1 pr-3 pl-2.5 text-[12px] leading-4 backdrop-blur-xl",
         props.className,
       )}
     >
@@ -75,7 +75,7 @@ export const DiffHeader = memo(function DiffHeader(props: Props) {
         type="checkbox"
         checked={props.viewed}
         onChange={props.onToggleViewed}
-        className="size-3.5 shrink-0 rounded border-chrome-border/60 accent-primary"
+        className="size-3.5 shrink-0 rounded border-multi-border/60 accent-primary"
         aria-label="Mark as viewed"
       />
 
@@ -92,22 +92,22 @@ export const DiffHeader = memo(function DiffHeader(props: Props) {
 
       <div className="flex shrink-0 items-center gap-0.5 tabular-nums">
         {props.add > 0 && (
-          <span className="font-medium text-[var(--chrome-diff-addition)]">+{props.add}</span>
+          <span className="font-medium text-[var(--multi-diff-addition)]">+{props.add}</span>
         )}
         {props.del > 0 && (
-          <span className="font-medium text-[var(--chrome-diff-deletion)]">-{props.del}</span>
+          <span className="font-medium text-[var(--multi-diff-deletion)]">-{props.del}</span>
         )}
       </div>
 
-      <div className="ml-1 flex shrink-0 items-center rounded-chrome-control border border-chrome-border/45 bg-chrome-hover/14 p-0.5">
+      <div className="ml-1 flex shrink-0 items-center rounded-multi-control border border-multi-border/45 bg-multi-hover/14 p-0.5">
         <button
           type="button"
           onClick={() => props.onDiffStyleChange("unified")}
           className={cn(
-            "flex size-6 items-center justify-center rounded-chrome-control transition-colors",
+            "flex size-6 items-center justify-center rounded-multi-control transition-colors",
             props.diffStyle === "unified"
-              ? "bg-chrome-active/60 text-foreground"
-              : "text-muted-foreground/70 hover:bg-chrome-hover hover:text-foreground",
+              ? "bg-multi-active/60 text-foreground"
+              : "text-muted-foreground/70 hover:bg-multi-hover hover:text-foreground",
           )}
           aria-label="Unified diff"
           aria-pressed={props.diffStyle === "unified"}
@@ -118,10 +118,10 @@ export const DiffHeader = memo(function DiffHeader(props: Props) {
           type="button"
           onClick={() => props.onDiffStyleChange("split")}
           className={cn(
-            "flex size-6 items-center justify-center rounded-chrome-control transition-colors",
+            "flex size-6 items-center justify-center rounded-multi-control transition-colors",
             props.diffStyle === "split"
-              ? "bg-chrome-active/60 text-foreground"
-              : "text-muted-foreground/70 hover:bg-chrome-hover hover:text-foreground",
+              ? "bg-multi-active/60 text-foreground"
+              : "text-muted-foreground/70 hover:bg-multi-hover hover:text-foreground",
           )}
           aria-label="Split diff"
           aria-pressed={props.diffStyle === "split"}
@@ -133,7 +133,7 @@ export const DiffHeader = memo(function DiffHeader(props: Props) {
       <button
         type="button"
         onClick={props.onRevert}
-        className="flex size-7 shrink-0 items-center justify-center rounded-chrome-control text-muted-foreground hover:bg-chrome-hover hover:text-foreground"
+        className="flex size-7 shrink-0 items-center justify-center rounded-multi-control text-muted-foreground hover:bg-multi-hover hover:text-foreground"
         aria-label="Revert file"
       >
         <IconArrowRotateCounterClockwise className="size-4" />

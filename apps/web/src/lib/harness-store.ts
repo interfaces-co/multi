@@ -8,8 +8,7 @@ import { readNativeEnvironmentApi, readNativeApi } from "./native-runtime-api";
 import { getServerConfig, useServerProviders } from "../rpc/server-state";
 import { getDefaultServerModel } from "../provider-models";
 import { selectProjectsAcrossEnvironments, useStore } from "../store";
-
-const WORKSPACE_KEY = "multi:workspace-cwd";
+import { readStoredWorkspaceCwd } from "./workspace-state";
 
 export interface HarnessState {
   descriptors: HarnessDescriptor[];
@@ -19,9 +18,7 @@ export interface HarnessState {
 }
 
 function storedCwd() {
-  if (typeof window === "undefined") return null;
-  const raw = window.localStorage.getItem(WORKSPACE_KEY)?.trim();
-  return raw && raw.length > 0 ? raw : null;
+  return readStoredWorkspaceCwd();
 }
 
 function toKind(provider: "codex" | "claudeAgent"): HarnessKind {

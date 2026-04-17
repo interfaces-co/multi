@@ -12,7 +12,7 @@ export function HeroStage(props: { children: ReactNode; footer?: ReactNode; scen
 
   return (
     <div className="relative flex h-full min-h-0 w-full flex-1 flex-col items-center justify-center overflow-hidden outline-hidden">
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-36 bg-gradient-to-t from-chrome-chat via-chrome-chat/78 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-36 bg-gradient-to-t from-multi-chat via-multi-chat/78 to-transparent" />
 
       <motion.div
         key={scene}
