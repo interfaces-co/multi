@@ -14,23 +14,23 @@ import { selectThreadsAcrossEnvironments, useStore } from "~/store";
 
 function StatusDot(props: { item: SidebarChatItem }) {
   if (props.item.kind === "draft") {
-    return <IconFormCircle className="size-3.5 shrink-0 text-muted-foreground/50" aria-hidden />;
+    return <IconFormCircle className="size-3 shrink-0 text-muted-foreground/50" aria-hidden />;
   }
   if (props.item.state === "running") {
     return (
-      <span className="relative flex size-3 shrink-0 items-center justify-center">
-        <span className="absolute size-2 animate-ping rounded-full bg-emerald-500/40" />
-        <span className="size-2 rounded-full bg-emerald-500" />
+      <span className="relative flex size-[5.5px] shrink-0 items-center justify-center">
+        <span className="absolute size-[11px] animate-ping rounded-full bg-emerald-500/35" />
+        <span className="size-[5.5px] rounded-full bg-emerald-500" />
       </span>
     );
   }
   if (props.item.state === "error") {
-    return <span className="size-2 shrink-0 rounded-full bg-destructive/80" aria-hidden />;
+    return <span className="size-[5.5px] shrink-0 rounded-full bg-destructive/85" aria-hidden />;
   }
   if (props.item.kind === "thread" && props.item.unread) {
-    return <IconBell className="size-3.5 shrink-0 text-muted-foreground/55" aria-hidden />;
+    return <IconBell className="size-3 shrink-0 text-muted-foreground/55" aria-hidden />;
   }
-  return <span className="size-2 shrink-0 rounded-full bg-muted-foreground/45" aria-hidden />;
+  return <span className="size-[5.5px] shrink-0 rounded-full bg-muted-foreground/50" aria-hidden />;
 }
 
 export const AgentRow = memo(
