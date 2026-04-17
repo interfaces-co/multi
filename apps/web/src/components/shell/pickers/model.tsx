@@ -141,15 +141,21 @@ export const ModelPicker = forwardRef<
     [locked, open, props.items.length],
   );
 
-  const triggerLabel = busy
-    ? "Loading models"
-    : cur != null
-      ? displayModelName(cur.name || cur.id)
-      : props.selection.model?.id
-        ? displayModelName(props.selection.model.name ?? props.selection.model.id)
-        : failed
-          ? "Models unavailable"
-          : "Select model";
+  const triggerLabel = (() => {
+    if (cur != null) {
+      return displayModelName(cur.name || cur.id);
+    }
+    if (props.selection.model?.id) {
+      return displayModelName(props.selection.model.name ?? props.selection.model.id);
+    }
+    if (busy) {
+      return "Loading models";
+    }
+    if (failed) {
+      return "Models unavailable";
+    }
+    return "Select model";
+  })();
 
   const side = props.variant === "dock" ? "top" : "bottom";
   const align = props.variant === "settings" ? "start" : "end";
@@ -173,14 +179,17 @@ export const ModelPicker = forwardRef<
         aria-label={`Model: ${triggerLabel}${props.onThinkingLevel ? `, thinking ${thinkingDetailLabel(thinkingValue)}` : ""}${showFast ? `, fast mode ${fastValue}` : ""}`}
         disabled={!idle}
         className={cn(
-          "ui-model-picker__trigger inline-flex min-w-0 gap-1.5 rounded border border-transparent bg-transparent text-left text-body/1 text-muted-foreground outline-none transition-colors hover:bg-multi-hover/50 hover:text-foreground/90 focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none",
+          "ui-model-picker__trigger inline-flex min-w-0 gap-1.5 rounded-multi-control border text-left text-body outline-none transition-colors focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none",
           settings
-            ? "h-auto min-h-6 w-full max-w-full flex-col items-stretch gap-0.5 py-1 pl-2 pr-1"
-            : "h-6 max-w-[min(100%,280px)] items-center pl-2 pr-1",
+            ? "h-auto min-h-6 w-full max-w-full flex-col items-stretch gap-0.5 border-multi-stroke/50 bg-multi-hover/20 py-1 pl-2 pr-1 hover:bg-multi-hover/40"
+            : "h-6 max-w-[min(100%,280px)] items-center border-multi-stroke/40 bg-multi-hover/15 pl-2 pr-1.5 hover:border-multi-stroke/60 hover:bg-multi-hover/35",
+          cur != null || props.selection.model?.id
+            ? "text-foreground/90"
+            : "text-muted-foreground/70",
           !idle && "opacity-50",
         )}
       >
-        {busy ? (
+        {busy && !props.selection.model?.id ? (
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <Skeleton className={cn("h-3 rounded bg-muted/45", settings ? "w-28" : "w-20")} />
             {settings && props.onThinkingLevel ? (
@@ -202,9 +211,18 @@ export const ModelPicker = forwardRef<
               <span className="min-w-0 flex-1 overflow-hidden">
                 <PretextOneLine
                   text={triggerLabel}
-                  className="block w-full min-w-0 text-left text-body text-muted-foreground"
+                  className={cn(
+                    "block w-full min-w-0 text-left text-body",
+                    cur != null || props.selection.model?.id
+                      ? "text-foreground/90"
+                      : "text-muted-foreground/70",
+                  )}
                 />
               </span>
+              <IconChevronRight
+                className="size-3 shrink-0 rotate-90 text-muted-foreground/50"
+                aria-hidden
+              />
             </div>
             {settings && (props.onThinkingLevel || showFast) ? (
               <span className="w-full truncate text-left text-caption text-muted-foreground/80">
