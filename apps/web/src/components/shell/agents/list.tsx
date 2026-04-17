@@ -74,8 +74,10 @@ function Section(props: {
           )}
         >
           <IconChevronBottom
-            className="size-3 shrink-0 opacity-60 transition-transform duration-150 ease-out motion-reduce:transition-none"
-            style={{ transform: open ? "rotate(0deg)" : "rotate(-90deg)" }}
+            className={cn(
+              "size-3 shrink-0 text-muted-foreground/50 transition-transform duration-150 ease-out motion-reduce:transition-none",
+              !open && "-rotate-90",
+            )}
             aria-hidden
           />
           <span className="min-w-0 flex-1 truncate">{props.section.label}</span>
@@ -101,7 +103,7 @@ function Section(props: {
         ) : null}
       </div>
       {open && (
-        <div id={panelId} role="region" aria-labelledby={labelId} className="flex flex-col">
+        <div id={panelId} role="region" aria-labelledby={labelId} className="flex flex-col pl-2">
           {items.slice(0, visible).map((item) => (
             <AgentRow
               key={item.id}
@@ -115,7 +117,7 @@ function Section(props: {
               type="button"
               onClick={() => setExtra((count) => count + 1)}
               className={cn(
-                "relative flex min-h-7.5 w-full cursor-pointer items-center gap-2 rounded-multi-control px-2 py-1 text-left font-multi text-detail/4 text-muted-foreground/70 outline-none touch-manipulation",
+                "relative flex min-h-7 w-full cursor-pointer items-center gap-2 rounded-multi-control px-2 py-1 text-left font-multi text-detail text-muted-foreground/65 outline-none touch-manipulation",
                 "transition-[color,background-color] duration-150 ease motion-reduce:transition-none",
                 "pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11",
                 "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
@@ -173,7 +175,7 @@ export function AgentList(props: {
     );
   }
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2 py-1 [scrollbar-gutter:stable]">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-2 py-1.5 [scrollbar-gutter:stable]">
       {props.sections.map((section) => (
         <Section
           key={section.id}
