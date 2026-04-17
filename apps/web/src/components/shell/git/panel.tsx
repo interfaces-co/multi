@@ -152,9 +152,10 @@ function GitPanelInner(props: { git: GitPanelModel }) {
   const viewed = useGitViewed(git.cwd);
   const [diffStyle, setDiffStyle] = useDiffStylePreference();
   const [pending, setPending] = useState<DiffRow | null>(null);
+  const [discardAllPending, setDiscardAllPending] = useState(false);
   const [commitOpen, setCommitOpen] = useState(false);
   const [branchOpen, setBranchOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
 
   const confirmDiscard = useCallback(() => {
     if (!pending) return;
@@ -166,9 +167,29 @@ function GitPanelInner(props: { git: GitPanelModel }) {
     setPending(null);
   }, [git, pending]);
 
+  const confirmDiscardAll = useCallback(() => {
+    const allPaths = files.map((f) => f.path);
+    void git
+      .discard(allPaths)
+      .catch((error: unknown) =>
+        toast.error(error instanceof Error ? error.message : String(error)),
+      );
+    setDiscardAllPending(false);
+  }, [git, files]);
+
+  const handleCommitAndPush = useCallback(() => {
+    setCommitOpen(true);
+  }, []);
+
   return (
     <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
-      <LocalBranchBar branch={git.branch} onBranchCommit={() => setBranchOpen(true)} />
+      <LocalBranchBar
+        branch={git.branch}
+        onCommitAndPush={handleCommitAndPush}
+        onBranchCommit={() => setBranchOpen(true)}
+        menuOpen={headerMenuOpen}
+        onMenuOpen={setHeaderMenuOpen}
+      />
       <ChangesHeader
         count={files.length}
         add={git.totalAdd}
@@ -177,18 +198,10 @@ function GitPanelInner(props: { git: GitPanelModel }) {
         onCollapseAll={git.collapseAll}
         diffStyle={diffStyle}
         onDiffStyle={setDiffStyle}
-        menuOpen={menuOpen}
-        onMenuOpen={setMenuOpen}
-        onCommit={() => setCommitOpen(true)}
-        onPush={() =>
-          void git
-            .runPush()
-            .then(() => toast.success("Pushed"))
-            .catch((e: unknown) => toast.error(e instanceof Error ? e.message : String(e)))
-        }
+        onDiscardAll={() => setDiscardAllPending(true)}
         onRefresh={() => void git.refresh()}
       />
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-2 pb-3 [scrollbar-gutter:stable]">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-2 pb-3 pt-1 [scrollbar-gutter:stable]">
         <div className="flex flex-col gap-1">
           {files.map((file) => (
             <GitFileCard
@@ -216,6 +229,12 @@ function GitPanelInner(props: { git: GitPanelModel }) {
           if (!open) setPending(null);
         }}
       />
+      <DiscardAllDialog
+        open={discardAllPending}
+        count={files.length}
+        onConfirm={confirmDiscardAll}
+        onOpenChange={setDiscardAllPending}
+      />
       <CommitDialog open={commitOpen} onOpenChange={setCommitOpen} onCommit={git.runCommit} />
       <BranchCommitDialog
         open={branchOpen}
@@ -226,28 +245,59 @@ function GitPanelInner(props: { git: GitPanelModel }) {
   );
 }
 
-function LocalBranchBar(props: { branch: string | null; onBranchCommit: () => void }) {
+function LocalBranchBar(props: {
+  branch: string | null;
+  onCommitAndPush: () => void;
+  onBranchCommit: () => void;
+  menuOpen: boolean;
+  onMenuOpen: (open: boolean) => void;
+}) {
   const copyBranch = () => {
     if (!props.branch) return;
     void navigator.clipboard.writeText(props.branch);
-    toast.success("Branch name copied");
+    toast.success("Branch copied");
   };
 
   return (
-    <div className="flex shrink-0 items-center gap-2 border-b border-multi-border/30 px-3 py-2">
-      <IconBranch className="size-3.5 shrink-0 text-muted-foreground/60" />
+    <div className="flex h-9 shrink-0 items-center gap-1 border-b border-multi-stroke-tertiary px-3">
+      <span className="text-detail font-medium text-muted-foreground/70">Local</span>
       <button
         type="button"
         onClick={copyBranch}
-        className="flex min-w-0 items-center gap-1 text-[12px] leading-4 font-medium text-foreground/90 hover:text-foreground"
+        className="flex min-w-0 items-center gap-1 rounded px-1.5 py-0.5 text-detail font-medium text-foreground/90 transition-colors hover:bg-multi-hover hover:text-foreground"
         title="Copy branch name"
       >
+        <IconBranch className="size-3 shrink-0 text-muted-foreground/60" />
         <span className="truncate font-mono">{props.branch ?? "detached"}</span>
       </button>
       <div className="flex-1" />
-      <Button type="button" size="sm" onClick={props.onBranchCommit}>
-        Create Branch & Commit
+      <Button type="button" size="sm" onClick={props.onCommitAndPush}>
+        Commit & Push
       </Button>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => props.onMenuOpen(!props.menuOpen)}
+          className="flex size-6 items-center justify-center rounded-multi-control text-muted-foreground/70 hover:bg-multi-hover hover:text-foreground"
+          aria-label="More options"
+        >
+          <IconDotGrid1x3Horizontal className="size-3.5" />
+        </button>
+        {props.menuOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => props.onMenuOpen(false)} />
+            <div className="absolute top-full right-0 z-50 mt-1 min-w-[160px] rounded-multi-card border border-multi-stroke bg-multi-bubble p-1 text-detail shadow-multi-popup backdrop-blur-xl">
+              <MenuItem
+                label="Create Branch & Commit..."
+                onClick={() => {
+                  props.onBranchCommit();
+                  props.onMenuOpen(false);
+                }}
+              />
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -260,38 +310,49 @@ function ChangesHeader(props: {
   onCollapseAll: () => void;
   diffStyle: "unified" | "split";
   onDiffStyle: (next: "unified" | "split") => void;
-  menuOpen: boolean;
-  onMenuOpen: (open: boolean) => void;
-  onCommit: () => void;
-  onPush: () => void;
+  onDiscardAll: () => void;
   onRefresh: () => void;
 }) {
   return (
-    <div className="flex shrink-0 items-center gap-2 px-3 py-2 text-[12px] leading-4">
-      <span className="min-w-0 truncate font-medium text-foreground/90">
-        {props.count} file{props.count === 1 ? "" : "s"} changed
+    <div className="flex h-9 shrink-0 items-center gap-2 border-b border-multi-stroke-tertiary px-3.5">
+      <span className="text-detail tabular-nums text-foreground/80">
+        {props.count} Uncommitted Change{props.count === 1 ? "" : "s"}
       </span>
-      {props.add > 0 && (
-        <span className="tabular-nums font-medium text-[var(--multi-diff-addition)]">
-          +{props.add}
-        </span>
-      )}
-      {props.del > 0 && (
-        <span className="tabular-nums font-medium text-[var(--multi-diff-deletion)]">
-          -{props.del}
-        </span>
-      )}
+      <div className="flex items-center gap-1 text-detail tabular-nums">
+        {props.add > 0 && (
+          <span className="font-medium text-success-foreground">+{props.add}</span>
+        )}
+        {props.del > 0 && (
+          <span className="font-medium text-destructive-foreground">-{props.del}</span>
+        )}
+      </div>
       <div className="flex-1" />
-      <DiffStyleToggle style={props.diffStyle} onChange={props.onDiffStyle} />
-      <OverflowMenu
-        open={props.menuOpen}
-        onOpenChange={props.onMenuOpen}
-        onExpandAll={props.onExpandAll}
-        onCollapseAll={props.onCollapseAll}
-        onCommit={props.onCommit}
-        onPush={props.onPush}
-        onRefresh={props.onRefresh}
-      />
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={props.onDiscardAll}
+          className="text-detail text-muted-foreground/60 transition-colors hover:text-foreground"
+        >
+          Discard All Changes
+        </button>
+        <DiffStyleToggle style={props.diffStyle} onChange={props.onDiffStyle} />
+        <button
+          type="button"
+          onClick={props.onExpandAll}
+          className="flex size-5 items-center justify-center rounded text-muted-foreground/60 hover:bg-multi-hover hover:text-foreground"
+          title="Expand all"
+        >
+          <IconChevronBottom className="size-3" />
+        </button>
+        <button
+          type="button"
+          onClick={props.onCollapseAll}
+          className="flex size-5 items-center justify-center rounded text-muted-foreground/60 hover:bg-multi-hover hover:text-foreground"
+          title="Collapse all"
+        >
+          <IconChevronRight className="size-3" />
+        </button>
+      </div>
     </div>
   );
 }
@@ -334,72 +395,6 @@ function DiffStyleToggle(props: {
   );
 }
 
-function OverflowMenu(props: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onExpandAll: () => void;
-  onCollapseAll: () => void;
-  onCommit: () => void;
-  onPush: () => void;
-  onRefresh: () => void;
-}) {
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => props.onOpenChange(!props.open)}
-        className="flex size-6 items-center justify-center rounded-multi-control text-muted-foreground/70 hover:bg-multi-hover hover:text-foreground"
-        aria-label="Git actions"
-      >
-        <IconDotGrid1x3Horizontal className="size-3.5" />
-      </button>
-      {props.open ? (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => props.onOpenChange(false)} />
-          <div className="absolute top-full right-0 z-50 mt-1 min-w-[160px] rounded-multi-card border border-multi-stroke bg-multi-bubble p-1 text-[12px] leading-4 shadow-multi-popup backdrop-blur-xl">
-            <MenuItem
-              label="Expand All"
-              onClick={() => {
-                props.onExpandAll();
-                props.onOpenChange(false);
-              }}
-            />
-            <MenuItem
-              label="Collapse All"
-              onClick={() => {
-                props.onCollapseAll();
-                props.onOpenChange(false);
-              }}
-            />
-            <MenuItem
-              label="Refresh Changes"
-              onClick={() => {
-                props.onRefresh();
-                props.onOpenChange(false);
-              }}
-            />
-            <div className="my-1 h-px bg-multi-border/30" />
-            <MenuItem
-              label="Commit..."
-              onClick={() => {
-                props.onCommit();
-                props.onOpenChange(false);
-              }}
-            />
-            <MenuItem
-              label="Push"
-              onClick={() => {
-                props.onPush();
-                props.onOpenChange(false);
-              }}
-            />
-          </div>
-        </>
-      ) : null}
-    </div>
-  );
-}
-
 function MenuItem(props: { label: string; onClick: () => void }) {
   return (
     <button
@@ -409,6 +404,42 @@ function MenuItem(props: { label: string; onClick: () => void }) {
     >
       {props.label}
     </button>
+  );
+}
+
+function DiscardAllDialog(props: {
+  open: boolean;
+  count: number;
+  onConfirm: () => void;
+  onOpenChange: (open: boolean) => void;
+}) {
+  return (
+    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
+      <DialogPopup className="max-w-md" showCloseButton>
+        <DialogHeader>
+          <DialogTitle>Discard all changes?</DialogTitle>
+          <DialogDescription>
+            Revert all {props.count} file{props.count === 1 ? "" : "s"} to the last committed
+            version. This cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button type="button" variant="ghost" onClick={() => props.onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={() => {
+              props.onConfirm();
+              props.onOpenChange(false);
+            }}
+          >
+            Discard All
+          </Button>
+        </DialogFooter>
+      </DialogPopup>
+    </Dialog>
   );
 }
 
@@ -437,46 +468,38 @@ const GitFileCard = memo(function GitFileCard(props: CardProps) {
 
   return (
     <Collapsible.Root open={props.expanded} onOpenChange={props.onToggle}>
-      <div className="overflow-hidden rounded-multi-card border border-multi-border/30 bg-multi-bubble/40">
-        <Collapsible.Trigger className="flex w-full items-center gap-1.5 px-2 py-1.5 text-[12px] leading-4 text-left transition-colors hover:bg-multi-hover/30">
-          <input
-            type="checkbox"
-            checked={props.viewed}
-            onChange={(e) => {
-              e.stopPropagation();
-              props.onToggleViewed();
-            }}
-            onClick={(e) => e.stopPropagation()}
-            className="size-3.5 shrink-0 rounded border-multi-border/60 accent-primary"
-            aria-label="Mark as viewed"
-          />
+      <div className="overflow-hidden rounded-lg border border-multi-stroke bg-multi-editor">
+        <Collapsible.Trigger className="flex h-7 w-full items-center gap-1.5 px-2 text-detail text-left transition-colors hover:bg-multi-hover/50">
+          <span className="inline-flex size-4 shrink-0 items-center justify-center text-muted-foreground/60">
+            {props.expanded ? (
+              <IconChevronBottom className="size-3" />
+            ) : (
+              <IconChevronRight className="size-3" />
+            )}
+          </span>
           <VsFileIcon path={props.file.path} className="size-3.5 shrink-0" />
           <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
-            {prefix ? (
-              <span className="min-w-0 flex-1 truncate text-left text-[11px] text-muted-foreground/40 direction-rtl">
-                <span className="inline [unicode-bidi:embed] direction-ltr">{prefix}</span>
+            <span className="shrink-0 font-medium text-foreground/90">{name}</span>
+            {prefix && (
+              <span className="min-w-0 truncate text-caption text-muted-foreground/45">
+                {prefix}
               </span>
-            ) : null}
-            <span className="shrink-0 font-medium text-foreground">{name}</span>
+            )}
           </span>
           <button
             type="button"
             onClick={copyPath}
-            className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground/50 opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground [div:hover>&]:opacity-100"
+            className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground/50 opacity-0 transition-opacity hover:text-foreground [div:hover>&]:opacity-100"
             aria-label="Copy path"
           >
             <IconClipboard className="size-3" />
           </button>
-          <div className="flex shrink-0 items-center gap-0.5 tabular-nums">
+          <div className="flex shrink-0 items-center gap-1 tabular-nums">
             {props.file.add > 0 && (
-              <span className="font-medium text-[var(--multi-diff-addition)]">
-                +{props.file.add}
-              </span>
+              <span className="font-medium text-success-foreground">+{props.file.add}</span>
             )}
             {props.file.del > 0 && (
-              <span className="font-medium text-[var(--multi-diff-deletion)]">
-                -{props.file.del}
-              </span>
+              <span className="font-medium text-destructive-foreground">-{props.file.del}</span>
             )}
           </div>
           <KindBadge state={props.file.state} />
@@ -487,20 +510,26 @@ const GitFileCard = memo(function GitFileCard(props: CardProps) {
               props.onRevert();
             }}
             className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground/50 hover:bg-multi-hover hover:text-foreground"
-            aria-label="Revert file"
+            aria-label="Discard changes"
+            title="Discard changes"
           >
             <IconArrowRotateCounterClockwise className="size-3" />
           </button>
-          <span className="inline-flex size-4 shrink-0 items-center justify-center text-muted-foreground/60">
-            {props.expanded ? (
-              <IconChevronBottom className="size-3" />
-            ) : (
-              <IconChevronRight className="size-3" />
-            )}
-          </span>
+          <input
+            type="checkbox"
+            checked={props.viewed}
+            onChange={(e) => {
+              e.stopPropagation();
+              props.onToggleViewed();
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="size-3.5 shrink-0 rounded border-multi-border/60 accent-primary"
+            aria-label="Mark as viewed"
+            title="Mark as viewed"
+          />
         </Collapsible.Trigger>
         <Collapsible.Panel keepMounted className="overflow-hidden">
-          <div className="border-t border-multi-border/20">
+          <div className="border-t border-multi-stroke/60">
             {props.loading ? (
               <div className="flex flex-col gap-2 px-3 py-3">
                 <div className="h-3 w-full max-w-[14rem] animate-pulse rounded bg-muted/35" />
