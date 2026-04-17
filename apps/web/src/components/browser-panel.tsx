@@ -9,11 +9,14 @@ import { type ThreadId } from "@multi/contracts";
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
+  CameraIcon,
   ExternalLinkIcon,
   GlobeIcon,
   LoaderCircleIcon,
+  LockIcon,
   PlusIcon,
   RefreshCwIcon,
+  TerminalSquareIcon,
   XIcon,
 } from "lucide-react";
 
@@ -527,6 +530,32 @@ export function BrowserPanel({ mode, threadId, onClosePanel }: BrowserPanelProps
           variant="ghost"
           size="icon-sm"
           className="size-7"
+          disabled={!activeTab}
+          title="Take screenshot"
+          onClick={() => {
+            if (!api || !activeTab) return;
+            void runBrowserAction(() => api.screenshot?.({ threadId, tabId: activeTab.id }));
+          }}
+        >
+          <CameraIcon className="size-3.5" />
+          <span className="sr-only">Take screenshot</span>
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          className="size-7"
+          disabled={!activeTab}
+          title="Toggle console logs"
+        >
+          <TerminalSquareIcon className="size-3.5" />
+          <span className="sr-only">Toggle console logs</span>
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          className="size-7"
           onClick={onCreateTab}
         >
           <PlusIcon className="size-3.5" />
@@ -646,6 +675,31 @@ export function BrowserPanel({ mode, threadId, onClosePanel }: BrowserPanelProps
             </div>
           ) : null}
           <div ref={browserViewportRef} className="absolute inset-0" />
+          {activeTabStatus === "suspended" && workspaceReady && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+              <div className="flex flex-col items-center gap-2 text-center">
+                <LockIcon className="size-8 text-muted-foreground/40" />
+                <p className="text-sm text-muted-foreground">Browser suspended</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (!api || !activeTab) return;
+                    void runBrowserAction(() =>
+                      api.navigate({ threadId, tabId: activeTab.id, url: activeTab.url }),
+                    ).then((state) => {
+                      if (state) {
+                        upsertThreadState(state);
+                      }
+                    });
+                  }}
+                >
+                  Resume
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </DiffPanelShell>
