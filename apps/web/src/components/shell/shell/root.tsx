@@ -6,7 +6,7 @@ export function RootShell(props: { className?: string; children: ReactNode }) {
   return (
     <div
       className={cn(
-        "relative flex min-h-0 min-w-0 flex-1 flex-col bg-chrome-editor",
+        "relative flex min-h-0 min-w-0 flex-1 flex-col bg-multi-editor",
         props.className,
       )}
     >

@@ -24,7 +24,7 @@ export const ComposerFilePreview = memo(function ComposerFilePreview(props: {
         </div>
         <img
           alt={props.item.name}
-          className="min-h-0 flex-1 rounded-sm border border-chrome-border/30 bg-black/10 object-contain"
+          className="min-h-0 flex-1 rounded-sm border border-multi-border/30 bg-black/10 object-contain"
           src={`data:${props.preview.mimeType ?? "image/png"};base64,${props.preview.data}`}
         />
       </div>
@@ -36,9 +36,9 @@ export const ComposerFilePreview = memo(function ComposerFilePreview(props: {
       <div className="mb-1.5 truncate px-1 text-[11px] leading-[14px] text-foreground/70">
         {props.item.path}
       </div>
-      <div className="min-h-0 flex-1 overflow-hidden rounded-sm border border-chrome-border/30 bg-chrome-hover/8">
+      <div className="min-h-0 flex-1 overflow-hidden rounded-sm border border-multi-border/30 bg-multi-hover/8">
         <ScrollArea className="h-full">
-          <pre className="font-chrome-mono p-2 text-[11px] leading-[14px] whitespace-pre-wrap text-foreground/72">
+          <pre className="font-multi-mono p-2 text-[11px] leading-[14px] whitespace-pre-wrap text-foreground/72">
             {props.preview.text || "Binary file"}
             {props.preview.truncated ? "\n\n[truncated]" : ""}
           </pre>

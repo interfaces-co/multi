@@ -19,7 +19,7 @@ export function CursorComposerIntentsFeed() {
   return (
     <div
       data-cursor-preview
-      className="flex min-w-0 flex-col gap-3 px-1 py-2 font-chrome [font-synthesis:none]"
+      className="flex min-w-0 flex-col gap-3 px-1 py-2 font-multi [font-synthesis:none]"
     >
       <p className="cursor-composer-explored-facsimile">Explored 1 search</p>
       <p className="cursor-composer-explored-facsimile">Explored 1 file, 1 search</p>

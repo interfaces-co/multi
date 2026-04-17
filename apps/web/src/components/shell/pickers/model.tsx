@@ -173,7 +173,7 @@ export const ModelPicker = forwardRef<
         aria-label={`Model: ${triggerLabel}${props.onThinkingLevel ? `, thinking ${thinkingDetailLabel(thinkingValue)}` : ""}${showFast ? `, fast mode ${fastValue}` : ""}`}
         disabled={!idle}
         className={cn(
-          "ui-model-picker__trigger inline-flex min-w-0 gap-1.5 rounded border border-transparent bg-transparent text-left text-body/1 text-muted-foreground outline-none transition-colors hover:bg-chrome-hover/50 hover:text-foreground/90 focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none",
+          "ui-model-picker__trigger inline-flex min-w-0 gap-1.5 rounded border border-transparent bg-transparent text-left text-body/1 text-muted-foreground outline-none transition-colors hover:bg-multi-hover/50 hover:text-foreground/90 focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none",
           settings
             ? "h-auto min-h-6 w-full max-w-full flex-col items-stretch gap-0.5 py-1 pl-2 pr-1"
             : "h-6 max-w-[min(100%,280px)] items-center pl-2 pr-1",
@@ -225,10 +225,10 @@ export const ModelPicker = forwardRef<
         >
           <Menu.Popup
             className={cn(
-              "flex max-h-[min(var(--available-height),20rem)] w-[min(16rem,var(--available-width))] min-w-[12rem] max-w-[16rem] flex-col overflow-hidden rounded-chrome-card border border-chrome-stroke bg-chrome-bubble text-foreground shadow-chrome-popup outline-none ring-0 backdrop-blur-xl focus:outline-none focus-visible:outline-none",
+              "flex max-h-[min(var(--available-height),20rem)] w-[min(16rem,var(--available-width))] min-w-[12rem] max-w-[16rem] flex-col overflow-hidden rounded-multi-card border border-multi-stroke bg-multi-bubble text-foreground shadow-multi-popup outline-none ring-0 backdrop-blur-xl focus:outline-none focus-visible:outline-none",
             )}
           >
-            <div className="shrink-0 border-b border-chrome-stroke/50 px-2 py-1.5">
+            <div className="shrink-0 border-b border-multi-stroke/50 px-2 py-1.5">
               <input
                 ref={inputRef}
                 type="search"
@@ -236,7 +236,7 @@ export const ModelPicker = forwardRef<
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={stopMenuSearchBubbling}
                 placeholder="Search models"
-                className="flex h-7 w-full rounded-chrome-control border-0 bg-chrome-hover/50 px-2 text-body text-foreground outline-none ring-0 placeholder:text-muted-foreground/50 focus:outline-none focus-visible:outline-none focus-visible:ring-0"
+                className="flex h-7 w-full rounded-multi-control border-0 bg-multi-hover/50 px-2 text-body text-foreground outline-none ring-0 placeholder:text-muted-foreground/50 focus:outline-none focus-visible:outline-none focus-visible:ring-0"
               />
             </div>
             {list.length === 0 ? (
@@ -270,8 +270,8 @@ export const ModelPicker = forwardRef<
                         setQuery("");
                       }}
                       className={cn(
-                        "group flex min-h-7 cursor-pointer items-center gap-2 rounded px-4 py-1 text-body outline-none ring-0 transition-colors hover:bg-chrome-hover data-highlighted:bg-chrome-hover focus-visible:outline-none focus-visible:ring-0",
-                        selected && "bg-chrome-active",
+                        "group flex min-h-7 cursor-pointer items-center gap-2 rounded px-4 py-1 text-body outline-none ring-0 transition-colors hover:bg-multi-hover data-highlighted:bg-multi-hover focus-visible:outline-none focus-visible:ring-0",
+                        selected && "bg-multi-active",
                       )}
                     >
                       <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -305,12 +305,12 @@ export const ModelPicker = forwardRef<
             ) : null}
             {showThinking || showFast ? (
               <>
-                <Menu.Separator className="mx-0 my-0 h-px shrink-0 bg-chrome-stroke/50" />
+                <Menu.Separator className="mx-0 my-0 h-px shrink-0 bg-multi-stroke/50" />
                 {showThinking ? (
                   <Menu.SubmenuRoot>
                     <Menu.SubmenuTrigger
                       disabled={locked}
-                      className="flex min-h-7 cursor-pointer items-center gap-2 rounded px-4 py-1 text-body outline-none ring-0 hover:bg-chrome-hover data-[highlighted]:bg-chrome-hover data-[disabled]:pointer-events-none data-[disabled]:opacity-40 focus-visible:outline-none focus-visible:ring-0"
+                      className="flex min-h-7 cursor-pointer items-center gap-2 rounded px-4 py-1 text-body outline-none ring-0 hover:bg-multi-hover data-[highlighted]:bg-multi-hover data-[disabled]:pointer-events-none data-[disabled]:opacity-40 focus-visible:outline-none focus-visible:ring-0"
                       label="Thinking"
                     >
                       <span className="min-w-0 flex-1 text-left">Thinking</span>
@@ -328,7 +328,7 @@ export const ModelPicker = forwardRef<
                       >
                         <Menu.Popup
                           className={cn(
-                            "w-[min(14rem,var(--available-width))] min-w-[10rem] max-w-[14rem] overflow-hidden rounded-chrome-card border border-chrome-stroke bg-chrome-bubble py-1 text-foreground shadow-chrome-popup outline-none ring-0 backdrop-blur-md focus:outline-none focus-visible:outline-none",
+                            "w-[min(14rem,var(--available-width))] min-w-[10rem] max-w-[14rem] overflow-hidden rounded-multi-card border border-multi-stroke bg-multi-bubble py-1 text-foreground shadow-multi-popup outline-none ring-0 backdrop-blur-md focus:outline-none focus-visible:outline-none",
                           )}
                         >
                           <Menu.Group>
@@ -346,7 +346,7 @@ export const ModelPicker = forwardRef<
                                   key={opt.value}
                                   value={opt.value}
                                   closeOnClick={false}
-                                  className="flex min-h-7 cursor-pointer items-center gap-2 rounded px-4 py-1 text-body outline-none ring-0 hover:bg-chrome-hover data-[highlighted]:bg-chrome-hover focus-visible:outline-none focus-visible:ring-0"
+                                  className="flex min-h-7 cursor-pointer items-center gap-2 rounded px-4 py-1 text-body outline-none ring-0 hover:bg-multi-hover data-[highlighted]:bg-multi-hover focus-visible:outline-none focus-visible:ring-0"
                                 >
                                   <span className="min-w-0 flex-1">{opt.label}</span>
                                   <Menu.RadioItemIndicator className="flex size-4 shrink-0 items-center justify-center">
@@ -364,12 +364,12 @@ export const ModelPicker = forwardRef<
                 {showFast ? (
                   <>
                     {showThinking ? (
-                      <Menu.Separator className="mx-0 my-0 h-px shrink-0 bg-chrome-stroke/50" />
+                      <Menu.Separator className="mx-0 my-0 h-px shrink-0 bg-multi-stroke/50" />
                     ) : null}
                     <Menu.SubmenuRoot>
                       <Menu.SubmenuTrigger
                         disabled={locked}
-                        className="flex min-h-7 cursor-pointer items-center gap-2 rounded px-4 py-1 text-body outline-none ring-0 hover:bg-chrome-hover data-[highlighted]:bg-chrome-hover data-[disabled]:pointer-events-none data-[disabled]:opacity-40 focus-visible:outline-none focus-visible:ring-0"
+                        className="flex min-h-7 cursor-pointer items-center gap-2 rounded px-4 py-1 text-body outline-none ring-0 hover:bg-multi-hover data-[highlighted]:bg-multi-hover data-[disabled]:pointer-events-none data-[disabled]:opacity-40 focus-visible:outline-none focus-visible:ring-0"
                         label="Fast Mode"
                       >
                         <span className="min-w-0 flex-1 text-left">Fast Mode</span>
@@ -387,7 +387,7 @@ export const ModelPicker = forwardRef<
                         >
                           <Menu.Popup
                             className={cn(
-                              "w-[min(14rem,var(--available-width))] min-w-[10rem] max-w-[14rem] overflow-hidden rounded-chrome-card border border-chrome-stroke bg-chrome-bubble py-1 text-foreground shadow-chrome-popup outline-none ring-0 backdrop-blur-md focus:outline-none focus-visible:outline-none",
+                              "w-[min(14rem,var(--available-width))] min-w-[10rem] max-w-[14rem] overflow-hidden rounded-multi-card border border-multi-stroke bg-multi-bubble py-1 text-foreground shadow-multi-popup outline-none ring-0 backdrop-blur-md focus:outline-none focus-visible:outline-none",
                             )}
                           >
                             <Menu.Group>
@@ -403,7 +403,7 @@ export const ModelPicker = forwardRef<
                                 <Menu.RadioItem
                                   value="off"
                                   closeOnClick={false}
-                                  className="flex min-h-7 cursor-pointer items-center gap-2 rounded px-4 py-1 text-body outline-none ring-0 hover:bg-chrome-hover data-[highlighted]:bg-chrome-hover focus-visible:outline-none focus-visible:ring-0"
+                                  className="flex min-h-7 cursor-pointer items-center gap-2 rounded px-4 py-1 text-body outline-none ring-0 hover:bg-multi-hover data-[highlighted]:bg-multi-hover focus-visible:outline-none focus-visible:ring-0"
                                 >
                                   <span className="min-w-0 flex-1">Off</span>
                                   <Menu.RadioItemIndicator className="flex size-4 shrink-0 items-center justify-center">
@@ -413,7 +413,7 @@ export const ModelPicker = forwardRef<
                                 <Menu.RadioItem
                                   value="on"
                                   closeOnClick={false}
-                                  className="flex min-h-7 cursor-pointer items-center gap-2 rounded px-4 py-1 text-body outline-none ring-0 hover:bg-chrome-hover data-[highlighted]:bg-chrome-hover focus-visible:outline-none focus-visible:ring-0"
+                                  className="flex min-h-7 cursor-pointer items-center gap-2 rounded px-4 py-1 text-body outline-none ring-0 hover:bg-multi-hover data-[highlighted]:bg-multi-hover focus-visible:outline-none focus-visible:ring-0"
                                 >
                                   <span className="min-w-0 flex-1">On</span>
                                   <Menu.RadioItemIndicator className="flex size-4 shrink-0 items-center justify-center">

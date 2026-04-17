@@ -98,12 +98,12 @@ export function ProviderNoticeBanner(props: {
     <div className="px-4 pt-4 md:px-8">
       <section
         className={cn(
-          "mx-auto flex max-w-[43.875rem] min-w-0 flex-col overflow-hidden rounded-chrome-card border shadow-chrome-card backdrop-blur-xl",
+          "mx-auto flex max-w-[43.875rem] min-w-0 flex-col overflow-hidden rounded-multi-card border shadow-multi-card backdrop-blur-xl",
           style.shell,
         )}
       >
         <div className="flex min-w-0 items-start gap-3 px-3 py-3">
-          <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-chrome-control border border-white/6 bg-black/10">
+          <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-multi-control border border-white/6 bg-black/10">
             <Icon kind={view.kind} level={view.level} />
           </div>
           <div className="min-w-0 flex-1">

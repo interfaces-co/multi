@@ -21,7 +21,7 @@ export function ShellSidebarHeader(props: {
         <button
           type="button"
           onClick={props.onAddProject}
-          className="flex size-7 shrink-0 items-center justify-center rounded-chrome-control text-muted-foreground/60 transition-colors [&_svg]:block hover:bg-chrome-hover hover:text-foreground"
+          className="flex size-7 shrink-0 items-center justify-center rounded-multi-control text-muted-foreground/60 transition-colors [&_svg]:block hover:bg-multi-hover hover:text-foreground"
           aria-label="Add project"
           data-testid="sidebar-add-project-trigger"
           title="Add project"
@@ -33,7 +33,7 @@ export function ShellSidebarHeader(props: {
         <button
           type="button"
           onClick={props.onCollapse}
-          className="flex size-7 shrink-0 items-center justify-center rounded-chrome-control text-muted-foreground/60 transition-colors [&_svg]:block hover:bg-chrome-hover hover:text-foreground"
+          className="flex size-7 shrink-0 items-center justify-center rounded-multi-control text-muted-foreground/60 transition-colors [&_svg]:block hover:bg-multi-hover hover:text-foreground"
           aria-label="Collapse sidebar"
         >
           <IconSidebarHiddenLeftWide className="size-4 shrink-0" />

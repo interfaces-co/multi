@@ -165,8 +165,8 @@ export const AgentRow = memo(
         {renaming ? (
           <div
             className={cn(
-              "font-chrome flex min-h-7.5 w-full min-w-0 items-center gap-2 rounded-chrome-control border border-transparent px-2 py-1 text-left text-body/[18px]",
-              "border-chrome-stroke-strong bg-chrome-active",
+              "font-multi flex min-h-7.5 w-full min-w-0 items-center gap-2 rounded-multi-control border border-transparent px-2 py-1 text-left text-body/[18px]",
+              "border-multi-stroke-strong bg-multi-active",
             )}
           >
             <StatusDot item={props.item} />

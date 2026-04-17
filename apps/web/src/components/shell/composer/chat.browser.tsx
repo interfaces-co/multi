@@ -1,7 +1,7 @@
 // @ts-nocheck
 import "../../../styles/tailwind.css";
 import "../../../styles/app.css";
-import "../../../styles/chrome-tokens.css";
+import "../../../styles/multi-tokens.css";
 
 import type { HarnessDescriptor } from "~/lib/ui-session-types";
 import type { ChatDraftFile } from "~/lib/chat-draft-store";
@@ -168,7 +168,7 @@ async function mount(opts: { supported?: boolean; files?: ChatDraftFile[] } = {}
 }
 
 function seg(text: string) {
-  for (const node of document.querySelectorAll<HTMLSpanElement>(".chrome-composer-mirror span")) {
+  for (const node of document.querySelectorAll<HTMLSpanElement>(".multi-composer-mirror span")) {
     if (node.textContent === text) return node;
   }
   return undefined;

@@ -36,15 +36,15 @@ export function SettingsNavRail() {
               to={item.to}
               activeProps={{
                 className: cn(
-                  "font-chrome sidebar-label-track flex min-h-7.5 min-w-0 w-full items-center justify-start gap-2 rounded-chrome-control border border-transparent px-2 py-1 text-body/[18px] transition-colors",
-                  "border-chrome-border/90 bg-chrome-active text-foreground",
+                  "font-multi sidebar-label-track flex min-h-7.5 min-w-0 w-full items-center justify-start gap-2 rounded-multi-control border border-transparent px-2 py-1 text-body/[18px] transition-colors",
+                  "border-multi-border/90 bg-multi-active text-foreground",
                 ),
                 "aria-current": "page",
               }}
               inactiveProps={{
                 className: cn(
-                  "font-chrome sidebar-label-track flex min-h-7.5 min-w-0 w-full items-center justify-start gap-2 rounded-chrome-control border border-transparent px-2 py-1 text-body/[18px] transition-colors",
-                  "text-muted-foreground hover:bg-chrome-hover hover:text-foreground",
+                  "font-multi sidebar-label-track flex min-h-7.5 min-w-0 w-full items-center justify-start gap-2 rounded-multi-control border border-transparent px-2 py-1 text-body/[18px] transition-colors",
+                  "text-muted-foreground hover:bg-multi-hover hover:text-foreground",
                 ),
               }}
             >
@@ -54,7 +54,7 @@ export function SettingsNavRail() {
           );
         })}
       </nav>
-      <div className="shrink-0 border-t border-chrome-border/40 pt-2">
+      <div className="shrink-0 border-t border-multi-border/40 pt-2">
         <Button
           type="button"
           size="xs"

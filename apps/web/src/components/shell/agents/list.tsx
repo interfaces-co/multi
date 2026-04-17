@@ -64,7 +64,7 @@ function Section(props: {
           aria-controls={open ? panelId : undefined}
           onClick={() => setOpen(!open)}
           className={cn(
-            "relative flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-chrome-control px-2 py-1 text-left font-chrome sidebar-label-track outline-none touch-manipulation",
+            "relative flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-multi-control px-2 py-1 text-left font-multi sidebar-label-track outline-none touch-manipulation",
             "transition-[color] duration-150 ease motion-reduce:transition-none",
             "pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11",
             "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
@@ -87,13 +87,13 @@ function Section(props: {
             aria-label={`New agent in ${props.section.label}`}
             title={`New agent in ${props.section.label}`}
             className={cn(
-              "relative flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-chrome-control outline-none touch-manipulation",
+              "relative flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-multi-control outline-none touch-manipulation",
               "transition-[color,background-color] duration-150 ease motion-reduce:transition-none",
               "pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11",
               "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
               props.section.active
-                ? "text-foreground/65 [@media(hover:hover)]:hover:bg-chrome-hover [@media(hover:hover)]:hover:text-foreground"
-                : "text-muted-foreground/55 [@media(hover:hover)]:hover:bg-chrome-hover [@media(hover:hover)]:hover:text-muted-foreground",
+                ? "text-foreground/65 [@media(hover:hover)]:hover:bg-multi-hover [@media(hover:hover)]:hover:text-foreground"
+                : "text-muted-foreground/55 [@media(hover:hover)]:hover:bg-multi-hover [@media(hover:hover)]:hover:text-muted-foreground",
             )}
           >
             <IconPlusLarge className="size-3.5 shrink-0" aria-hidden />
@@ -115,11 +115,11 @@ function Section(props: {
               type="button"
               onClick={() => setExtra((count) => count + 1)}
               className={cn(
-                "relative flex min-h-7.5 w-full cursor-pointer items-center gap-2 rounded-chrome-control px-2 py-1 text-left font-chrome text-detail/4 text-muted-foreground/70 outline-none touch-manipulation",
+                "relative flex min-h-7.5 w-full cursor-pointer items-center gap-2 rounded-multi-control px-2 py-1 text-left font-multi text-detail/4 text-muted-foreground/70 outline-none touch-manipulation",
                 "transition-[color,background-color] duration-150 ease motion-reduce:transition-none",
                 "pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11",
                 "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
-                "[@media(hover:hover)]:hover:bg-chrome-hover [@media(hover:hover)]:hover:text-muted-foreground",
+                "[@media(hover:hover)]:hover:bg-multi-hover [@media(hover:hover)]:hover:text-muted-foreground",
               )}
             >
               <IconDotGrid1x3HorizontalTight className="size-3 shrink-0 opacity-55" aria-hidden />
@@ -145,10 +145,10 @@ export function AgentList(props: {
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-2 py-3 [scrollbar-gutter:stable]">
         {Array.from({ length: 2 }, (_, i) => (
           <div key={i} className="flex flex-col gap-2">
-            <Skeleton className="h-3 w-16 rounded-chrome-control bg-muted/35" />
+            <Skeleton className="h-3 w-16 rounded-multi-control bg-muted/35" />
             <div className="flex flex-col gap-1">
               {Array.from({ length: 3 }, (_, j) => (
-                <Skeleton key={j} className="h-8 w-full rounded-chrome-control bg-muted/28" />
+                <Skeleton key={j} className="h-8 w-full rounded-multi-control bg-muted/28" />
               ))}
             </div>
           </div>

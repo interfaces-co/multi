@@ -180,7 +180,7 @@ function LeftAside(props: { cwd: string | null; children: ReactNode }) {
   return (
     <aside
       className={cn(
-        "chrome-shell-sidebar relative flex shrink-0 flex-col overflow-hidden border-chrome-border/50",
+        "multi-shell-sidebar relative flex shrink-0 flex-col overflow-hidden border-multi-border/50",
         dragging
           ? "transition-none"
           : "transition-[width,border-right-width] duration-150 ease-out motion-reduce:transition-none",
@@ -208,7 +208,7 @@ function LeftAside(props: { cwd: string | null; children: ReactNode }) {
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
         >
-          <div className="h-full w-full hover:bg-chrome-hover/70" />
+          <div className="h-full w-full hover:bg-multi-hover/70" />
         </div>
       ) : null}
     </aside>
@@ -340,7 +340,7 @@ function RightAside(props: {
   return (
     <aside
       className={cn(
-        "chrome-shell-surface relative flex shrink-0 flex-col overflow-hidden border-chrome-border/50",
+        "multi-shell-surface relative flex shrink-0 flex-col overflow-hidden border-multi-border/50",
         dragging
           ? "transition-none"
           : "transition-[width,border-left-width] duration-100 ease-[cubic-bezier(0.19,1,0.22,1)] motion-reduce:transition-none",
@@ -377,7 +377,7 @@ function RightAside(props: {
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
         >
-          <div className="h-full w-full hover:bg-chrome-hover/70" />
+          <div className="h-full w-full hover:bg-multi-hover/70" />
         </div>
       ) : null}
     </aside>
@@ -404,15 +404,15 @@ function ElectronHeaderControls(props: {
 
   return (
     <div
-      className="pointer-events-none absolute top-0 left-0 z-10 h-(--chrome-header-height) drag-region"
+      className="pointer-events-none absolute top-0 left-0 z-10 h-(--multi-header-height) drag-region"
       style={{ right: rightOpen ? rightWidth : 0 }}
     >
-      <div className="pointer-events-none absolute top-(--chrome-titlebar-control-row-top) left-(--chrome-workbench-toggle-left) flex gap-1">
+      <div className="pointer-events-none absolute top-(--multi-titlebar-control-row-top) left-(--multi-workbench-toggle-left) flex gap-1">
         {props.onBack ? (
           <button
             type="button"
             onClick={() => props.onBack?.()}
-            className="pointer-events-auto no-drag flex h-(--chrome-titlebar-control-height) w-(--chrome-titlebar-control-height) shrink-0 items-center justify-center rounded-chrome-control bg-transparent p-0 leading-none text-muted-foreground [&_svg]:block hover:bg-chrome-hover hover:text-foreground"
+            className="pointer-events-auto no-drag flex h-(--multi-titlebar-control-height) w-(--multi-titlebar-control-height) shrink-0 items-center justify-center rounded-multi-control bg-transparent p-0 leading-none text-muted-foreground [&_svg]:block hover:bg-multi-hover hover:text-foreground"
             aria-label="Back to chat"
           >
             <IconArrowLeft className="size-4 shrink-0" />
@@ -421,7 +421,7 @@ function ElectronHeaderControls(props: {
         <button
           type="button"
           onClick={() => shellPanelsActions.toggleLeft(props.cwd)}
-          className="pointer-events-auto no-drag flex h-(--chrome-titlebar-control-height) w-(--chrome-titlebar-control-height) shrink-0 items-center justify-center rounded-chrome-control bg-transparent p-0 leading-none text-muted-foreground [&_svg]:block hover:bg-chrome-hover hover:text-foreground"
+          className="pointer-events-auto no-drag flex h-(--multi-titlebar-control-height) w-(--multi-titlebar-control-height) shrink-0 items-center justify-center rounded-multi-control bg-transparent p-0 leading-none text-muted-foreground [&_svg]:block hover:bg-multi-hover hover:text-foreground"
           aria-label={leftOpen ? "Collapse chats" : "Expand chats"}
         >
           {leftOpen ? (
@@ -432,11 +432,11 @@ function ElectronHeaderControls(props: {
         </button>
       </div>
       {props.showRight && !rightOpen ? (
-        <div className="pointer-events-none absolute top-(--chrome-titlebar-control-row-top) right-0 flex pr-(--chrome-workbench-toggle-right)">
+        <div className="pointer-events-none absolute top-(--multi-titlebar-control-row-top) right-0 flex pr-(--multi-workbench-toggle-right)">
           <button
             type="button"
             onClick={() => setRightPanelOpen(props.cwd, true)}
-            className="pointer-events-auto no-drag flex h-(--chrome-titlebar-control-height) w-(--chrome-titlebar-control-height) shrink-0 items-center justify-center rounded-chrome-control bg-transparent p-0 leading-none text-muted-foreground/70 [&_svg]:block hover:bg-chrome-hover hover:text-foreground"
+            className="pointer-events-auto no-drag flex h-(--multi-titlebar-control-height) w-(--multi-titlebar-control-height) shrink-0 items-center justify-center rounded-multi-control bg-transparent p-0 leading-none text-muted-foreground/70 [&_svg]:block hover:bg-multi-hover hover:text-foreground"
             aria-label="Expand panel"
           >
             <IconSidebar className="size-4 shrink-0 opacity-60" />
@@ -458,7 +458,7 @@ function LeftExpandButton(props: { cwd: string | null }) {
       <button
         type="button"
         onClick={() => shellPanelsActions.toggleLeft(props.cwd)}
-        className="pointer-events-auto flex size-7 items-center justify-center rounded-chrome-control bg-chrome-sidebar/80 text-muted-foreground shadow-sm backdrop-blur-sm [&_svg]:block hover:bg-chrome-hover hover:text-foreground"
+        className="pointer-events-auto flex size-7 items-center justify-center rounded-multi-control bg-multi-sidebar/80 text-muted-foreground shadow-sm backdrop-blur-sm [&_svg]:block hover:bg-multi-hover hover:text-foreground"
         aria-label="Expand chats"
       >
         <IconSidebar className="size-4 shrink-0" />
@@ -487,13 +487,13 @@ export function AppShell(props: {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="relative flex min-h-0 flex-1 flex-row">
           <main
-            className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-chrome-chat outline-hidden"
+            className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-multi-chat outline-hidden"
             data-component="agent-panel"
           >
             {electron ? (
               <div
                 aria-hidden
-                className="pointer-events-none h-(--chrome-header-height) shrink-0 select-none"
+                className="pointer-events-none h-(--multi-header-height) shrink-0 select-none"
               />
             ) : null}
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden outline-hidden">

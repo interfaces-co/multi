@@ -38,13 +38,13 @@ export function HarnessPicker(props: {
         type="button"
         onClick={() => setOpen(!open)}
         disabled={props.disabled}
-        className="flex items-center gap-2 rounded-chrome-card border border-chrome-border/40 bg-chrome-bubble/60 px-2.5 py-1.5 text-detail font-medium text-foreground/85 transition-colors hover:bg-chrome-hover disabled:opacity-40"
+        className="flex items-center gap-2 rounded-multi-card border border-multi-border/40 bg-multi-bubble/60 px-2.5 py-1.5 text-detail font-medium text-foreground/85 transition-colors hover:bg-multi-hover disabled:opacity-40"
       >
         <span className="size-2 rounded-full bg-emerald-500" />
         <span>{selected?.label ?? props.value}</span>
       </button>
       {open ? (
-        <div className="absolute left-0 top-full z-50 mt-1 min-w-[10rem] rounded-chrome-card border border-chrome-border/60 bg-chrome-bubble p-1 shadow-chrome-card">
+        <div className="absolute left-0 top-full z-50 mt-1 min-w-[10rem] rounded-multi-card border border-multi-border/60 bg-multi-bubble p-1 shadow-multi-card">
           {items.map((item) => (
             <button
               key={item.kind}
@@ -53,7 +53,7 @@ export function HarnessPicker(props: {
                 props.onChange(item.kind);
                 setOpen(false);
               }}
-              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-detail hover:bg-chrome-hover"
+              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-detail hover:bg-multi-hover"
             >
               <span className="size-2 rounded-full bg-emerald-500" />
               <span className="flex-1">{item.label}</span>

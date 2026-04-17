@@ -15,10 +15,10 @@ export function WorkspacePicker(props: { className?: string; variant?: "rail" | 
       type="button"
       onClick={openAddProject}
       className={cn(
-        "font-chrome flex min-w-0 items-center gap-1.5 text-left transition-colors",
+        "font-multi flex min-w-0 items-center gap-1.5 text-left transition-colors",
         rail
-          ? "sidebar-label-track justify-start gap-2 rounded-chrome-control px-2 py-1 text-muted-foreground/65 hover:bg-chrome-hover hover:text-foreground"
-          : "sidebar-label-track max-w-[min(100%,14rem)] justify-start rounded-chrome-control px-1.5 py-0.5 text-muted-foreground/80 hover:bg-chrome-hover/80 hover:text-foreground",
+          ? "sidebar-label-track justify-start gap-2 rounded-multi-control px-2 py-1 text-muted-foreground/65 hover:bg-multi-hover hover:text-foreground"
+          : "sidebar-label-track max-w-[min(100%,14rem)] justify-start rounded-multi-control px-1.5 py-0.5 text-muted-foreground/80 hover:bg-multi-hover/80 hover:text-foreground",
         props.className,
       )}
       title={shell.cwd ?? "Add or open project"}

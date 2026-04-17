@@ -10,14 +10,14 @@ export function DesktopBridgeDebug() {
   const bridge = typeof window !== "undefined" ? window.desktopBridge : undefined;
 
   return (
-    <section className="scroll-mt-[4.5rem] font-chrome space-y-4" id="debug-desktop-bridge">
+    <section className="scroll-mt-[4.5rem] font-multi space-y-4" id="debug-desktop-bridge">
       <div className="space-y-1">
         <h2 className="text-[17px] leading-[22px] font-semibold text-foreground">
           Desktop bridge smoke
         </h2>
         <p className="text-detail/[1.45] text-muted-foreground">
           Electron exposes{" "}
-          <code className="font-chrome-mono text-detail">window.desktopBridge</code>. In the web
+          <code className="font-multi-mono text-detail">window.desktopBridge</code>. In the web
           build these buttons are inert except where noted.
         </p>
       </div>
@@ -30,7 +30,7 @@ export function DesktopBridgeDebug() {
             type="button"
             variant="outline"
             size="sm"
-            className="rounded-chrome-control border-chrome-border/45"
+            className="rounded-multi-control border-multi-border/45"
             onClick={() =>
               void bridge.getTerminalAppearance?.(resolvedTheme).then((t) => {
                 setLog(JSON.stringify(t, null, 2));
@@ -43,7 +43,7 @@ export function DesktopBridgeDebug() {
             type="button"
             variant="outline"
             size="sm"
-            className="rounded-chrome-control border-chrome-border/45"
+            className="rounded-multi-control border-multi-border/45"
             onClick={() =>
               void bridge.openNativeTerminal?.(".").then((ok) => {
                 setLog(ok ? "openNativeTerminal: ok" : "openNativeTerminal: false");
@@ -56,7 +56,7 @@ export function DesktopBridgeDebug() {
       )}
 
       {log ? (
-        <pre className="max-h-48 overflow-auto rounded-chrome-card border border-chrome-border/35 bg-background/30 p-3 font-chrome-mono text-detail text-foreground/88">
+        <pre className="max-h-48 overflow-auto rounded-multi-card border border-multi-border/35 bg-background/30 p-3 font-multi-mono text-detail text-foreground/88">
           {log}
         </pre>
       ) : null}
