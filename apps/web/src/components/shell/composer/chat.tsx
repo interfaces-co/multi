@@ -437,6 +437,45 @@ const FileChip = memo(function FileChip(props: { item: Pick; onRemove: () => voi
   );
 });
 
+/** Composer tray — contextual slots above the input for agents, reviews, git, terminal.
+ *  Each slot renders as h-8 row with border-b. Only visible when there's active context. */
+const ComposerTray = memo(function ComposerTray(props: {
+  variant: "hero" | "dock";
+  sessionId?: string | null;
+}) {
+  const snap = useThreadSessionStore(
+    useMemo(
+      () => (state) => (props.sessionId ? state.snaps[props.sessionId] : undefined),
+      [props.sessionId],
+    ),
+  );
+
+  const hasActiveAgent = snap?.subagentActive ?? false;
+  const hasTerminalContext = snap?.terminalContextCount ?? 0;
+  const showTray = hasActiveAgent || hasTerminalContext > 0;
+
+  if (!showTray) return null;
+
+  return (
+    <div className="border-b border-multi-stroke-tertiary">
+      {hasActiveAgent && (
+        <div className="flex h-8 items-center gap-1.5 px-3 text-detail">
+          <span className="size-1.5 rounded-full bg-primary animate-pulse" />
+          <span className="text-muted-foreground/70">Agent running</span>
+        </div>
+      )}
+      {hasTerminalContext > 0 && (
+        <div className="flex h-8 items-center gap-1.5 px-3 text-detail">
+          <span className="text-muted-foreground/60">Terminal</span>
+          <span className="rounded bg-multi-hover/50 px-1 tabular-nums text-muted-foreground/70">
+            {hasTerminalContext}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+});
+
 /** Attachment strip — separates images (grid) from file chips (`ui-prompt-input-image-grid` + `prompt-attachment`).
  *  Owns the shared lightbox state so all image chips open the same gallery and the user can cycle through them. */
 const AttachmentStrip = memo(function AttachmentStrip(props: {
@@ -1234,6 +1273,7 @@ const ChatComposerImpl = memo(
                     onRemove={(id) => writeFiles((cur) => cur.filter((f) => f.id !== id))}
                   />
                 ) : null}
+                <ComposerTray variant={props.variant} sessionId={props.sessionId} />
                 <div className="relative min-h-10">
                   <div
                     className="multi-composer-mirror font-multi pointer-events-none absolute inset-0 z-0 px-3 pt-3 pb-1 text-body whitespace-pre-wrap break-words"
