@@ -1,5 +1,5 @@
 import { parsePatchFiles } from "@pierre/diffs";
-import { FileDiff, type FileDiffMetadata, Virtualizer } from "@pierre/diffs/react";
+import { FileDiff, type FileDiffMetadata } from "@pierre/diffs/react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { scopeThreadRef } from "@multi/client-runtime";
@@ -35,7 +35,7 @@ import { createThreadSelectorByRef } from "../store-selectors";
 import { buildThreadRouteParams, resolveThreadRouteRef } from "../thread-routes";
 import { useSettings } from "../hooks/use-settings";
 import { formatShortTimestamp } from "../timestamp-format";
-import { DiffPanelLoadingState, DiffPanelShell, type DiffPanelMode } from "./diff-panel-shell";
+import { DiffPanelMessageState, DiffPanelShell, type DiffPanelMode } from "./diff-panel-shell";
 import { ToggleGroup, Toggle } from "./ui/toggle-group";
 
 type DiffRenderMode = "stacked" | "split";
@@ -581,25 +581,17 @@ export default function DiffPanel({ mode = "inline" }: DiffPanelProps) {
               </div>
             )}
             {!renderablePatch ? (
-              isLoadingCheckpointDiff ? (
-                <DiffPanelLoadingState label="Loading checkpoint diff..." />
-              ) : (
-                <div className="flex h-full items-center justify-center px-3 py-2 text-xs text-muted-foreground/70">
-                  <p>
-                    {hasNoNetChanges
+              <DiffPanelMessageState
+                label={
+                  isLoadingCheckpointDiff
+                    ? "Loading checkpoint diff..."
+                    : hasNoNetChanges
                       ? "No net changes in this selection."
-                      : "No patch available for this selection."}
-                  </p>
-                </div>
-              )
+                      : "No patch available for this selection."
+                }
+              />
             ) : renderablePatch.kind === "files" ? (
-              <Virtualizer
-                className="diff-render-surface h-full min-h-0 overflow-auto px-2 pb-2"
-                config={{
-                  overscrollSize: 600,
-                  intersectionObserverMargin: 1200,
-                }}
-              >
+              <div className="diff-render-surface h-full min-h-0 overflow-auto px-2 pb-2">
                 {renderableFiles.map((fileDiff) => {
                   const filePath = resolveFileDiffPath(fileDiff);
                   const fileKey = buildFileDiffRenderKey(fileDiff);
@@ -634,7 +626,7 @@ export default function DiffPanel({ mode = "inline" }: DiffPanelProps) {
                     </div>
                   );
                 })}
-              </Virtualizer>
+              </div>
             ) : (
               <div className="h-full overflow-auto p-2">
                 <div className="space-y-2">

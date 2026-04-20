@@ -12,7 +12,6 @@ interface Props {
   prevPath?: string | null;
   diffStyle?: "unified" | "split";
   className?: string;
-  collapsed?: boolean;
 }
 
 export const DiffViewer = memo(function DiffViewer(props: Props) {
@@ -35,9 +34,8 @@ export const DiffViewer = memo(function DiffViewer(props: Props) {
               disableLineNumbers: false,
               diffIndicators: "none",
               lineDiffType: "none",
-              expandUnchanged: false,
+              expandUnchanged: true,
               hunkSeparators: "simple",
-              ...(props.collapsed !== undefined ? { collapsed: props.collapsed } : {}),
             }}
           />
         </div>

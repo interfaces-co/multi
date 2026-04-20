@@ -1,15 +1,11 @@
 import { createFileRoute, retainSearchParams, useNavigate } from "@tanstack/react-router";
-import { Suspense, lazy, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo } from "react";
 
 import { RoutedChatSession } from "../components/routed-chat-session";
 import { threadHasStarted } from "../components/chat-view.logic";
+import DiffPanel from "../components/diff-panel";
 import { DiffWorkerPoolProvider } from "../components/diff-worker-pool-provider";
-import {
-  DiffPanelHeaderSkeleton,
-  DiffPanelLoadingState,
-  DiffPanelShell,
-  type DiffPanelMode,
-} from "../components/diff-panel-shell";
+import { type DiffPanelMode } from "../components/diff-panel-shell";
 import { finalizePromotedDraftThreadByRef, useComposerDraftStore } from "../composer-draft-store";
 import {
   type DiffRouteSearch,
@@ -23,7 +19,6 @@ import { resolveThreadRouteRef, buildThreadRouteParams } from "../thread-routes"
 import { Sheet, SheetPopup } from "../components/ui/sheet";
 import { Sidebar, SidebarProvider, SidebarRail } from "~/components/ui/sidebar";
 
-const DiffPanel = lazy(() => import("../components/diff-panel"));
 const DIFF_INLINE_LAYOUT_MEDIA_QUERY = "(max-width: 1180px)";
 const DIFF_INLINE_SIDEBAR_WIDTH_STORAGE_KEY = "chat_diff_sidebar_width";
 const DIFF_INLINE_DEFAULT_WIDTH = "clamp(28rem,48vw,44rem)";
@@ -56,20 +51,10 @@ const DiffPanelSheet = (props: {
   );
 };
 
-const DiffLoadingFallback = (props: { mode: DiffPanelMode }) => {
-  return (
-    <DiffPanelShell mode={props.mode} header={<DiffPanelHeaderSkeleton />}>
-      <DiffPanelLoadingState label="Loading diff viewer..." />
-    </DiffPanelShell>
-  );
-};
-
-const LazyDiffPanel = (props: { mode: DiffPanelMode }) => {
+const DiffPanelContainer = (props: { mode: DiffPanelMode }) => {
   return (
     <DiffWorkerPoolProvider>
-      <Suspense fallback={<DiffLoadingFallback mode={props.mode} />}>
-        <DiffPanel mode={props.mode} />
-      </Suspense>
+      <DiffPanel mode={props.mode} />
     </DiffWorkerPoolProvider>
   );
 };
@@ -78,9 +63,8 @@ const DiffPanelInlineSidebar = (props: {
   diffOpen: boolean;
   onCloseDiff: () => void;
   onOpenDiff: () => void;
-  renderDiffContent: boolean;
 }) => {
-  const { diffOpen, onCloseDiff, onOpenDiff, renderDiffContent } = props;
+  const { diffOpen, onCloseDiff, onOpenDiff } = props;
   const onOpenChange = useCallback(
     (open: boolean) => {
       if (open) {
@@ -155,7 +139,7 @@ const DiffPanelInlineSidebar = (props: {
           storageKey: DIFF_INLINE_SIDEBAR_WIDTH_STORAGE_KEY,
         }}
       >
-        {renderDiffContent ? <LazyDiffPanel mode="sidebar" /> : null}
+        <DiffPanelContainer mode="sidebar" />
         <SidebarRail />
       </Sidebar>
     </SidebarProvider>
@@ -193,26 +177,6 @@ function ChatThreadRouteView() {
   const environmentHasAnyThreads = environmentHasServerThreads || environmentHasDraftThreads;
   const diffOpen = search.diff === "1";
   const shouldUseDiffSheet = useMediaQuery(DIFF_INLINE_LAYOUT_MEDIA_QUERY);
-  const currentThreadKey = threadRef ? `${threadRef.environmentId}:${threadRef.threadId}` : null;
-  const [diffPanelMountState, setDiffPanelMountState] = useState(() => ({
-    threadKey: currentThreadKey,
-    hasOpenedDiff: diffOpen,
-  }));
-  const hasOpenedDiff =
-    diffPanelMountState.threadKey === currentThreadKey
-      ? diffPanelMountState.hasOpenedDiff
-      : diffOpen;
-  const markDiffOpened = useCallback(() => {
-    setDiffPanelMountState((previous) => {
-      if (previous.threadKey === currentThreadKey && previous.hasOpenedDiff) {
-        return previous;
-      }
-      return {
-        threadKey: currentThreadKey,
-        hasOpenedDiff: true,
-      };
-    });
-  }, [currentThreadKey]);
   const closeDiff = useCallback(() => {
     if (!threadRef) {
       return;
@@ -227,7 +191,6 @@ function ChatThreadRouteView() {
     if (!threadRef) {
       return;
     }
-    markDiffOpened();
     void navigate({
       to: "/$environmentId/$threadId",
       params: buildThreadRouteParams(threadRef),
@@ -236,7 +199,7 @@ function ChatThreadRouteView() {
         return { ...rest, diff: "1" };
       },
     });
-  }, [markDiffOpened, navigate, threadRef]);
+  }, [navigate, threadRef]);
 
   useEffect(() => {
     if (!threadRef || !bootstrapComplete) {
@@ -259,8 +222,6 @@ function ChatThreadRouteView() {
     return null;
   }
 
-  const shouldRenderDiffContent = diffOpen || hasOpenedDiff;
-
   if (!shouldUseDiffSheet) {
     return (
       <div className="flex min-h-0 flex-1 flex-row">
@@ -271,12 +232,7 @@ function ChatThreadRouteView() {
             routeKind="server"
           />
         </div>
-        <DiffPanelInlineSidebar
-          diffOpen={diffOpen}
-          onCloseDiff={closeDiff}
-          onOpenDiff={openDiff}
-          renderDiffContent={shouldRenderDiffContent}
-        />
+        <DiffPanelInlineSidebar diffOpen={diffOpen} onCloseDiff={closeDiff} onOpenDiff={openDiff} />
       </div>
     );
   }
@@ -291,7 +247,7 @@ function ChatThreadRouteView() {
         />
       </div>
       <DiffPanelSheet diffOpen={diffOpen} onCloseDiff={closeDiff}>
-        {shouldRenderDiffContent ? <LazyDiffPanel mode="sheet" /> : null}
+        <DiffPanelContainer mode="sheet" />
       </DiffPanelSheet>
     </>
   );
