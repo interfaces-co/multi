@@ -1,4 +1,3 @@
-// @ts-nocheck
 import {
   CommandId,
   DEFAULT_MODEL_BY_PROVIDER,
@@ -24,7 +23,7 @@ import {
   getProviderModels,
   resolveSelectableProvider,
 } from "../provider-models";
-import { useStore } from "../store";
+import { selectProjectsForEnvironment, useStore } from "../store";
 import type { Project } from "../types";
 import { readStoredWorkspaceCwd } from "./workspace-state";
 
@@ -48,7 +47,7 @@ export interface RuntimeDefaultsRead {
   modelRef: RuntimeModelItem | HarnessModelRef | null;
 }
 
-const commandId = () => CommandId.makeUnsafe(crypto.randomUUID());
+const commandId = () => CommandId.make(crypto.randomUUID());
 
 export function readStoredCwd() {
   return readStoredWorkspaceCwd();
@@ -56,6 +55,11 @@ export function readStoredCwd() {
 
 export function resolveActiveProject(projects: readonly Project[], cwd = readStoredCwd()) {
   return projects.find((item) => item.cwd === cwd) ?? projects[0] ?? null;
+}
+
+function readProjectsFromStore() {
+  const state = useStore.getState();
+  return selectProjectsForEnvironment(state, state.activeEnvironmentId);
 }
 
 function key(provider: string, id: string) {
@@ -376,7 +380,7 @@ export function readRuntimeDefaults(
 }
 
 export async function writeRuntimeDefaultModel(model: HarnessModelRef) {
-  const project = resolveActiveProject(useStore.getState().projects);
+  const project = resolveActiveProject(readProjectsFromStore());
   if (!project) return;
   const orchestration = readNativeEnvironmentApi(project.environmentId)?.orchestration;
   if (!orchestration) return;
@@ -398,7 +402,7 @@ export async function writeRuntimeDefaultModel(model: HarnessModelRef) {
 }
 
 export async function clearRuntimeDefaultModel() {
-  const project = resolveActiveProject(useStore.getState().projects);
+  const project = resolveActiveProject(readProjectsFromStore());
   if (!project) return;
   const orchestration = readNativeEnvironmentApi(project.environmentId)?.orchestration;
   if (!orchestration) return;
@@ -411,7 +415,7 @@ export async function clearRuntimeDefaultModel() {
 }
 
 export async function writeRuntimeDefaultThinkingLevel(level: ThinkingLevel) {
-  const project = resolveActiveProject(useStore.getState().projects);
+  const project = resolveActiveProject(readProjectsFromStore());
   if (!project) return;
   const orchestration = readNativeEnvironmentApi(project.environmentId)?.orchestration;
   if (!orchestration) return;
@@ -426,7 +430,7 @@ export async function writeRuntimeDefaultThinkingLevel(level: ThinkingLevel) {
 }
 
 export async function writeRuntimeDefaultFastMode(on: boolean) {
-  const project = resolveActiveProject(useStore.getState().projects);
+  const project = resolveActiveProject(readProjectsFromStore());
   if (!project) return;
   const orchestration = readNativeEnvironmentApi(project.environmentId)?.orchestration;
   if (!orchestration) return;

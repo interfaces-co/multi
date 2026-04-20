@@ -102,11 +102,11 @@ export function RoutedChatSession(props: {
   }, [environmentId, thread]);
 
   const onModel = useCallback((_item: RuntimeModelItem) => {
-    // TODO: wire to setProviderModelSelect via composerDraftStore
+    // TODO: wire to setProviderModelSelect via the composer draft store
   }, []);
 
   const onThinkingLevel = useCallback((_level: ThinkingLevel) => {
-    // TODO: wire to composerDraftStore thinking level
+    // TODO: wire to the composer draft store thinking level
   }, []);
 
   const interactionMode: ProviderInteractionMode = thread?.interactionMode ?? "default";

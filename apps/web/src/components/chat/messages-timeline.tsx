@@ -859,13 +859,6 @@ function workToneIcon(tone: TimelineWorkEntry["tone"]): {
   };
 }
 
-function workToneClass(tone: "thinking" | "tool" | "info" | "error"): string {
-  if (tone === "error") return "text-rose-300/50 dark:text-rose-300/50";
-  if (tone === "tool") return "text-muted-foreground/70";
-  if (tone === "thinking") return "text-muted-foreground/50";
-  return "text-muted-foreground/40";
-}
-
 function workEntryPreview(
   workEntry: Pick<TimelineWorkEntry, "detail" | "command" | "changedFiles">,
   workspaceRoot: string | undefined,
@@ -943,17 +936,11 @@ const CompactToolRow = memo(function CompactToolRow(props: {
   const preview = workEntryPreview(workEntry, workspaceRoot);
   const rawCommand = workEntryRawCommand(workEntry);
   const hasChangedFiles = (workEntry.changedFiles?.length ?? 0) > 0;
-  const isShellCommand = workEntry.requestKind === "command" || workEntry.itemType === "command_execution";
+  const isShellCommand =
+    workEntry.requestKind === "command" || workEntry.itemType === "command_execution";
 
   if (isShellCommand) {
-    return (
-      <ShellToolCard
-        workEntry={workEntry}
-        heading={heading}
-        preview={preview}
-        rawCommand={rawCommand}
-      />
-    );
+    return <ShellToolCard heading={heading} preview={preview} rawCommand={rawCommand} />;
   }
 
   return (
@@ -962,8 +949,9 @@ const CompactToolRow = memo(function CompactToolRow(props: {
         <EntryIcon className="size-3" />
       </span>
       <span className="text-foreground/85">{heading}</span>
-      {preview && !hasChangedFiles && (
-        rawCommand ? (
+      {preview &&
+        !hasChangedFiles &&
+        (rawCommand ? (
           <Tooltip>
             <TooltipTrigger
               closeDelay={0}
@@ -986,8 +974,7 @@ const CompactToolRow = memo(function CompactToolRow(props: {
           </Tooltip>
         ) : (
           <span className="truncate text-muted-foreground/55">{preview}</span>
-        )
-      )}
+        ))}
       {hasChangedFiles && (
         <span className="text-muted-foreground/55">
           {workEntry.changedFiles?.length === 1
@@ -1002,12 +989,11 @@ const CompactToolRow = memo(function CompactToolRow(props: {
 /** Shell command card — compact bordered card with command preview.
  *  Follows Cursor's ui-shell-tool-call pattern. */
 const ShellToolCard = memo(function ShellToolCard(props: {
-  workEntry: TimelineWorkEntry;
   heading: string;
   preview: string | null;
   rawCommand: string | null;
 }) {
-  const { workEntry, heading, preview, rawCommand } = props;
+  const { heading, preview, rawCommand } = props;
   const [isExpanded, setIsExpanded] = useState(false);
   const commandText = rawCommand || preview || "";
 

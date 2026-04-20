@@ -129,7 +129,7 @@ function draftByKey(key: string) {
   return useComposerDraftStore.getState().draftsByThreadKey[key] ?? undefined;
 }
 
-describe("composerDraftStore addImages", () => {
+describe("composer draft store addImages", () => {
   const threadId = ThreadId.make("thread-dedupe");
   const threadRef = scopeThreadRef(TEST_ENVIRONMENT_ID, threadId);
   let originalRevokeObjectUrl: typeof URL.revokeObjectURL;
@@ -215,7 +215,7 @@ describe("composerDraftStore addImages", () => {
   });
 });
 
-describe("composerDraftStore clearComposerContent", () => {
+describe("composer draft store clearComposerContent", () => {
   const threadId = ThreadId.make("thread-clear");
   const threadRef = scopeThreadRef(TEST_ENVIRONMENT_ID, threadId);
   let originalRevokeObjectUrl: typeof URL.revokeObjectURL;
@@ -247,7 +247,7 @@ describe("composerDraftStore clearComposerContent", () => {
   });
 });
 
-describe("composerDraftStore syncPersistedAttachments", () => {
+describe("composer draft store syncPersistedAttachments", () => {
   const threadId = ThreadId.make("thread-sync-persisted");
   const threadRef = scopeThreadRef(TEST_ENVIRONMENT_ID, threadId);
 
@@ -303,7 +303,7 @@ describe("composerDraftStore syncPersistedAttachments", () => {
   });
 });
 
-describe("composerDraftStore terminal contexts", () => {
+describe("composer draft store terminal contexts", () => {
   const threadId = ThreadId.make("thread-dedupe");
   const threadRef = scopeThreadRef(TEST_ENVIRONMENT_ID, threadId);
 
@@ -481,7 +481,7 @@ describe("composerDraftStore terminal contexts", () => {
   });
 });
 
-describe("composerDraftStore project draft thread mapping", () => {
+describe("composer draft store project draft thread mapping", () => {
   const projectId = ProjectId.make("project-a");
   const otherProjectId = ProjectId.make("project-b");
   const projectRef = scopeProjectRef(TEST_ENVIRONMENT_ID, projectId);
@@ -846,7 +846,7 @@ describe("composerDraftStore project draft thread mapping", () => {
   });
 });
 
-describe("composerDraftStore modelSelection", () => {
+describe("composer draft store modelSelection", () => {
   const threadId = ThreadId.make("thread-model-options");
   const threadRef = scopeThreadRef(TEST_ENVIRONMENT_ID, threadId);
 
@@ -1077,7 +1077,7 @@ describe("composerDraftStore modelSelection", () => {
   });
 });
 
-describe("composerDraftStore setModelSelection", () => {
+describe("composer draft store setModelSelection", () => {
   const threadId = ThreadId.make("thread-model");
   const threadRef = scopeThreadRef(TEST_ENVIRONMENT_ID, threadId);
 
@@ -1096,7 +1096,7 @@ describe("composerDraftStore setModelSelection", () => {
   });
 });
 
-describe("composerDraftStore sticky composer settings", () => {
+describe("composer draft store sticky composer settings", () => {
   beforeEach(() => {
     resetComposerDraftStore();
   });
@@ -1148,7 +1148,7 @@ describe("composerDraftStore sticky composer settings", () => {
   });
 });
 
-describe("composerDraftStore provider-scoped option updates", () => {
+describe("composer draft store provider-scoped option updates", () => {
   const threadId = ThreadId.make("thread-provider");
   const threadRef = scopeThreadRef(TEST_ENVIRONMENT_ID, threadId);
 
@@ -1174,7 +1174,7 @@ describe("composerDraftStore provider-scoped option updates", () => {
   });
 });
 
-describe("composerDraftStore runtime and interaction settings", () => {
+describe("composer draft store runtime and interaction settings", () => {
   const threadId = ThreadId.make("thread-settings");
   const threadRef = scopeThreadRef(TEST_ENVIRONMENT_ID, threadId);
 

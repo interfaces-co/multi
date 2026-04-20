@@ -319,9 +319,7 @@ function ChangesHeader(props: {
         {props.count} Uncommitted Change{props.count === 1 ? "" : "s"}
       </span>
       <div className="flex items-center gap-1 text-detail tabular-nums">
-        {props.add > 0 && (
-          <span className="font-medium text-success-foreground">+{props.add}</span>
-        )}
+        {props.add > 0 && <span className="font-medium text-success-foreground">+{props.add}</span>}
         {props.del > 0 && (
           <span className="font-medium text-destructive-foreground">-{props.del}</span>
         )}

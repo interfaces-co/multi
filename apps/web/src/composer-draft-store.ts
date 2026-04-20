@@ -1988,7 +1988,7 @@ function toHydratedDraftThreadState(
   };
 }
 
-const composerDraftStore = create<ComposerDraftStoreState>()(
+const draftStoreState = create<ComposerDraftStoreState>()(
   persist(
     (setBase, get) => {
       const set = setBase;
@@ -3057,7 +3057,7 @@ const composerDraftStore = create<ComposerDraftStoreState>()(
   ),
 );
 
-export const useComposerDraftStore = composerDraftStore;
+export const useComposerDraftStore = draftStoreState;
 
 export function useComposerThreadDraft(threadRef: ComposerThreadTarget): ComposerThreadDraftState {
   return useComposerDraftStore((state) => {

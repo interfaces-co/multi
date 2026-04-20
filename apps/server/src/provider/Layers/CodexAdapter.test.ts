@@ -20,7 +20,7 @@ import {
   CodexAppServerManager,
   type CodexAppServerStartSessionInput,
   type CodexAppServerSendTurnInput,
-} from "../../codex-app-server-manager.ts";
+} from "../../codexAppServerManager.ts";
 import { ServerConfig } from "../../config.ts";
 import { ServerSettingsService } from "../../server-settings.ts";
 import { ProviderAdapterValidationError } from "../Errors.ts";

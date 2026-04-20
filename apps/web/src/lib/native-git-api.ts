@@ -99,14 +99,14 @@ export function readNativeGitApi(environmentId?: EnvironmentId | null): NativeGi
     init,
     discardPaths: async (input) => {
       const discardPaths = assertMethod(
-        readMethod("discardPaths", [runtimeGit, environmentGit]),
+        readMethod("discardPaths", candidates),
         "Git discard paths API",
       );
       await discardPaths(input);
     },
     getFilePatch: async (input) => {
       const getFilePatch = assertMethod(
-        readMethod("getFilePatch", [runtimeGit, environmentGit]),
+        readMethod("getFilePatch", candidates),
         "Git file patch API",
       );
       return getFilePatch(input);

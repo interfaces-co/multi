@@ -1,11 +1,11 @@
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "./ui/empty";
-import { SidebarInset, SidebarTrigger } from "./ui/sidebar";
 import { isElectron } from "../env";
 import { cn } from "~/lib/utils";
+import { ShellSidebarToggleButton } from "./shell/sidebar/toggle-button";
 
-export function NoActiveThreadState() {
+export function NoActiveThreadState(props: { shellCwd?: string | null }) {
   return (
-    <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none bg-background text-foreground">
+    <main className="h-dvh min-h-0 overflow-hidden overscroll-y-none bg-background text-foreground">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden bg-background">
         <header
           className={cn(
@@ -21,7 +21,10 @@ export function NoActiveThreadState() {
             </span>
           ) : (
             <div className="flex items-center gap-2">
-              <SidebarTrigger className="size-7 shrink-0 md:hidden" />
+              <ShellSidebarToggleButton
+                shellCwd={props.shellCwd ?? null}
+                className="size-7 shrink-0 rounded-multi-control text-muted-foreground/60 transition-colors [&_svg]:block hover:bg-multi-hover hover:text-foreground md:hidden"
+              />
               <span className="text-sm font-medium text-foreground md:text-muted-foreground/60">
                 No active thread
               </span>
@@ -40,6 +43,6 @@ export function NoActiveThreadState() {
           </div>
         </Empty>
       </div>
-    </SidebarInset>
+    </main>
   );
 }

@@ -9,13 +9,14 @@ import { Badge } from "../ui/badge";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import ProjectScriptsControl, { type NewProjectScriptInput } from "../project-scripts-control";
 import { Toggle } from "../ui/toggle";
-import { SidebarTrigger } from "../ui/sidebar";
 import { OpenInPicker } from "./open-in-picker";
+import { ShellSidebarToggleButton } from "../shell/sidebar/toggle-button";
 
 interface ChatHeaderProps {
   activeThreadTitle: string;
   activeProjectName: string | undefined;
   isGitRepo: boolean;
+  shellCwd: string | null;
   openInCwd: string | null;
   activeProjectScripts: ProjectScript[] | undefined;
   preferredScriptId: string | null;
@@ -38,6 +39,7 @@ export const ChatHeader = memo(function ChatHeader({
   activeThreadTitle,
   activeProjectName,
   isGitRepo,
+  shellCwd,
   openInCwd,
   activeProjectScripts,
   preferredScriptId,
@@ -58,7 +60,10 @@ export const ChatHeader = memo(function ChatHeader({
   return (
     <div className="@container/header-actions flex min-w-0 flex-1 items-center gap-2">
       <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden sm:gap-3">
-        <SidebarTrigger className="size-7 shrink-0 md:hidden" />
+        <ShellSidebarToggleButton
+          shellCwd={shellCwd}
+          className="size-7 shrink-0 rounded-multi-control text-muted-foreground/60 transition-colors [&_svg]:block hover:bg-multi-hover hover:text-foreground md:hidden"
+        />
         <h2
           className="min-w-0 shrink truncate text-sm font-medium text-foreground"
           title={activeThreadTitle}

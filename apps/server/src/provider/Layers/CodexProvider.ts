@@ -32,20 +32,20 @@ import {
   providerModelsFromSettings,
   spawnAndCollect,
   type CommandResult,
-} from "../provider-snapshot";
-import { makeManagedServerProvider } from "../make-managed-server-provider";
+} from "../providerSnapshot";
+import { makeManagedServerProvider } from "../makeManagedServerProvider";
 import {
   formatCodexCliUpgradeMessage,
   isCodexCliVersionSupported,
   parseCodexCliVersion,
-} from "../codex-cli-version";
+} from "../codexCliVersion";
 import {
   adjustCodexModelsForAccount,
   codexAuthSubLabel,
   codexAuthSubType,
   type CodexAccountSnapshot,
-} from "../codex-account";
-import { probeCodexDiscovery } from "../codex-app-server";
+} from "../codexAccount";
+import { probeCodexDiscovery } from "../codexAppServer";
 import { CodexProvider } from "../Services/CodexProvider";
 import { ServerSettingsService } from "../../server-settings";
 import { ServerSettingsError } from "@multi/contracts";

@@ -15,7 +15,7 @@ import {
   normalizeCodexModelSlug,
   readCodexAccountSnapshot,
   resolveCodexModelForAccount,
-} from "./codex-app-server-manager";
+} from "./codexAppServerManager";
 
 const asThreadId = (value: string): ThreadId => ThreadId.make(value);
 

@@ -40,7 +40,7 @@ import {
   resolveBrowserAddressSync,
   type BrowserAddressSuggestion,
 } from "./browser-panel.logic";
-import { DiffPanelLoadingState, DiffPanelShell, type DiffPanelMode } from "./diff-panel-shell";
+import { DiffPanelMessageState, DiffPanelShell, type DiffPanelMode } from "./diff-panel-shell";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 
@@ -530,11 +530,12 @@ export function BrowserPanel({ mode, threadId, onClosePanel }: BrowserPanelProps
           variant="ghost"
           size="icon-sm"
           className="size-7"
-          disabled={!activeTab}
+          disabled={!activeTab || !api?.screenshot}
           title="Take screenshot"
           onClick={() => {
-            if (!api || !activeTab) return;
-            void runBrowserAction(() => api.screenshot?.({ threadId, tabId: activeTab.id }));
+            const screenshot = api?.screenshot;
+            if (!screenshot || !activeTab) return;
+            void runBrowserAction(() => screenshot({ threadId, tabId: activeTab.id }));
           }}
         >
           <CameraIcon className="size-3.5" />
@@ -592,7 +593,7 @@ export function BrowserPanel({ mode, threadId, onClosePanel }: BrowserPanelProps
   if (!api) {
     return (
       <DiffPanelShell mode={mode} header={header}>
-        <DiffPanelLoadingState label="Browser is unavailable." />
+        <DiffPanelMessageState label="Browser is unavailable." />
       </DiffPanelShell>
     );
   }
@@ -671,7 +672,7 @@ export function BrowserPanel({ mode, threadId, onClosePanel }: BrowserPanelProps
         <div className="relative min-h-0 flex-1 bg-background">
           {!workspaceReady ? (
             <div className="absolute inset-0 z-10">
-              <DiffPanelLoadingState label="Starting browser..." />
+              <DiffPanelMessageState label="Starting browser..." />
             </div>
           ) : null}
           <div ref={browserViewportRef} className="absolute inset-0" />

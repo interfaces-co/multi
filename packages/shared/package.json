@@ -71,6 +71,10 @@
     "./subagents": {
       "types": "./src/subagents.ts",
       "import": "./src/subagents.ts"
+    },
+    "./toolActivity": {
+      "types": "./src/toolActivity.ts",
+      "import": "./src/toolActivity.ts"
     }
   },
   "scripts": {

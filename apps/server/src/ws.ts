@@ -544,6 +544,74 @@ const makeWsRpcLayer = (currentSessionId: AuthSessionId) =>
           .refreshStatus(cwd)
           .pipe(Effect.ignoreCause({ log: true }), Effect.forkDetach, Effect.asVoid);
 
+      const discardGitPaths = Effect.fn("discardGitPaths")(function* (input: {
+        readonly cwd: string;
+        readonly paths: ReadonlyArray<string>;
+      }) {
+        const uniquePaths = Array.from(
+          new Set(input.paths.map((path) => path.trim()).filter(Boolean)),
+        );
+        if (uniquePaths.length === 0) {
+          return;
+        }
+
+        const untrackedResult = yield* git.execute({
+          operation: "discardPaths.listUntracked",
+          cwd: input.cwd,
+          args: ["ls-files", "--others", "--exclude-standard", "--", ...uniquePaths],
+          allowNonZeroExit: true,
+        });
+
+        const untrackedPaths = new Set(
+          untrackedResult.stdout
+            .split(/\r?\n/u)
+            .map((path) => path.trim())
+            .filter(Boolean),
+        );
+        const trackedPaths = uniquePaths.filter((path) => !untrackedPaths.has(path));
+
+        if (trackedPaths.length > 0) {
+          yield* git.execute({
+            operation: "discardPaths.restore",
+            cwd: input.cwd,
+            args: ["restore", "--staged", "--worktree", "--source=HEAD", "--", ...trackedPaths],
+          });
+        }
+
+        if (untrackedPaths.size > 0) {
+          yield* git.execute({
+            operation: "discardPaths.clean",
+            cwd: input.cwd,
+            args: ["clean", "-fd", "--", ...untrackedPaths],
+          });
+        }
+      });
+
+      const readGitFilePatch = Effect.fn("readGitFilePatch")(function* (input: {
+        readonly cwd: string;
+        readonly path: string;
+      }) {
+        const trackedDiff = yield* git.execute({
+          operation: "getFilePatch.trackedDiff",
+          cwd: input.cwd,
+          args: ["diff", "--no-ext-diff", "--binary", "HEAD", "--", input.path],
+          allowNonZeroExit: true,
+        });
+        if (trackedDiff.stdout.length > 0) {
+          return { unifiedDiff: trackedDiff.stdout };
+        }
+
+        const nullDevice = process.platform === "win32" ? "NUL" : "/dev/null";
+        const untrackedDiff = yield* git.execute({
+          operation: "getFilePatch.untrackedDiff",
+          cwd: input.cwd,
+          args: ["diff", "--no-index", "--binary", "--", nullDevice, input.path],
+          allowNonZeroExit: true,
+        });
+
+        return { unifiedDiff: untrackedDiff.stdout };
+      });
+
       return WsRpcGroup.of({
         [ORCHESTRATION_WS_METHODS.dispatchCommand]: (command) =>
           observeRpcEffect(
@@ -834,6 +902,16 @@ const makeWsRpcLayer = (currentSessionId: AuthSessionId) =>
             ),
             { "rpc.aggregate": "git" },
           ),
+        [WS_METHODS.gitDiscardPaths]: (input) =>
+          observeRpcEffect(
+            WS_METHODS.gitDiscardPaths,
+            discardGitPaths(input).pipe(Effect.tap(() => refreshGitStatus(input.cwd))),
+            { "rpc.aggregate": "git" },
+          ),
+        [WS_METHODS.gitGetFilePatch]: (input) =>
+          observeRpcEffect(WS_METHODS.gitGetFilePatch, readGitFilePatch(input), {
+            "rpc.aggregate": "git",
+          }),
         [WS_METHODS.gitResolvePullRequest]: (input) =>
           observeRpcEffect(WS_METHODS.gitResolvePullRequest, gitManager.resolvePullRequest(input), {
             "rpc.aggregate": "git",

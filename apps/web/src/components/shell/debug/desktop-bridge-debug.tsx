@@ -16,9 +16,8 @@ export function DesktopBridgeDebug() {
           Desktop bridge smoke
         </h2>
         <p className="text-detail/[1.45] text-muted-foreground">
-          Electron exposes{" "}
-          <code className="font-multi-mono text-detail">window.desktopBridge</code>. In the web
-          build these buttons are inert except where noted.
+          Electron exposes <code className="font-multi-mono text-detail">window.desktopBridge</code>
+          . In the web build these buttons are inert except where noted.
         </p>
       </div>
 

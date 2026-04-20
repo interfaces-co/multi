@@ -577,7 +577,7 @@ function embedToolDiffOptions(opts: {
     disableLineNumbers: true,
     diffIndicators: "none" as const,
     lineDiffType: "none" as const,
-    expandUnchanged: false,
+    expandUnchanged: true,
     hunkSeparators: "simple" as const,
     unsafeCSS: "[data-separator] { display: none !important; }",
   };

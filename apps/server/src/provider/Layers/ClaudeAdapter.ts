@@ -217,11 +217,14 @@ function normalizeClaudeStreamMessages(cause: Cause.Cause<Error>): ReadonlyArray
 
 function getEffectiveClaudeCodeEffort(
   effort: ClaudeCodeEffort | null | undefined,
-): Exclude<ClaudeCodeEffort, "ultrathink"> | null {
+): "low" | "medium" | "high" | "max" | null {
   if (!effort) {
     return null;
   }
-  return effort === "ultrathink" ? null : effort;
+  if (effort === "ultrathink") {
+    return null;
+  }
+  return effort === "xhigh" ? "max" : effort;
 }
 
 function isClaudeInterruptedMessage(message: string): boolean {
