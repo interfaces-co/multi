@@ -2,6 +2,9 @@ import type {
   GitCheckoutInput,
   GitCheckoutResult,
   GitCreateBranchInput,
+  GitDiscardPathsInput,
+  GitFilePatchInput,
+  GitFilePatchResult,
   GitPreparePullRequestThreadInput,
   GitPreparePullRequestThreadResult,
   GitPullRequestRefInput,
@@ -14,6 +17,8 @@ import type {
   GitPullResult,
   GitRemoveWorktreeInput,
   GitResolvePullRequestResult,
+  GitRunStackedActionInput,
+  GitRunStackedActionResult,
   GitStatusInput,
   GitStatusResult,
   GitCreateBranchResult,
@@ -217,6 +222,7 @@ export interface DesktopBrowserBridge {
   newTab: (input: BrowserNewTabInput) => Promise<ThreadBrowserState>;
   closeTab: (input: BrowserTabInput) => Promise<ThreadBrowserState>;
   selectTab: (input: BrowserTabInput) => Promise<ThreadBrowserState>;
+  screenshot?: (input: BrowserTabInput) => Promise<void>;
   openDevTools: (input: BrowserTabInput) => Promise<void>;
   onState: (listener: (state: ThreadBrowserState) => void) => () => void;
 }
@@ -340,6 +346,9 @@ export interface EnvironmentApi {
     createBranch: (input: GitCreateBranchInput) => Promise<GitCreateBranchResult>;
     checkout: (input: GitCheckoutInput) => Promise<GitCheckoutResult>;
     init: (input: GitInitInput) => Promise<void>;
+    discardPaths: (input: GitDiscardPathsInput) => Promise<void>;
+    getFilePatch: (input: GitFilePatchInput) => Promise<GitFilePatchResult>;
+    runStackedAction: (input: GitRunStackedActionInput) => Promise<GitRunStackedActionResult>;
     resolvePullRequest: (input: GitPullRequestRefInput) => Promise<GitResolvePullRequestResult>;
     preparePullRequestThread: (
       input: GitPreparePullRequestThreadInput,

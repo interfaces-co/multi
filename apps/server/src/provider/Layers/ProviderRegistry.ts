@@ -21,7 +21,7 @@ import {
   readProviderStatusCache,
   resolveProviderStatusCachePath,
   writeProviderStatusCache,
-} from "../provider-status-cache";
+} from "../providerStatusCache";
 
 const loadProviders = (
   codexProvider: CodexProviderShape,

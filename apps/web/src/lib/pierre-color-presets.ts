@@ -15,18 +15,15 @@ export const PIERRE_DARK_VARS: Record<string, string> = {
   "--border": "#1f1f21",
   "--input": "#1f1f21",
   "--ring": "oklch(0.68 0.14 245 / 45%)",
-  "--multi-color-sidebar":
-    "color-mix(in srgb, #141415 var(--multi-sidebar-opacity), transparent)",
+  "--multi-color-sidebar": "color-mix(in srgb, #141415 var(--multi-sidebar-opacity), transparent)",
   "--multi-color-chat": "color-mix(in srgb, #0a0a0a var(--multi-chat-opacity), transparent)",
   "--multi-color-editor": "color-mix(in srgb, #070707 var(--multi-editor-opacity), transparent)",
-  "--multi-color-surface":
-    "color-mix(in srgb, #0c0c0c var(--multi-surface-opacity), transparent)",
+  "--multi-color-surface": "color-mix(in srgb, #0c0c0c var(--multi-surface-opacity), transparent)",
   "--multi-color-elevated":
     "color-mix(in srgb, #141415 var(--multi-elevated-opacity), transparent)",
   "--multi-color-bubble": "color-mix(in srgb, #141415 var(--multi-bubble-opacity), transparent)",
   "--multi-color-bubble-opaque": "#141415",
-  "--multi-color-menubar":
-    "color-mix(in srgb, #070707 var(--multi-menubar-opacity), transparent)",
+  "--multi-color-menubar": "color-mix(in srgb, #070707 var(--multi-menubar-opacity), transparent)",
   "--multi-color-border": "color-mix(in srgb, #fbfbfb 10%, transparent)",
   "--multi-color-stroke": "color-mix(in srgb, #fbfbfb 8%, transparent)",
   "--multi-color-stroke-tertiary": "color-mix(in srgb, #fbfbfb 6%, transparent)",
@@ -53,18 +50,15 @@ export const PIERRE_LIGHT_VARS: Record<string, string> = {
   "--border": "#eeeeef",
   "--input": "#dbdbdd",
   "--ring": "oklch(0.68 0.14 245 / 38%)",
-  "--multi-color-sidebar":
-    "color-mix(in srgb, #f8f8f8 var(--multi-sidebar-opacity), transparent)",
+  "--multi-color-sidebar": "color-mix(in srgb, #f8f8f8 var(--multi-sidebar-opacity), transparent)",
   "--multi-color-chat": "color-mix(in srgb, #fafafa var(--multi-chat-opacity), transparent)",
   "--multi-color-editor": "color-mix(in srgb, #ffffff var(--multi-editor-opacity), transparent)",
-  "--multi-color-surface":
-    "color-mix(in srgb, #f5f5f6 var(--multi-surface-opacity), transparent)",
+  "--multi-color-surface": "color-mix(in srgb, #f5f5f6 var(--multi-surface-opacity), transparent)",
   "--multi-color-elevated":
     "color-mix(in srgb, #eeeeef var(--multi-elevated-opacity), transparent)",
   "--multi-color-bubble": "color-mix(in srgb, #eeeeef var(--multi-bubble-opacity), transparent)",
   "--multi-color-bubble-opaque": "#eeeeef",
-  "--multi-color-menubar":
-    "color-mix(in srgb, #ffffff var(--multi-menubar-opacity), transparent)",
+  "--multi-color-menubar": "color-mix(in srgb, #ffffff var(--multi-menubar-opacity), transparent)",
   "--multi-color-border": "color-mix(in srgb, #070707 10%, transparent)",
   "--multi-color-stroke": "color-mix(in srgb, #070707 8%, transparent)",
   "--multi-color-stroke-tertiary": "color-mix(in srgb, #070707 6%, transparent)",

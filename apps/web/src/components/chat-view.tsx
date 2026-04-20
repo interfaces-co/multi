@@ -3069,7 +3069,7 @@ export default function ChatView(props: ChatViewProps) {
 
   // Empty state: no active thread
   if (!activeThread) {
-    return <NoActiveThreadState />;
+    return <NoActiveThreadState shellCwd={activeProjectCwd} />;
   }
 
   return (
@@ -3091,6 +3091,7 @@ export default function ChatView(props: ChatViewProps) {
           activeThreadTitle={activeThread.title}
           activeProjectName={activeProject?.name}
           isGitRepo={isGitRepo}
+          shellCwd={activeProjectCwd}
           openInCwd={gitCwd}
           activeProjectScripts={activeProject?.scripts}
           preferredScriptId={

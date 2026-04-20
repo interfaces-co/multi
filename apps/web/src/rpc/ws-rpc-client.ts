@@ -89,6 +89,8 @@ export interface WsRpcClient {
       input: GitRunStackedActionInput,
       options?: GitRunStackedActionOptions,
     ) => Promise<GitRunStackedActionResult>;
+    readonly discardPaths: RpcUnaryMethod<typeof WS_METHODS.gitDiscardPaths>;
+    readonly getFilePatch: RpcUnaryMethod<typeof WS_METHODS.gitGetFilePatch>;
     readonly listBranches: RpcUnaryMethod<typeof WS_METHODS.gitListBranches>;
     readonly createWorktree: RpcUnaryMethod<typeof WS_METHODS.gitCreateWorktree>;
     readonly removeWorktree: RpcUnaryMethod<typeof WS_METHODS.gitRemoveWorktree>;
@@ -189,6 +191,10 @@ export function createWsRpcClient(transport: WsTransport): WsRpcClient {
 
         throw new Error("Git action stream completed without a final result.");
       },
+      discardPaths: (input) =>
+        transport.request((client) => client[WS_METHODS.gitDiscardPaths](input)),
+      getFilePatch: (input) =>
+        transport.request((client) => client[WS_METHODS.gitGetFilePatch](input)),
       listBranches: (input) =>
         transport.request((client) => client[WS_METHODS.gitListBranches](input)),
       createWorktree: (input) =>

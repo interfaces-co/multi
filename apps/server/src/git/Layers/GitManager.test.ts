@@ -477,7 +477,12 @@ function createGitHubCliWithFakeGh(scenario: FakeGhScenario = {}): {
     if (args[0] === "repo" && args[1] === "view") {
       const repository = args[2];
       if (typeof repository === "string" && args.includes("nameWithOwner,url,sshUrl")) {
-        const cloneUrls = scenario.repositoryCloneUrls?.[repository];
+        const cloneUrls =
+          scenario.repositoryCloneUrls?.[repository] ??
+          Object.entries(scenario.repositoryCloneUrls ?? {}).find(
+            ([candidate]) => candidate.toLowerCase() === repository.toLowerCase(),
+          )?.[1] ??
+          null;
         if (!cloneUrls) {
           return Effect.fail(
             new GitHubCliError({

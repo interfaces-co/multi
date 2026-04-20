@@ -1,8 +1,8 @@
 /**
  * Draft store shim: orchestration-backed state owns real drafts; this module exposes
- * the subset of types and APIs the shell composer expects (backed by composerDraftStore).
+ * the subset of types and APIs the shell composer expects (backed by the composer draft store).
  *
- * TODO: Wire the real c-t3 composerDraftStore methods into the hooks below.
+ * TODO: Wire the real c-t3 composer draft store methods into the hooks below.
  */
 
 import type { HarnessKind } from "~/lib/ui-session-types";

@@ -36,7 +36,7 @@ import { CodexAdapter, type CodexAdapterShape } from "../Services/CodexAdapter.t
 import {
   CodexAppServerManager,
   type CodexAppServerStartSessionInput,
-} from "../../codex-app-server-manager.ts";
+} from "../../codexAppServerManager.ts";
 import { resolveAttachmentPath } from "../../attachment-store.ts";
 import { ServerConfig } from "../../config.ts";
 import { ServerSettingsService } from "../../server-settings.ts";

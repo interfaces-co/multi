@@ -435,10 +435,7 @@ function unified(entry: EditEntry): React.ReactNode[] {
 
   for (const l of old) {
     lines.push(
-      <div
-        key={`d${lines.length}`}
-        className="bg-multi-diff-deletion-bg text-multi-diff-deletion"
-      >
+      <div key={`d${lines.length}`} className="bg-multi-diff-deletion-bg text-multi-diff-deletion">
         <span className="select-none opacity-50">- </span>
         {l}
       </div>,
@@ -446,10 +443,7 @@ function unified(entry: EditEntry): React.ReactNode[] {
   }
   for (const l of next) {
     lines.push(
-      <div
-        key={`a${lines.length}`}
-        className="bg-multi-diff-addition-bg text-multi-diff-addition"
-      >
+      <div key={`a${lines.length}`} className="bg-multi-diff-addition-bg text-multi-diff-addition">
         <span className="select-none opacity-50">+ </span>
         {l}
       </div>,

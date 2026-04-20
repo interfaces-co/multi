@@ -8,7 +8,7 @@ import {
   readProviderStatusCache,
   resolveProviderStatusCachePath,
   writeProviderStatusCache,
-} from "./provider-status-cache";
+} from "./providerStatusCache";
 
 const makeProvider = (
   provider: ServerProvider["provider"],
@@ -27,7 +27,7 @@ const makeProvider = (
   ...overrides,
 });
 
-it.layer(NodeServices.layer)("provider-status-cache", (it) => {
+it.layer(NodeServices.layer)("providerStatusCache", (it) => {
   it.effect("writes and reads provider status snapshots", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;

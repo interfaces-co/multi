@@ -25,8 +25,8 @@ import {
   providerModelsFromSettings,
   spawnAndCollect,
   type CommandResult,
-} from "../provider-snapshot";
-import { makeManagedServerProvider } from "../make-managed-server-provider";
+} from "../providerSnapshot";
+import { makeManagedServerProvider } from "../makeManagedServerProvider";
 import { ClaudeProvider } from "../Services/ClaudeProvider";
 import { ServerSettingsService } from "../../server-settings";
 import { ServerSettingsError } from "@multi/contracts";
@@ -108,7 +108,6 @@ const BUILT_IN_MODELS: ReadonlyArray<ServerProviderModel> = [
         { value: "low", label: "Low" },
         { value: "medium", label: "Medium" },
         { value: "high", label: "High", isDefault: true },
-        { value: "max", label: "Max" },
         { value: "ultrathink", label: "Ultrathink" },
       ],
       supportsFastMode: false,

@@ -71,6 +71,10 @@ export function getColorPalette(): ColorPaletteId {
 
 export function applyColorPalette() {
   const root = document.documentElement;
+  const rootStyle = root?.style;
+  if (!root || !rootStyle) {
+    return;
+  }
   const preset = getColorPalette();
   const hue = parseIntStored(localStorage.getItem(STORAGE_TINT_HUE), 255, 0, 360);
   const saturation = readTintSaturation();
@@ -78,22 +82,22 @@ export function applyColorPalette() {
   if (preset === "pierre") {
     const map = root.classList.contains("dark") ? PIERRE_DARK_VARS : PIERRE_LIGHT_VARS;
     for (const k of ALL_PRESET_VAR_KEYS) {
-      root.style.removeProperty(k);
+      rootStyle.removeProperty(k);
     }
     for (const [k, v] of Object.entries(map)) {
-      root.style.setProperty(k, v);
+      rootStyle.setProperty(k, v);
     }
-    root.style.removeProperty("--multi-user-hue");
-    root.style.removeProperty("--multi-intensity");
+    rootStyle.removeProperty("--multi-user-hue");
+    rootStyle.removeProperty("--multi-intensity");
     emit();
     return;
   }
 
   for (const k of ALL_PRESET_VAR_KEYS) {
-    root.style.removeProperty(k);
+    rootStyle.removeProperty(k);
   }
-  root.style.setProperty("--multi-user-hue", String(hue));
-  root.style.setProperty("--multi-intensity", String(saturation));
+  rootStyle.setProperty("--multi-user-hue", String(hue));
+  rootStyle.setProperty("--multi-intensity", String(saturation));
   emit();
 }
 
@@ -113,6 +117,10 @@ function syncVibrancy() {
 
 function applyChromeRoot() {
   const root = document.documentElement;
+  const rootStyle = root?.style;
+  if (!root || !rootStyle) {
+    return;
+  }
 
   const reduce = localStorage.getItem(STORAGE_REDUCE_TRANSPARENCY) === "1";
   const transparency = parseIntStored(
@@ -123,25 +131,25 @@ function applyChromeRoot() {
   );
   root.classList.toggle("multi-reduce-transparency", reduce);
   root.classList.remove("multi-hide-email");
-  root.style.setProperty("--multi-transparency", String(transparency));
+  rootStyle.setProperty("--multi-transparency", String(transparency));
 
   const uiPx = parseIntStored(localStorage.getItem(STORAGE_UI_FONT_SIZE), 13, 11, 16);
   const codePx = parseIntStored(localStorage.getItem(STORAGE_CODE_FONT_SIZE), 12, 10, 18);
-  root.style.setProperty("--multi-sidebar-label-size-user", `${uiPx}px`);
-  root.style.setProperty("--multi-ui-font-size-user", `${uiPx}px`);
-  root.style.setProperty("--multi-code-font-size-user", `${codePx}px`);
+  rootStyle.setProperty("--multi-sidebar-label-size-user", `${uiPx}px`);
+  rootStyle.setProperty("--multi-ui-font-size-user", `${uiPx}px`);
+  rootStyle.setProperty("--multi-code-font-size-user", `${codePx}px`);
 
   const uiFont = localStorage.getItem(STORAGE_UI_FONT)?.trim() ?? "";
   const codeFont = localStorage.getItem(STORAGE_CODE_FONT)?.trim() ?? "";
   if (uiFont) {
-    root.style.setProperty("--multi-font-ui", uiFont);
+    rootStyle.setProperty("--multi-font-ui", uiFont);
   } else {
-    root.style.removeProperty("--multi-font-ui");
+    rootStyle.removeProperty("--multi-font-ui");
   }
   if (codeFont) {
-    root.style.setProperty("--multi-font-mono", codeFont);
+    rootStyle.setProperty("--multi-font-mono", codeFont);
   } else {
-    root.style.removeProperty("--multi-font-mono");
+    rootStyle.removeProperty("--multi-font-mono");
   }
 
   applyColorPalette();
