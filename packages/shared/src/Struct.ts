@@ -1,23 +1,27 @@
-import * as P from "effect/Predicate";
-
-export type DeepPartial<T> = T extends readonly (infer U)[]
-  ? readonly DeepPartial<U>[]
-  : T extends object
-    ? { [K in keyof T]?: DeepPartial<T[K]> }
-    : T;
-
-export function deepMerge<T extends Record<string, unknown>>(current: T, patch: DeepPartial<T>): T {
-  if (!P.isObject(current) || !P.isObject(patch)) {
-    return patch as T;
+/** Plain-object deep merge (no Effect). Arrays are replaced, not merged. */
+export function deepMerge<
+  Base extends Record<string, unknown>,
+  Patch extends Record<string, unknown>,
+>(base: Base, patch: Patch): Base & Patch {
+  const out = { ...base } as Base & Patch;
+  for (const key of Object.keys(patch) as Array<keyof Patch>) {
+    const pv = patch[key];
+    const bv = base[key as keyof Base];
+    if (
+      pv &&
+      typeof pv === "object" &&
+      !Array.isArray(pv) &&
+      bv &&
+      typeof bv === "object" &&
+      !Array.isArray(bv)
+    ) {
+      (out as Record<string, unknown>)[key as string] = deepMerge(
+        bv as Record<string, unknown>,
+        pv as Record<string, unknown>,
+      );
+    } else {
+      (out as Record<string, unknown>)[key as string] = pv as unknown;
+    }
   }
-
-  const next = { ...current } as Record<string, unknown>;
-  for (const [key, value] of Object.entries(patch)) {
-    if (value === undefined) continue;
-
-    const existing = next[key];
-    next[key] = P.isObject(existing) && P.isObject(value) ? deepMerge(existing, value) : value;
-  }
-
-  return next as T;
+  return out;
 }

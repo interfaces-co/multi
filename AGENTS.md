@@ -1,53 +1,130 @@
-# AGENTS.md
+# Development rules
 
-## Task Completion Requirements
+Concise, technical prose. No emojis in commits, issues, PRs, or code comments unless explicitly requested.
 
-- All of `bun fmt`, `bun lint`, and `bun typecheck` must pass before considering tasks completed.
-- NEVER run `bun test`. Always use `bun run test` (runs Vitest).
+## Verification
 
-## Project Snapshot
+After **code** changes, from repo root:
 
-Multi is a minimal web GUI for using coding agents like Codex and Claude.
+- `pnpm run fmt:check`
+- `pnpm run lint`
+- `pnpm run typecheck`
 
-This repository is a VERY EARLY WIP. Proposing sweeping changes that improve long-term maintainability is encouraged.
+There is **no** automated unit test suite in this repo; do not add a `test` step unless the maintainers ask for it.
 
-## Core Priorities
+## TypeScript & modules
 
-1. Performance first.
-2. Reliability first.
-3. Keep behavior predictable under load and during failures (session restarts, reconnects, partial streams).
+- Avoid `any`. Prefer reading real types from dependencies over guessing.
+- Top-level imports only for implementation and types (no inline / dynamic `import()` for normal code paths).
+- Rely on inference; avoid explicit annotations or interfaces unless they clarify a **public** API or fix inference gaps.
+- If a type error comes from a stale dependency, **upgrade the dependency** instead of weakening code.
 
-If a tradeoff is required, choose correctness and robustness over short-term convenience.
+## Style guide
 
-## Maintainability
+### General principles
 
-Long term maintainability is a core priority. If you add new functionality, first check if there is shared logic that can be extracted to a separate module. Duplicate logic across multiple files is a code smell and should be avoided. Don't be afraid to change existing code. Don't take shortcuts by just adding local logic to solve a problem.
+- Keep logic in one function unless it is clearly composable or reused.
+- Avoid `try` / `catch` unless you are translating failures at a boundary (I/O, JSON parse with a real recovery path).
+- Avoid `any`.
+- Use **Node** built-ins where appropriate (`node:fs` / `node:fs/promises`, `node:path`, `node:child_process`, etc.)
+- Prefer functional array methods (`flatMap`, `filter`, `map`) over `for` loops when readability wins; use type guards on `filter` so types narrow downstream.
+- Reduce locals by inlining when a value is used only once.
 
-## Package Roles
+```ts
+// Good (Node)
+import { readFile } from "node:fs/promises";
 
-- `apps/server`: Node.js WebSocket server. Wraps Codex app-server (JSON-RPC over stdio), serves the React web app, and manages provider sessions.
-- `apps/web`: React/Vite UI. Owns session UX, conversation/event rendering, and client-side state. Connects to the server via WebSocket.
-- `packages/contracts`: Shared effect/Schema schemas and TypeScript contracts for provider events, WebSocket protocol, and model/session types. Keep this package schema-only — no runtime logic.
-- `packages/shared`: Shared runtime utilities consumed by both server and web. Uses explicit subpath exports (e.g. `@multi/shared/git`) — no barrel index.
+const journal = JSON.parse(await readFile(path.join(dir, "journal.json"), "utf8"));
 
-## Codex App Server (Important)
+// Bad
+import { readFile } from "node:fs/promises";
 
-Multi is currently Codex-first. The server starts `codex app-server` (JSON-RPC over stdio) per provider session, then streams structured events to the browser through WebSocket push messages.
+const journalPath = path.join(dir, "journal.json");
+const journal = JSON.parse(await readFile(journalPath, "utf8"));
+```
 
-How we use it in this codebase:
+If you introduce **shared config modules** under something like `src/config` in a package, follow a small **self-export / barrel** pattern at the package entry (for example `export * as ConfigAgent from "./agent"`) consistent with existing files in that package.
 
-- Session startup/resume and turn lifecycle are brokered in `apps/server/src/codexAppServerManager.ts`.
-- Provider dispatch and thread event logging are coordinated in `apps/server/src/providerManager.ts`.
-- WebSocket server routes NativeApi methods in `apps/server/src/wsServer.ts`.
-- Web app consumes orchestration domain events via WebSocket push on channel `orchestration.domainEvent` (provider runtime activity is projected into orchestration events server-side).
+### Destructuring
 
-Docs:
+Avoid unnecessary destructuring; dot notation keeps the source of truth obvious.
 
-- Codex App Server docs: [https://developers.openai.com/codex/sdk/#app-server](https://developers.openai.com/codex/sdk/#app-server)
+```ts
+// Good
+obj.a;
+obj.b;
 
-## Reference Repos
+// Bad
+const { a, b } = obj;
+```
 
-- Open-source Codex repo: [https://github.com/openai/codex](https://github.com/openai/codex)
-- Codex-Monitor (Tauri, feature-complete, strong reference implementation): [https://github.com/Dimillian/CodexMonitor](https://github.com/Dimillian/CodexMonitor)
+### Variables
 
-Use these as implementation references when designing protocol handling, UX flows, and operational safeguards.
+Prefer `const`. Use ternaries or early returns instead of reassignment.
+
+```ts
+// Good
+const foo = condition ? 1 : 2;
+
+// Bad
+let foo;
+if (condition) foo = 1;
+else foo = 2;
+```
+
+### Control flow
+
+Avoid `else` after `return`. Prefer early returns.
+
+```ts
+// Good
+function foo() {
+  if (condition) return 1;
+  return 2;
+}
+
+// Bad
+function foo() {
+  if (condition) return 1;
+  else return 2;
+}
+```
+
+## Tooling
+
+- **pnpm** workspaces; versions for the shared toolchain live in `pnpm-workspace.yaml` → `catalog` (e.g. `typescript`, `@typescript/native-preview`, `vite`, `turbo`, `electron`, `react`). Depend on them with `"catalog:"` in `package.json`.
+- **Format / lint**: oxfmt, oxlint.
+- **Typecheck**: `tsgo` from `@typescript/native-preview` (`tsgo --noEmit`) in packages that typecheck.
+- **Dev**: `pnpm dev` → Electron desktop (Turbo `apps/desktop` dev: bundled server + Vite + Electron). `pnpm dev:web` → browser workflow (server + web only). `pnpm dev:server` → backend only. `scripts/dev-runner.ts` sets ports / `VITE_WS_URL` (path `/ws`).
+
+## Packages
+
+### `apps/server` (`usemulti` on npm)
+
+Node HTTP static + WebSocket (`/ws`). Spawns `codex app-server` (stdio JSON-RPC), `experimentalRawEvents: true`, pushes `codex.raw` lines and minimal `server.status`.
+
+Entry points: `src/bin.ts`, `src/run-server.ts`, `src/codex-raw-pipe.ts`.
+
+### `apps/web`
+
+Vite + React 19 + Tailwind 4. Single screen: WebSocket status + append-only raw log. `src/App.tsx`, `src/main.tsx`.
+
+### `apps/desktop`
+
+Electron shell, preload/main bundles via tsdown. Loads bundled server + static web assets in production.
+
+### `packages/contracts`
+
+Zod + types for WS protocol and desktop IPC. Contract-only; no heavy runtime.
+
+### `packages/shared`
+
+Small utilities with **explicit subpath exports** (no root barrel): `listen`, `logging`, `shell`, `server-settings`, `cli-args`, `Struct`.
+
+### `scripts`
+
+Repo automation (`dev-runner.ts`, `build-desktop-artifact.ts`, release helpers). Plain Node; no Effect.
+
+## Codex app-server
+
+Multi is Codex-first. Reference: [Codex app-server](https://developers.openai.com/codex/sdk/#app-server). Implementation inspiration: [openai/codex](https://github.com/openai/codex), [CodexMonitor](https://github.com/Dimillian/CodexMonitor).

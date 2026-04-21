@@ -1,21 +1,21 @@
 # Quick start
 
 ```bash
-# Development (with hot reload)
-bun run dev
+# Development — Electron desktop (default)
+pnpm dev
 
-# Desktop development
-bun run dev:desktop
+# Browser only — WebSocket server + Vite web app
+pnpm dev:web
 
-# Desktop development on an isolated port set
-MULTI_DEV_INSTANCE=feature-xyz bun run dev:desktop
+# Desktop on an isolated port set
+MULTI_DEV_INSTANCE=feature-xyz pnpm dev
 
 # Production
-bun run build
-bun run start
+pnpm run build
+pnpm run start
 
 # Build a shareable macOS .dmg (arm64 by default)
-bun run dist:desktop:dmg
+pnpm run dist:desktop:dmg
 
 # Or from any project directory after publishing:
 npx usemulti

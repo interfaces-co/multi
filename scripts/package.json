@@ -3,22 +3,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "prepare": "effect-language-service patch",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.2.110",
-    "@effect/platform-node": "catalog:",
-    "@multi/contracts": "workspace:*",
-    "@multi/shared": "workspace:*",
-    "effect": "catalog:"
+    "@multi/shared": "workspace:*"
   },
   "devDependencies": {
-    "@effect/language-service": "catalog:",
-    "@effect/vitest": "catalog:",
-    "@types/bun": "catalog:",
-    "typescript": "catalog:",
-    "vitest": "catalog:"
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
   }
 }

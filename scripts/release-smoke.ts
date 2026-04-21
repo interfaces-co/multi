@@ -8,12 +8,11 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const workspaceFiles = [
   "package.json",
-  "bun.lock",
+  "pnpm-workspace.yaml",
+  "pnpm-lock.yaml",
   "apps/server/package.json",
   "apps/desktop/package.json",
   "apps/web/package.json",
-  "apps/marketing/package.json",
-  "packages/client-runtime/package.json",
   "packages/contracts/package.json",
   "packages/shared/package.json",
   "scripts/package.json",
@@ -95,16 +94,16 @@ try {
     },
   );
 
-  execFileSync("bun", ["install", "--ignore-scripts"], {
+  execFileSync("pnpm", ["install", "--ignore-scripts"], {
     cwd: tempRoot,
     stdio: "inherit",
   });
 
-  const lockfile = readFileSync(resolve(tempRoot, "bun.lock"), "utf8");
+  const lockfile = readFileSync(resolve(tempRoot, "pnpm-lock.yaml"), "utf8");
   assertContains(
     lockfile,
-    `"version": "9.9.9-smoke.0"`,
-    "Expected bun.lock to contain the smoke version.",
+    "9.9.9-smoke.0",
+    "Expected pnpm-lock.yaml to contain the smoke version.",
   );
 
   const nightlyReleaseMetadata = execFileSync(

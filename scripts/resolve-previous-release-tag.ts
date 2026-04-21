@@ -1,13 +1,8 @@
 #!/usr/bin/env node
+import { spawnSync } from "node:child_process";
+import { appendFileSync } from "node:fs";
 
-import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
-import * as NodeServices from "@effect/platform-node/NodeServices";
-import { Array, Config, Effect, FileSystem, Schema, Stream, String } from "effect";
-import { Command, Flag } from "effect/unstable/cli";
-import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
-
-const ReleaseChannel = Schema.Literals(["stable", "nightly"]);
-type ReleaseChannel = typeof ReleaseChannel.Type;
+type ReleaseChannel = "stable" | "nightly";
 
 interface StableVersion {
   readonly major: number;
@@ -107,7 +102,7 @@ const parseNightlyTag = (tag: string): NightlyVersion | undefined => {
   };
 };
 
-const resolvePreviousReleaseTag = (
+export const resolvePreviousReleaseTag = (
   channel: ReleaseChannel,
   currentTag: string,
   tags: ReadonlyArray<string>,
@@ -143,61 +138,65 @@ const resolvePreviousReleaseTag = (
   return candidates[0]?.tag;
 };
 
-const listGitTags = Effect.fn("listGitTags")(function* () {
-  const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
-  const child = yield* spawner.spawn(ChildProcess.make("git", ["tag", "--list"]));
-  const tags = yield* child.stdout.pipe(
-    Stream.decodeText(),
-    Stream.runFold(
-      () => "",
-      (acc, chunk) => acc + chunk,
-    ),
-    Effect.map(String.split(/\r?\n/)),
-    Effect.map(Array.map(String.trim)),
-    Effect.map(Array.filter(String.isNonEmpty)),
-  );
-  return tags;
-});
+function listGitTags(): string[] {
+  const result = spawnSync("git", ["tag", "--list"], { encoding: "utf8" });
+  if (result.status !== 0) {
+    throw new Error(`git tag --list failed: ${result.stderr}`);
+  }
+  return result.stdout
+    .split(/\r?\n/)
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0);
+}
 
-const writeOutput = Effect.fn("writeOutput")(function* (
-  previousTag: string | undefined,
-  writeGithubOutput: boolean,
-) {
-  const entry = `previous_tag=${previousTag ?? ""}\n`;
+function parseArgs(argv: string[]): {
+  channel: ReleaseChannel;
+  currentTag: string;
+  githubOutput: boolean;
+} {
+  let channel: ReleaseChannel | undefined;
+  let currentTag: string | undefined;
+  let githubOutput = false;
 
-  if (writeGithubOutput) {
-    const fs = yield* FileSystem.FileSystem;
-    const githubOutputPath = yield* Config.nonEmptyString("GITHUB_OUTPUT");
-    yield* fs.writeFileString(githubOutputPath, entry, { flag: "a" });
-    return;
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === "--channel" && argv[i + 1]) {
+      const c = argv[++i];
+      if (c === "stable" || c === "nightly") channel = c;
+    } else if (a === "--current-tag" && argv[i + 1]) {
+      currentTag = argv[++i];
+    } else if (a === "--github-output") {
+      githubOutput = true;
+    } else if (a?.startsWith("--")) {
+      throw new Error(`Unknown argument: ${a}`);
+    }
   }
 
-  process.stdout.write(entry);
-});
+  if (channel === undefined) {
+    throw new Error("Usage: --channel stable|nightly --current-tag <tag> [--github-output]");
+  }
+  if (!currentTag) {
+    throw new Error("--current-tag is required.");
+  }
 
-const command = Command.make(
-  "resolve-previous-release-tag",
-  {
-    channel: Flag.choice("channel", ReleaseChannel.literals).pipe(
-      Flag.withDescription("Release channel whose previous tag should be resolved."),
-    ),
-    currentTag: Flag.string("current-tag").pipe(
-      Flag.withDescription("Current release tag to compare against."),
-    ),
-    githubOutput: Flag.boolean("github-output").pipe(
-      Flag.withDescription("Write values to GITHUB_OUTPUT instead of stdout."),
-      Flag.withDefault(false),
-    ),
-  },
-  ({ channel, currentTag, githubOutput }) =>
-    listGitTags().pipe(
-      Effect.map((tags) => resolvePreviousReleaseTag(channel, currentTag, tags)),
-      Effect.flatMap((previousTag) => writeOutput(previousTag, githubOutput)),
-    ),
-).pipe(Command.withDescription("Resolve the previous release tag for a stable or nightly series."));
+  return { channel, currentTag, githubOutput };
+}
 
-Command.run(command, { version: "0.0.0" }).pipe(
-  Effect.scoped,
-  Effect.provide(NodeServices.layer),
-  NodeRuntime.runMain,
-);
+function main(): void {
+  const opts = parseArgs(process.argv.slice(2));
+  const tags = listGitTags();
+  const previousTag = resolvePreviousReleaseTag(opts.channel, opts.currentTag, tags);
+  const entry = `previous_tag=${previousTag ?? ""}\n`;
+
+  if (opts.githubOutput) {
+    const outPath = process.env.GITHUB_OUTPUT;
+    if (!outPath) {
+      throw new Error("GITHUB_OUTPUT is required when --github-output is set.");
+    }
+    appendFileSync(outPath, entry);
+  } else {
+    process.stdout.write(entry);
+  }
+}
+
+main();

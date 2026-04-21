@@ -1,5 +1,4 @@
-import * as Effect from "effect/Effect";
-import { NetService } from "@multi/shared/Net";
+import { canListenOnHost } from "@multi/shared/listen";
 
 export const DEFAULT_DESKTOP_BACKEND_PORT = 3773;
 const MAX_TCP_PORT = 65_535;
@@ -13,11 +12,7 @@ export interface ResolveDesktopBackendPortOptions {
 }
 
 const defaultCanListenOnHost = async (port: number, host: string): Promise<boolean> =>
-  Effect.service(NetService).pipe(
-    Effect.flatMap((net) => net.canListenOnHost(port, host)),
-    Effect.provide(NetService.layer),
-    Effect.runPromise,
-  );
+  canListenOnHost(port, host);
 
 const isValidPort = (port: number): boolean =>
   Number.isInteger(port) && port >= 1 && port <= MAX_TCP_PORT;

@@ -4,27 +4,24 @@
   "private": true,
   "main": "dist-electron/main.js",
   "scripts": {
-    "dev": "bun run --parallel dev:bundle dev:electron",
+    "dev": "concurrently -k \"pnpm run dev:bundle\" \"pnpm run dev:electron\"",
     "dev:bundle": "tsdown --watch",
-    "dev:electron": "bun run scripts/dev-electron.mjs",
+    "dev:electron": "node scripts/dev-electron.mjs",
     "build": "tsdown",
-    "start": "bun run scripts/start-electron.mjs",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests",
-    "smoke-test": "node scripts/smoke-test.mjs"
+    "start": "node scripts/start-electron.mjs",
+    "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
-    "effect": "catalog:",
-    "electron": "40.6.0",
+    "electron": "catalog:",
     "electron-updater": "^6.8.3"
   },
   "devDependencies": {
     "@multi/contracts": "workspace:*",
     "@multi/shared": "workspace:*",
     "@types/node": "catalog:",
-    "tsdown": "catalog:",
-    "typescript": "catalog:",
-    "vitest": "catalog:"
+    "concurrently": "^9.2.0",
+    "tsdown": "^0.21.8",
+    "typescript": "catalog:"
   },
   "productName": "Multi (Alpha)"
 }

@@ -1,43 +1,26 @@
 #!/usr/bin/env node
+import { appendFileSync, readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
-import * as NodeServices from "@effect/platform-node/NodeServices";
-import { Config, Effect, FileSystem, Option, Path, Schema } from "effect";
-import { Command, Flag } from "effect/unstable/cli";
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-interface NightlyReleaseMetadata {
-  readonly baseVersion: string;
-  readonly version: string;
-  readonly tag: string;
-  readonly name: string;
-  readonly shortSha: string;
+export function resolveNightlyBaseVersion(version: string): string {
+  return version.replace(/[-+].*$/, "");
 }
 
-const DateSchema = Schema.String.check(Schema.isPattern(/^\d{8}$/));
-const RunNumberSchema = Schema.FiniteFromString.check(
-  Schema.isInt(),
-  Schema.isGreaterThanOrEqualTo(1),
-);
-const ShaSchema = Schema.String.check(Schema.isPattern(/^[0-9a-f]{7,40}$/i));
-const DesktopPackageJsonSchema = Schema.Struct({
-  version: Schema.NonEmptyString,
-});
-
-const RepoRoot = Effect.service(Path.Path).pipe(
-  Effect.flatMap((path) => path.fromFileUrl(new URL("..", import.meta.url))),
-);
-const decodeDesktopPackageJson = Schema.decodeUnknownEffect(
-  Schema.fromJsonString(DesktopPackageJsonSchema),
-);
-
-export const resolveNightlyBaseVersion = (version: string) => version.replace(/[-+].*$/, "");
-
-export const resolveNightlyReleaseMetadata = (
+export function resolveNightlyReleaseMetadata(
   baseVersion: string,
   date: string,
   runNumber: number,
   sha: string,
-) => {
+): {
+  baseVersion: string;
+  version: string;
+  tag: string;
+  name: string;
+  shortSha: string;
+} {
   const shortSha = sha.slice(0, 12);
   const version = `${baseVersion}-nightly.${date}.${runNumber}`;
   return {
@@ -47,80 +30,87 @@ export const resolveNightlyReleaseMetadata = (
     name: `Multi Nightly ${version} (${shortSha})`,
     shortSha,
   };
-};
+}
 
-const readDesktopBaseVersion = Effect.fn("readDesktopBaseVersion")(function* (
-  rootDir: string | undefined,
-) {
-  const fs = yield* FileSystem.FileSystem;
-  const path = yield* Path.Path;
-  const workspaceRoot = rootDir ? path.resolve(rootDir) : yield* RepoRoot;
-  const packageJsonPath = path.join(workspaceRoot, "apps/desktop/package.json");
-  const packageJson = yield* fs
-    .readFileString(packageJsonPath)
-    .pipe(Effect.flatMap(decodeDesktopPackageJson));
-  return resolveNightlyBaseVersion(packageJson.version);
-});
+function parseArgs(argv: string[]): {
+  date: string;
+  runNumber: number;
+  sha: string;
+  githubOutput: boolean;
+  root: string | undefined;
+} {
+  let date: string | undefined;
+  let runNumberStr: string | undefined;
+  let sha: string | undefined;
+  let githubOutput = false;
+  let root: string | undefined;
 
-const writeOutput = Effect.fn("writeOutput")(function* (
-  metadata: NightlyReleaseMetadata,
-  writeGithubOutput: boolean,
-) {
-  const fs = yield* FileSystem.FileSystem;
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === "--date" && argv[i + 1]) date = argv[++i];
+    else if (a === "--run-number" && argv[i + 1]) runNumberStr = argv[++i];
+    else if (a === "--sha" && argv[i + 1]) sha = argv[++i];
+    else if (a === "--github-output") githubOutput = true;
+    else if (a === "--root" && argv[i + 1]) root = argv[++i];
+    else if (a?.startsWith("--")) throw new Error(`Unknown argument: ${a}`);
+  }
+
+  if (!date || !/^\d{8}$/.test(date)) {
+    throw new Error("Valid --date YYYYMMDD is required.");
+  }
+  if (!runNumberStr || !/^\d+$/.test(runNumberStr)) {
+    throw new Error("Valid --run-number is required.");
+  }
+  const runNumber = Number(runNumberStr);
+  if (runNumber < 1) {
+    throw new Error("--run-number must be >= 1.");
+  }
+  if (!sha || !/^[0-9a-f]{7,40}$/i.test(sha)) {
+    throw new Error("Valid --sha is required.");
+  }
+
+  return { date, runNumber, sha, githubOutput, root };
+}
+
+function readDesktopBaseVersion(rootDir: string | undefined): string {
+  const workspaceRoot = rootDir ? resolve(rootDir) : repoRoot;
+  const path = join(workspaceRoot, "apps/desktop/package.json");
+  const pkg = JSON.parse(readFileSync(path, "utf8")) as { version?: string };
+  if (!pkg.version || typeof pkg.version !== "string") {
+    throw new Error("Invalid apps/desktop/package.json version.");
+  }
+  return resolveNightlyBaseVersion(pkg.version);
+}
+
+function main(): void {
+  const opts = parseArgs(process.argv.slice(2));
+  const baseVersion = readDesktopBaseVersion(opts.root);
+  const meta = resolveNightlyReleaseMetadata(baseVersion, opts.date, opts.runNumber, opts.sha);
 
   const entries = [
-    ["base_version", metadata.baseVersion],
-    ["version", metadata.version],
-    ["tag", metadata.tag],
-    ["name", metadata.name],
-    ["short_sha", metadata.shortSha],
+    ["base_version", meta.baseVersion],
+    ["version", meta.version],
+    ["tag", meta.tag],
+    ["name", meta.name],
+    ["short_sha", meta.shortSha],
   ] as const;
 
-  if (writeGithubOutput) {
-    const githubOutputPath = yield* Config.nonEmptyString("GITHUB_OUTPUT");
-    const serialized = entries.map(([key, value]) => `${key}=${value}\n`).join("");
-    yield* fs.writeFileString(githubOutputPath, serialized, { flag: "a" });
+  if (opts.githubOutput) {
+    const outPath = process.env.GITHUB_OUTPUT;
+    if (!outPath) {
+      throw new Error("GITHUB_OUTPUT is required when --github-output is set.");
+    }
+    const serialized = entries.map(([k, v]) => `${k}=${v}\n`).join("");
+    appendFileSync(outPath, serialized);
   } else {
-    for (const [key, value] of entries) {
-      console.log(`${key}=${value}`);
+    for (const [k, v] of entries) {
+      console.log(`${k}=${v}`);
     }
   }
-});
+}
 
-const command = Command.make(
-  "resolve-nightly-release",
-  {
-    date: Flag.string("date").pipe(
-      Flag.withSchema(DateSchema),
-      Flag.withDescription("Nightly build date in YYYYMMDD."),
-    ),
-    runNumber: Flag.string("run-number").pipe(
-      Flag.withSchema(RunNumberSchema),
-      Flag.withDescription("GitHub Actions run number."),
-    ),
-    sha: Flag.string("sha").pipe(
-      Flag.withSchema(ShaSchema),
-      Flag.withDescription("Commit sha for the nightly build."),
-    ),
-    githubOutput: Flag.boolean("github-output").pipe(
-      Flag.withDescription("Write values to GITHUB_OUTPUT instead of stdout."),
-      Flag.withDefault(false),
-    ),
-    root: Flag.string("root").pipe(
-      Flag.withDescription("Workspace root used to resolve apps/desktop/package.json."),
-      Flag.optional,
-    ),
-  },
-  ({ date, runNumber, sha, githubOutput, root }) =>
-    readDesktopBaseVersion(Option.getOrUndefined(root)).pipe(
-      Effect.map((baseVersion) => resolveNightlyReleaseMetadata(baseVersion, date, runNumber, sha)),
-      Effect.flatMap((metadata) => writeOutput(metadata, githubOutput)),
-    ),
-).pipe(Command.withDescription("Resolve nightly release version metadata."));
-
-if (import.meta.main) {
-  Command.run(command, { version: "0.0.0" }).pipe(
-    Effect.provide(NodeServices.layer),
-    NodeRuntime.runMain,
-  );
+const isMain =
+  process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMain) {
+  main();
 }

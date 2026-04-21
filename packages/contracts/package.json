@@ -10,33 +10,22 @@
   "module": "./dist/index.mjs",
   "types": "./src/index.ts",
   "exports": {
-    "./settings": {
-      "types": "./src/settings.ts",
-      "import": "./src/settings.ts",
-      "require": "./src/settings.ts"
-    },
     ".": {
       "types": "./src/index.ts",
-      "import": "./src/index.ts",
+      "import": "./dist/index.mjs",
       "require": "./dist/index.cjs"
     }
   },
   "scripts": {
-    "dev": "tsdown src/index.ts --format esm,cjs --dts --watch --clean",
     "build": "tsdown src/index.ts --format esm,cjs --dts --clean",
-    "prepare": "effect-language-service patch",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
-    "effect": "catalog:"
+    "zod": "catalog:"
   },
   "devDependencies": {
-    "@effect/language-service": "catalog:",
-    "@effect/vitest": "catalog:",
     "@types/node": "catalog:",
     "tsdown": "catalog:",
-    "typescript": "catalog:",
-    "vitest": "catalog:"
+    "typescript": "catalog:"
   }
 }

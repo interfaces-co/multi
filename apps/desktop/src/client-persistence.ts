@@ -2,7 +2,10 @@ import * as FS from "node:fs";
 import * as Path from "node:path";
 
 import type { ClientSettings, PersistedSavedEnvironmentRecord } from "@multi/contracts";
-import { Predicate } from "effect";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
 
 interface ClientSettingsDocument {
   readonly settings: ClientSettings;
@@ -45,7 +48,7 @@ function isPersistedSavedEnvironmentStorageRecord(
   value: unknown,
 ): value is PersistedSavedEnvironmentStorageRecord {
   return (
-    Predicate.isObject(value) &&
+    isRecord(value) &&
     typeof value.environmentId === "string" &&
     typeof value.label === "string" &&
     typeof value.httpBaseUrl === "string" &&
@@ -58,7 +61,7 @@ function isPersistedSavedEnvironmentStorageRecord(
 
 function readSavedEnvironmentRegistryDocument(filePath: string): SavedEnvironmentRegistryDocument {
   const parsed = readJsonFile<SavedEnvironmentRegistryDocument>(filePath);
-  if (!Predicate.isObject(parsed)) {
+  if (!isRecord(parsed)) {
     return { records: [] };
   }
 

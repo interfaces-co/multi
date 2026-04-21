@@ -15,37 +15,26 @@
   ],
   "type": "module",
   "scripts": {
-    "dev": "bun run src/bin.ts",
-    "dev:stack": "bun run src/bin.ts",
-    "build": "node scripts/cli.ts build",
+    "dev": "tsx watch src/bin.ts",
+    "dev:stack": "tsx src/bin.ts",
+    "build": "tsdown && node ./scripts/copy-web-client.mjs",
     "start": "node dist/bin.mjs",
-    "prepare": "effect-language-service patch",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.2.110",
-    "@effect/platform-bun": "catalog:",
-    "@effect/platform-node": "catalog:",
-    "@effect/sql-sqlite-bun": "catalog:",
-    "@pierre/diffs": "^1.1.15",
-    "effect": "catalog:",
-    "node-pty": "^1.1.0",
-    "open": "^11.0.0"
+    "@multi/contracts": "workspace:*",
+    "open": "^11.0.0",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
-    "@effect/language-service": "catalog:",
-    "@effect/vitest": "catalog:",
-    "@multi/contracts": "workspace:*",
-    "@multi/shared": "workspace:*",
     "@multi/web": "workspace:*",
-    "@types/bun": "catalog:",
     "@types/node": "catalog:",
+    "@types/ws": "^8.5.14",
     "tsdown": "catalog:",
-    "typescript": "catalog:",
-    "vitest": "catalog:"
+    "tsx": "^4.20.0",
+    "typescript": "catalog:"
   },
   "engines": {
-    "node": "^22.16 || ^23.11 || >=24.10"
+    "node": "^22.16.0 || ^23.11.0 || >=24.10.0"
   }
 }

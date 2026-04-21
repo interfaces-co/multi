@@ -69,11 +69,11 @@ npx usemulti
 ```
 
 ```bash
-bun dev
+pnpm dev
 ```
 
 ```bash
-bun dev:desktop
+pnpm dev:web
 ```
 
 ### Option 2: Run With A Local LGTM Stack
@@ -122,13 +122,13 @@ npx usemulti
 Monorepo web/server dev:
 
 ```bash
-bun dev
+pnpm dev
 ```
 
-Monorepo desktop dev:
+Monorepo browser dev (server + web):
 
 ```bash
-bun dev:desktop
+pnpm dev:web
 ```
 
 Packaged desktop app:

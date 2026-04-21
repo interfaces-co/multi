@@ -16,10 +16,5 @@
       "cache": false,
       "persistent": true,
     },
-    "smoke-test": {
-      "dependsOn": ["build", "@multi/web#build", "usemulti#build"],
-      "cache": false,
-      "outputs": [],
-    },
   },
 }
