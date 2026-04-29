@@ -78,6 +78,14 @@ function createTestClient() {
       },
     },
     projects: {
+      listEntries: vi.fn(async () => ({ entries: [], truncated: false })),
+      readFile: vi.fn(async () => ({
+        relativePath: "README.md",
+        contents: "",
+        sizeBytes: 0,
+        truncated: false,
+        syntax: { languageId: "markdown" },
+      })),
       searchEntries: vi.fn(async () => []),
       writeFile: vi.fn(async () => undefined),
     },

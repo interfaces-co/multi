@@ -59,7 +59,7 @@ import {
   shouldUseCompactComposerFooter,
 } from "../composer-footer-layout";
 import { type ComposerPromptEditorHandle, ComposerPromptEditor } from "../composer-prompt-editor";
-import { AVAILABLE_PROVIDER_OPTIONS, ProviderModelPicker } from "./provider-model-picker";
+import { ProviderModelPicker } from "./provider-model-picker";
 import { type ComposerCommandItem, ComposerCommandMenu } from "./composer-command-menu";
 import { ComposerPendingApprovalActions } from "./composer-pending-approval-actions";
 import { CompactComposerControlsMenu } from "./compact-composer-controls-menu";
@@ -74,6 +74,7 @@ import {
   renderProviderTraitsMenuContent,
   renderProviderTraitsPicker,
 } from "./composer-provider-registry";
+import { AVAILABLE_PROVIDER_OPTIONS } from "./provider-icon-utils";
 import { ContextWindowMeter } from "./context-window-meter";
 import { buildExpandedImagePreview, type ExpandedImagePreview } from "./expanded-image-preview";
 import { basenameOfPath } from "../../vscode-icons";
@@ -581,7 +582,7 @@ export const ChatComposer = memo(
           model: selectedModel,
           models: selectedProviderModels,
           prompt,
-          modelOptions: composerModelOptions,
+          modelOptions: composerModelOptions?.[selectedProvider],
         }),
       [composerModelOptions, prompt, selectedModel, selectedProvider, selectedProviderModels],
     );
@@ -604,6 +605,9 @@ export const ChatComposer = memo(
         codex: providerStatuses.find((provider) => provider.provider === "codex")?.models ?? [],
         claudeAgent:
           providerStatuses.find((provider) => provider.provider === "claudeAgent")?.models ?? [],
+        cursor: providerStatuses.find((provider) => provider.provider === "cursor")?.models ?? [],
+        opencode:
+          providerStatuses.find((provider) => provider.provider === "opencode")?.models ?? [],
       }),
       [providerStatuses],
     );
@@ -1413,7 +1417,7 @@ export const ChatComposer = memo(
           return;
         }
         if (item.type === "skill") {
-          const replacement = `$${item.skill.name} `;
+          const replacement = `[$${item.skill.name}](${item.skill.path}) `;
           const replacementRangeEnd = extendReplacementRangeForTrailingSpace(
             snapshot.value,
             trigger.rangeEnd,

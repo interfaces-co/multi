@@ -19,6 +19,7 @@ import { useServerProviders } from "~/rpc/server-state";
 import {
   applyFastMode,
   applyThinking,
+  resolveRuntimeModel,
   resolveRuntimeSelection,
   selectionSupportsFastMode,
   selectionToFastMode,
@@ -201,6 +202,7 @@ export function useRuntimeSession(sessionId: string | null, harness?: HarnessKin
       [sessionId],
     ),
   );
+  const [draftSelection, setDraftSelection] = useState<ModelSelection | null>(null);
   const thread = sessionId ? (threads.find((item) => item.id === sessionId) ?? null) : null;
   const project = useMemo(() => {
     const shellProject = projects.find((item) => item.cwd === shell.cwd) ?? null;
@@ -279,12 +281,26 @@ export function useRuntimeSession(sessionId: string | null, harness?: HarnessKin
     return null;
   }, [drafts, pendingApprovals, pendingInputs, thread]);
 
-  const model = sessionId ? sessionModel : defs.model;
+  useEffect(() => {
+    if (sessionId) {
+      setDraftSelection(null);
+    }
+  }, [sessionId]);
+
+  const effectiveDraftSelection = draftSelection
+    ? providers.length > 0
+      ? resolveRuntimeSelection(providers, draftSelection)
+      : draftSelection
+    : defs.selection;
+  const effectiveDraftModel = resolveRuntimeModel(providers, effectiveDraftSelection, defs.model);
+  const model = sessionId ? sessionModel : effectiveDraftModel;
   const modelLoading = !sessionId && defs.status === "loading";
-  const fastActive = sessionId ? selectionToFastMode(thread?.modelSelection) : defs.fastMode;
+  const fastActive = sessionId
+    ? selectionToFastMode(thread?.modelSelection)
+    : selectionToFastMode(effectiveDraftSelection);
   const fastSupported = sessionId
     ? selectionSupportsFastMode(providers, thread?.modelSelection)
-    : defs.fastSupported;
+    : selectionSupportsFastMode(providers, effectiveDraftSelection);
   const since = busy
     ? (work?.startedAt ?? thread?.latestTurn?.startedAt ?? thread?.latestTurn?.requestedAt ?? null)
     : null;
@@ -308,12 +324,14 @@ export function useRuntimeSession(sessionId: string | null, harness?: HarnessKin
     const nextThreadId = newThreadId();
     const kind: "codex" | "claudeAgent" = harness === "claudeCode" ? "claudeAgent" : "codex";
     const modelSelection =
-      !defs.stored && harness
+      draftSelection === null && !defs.stored && harness
         ? {
             provider: kind,
-            model: defs.items.find((item) => item.provider === kind)?.id ?? defs.selection.model,
+            model:
+              defs.items.find((item) => item.provider === kind)?.id ??
+              effectiveDraftSelection.model,
           }
-        : defs.selection;
+        : effectiveDraftSelection;
 
     const interactionMode =
       draft?.interactionMode ?? useChatDraftStore.getState().root.interactionMode;
@@ -394,6 +412,15 @@ export function useRuntimeSession(sessionId: string | null, harness?: HarnessKin
 
   const setModel = (next: RuntimeModelItem) => {
     if (!sessionId) {
+      setDraftSelection(
+        normalize({
+          provider: next.provider as "codex" | "claudeAgent",
+          model: next.id,
+          ...(effectiveDraftSelection.provider === next.provider && effectiveDraftSelection.options
+            ? { options: effectiveDraftSelection.options }
+            : {}),
+        }),
+      );
       void writeRuntimeDefaultModel(next);
       return;
     }
@@ -420,6 +447,7 @@ export function useRuntimeSession(sessionId: string | null, harness?: HarnessKin
 
   const setThinkingLevel = (level: ThinkingLevel) => {
     if (!sessionId) {
+      setDraftSelection(normalize(applyThinking(effectiveDraftSelection, level)));
       void writeRuntimeDefaultThinkingLevel(level);
       return;
     }
@@ -434,6 +462,7 @@ export function useRuntimeSession(sessionId: string | null, harness?: HarnessKin
 
   const setFastMode = (on: boolean) => {
     if (!sessionId) {
+      setDraftSelection(normalize(applyFastMode(effectiveDraftSelection, on)));
       void writeRuntimeDefaultFastMode(on);
       return;
     }

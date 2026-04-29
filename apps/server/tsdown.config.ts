@@ -9,7 +9,9 @@ export default defineConfig({
   outDir: "dist",
   sourcemap: true,
   clean: true,
-  noExternal: (id) => id.startsWith("@multi/"),
+  deps: {
+    alwaysBundle: (id) => id.startsWith("@multi/"),
+  },
   inlineOnly: false,
   banner: {
     js: "#!/usr/bin/env node\n",

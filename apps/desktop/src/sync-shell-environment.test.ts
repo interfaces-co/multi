@@ -53,6 +53,33 @@ describe("syncShellEnvironment", () => {
     expect(env.SSH_AUTH_SOCK).toBe("/tmp/inherited.sock");
   });
 
+  it("sets SHELL from the OS login shell when Electron does not inherit one", () => {
+    const env: NodeJS.ProcessEnv = {
+      PATH: "/usr/bin",
+    };
+    const readEnvironment = vi.fn(() => ({
+      PATH: "/opt/homebrew/bin:/usr/bin",
+    }));
+
+    syncShellEnvironment(env, {
+      platform: "darwin",
+      readEnvironment,
+      userShell: "/opt/homebrew/bin/fish",
+    });
+
+    expect(readEnvironment).toHaveBeenCalledWith("/opt/homebrew/bin/fish", [
+      "PATH",
+      "SSH_AUTH_SOCK",
+      "HOMEBREW_PREFIX",
+      "HOMEBREW_CELLAR",
+      "HOMEBREW_REPOSITORY",
+      "XDG_CONFIG_HOME",
+      "XDG_DATA_HOME",
+    ]);
+    expect(env.SHELL).toBe("/opt/homebrew/bin/fish");
+    expect(env.PATH).toBe("/opt/homebrew/bin:/usr/bin");
+  });
+
   it("preserves inherited values when the login shell omits them", () => {
     const env: NodeJS.ProcessEnv = {
       SHELL: "/bin/zsh",

@@ -1,11 +1,8 @@
-// @ts-nocheck
 import { useState } from "react";
 
 import { Button } from "~/components/ui/button";
-import { useTheme } from "~/hooks/use-theme";
 
 export function DesktopBridgeDebug() {
-  const { resolvedTheme } = useTheme();
   const [log, setLog] = useState<string>("");
   const bridge = typeof window !== "undefined" ? window.desktopBridge : undefined;
 
@@ -16,9 +13,8 @@ export function DesktopBridgeDebug() {
           Desktop bridge smoke
         </h2>
         <p className="text-detail/[1.45] text-muted-foreground">
-          Electron exposes{" "}
-          <code className="font-multi-mono text-detail">window.desktopBridge</code>. In the web
-          build these buttons are inert except where noted.
+          Electron exposes <code className="font-multi-mono text-detail">window.desktopBridge</code>
+          . In the web build these buttons are inert except where noted.
         </p>
       </div>
 
@@ -31,26 +27,18 @@ export function DesktopBridgeDebug() {
             variant="outline"
             size="sm"
             className="rounded-multi-control border-multi-border/45"
-            onClick={() =>
-              void bridge.getTerminalAppearance?.(resolvedTheme).then((t) => {
-                setLog(JSON.stringify(t, null, 2));
-              })
-            }
+            onClick={() => setLog(JSON.stringify(bridge.getAppBranding(), null, 2))}
           >
-            getTerminalAppearance
+            getAppBranding
           </Button>
           <Button
             type="button"
             variant="outline"
             size="sm"
             className="rounded-multi-control border-multi-border/45"
-            onClick={() =>
-              void bridge.openNativeTerminal?.(".").then((ok) => {
-                setLog(ok ? "openNativeTerminal: ok" : "openNativeTerminal: false");
-              })
-            }
+            onClick={() => setLog(JSON.stringify(bridge.getLocalEnvironmentBootstrap(), null, 2))}
           >
-            openNativeTerminal
+            getLocalEnvironmentBootstrap
           </Button>
         </div>
       )}

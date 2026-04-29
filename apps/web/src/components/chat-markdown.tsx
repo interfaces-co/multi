@@ -185,6 +185,22 @@ function MarkdownCodeBlock({ code, children }: { code: string; children: ReactNo
   );
 }
 
+function PlainCodeBlock({
+  className,
+  code,
+  preProps,
+}: {
+  className: string | undefined;
+  code: string;
+  preProps: React.ComponentProps<"pre">;
+}) {
+  return (
+    <pre {...preProps}>
+      <code className={className}>{code}</code>
+    </pre>
+  );
+}
+
 interface SuspenseShikiCodeBlockProps {
   className: string | undefined;
   code: string;
@@ -533,15 +549,43 @@ function ChatMarkdown({ text, cwd, isStreaming = false }: ChatMarkdownProps) {
           return <pre {...props}>{children}</pre>;
         }
 
+        if (isStreaming) {
+          return (
+            <MarkdownCodeBlock code={codeBlock.code}>
+              <PlainCodeBlock
+                className={codeBlock.className}
+                code={codeBlock.code}
+                preProps={props}
+              />
+            </MarkdownCodeBlock>
+          );
+        }
+
         return (
           <MarkdownCodeBlock code={codeBlock.code}>
-            <CodeHighlightErrorBoundary fallback={<pre {...props}>{children}</pre>}>
-              <Suspense fallback={<pre {...props}>{children}</pre>}>
+            <CodeHighlightErrorBoundary
+              fallback={
+                <PlainCodeBlock
+                  className={codeBlock.className}
+                  code={codeBlock.code}
+                  preProps={props}
+                />
+              }
+            >
+              <Suspense
+                fallback={
+                  <PlainCodeBlock
+                    className={codeBlock.className}
+                    code={codeBlock.code}
+                    preProps={props}
+                  />
+                }
+              >
                 <SuspenseShikiCodeBlock
                   className={codeBlock.className}
                   code={codeBlock.code}
                   themeName={diffThemeName}
-                  isStreaming={isStreaming}
+                  isStreaming={false}
                 />
               </Suspense>
             </CodeHighlightErrorBoundary>

@@ -19,7 +19,7 @@ import {
   ProviderInteractionMode,
 } from "@multi/contracts";
 import { normalizeModelSlug } from "@multi/shared/model";
-import { Effect, Context } from "effect";
+import { Cause, Effect, Context, Exit, Schema } from "effect";
 
 import {
   formatCodexCliUpgradeMessage,
@@ -32,6 +32,23 @@ import {
   type CodexAccountSnapshot,
 } from "./provider/codex-account";
 import { buildCodexInitializeParams, killCodexChildProcess } from "./provider/codex-app-server";
+import {
+  CodexAppServerInvalidResponseError,
+  CodexAppServerJsonParseError,
+  CodexAppServerMissingProviderThreadError,
+  CodexAppServerMissingSessionError,
+  CodexAppServerRequestTimeoutError,
+  CodexAppServerSessionClosedError,
+  CodexAppServerUnsupportedRequestError,
+  CodexAppServerVersionCheckError,
+  CodexAppServerWriteError,
+  classifyServerRequest,
+  decodeJsonRpcLine,
+  providerRpcErrorFromResponse,
+  type JsonRpcNotification,
+  type JsonRpcRequest,
+  type JsonRpcResponse,
+} from "./codex-app-server-protocol";
 
 export { buildCodexInitializeParams } from "./provider/codex-app-server";
 export { readCodexAccountSnapshot, resolveCodexModelForAccount } from "./provider/codex-account";
@@ -48,10 +65,7 @@ interface PendingRequest {
 interface PendingApprovalRequest {
   requestId: ApprovalRequestId;
   jsonRpcId: string | number;
-  method:
-    | "item/commandExecution/requestApproval"
-    | "item/fileChange/requestApproval"
-    | "item/fileRead/requestApproval";
+  method: string;
   requestKind: ProviderRequestKind;
   threadId: ThreadId;
   turnId?: TurnId;
@@ -61,6 +75,7 @@ interface PendingApprovalRequest {
 interface PendingUserInputRequest {
   requestId: ApprovalRequestId;
   jsonRpcId: string | number;
+  method: "item/tool/requestUserInput" | "mcpServer/elicitation/request";
   threadId: ThreadId;
   turnId?: TurnId;
   itemId?: ProviderItemId;
@@ -81,28 +96,6 @@ interface CodexSessionContext {
   collabReceiverTurns: Map<string, TurnId>;
   nextRequestId: number;
   stopping: boolean;
-}
-
-interface JsonRpcError {
-  code?: number;
-  message?: string;
-}
-
-interface JsonRpcRequest {
-  id: string | number;
-  method: string;
-  params?: unknown;
-}
-
-interface JsonRpcResponse {
-  id: string | number;
-  result?: unknown;
-  error?: JsonRpcError;
-}
-
-interface JsonRpcNotification {
-  method: string;
-  params?: unknown;
 }
 
 export interface CodexAppServerSendTurnInput {
@@ -607,7 +600,11 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
         this.readString(this.readObject(threadOpenRecord, "thread"), "id") ??
         this.readString(threadOpenRecord, "threadId");
       if (!threadIdRaw) {
-        throw new Error(`${threadOpenMethod} response did not include a thread id.`);
+        throw new CodexAppServerInvalidResponseError({
+          method: threadOpenMethod,
+          detail: "Response did not include a thread id.",
+          response: threadOpenResponse,
+        });
       }
       const providerThreadId = threadIdRaw;
 
@@ -685,7 +682,10 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
       resumeCursor: context.session.resumeCursor,
     });
     if (!providerThreadId) {
-      throw new Error("Session is missing provider resume thread id.");
+      throw new CodexAppServerMissingProviderThreadError({
+        threadId: context.session.threadId,
+        operation: "turn/start",
+      });
     }
     const turnStartParams: {
       threadId: string;
@@ -737,7 +737,11 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
     const turn = this.readObject(this.readObject(response), "turn");
     const turnIdRaw = this.readString(turn, "id");
     if (!turnIdRaw) {
-      throw new Error("turn/start response did not include a turn id.");
+      throw new CodexAppServerInvalidResponseError({
+        method: "turn/start",
+        detail: "Response did not include a turn id.",
+        response,
+      });
     }
     const turnId = TurnId.make(turnIdRaw);
 
@@ -785,7 +789,10 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
       resumeCursor: context.session.resumeCursor,
     });
     if (!providerThreadId) {
-      throw new Error("Session is missing a provider resume thread id.");
+      throw new CodexAppServerMissingProviderThreadError({
+        threadId: context.session.threadId,
+        operation: "thread/read",
+      });
     }
 
     const response = await this.sendRequest(context, "thread/read", {
@@ -803,7 +810,10 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
       resumeCursor: context.session.resumeCursor,
     });
     if (!providerThreadId) {
-      throw new Error("Session is missing a provider resume thread id.");
+      throw new CodexAppServerMissingProviderThreadError({
+        threadId: context.session.threadId,
+        operation: "thread/rollback",
+      });
     }
     if (!Number.isInteger(numTurns) || numTurns < 1) {
       throw new Error("numTurns must be an integer >= 1.");
@@ -905,7 +915,7 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
 
     for (const pending of context.pending.values()) {
       clearTimeout(pending.timeout);
-      pending.reject(new Error("Session stopped before request completed."));
+      pending.reject(new CodexAppServerSessionClosedError({ threadId }));
     }
     context.pending.clear();
     context.pendingApprovals.clear();
@@ -944,11 +954,11 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
   private requireSession(threadId: ThreadId): CodexSessionContext {
     const context = this.sessions.get(threadId);
     if (!context) {
-      throw new Error(`Unknown session for thread: ${threadId}`);
+      throw new CodexAppServerMissingSessionError({ threadId });
     }
 
     if (context.session.status === "closed") {
-      throw new Error(`Session is closed for thread: ${threadId}`);
+      throw new CodexAppServerSessionClosedError({ threadId });
     }
 
     return context;
@@ -998,47 +1008,29 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
   }
 
   private handleStdoutLine(context: CodexSessionContext, line: string): void {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(line);
-    } catch {
-      this.emitErrorEvent(
-        context,
-        "protocol/parseError",
-        "Received invalid JSON from codex app-server.",
-      );
+    const decoded = Effect.runSync(Effect.exit(decodeJsonRpcLine(line)));
+    if (Exit.isFailure(decoded)) {
+      const error = Cause.squash(decoded.cause);
+      const message =
+        error instanceof Error ? error.message : "Received invalid JSON-RPC from codex app-server.";
+      const method = Schema.is(CodexAppServerJsonParseError)(error)
+        ? "protocol/parseError"
+        : "protocol/invalidMessage";
+      this.emitErrorEvent(context, method, message);
       return;
     }
 
-    if (!parsed || typeof parsed !== "object") {
-      this.emitErrorEvent(
-        context,
-        "protocol/invalidMessage",
-        "Received non-object protocol message.",
-      );
-      return;
+    switch (decoded.value.kind) {
+      case "request":
+        this.handleServerRequest(context, decoded.value.request);
+        return;
+      case "notification":
+        this.handleServerNotification(context, decoded.value.notification);
+        return;
+      case "response":
+        this.handleResponse(context, decoded.value.response);
+        return;
     }
-
-    if (this.isServerRequest(parsed)) {
-      this.handleServerRequest(context, parsed);
-      return;
-    }
-
-    if (this.isServerNotification(parsed)) {
-      this.handleServerNotification(context, parsed);
-      return;
-    }
-
-    if (this.isResponse(parsed)) {
-      this.handleResponse(context, parsed);
-      return;
-    }
-
-    this.emitErrorEvent(
-      context,
-      "protocol/unrecognizedMessage",
-      "Received protocol message in an unknown shape.",
-    );
   }
 
   private handleServerNotification(
@@ -1131,20 +1123,21 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
     const rawRoute = this.readRouteFields(request.params);
     const childParentTurnId = this.readChildParentTurnId(context, request.params);
     const effectiveTurnId = childParentTurnId ?? rawRoute.turnId;
-    const requestKind = this.requestKindForMethod(request.method);
+    const classified = classifyServerRequest(request);
+    const requestKind =
+      classified.category === "approval" ||
+      classified.category === "known-unsupported" ||
+      classified.category === "user-input"
+        ? classified.requestKind
+        : undefined;
     let requestId: ApprovalRequestId | undefined;
-    if (requestKind) {
+    if (classified.category === "approval") {
       requestId = ApprovalRequestId.make(randomUUID());
       const pendingRequest: PendingApprovalRequest = {
         requestId,
         jsonRpcId: request.id,
-        method:
-          requestKind === "command"
-            ? "item/commandExecution/requestApproval"
-            : requestKind === "file-read"
-              ? "item/fileRead/requestApproval"
-              : "item/fileChange/requestApproval",
-        requestKind,
+        method: classified.method,
+        requestKind: classified.requestKind,
         threadId: context.session.threadId,
         ...(effectiveTurnId ? { turnId: effectiveTurnId } : {}),
         ...(rawRoute.itemId ? { itemId: rawRoute.itemId } : {}),
@@ -1152,11 +1145,12 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
       context.pendingApprovals.set(requestId, pendingRequest);
     }
 
-    if (request.method === "item/tool/requestUserInput") {
+    if (classified.category === "user-input") {
       requestId = ApprovalRequestId.make(randomUUID());
       context.pendingUserInputs.set(requestId, {
         requestId,
         jsonRpcId: request.id,
+        method: classified.method,
         threadId: context.session.threadId,
         ...(effectiveTurnId ? { turnId: effectiveTurnId } : {}),
         ...(rawRoute.itemId ? { itemId: rawRoute.itemId } : {}),
@@ -1177,19 +1171,22 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
       payload: request.params,
     });
 
-    if (requestKind) {
+    if (classified.category === "approval" || classified.category === "user-input") {
       return;
     }
 
-    if (request.method === "item/tool/requestUserInput") {
-      return;
-    }
-
+    const unsupported =
+      classified.category === "unknown"
+        ? classified.error
+        : new CodexAppServerUnsupportedRequestError({
+            method: classified.method,
+            ...(request.params !== undefined ? { payload: request.params } : {}),
+          });
     this.writeMessage(context, {
       id: request.id,
       error: {
         code: -32601,
-        message: `Unsupported server request: ${request.method}`,
+        message: unsupported.message,
       },
     });
   }
@@ -1204,8 +1201,9 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
     clearTimeout(pending.timeout);
     context.pending.delete(key);
 
-    if (response.error?.message) {
-      pending.reject(new Error(`${pending.method} failed: ${String(response.error.message)}`));
+    const providerError = providerRpcErrorFromResponse(pending.method, response);
+    if (providerError) {
+      pending.reject(providerError);
       return;
     }
 
@@ -1224,7 +1222,7 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
     const result = await new Promise<unknown>((resolve, reject) => {
       const timeout = setTimeout(() => {
         context.pending.delete(String(id));
-        reject(new Error(`Timed out waiting for ${method}.`));
+        reject(new CodexAppServerRequestTimeoutError({ method, timeoutMs }));
       }, timeoutMs);
 
       context.pending.set(String(id), {
@@ -1233,11 +1231,17 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
         resolve,
         reject,
       });
-      this.writeMessage(context, {
-        method,
-        id,
-        params,
-      });
+      try {
+        this.writeMessage(context, {
+          method,
+          id,
+          params,
+        });
+      } catch (error) {
+        clearTimeout(timeout);
+        context.pending.delete(String(id));
+        reject(error);
+      }
     });
 
     return result as TResponse;
@@ -1246,7 +1250,10 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
   private writeMessage(context: CodexSessionContext, message: unknown): void {
     const encoded = JSON.stringify(message);
     if (!context.child.stdin.writable) {
-      throw new Error("Cannot write to codex app-server stdin.");
+      throw new CodexAppServerWriteError({
+        detail: "Cannot write to codex app-server stdin.",
+        rawMessage: message,
+      });
     }
 
     context.child.stdin.write(`${encoded}\n`);
@@ -1312,29 +1319,17 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
     };
   }
 
-  private requestKindForMethod(method: string): ProviderRequestKind | undefined {
-    if (method === "item/commandExecution/requestApproval") {
-      return "command";
-    }
-
-    if (method === "item/fileRead/requestApproval") {
-      return "file-read";
-    }
-
-    if (method === "item/fileChange/requestApproval") {
-      return "file-change";
-    }
-
-    return undefined;
-  }
-
   private parseThreadSnapshot(method: string, response: unknown): CodexThreadSnapshot {
     const responseRecord = this.readObject(response);
     const thread = this.readObject(responseRecord, "thread");
     const threadIdRaw =
       this.readString(thread, "id") ?? this.readString(responseRecord, "threadId");
     if (!threadIdRaw) {
-      throw new Error(`${method} response did not include a thread id.`);
+      throw new CodexAppServerInvalidResponseError({
+        method,
+        detail: "Response did not include a thread id.",
+        response,
+      });
     }
     const turnsRaw =
       this.readArray(thread, "turns") ?? this.readArray(responseRecord, "turns") ?? [];
@@ -1353,38 +1348,6 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
       threadId: threadIdRaw,
       turns,
     };
-  }
-
-  private isServerRequest(value: unknown): value is JsonRpcRequest {
-    if (!value || typeof value !== "object") {
-      return false;
-    }
-
-    const candidate = value as Record<string, unknown>;
-    return (
-      typeof candidate.method === "string" &&
-      (typeof candidate.id === "string" || typeof candidate.id === "number")
-    );
-  }
-
-  private isServerNotification(value: unknown): value is JsonRpcNotification {
-    if (!value || typeof value !== "object") {
-      return false;
-    }
-
-    const candidate = value as Record<string, unknown>;
-    return typeof candidate.method === "string" && !("id" in candidate);
-  }
-
-  private isResponse(value: unknown): value is JsonRpcResponse {
-    if (!value || typeof value !== "object") {
-      return false;
-    }
-
-    const candidate = value as Record<string, unknown>;
-    const hasId = typeof candidate.id === "string" || typeof candidate.id === "number";
-    const hasMethod = typeof candidate.method === "string";
-    return hasId && !hasMethod;
   }
 
   private readRouteFields(params: unknown): {
@@ -1553,23 +1516,33 @@ function assertSupportedCodexCliVersion(input: {
       lower.includes("command not found") ||
       lower.includes("not found")
     ) {
-      throw new Error(`Codex CLI (${input.binaryPath}) is not installed or not executable.`);
+      throw new CodexAppServerVersionCheckError({
+        detail: `Codex CLI (${input.binaryPath}) is not installed or not executable.`,
+        cause: result.error,
+      });
     }
-    throw new Error(
-      `Failed to execute Codex CLI version check: ${result.error.message || String(result.error)}`,
-    );
+    throw new CodexAppServerVersionCheckError({
+      detail: `Failed to execute Codex CLI version check: ${
+        result.error.message || String(result.error)
+      }`,
+      cause: result.error,
+    });
   }
 
   const stdout = result.stdout ?? "";
   const stderr = result.stderr ?? "";
   if (result.status !== 0) {
     const detail = stderr.trim() || stdout.trim() || `Command exited with code ${result.status}.`;
-    throw new Error(`Codex CLI version check failed. ${detail}`);
+    throw new CodexAppServerVersionCheckError({
+      detail: `Codex CLI version check failed. ${detail}`,
+    });
   }
 
   const parsedVersion = parseCodexCliVersion(`${stdout}\n${stderr}`);
   if (parsedVersion && !isCodexCliVersionSupported(parsedVersion)) {
-    throw new Error(formatCodexCliUpgradeMessage(parsedVersion));
+    throw new CodexAppServerVersionCheckError({
+      detail: formatCodexCliUpgradeMessage(parsedVersion),
+    });
   }
 }
 

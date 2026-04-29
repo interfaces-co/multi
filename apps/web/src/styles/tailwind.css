@@ -56,6 +56,11 @@
   --font-size-body: var(--multi-text-body);
   --font-size-title: var(--multi-text-title);
   --font-size-heading: var(--multi-text-heading);
+  --font-size-cursor-xs: 10px;
+  --font-size-cursor-sm: 11px;
+  --font-size-cursor-base: 12px;
+  --font-size-cursor-lg: 13px;
+  --font-size-cursor-xl: 16px;
   --radius-multi: var(--multi-radius-card);
   --radius-multi-chip: var(--multi-radius-chip);
   --radius-multi-control: var(--multi-radius-control);

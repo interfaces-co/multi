@@ -10,12 +10,7 @@ export const ComposerPendingApprovalPanel = memo(function ComposerPendingApprova
   approval,
   pendingCount,
 }: ComposerPendingApprovalPanelProps) {
-  const approvalSummary =
-    approval.requestKind === "command"
-      ? "Command approval requested"
-      : approval.requestKind === "file-read"
-        ? "File-read approval requested"
-        : "File-change approval requested";
+  const approvalSummary = approvalSummaryForKind(approval.requestKind);
 
   return (
     <div className="px-4 py-3.5 sm:px-5 sm:py-4">
@@ -29,3 +24,14 @@ export const ComposerPendingApprovalPanel = memo(function ComposerPendingApprova
     </div>
   );
 });
+
+function approvalSummaryForKind(requestKind: PendingApproval["requestKind"]): string {
+  switch (requestKind) {
+    case "command":
+      return "Command approval requested";
+    case "file-read":
+      return "File-read approval requested";
+    case "file-change":
+      return "File-change approval requested";
+  }
+}

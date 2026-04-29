@@ -167,6 +167,17 @@ describe("expandCollapsedComposerCursor", () => {
       expandedCursorAfterSkill,
     );
   });
+
+  it("maps collapsed markdown skill cursor to expanded text cursor", () => {
+    const text = "run [$grill-me](/Users/workgyver/.agents/skills/grill-me/SKILL.md) then";
+    const collapsedCursorAfterSkill = "run ".length + 2;
+    const expandedCursorAfterSkill =
+      "run [$grill-me](/Users/workgyver/.agents/skills/grill-me/SKILL.md) ".length;
+
+    expect(expandCollapsedComposerCursor(text, collapsedCursorAfterSkill)).toBe(
+      expandedCursorAfterSkill,
+    );
+  });
 });
 
 describe("collapseExpandedComposerCursor", () => {
@@ -197,6 +208,17 @@ describe("collapseExpandedComposerCursor", () => {
     const text = "run $review-follow-up then";
     const collapsedCursorAfterSkill = "run ".length + 2;
     const expandedCursorAfterSkill = "run $review-follow-up ".length;
+
+    expect(collapseExpandedComposerCursor(text, expandedCursorAfterSkill)).toBe(
+      collapsedCursorAfterSkill,
+    );
+  });
+
+  it("maps expanded markdown skill cursor back to collapsed cursor", () => {
+    const text = "run [$grill-me](/Users/workgyver/.agents/skills/grill-me/SKILL.md) then";
+    const collapsedCursorAfterSkill = "run ".length + 2;
+    const expandedCursorAfterSkill =
+      "run [$grill-me](/Users/workgyver/.agents/skills/grill-me/SKILL.md) ".length;
 
     expect(collapseExpandedComposerCursor(text, expandedCursorAfterSkill)).toBe(
       collapsedCursorAfterSkill,

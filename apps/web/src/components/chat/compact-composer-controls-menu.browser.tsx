@@ -2,6 +2,7 @@ import {
   DEFAULT_MODEL_BY_PROVIDER,
   EnvironmentId,
   ModelSelection,
+  type ServerProviderModel,
   ThreadId,
 } from "@multi/contracts";
 import { scopedThreadKey, scopeThreadRef } from "@multi/client-runtime";
@@ -32,7 +33,6 @@ async function mountMenu(props?: { modelSelection?: ModelSelection; prompt?: str
         nonPersistedImageIds: [],
         persistedAttachments: [],
         terminalContexts: [],
-        queuedTurns: [],
         modelSelectionByProvider: {
           [provider]: {
             provider,
@@ -52,7 +52,7 @@ async function mountMenu(props?: { modelSelection?: ModelSelection; prompt?: str
   document.body.append(host);
   const onPromptChange = vi.fn();
   const providerOptions = props?.modelSelection?.options;
-  const models =
+  const models: ReadonlyArray<ServerProviderModel> =
     provider === "claudeAgent"
       ? [
           {
@@ -60,17 +60,23 @@ async function mountMenu(props?: { modelSelection?: ModelSelection; prompt?: str
             name: "Claude Opus 4.6",
             isCustom: false,
             capabilities: {
-              reasoningEffortLevels: [
-                { value: "low", label: "Low" },
-                { value: "medium", label: "Medium" },
-                { value: "high", label: "High", isDefault: true },
-                { value: "max", label: "Max" },
-                { value: "ultrathink", label: "Ultrathink" },
+              optionDescriptors: [
+                {
+                  id: "effort",
+                  label: "Effort",
+                  type: "select",
+                  currentValue: "high",
+                  promptInjectedValues: ["ultrathink"],
+                  options: [
+                    { id: "low", label: "Low" },
+                    { id: "medium", label: "Medium" },
+                    { id: "high", label: "High", isDefault: true },
+                    { id: "max", label: "Max" },
+                    { id: "ultrathink", label: "Ultrathink" },
+                  ],
+                },
+                { id: "fastMode", label: "Fast Mode", type: "boolean", currentValue: false },
               ],
-              supportsFastMode: true,
-              supportsThinkingToggle: false,
-              contextWindowOptions: [],
-              promptInjectedEffortLevels: ["ultrathink"],
             },
           },
           {
@@ -78,11 +84,9 @@ async function mountMenu(props?: { modelSelection?: ModelSelection; prompt?: str
             name: "Claude Haiku 4.5",
             isCustom: false,
             capabilities: {
-              reasoningEffortLevels: [],
-              supportsFastMode: false,
-              supportsThinkingToggle: true,
-              contextWindowOptions: [],
-              promptInjectedEffortLevels: [],
+              optionDescriptors: [
+                { id: "thinking", label: "Thinking", type: "boolean", currentValue: true },
+              ],
             },
           },
           {
@@ -90,16 +94,21 @@ async function mountMenu(props?: { modelSelection?: ModelSelection; prompt?: str
             name: "Claude Sonnet 4.6",
             isCustom: false,
             capabilities: {
-              reasoningEffortLevels: [
-                { value: "low", label: "Low" },
-                { value: "medium", label: "Medium" },
-                { value: "high", label: "High", isDefault: true },
-                { value: "ultrathink", label: "Ultrathink" },
+              optionDescriptors: [
+                {
+                  id: "effort",
+                  label: "Effort",
+                  type: "select",
+                  currentValue: "high",
+                  promptInjectedValues: ["ultrathink"],
+                  options: [
+                    { id: "low", label: "Low" },
+                    { id: "medium", label: "Medium" },
+                    { id: "high", label: "High", isDefault: true },
+                    { id: "ultrathink", label: "Ultrathink" },
+                  ],
+                },
               ],
-              supportsFastMode: false,
-              supportsThinkingToggle: false,
-              contextWindowOptions: [],
-              promptInjectedEffortLevels: ["ultrathink"],
             },
           },
         ]
@@ -109,14 +118,19 @@ async function mountMenu(props?: { modelSelection?: ModelSelection; prompt?: str
             name: "GPT-5.4",
             isCustom: false,
             capabilities: {
-              reasoningEffortLevels: [
-                { value: "xhigh", label: "Extra High" },
-                { value: "high", label: "High", isDefault: true },
+              optionDescriptors: [
+                {
+                  id: "reasoningEffort",
+                  label: "Effort",
+                  type: "select",
+                  currentValue: "high",
+                  options: [
+                    { id: "xhigh", label: "Extra High" },
+                    { id: "high", label: "High", isDefault: true },
+                  ],
+                },
+                { id: "fastMode", label: "Fast Mode", type: "boolean", currentValue: false },
               ],
-              supportsFastMode: true,
-              supportsThinkingToggle: false,
-              contextWindowOptions: [],
-              promptInjectedEffortLevels: [],
             },
           },
         ];
@@ -216,7 +230,7 @@ describe("compact-composer-controls-menu", () => {
       modelSelection: {
         provider: "claudeAgent",
         model: "claude-haiku-4-5",
-        options: { thinking: true },
+        options: [{ id: "thinking", value: true }],
       },
     });
 
@@ -235,7 +249,7 @@ describe("compact-composer-controls-menu", () => {
       modelSelection: {
         provider: "claudeAgent",
         model: "claude-opus-4-6",
-        options: { effort: "high" },
+        options: [{ id: "effort", value: "high" }],
       },
       prompt: "Ultrathink:\nInvestigate this",
     });
@@ -254,7 +268,7 @@ describe("compact-composer-controls-menu", () => {
       modelSelection: {
         provider: "claudeAgent",
         model: "claude-opus-4-6",
-        options: { effort: "high" },
+        options: [{ id: "effort", value: "high" }],
       },
       prompt: "Ultrathink:\nplease ultrathink about this problem",
     });
@@ -264,7 +278,7 @@ describe("compact-composer-controls-menu", () => {
     await vi.waitFor(() => {
       const text = document.body.textContent ?? "";
       expect(text).toContain(
-        'Your prompt contains "ultrathink" in the text. Remove it to change effort.',
+        'Your prompt contains "ultrathink" in the text. Remove it to change this option.',
       );
     });
   });

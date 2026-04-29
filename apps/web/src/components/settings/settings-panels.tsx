@@ -1,17 +1,14 @@
-import {
-  ArchiveIcon,
-  ArchiveX,
-  ChevronDownIcon,
-  InfoIcon,
-  LoaderIcon,
-  PlusIcon,
-  RefreshCwIcon,
-  XIcon,
-} from "lucide-react";
+import { ArchiveIcon, ArchiveX, LoaderIcon, RefreshCwIcon, XIcon } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { type ReactNode, useCallback, useMemo, useRef, useState } from "react";
 import {
-  PROVIDER_DISPLAY_NAMES,
+  type ReactNode,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import {
   type DesktopUpdateChannel,
   type ScopedThreadRef,
   type ProviderKind,
@@ -23,6 +20,19 @@ import { DEFAULT_UNIFIED_SETTINGS } from "@multi/contracts/settings";
 import { normalizeModelSlug } from "@multi/shared/model";
 import { Equal } from "effect";
 import { APP_VERSION } from "../../branding";
+import {
+  readAppearanceSnapshot,
+  resetAppearanceSettings,
+  setCodeFontFamily,
+  setCodeFontSize,
+  setReduceTransparency,
+  setTintHue,
+  setTintSaturation,
+  setUiFontFamily,
+  setUiFontSize,
+  setWindowTransparency,
+  subscribeAppearanceSettings,
+} from "../../lib/appearance-settings";
 import {
   canCheckForUpdate,
   getDesktopUpdateButtonTooltip,
@@ -53,10 +63,9 @@ import {
   selectThreadShellsAcrossEnvironments,
   useStore,
 } from "../../store";
-import { formatRelativeTime, formatRelativeTimeLabel } from "../../timestamp-format";
+import { formatRelativeTimeLabel } from "../../timestamp-format";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
-import { Collapsible, CollapsibleContent } from "../ui/collapsible";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "../ui/empty";
 import { Input } from "../ui/input";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
@@ -68,7 +77,6 @@ import {
   SettingsPageContainer,
   SettingsRow,
   SettingsSection,
-  useRelativeTimeTick,
 } from "./settings-layout";
 import { ProjectFavicon } from "../project-favicon";
 import {
@@ -119,13 +127,32 @@ const PROVIDER_SETTINGS: readonly InstallProviderSettings[] = [
     homePlaceholder: "CODEX_HOME",
     homeDescription: "Optional custom Codex home and config directory.",
   },
-  {
-    provider: "claudeAgent",
-    title: "Claude",
-    binaryPlaceholder: "Claude binary path",
-    binaryDescription: "Path to the Claude binary",
-  },
 ] as const;
+
+const DEFAULT_APPEARANCE_SNAPSHOT = {
+  palette: "multi",
+  reduceTransparency: false,
+  transparency: 18,
+  hue: 255,
+  saturation: 33,
+  uiFontSize: 13,
+  codeFontSize: 12,
+  uiFont: "",
+  codeFont: "",
+} as const;
+
+function readAppearanceSnapshotForSettings() {
+  if (typeof window === "undefined") return DEFAULT_APPEARANCE_SNAPSHOT;
+  return readAppearanceSnapshot();
+}
+
+function useAppearanceSettingsSnapshot() {
+  return useSyncExternalStore(
+    subscribeAppearanceSettings,
+    readAppearanceSnapshotForSettings,
+    () => DEFAULT_APPEARANCE_SNAPSHOT,
+  );
+}
 
 const PROVIDER_STATUS_STYLES = {
   disabled: {
@@ -197,28 +224,6 @@ function getProviderSummary(provider: ServerProvider | undefined) {
 function getProviderVersionLabel(version: string | null | undefined) {
   if (!version) return null;
   return version.startsWith("v") ? version : `v${version}`;
-}
-
-function ProviderLastChecked({ lastCheckedAt }: { lastCheckedAt: string | null }) {
-  useRelativeTimeTick();
-  const lastCheckedRelative = lastCheckedAt ? formatRelativeTime(lastCheckedAt) : null;
-
-  if (!lastCheckedRelative) {
-    return null;
-  }
-
-  return (
-    <span className="text-[11px] text-muted-foreground/60">
-      {lastCheckedRelative.suffix ? (
-        <>
-          Checked <span className="font-mono tabular-nums">{lastCheckedRelative.value}</span>{" "}
-          {lastCheckedRelative.suffix}
-        </>
-      ) : (
-        <>Checked {lastCheckedRelative.value}</>
-      )}
-    </span>
-  );
 }
 
 function AboutVersionTitle() {
@@ -418,11 +423,13 @@ export function useSettingsRestore(onRestored?: () => void) {
   const { theme, setTheme } = useTheme();
   const settings = useSettings();
   const { resetSettings } = useUpdateSettings();
+  const appearance = useAppearanceSettingsSnapshot();
 
   const isGitWritingModelDirty = !Equal.equals(
     settings.textGenerationModelSelection ?? null,
     DEFAULT_UNIFIED_SETTINGS.textGenerationModelSelection ?? null,
   );
+  const isAppearanceDirty = !Equal.equals(appearance, DEFAULT_APPEARANCE_SNAPSHOT);
   const areProviderSettingsDirty = PROVIDER_SETTINGS.some((providerSettings) => {
     const currentSettings = settings.providers[providerSettings.provider];
     const defaultSettings = DEFAULT_UNIFIED_SETTINGS.providers[providerSettings.provider];
@@ -453,11 +460,13 @@ export function useSettingsRestore(onRestored?: () => void) {
       ...(settings.confirmThreadDelete !== DEFAULT_UNIFIED_SETTINGS.confirmThreadDelete
         ? ["Delete confirmation"]
         : []),
+      ...(isAppearanceDirty ? ["Appearance"] : []),
       ...(isGitWritingModelDirty ? ["Git writing model"] : []),
       ...(areProviderSettingsDirty ? ["Providers"] : []),
     ],
     [
       areProviderSettingsDirty,
+      isAppearanceDirty,
       isGitWritingModelDirty,
       settings.confirmThreadArchive,
       settings.confirmThreadDelete,
@@ -481,6 +490,7 @@ export function useSettingsRestore(onRestored?: () => void) {
     if (!confirmed) return;
 
     setTheme("system");
+    resetAppearanceSettings();
     resetSettings();
     onRestored?.();
   }, [changedSettingLabels, onRestored, resetSettings, setTheme]);
@@ -491,10 +501,90 @@ export function useSettingsRestore(onRestored?: () => void) {
   };
 }
 
+function SettingsSlider(props: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (value: number) => void;
+  swatchHue?: number;
+  suffix?: string;
+}) {
+  return (
+    <div className="flex w-full items-center justify-end gap-2 sm:w-34">
+      <input
+        aria-label={props.label}
+        className="h-4 w-full accent-[var(--cursor-blue)]"
+        max={props.max}
+        min={props.min}
+        type="range"
+        value={props.value}
+        onChange={(event) => props.onChange(Number(event.target.value))}
+      />
+      {props.swatchHue !== undefined ? (
+        <span
+          aria-hidden
+          className="size-4 shrink-0 rounded-full"
+          style={{
+            background: `oklch(0.58 0.18 ${props.swatchHue})`,
+          }}
+        />
+      ) : (
+        <span className="w-8 shrink-0 text-right text-[11px]/[14px] tabular-nums text-[var(--cursor-text-tertiary)]">
+          {props.value}
+          {props.suffix ?? ""}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function NumberStepper(props: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (value: number) => void;
+}) {
+  const set = (next: number) => props.onChange(Math.min(props.max, Math.max(props.min, next)));
+
+  return (
+    <div className="inline-flex h-6 items-center overflow-hidden rounded-md bg-[var(--cursor-bg-tertiary)] text-[12px]/[16px]">
+      <button
+        type="button"
+        className="h-6 w-7 text-[var(--cursor-text-tertiary)] hover:bg-[var(--cursor-bg-quaternary)] hover:text-[var(--cursor-text-primary)]"
+        aria-label={`Decrease ${props.label}`}
+        onClick={() => set(props.value - 1)}
+      >
+        -
+      </button>
+      <input
+        aria-label={props.label}
+        className="h-6 w-9 bg-transparent text-center tabular-nums outline-none"
+        max={props.max}
+        min={props.min}
+        type="number"
+        value={props.value}
+        onChange={(event) => set(Number(event.target.value))}
+      />
+      <button
+        type="button"
+        className="h-6 w-7 text-[var(--cursor-text-tertiary)] hover:bg-[var(--cursor-bg-quaternary)] hover:text-[var(--cursor-text-primary)]"
+        aria-label={`Increase ${props.label}`}
+        onClick={() => set(props.value + 1)}
+      >
+        +
+      </button>
+    </div>
+  );
+}
+
 export function GeneralSettingsPanel() {
-  const { theme, setTheme } = useTheme();
   const settings = useSettings();
   const { updateSettings } = useUpdateSettings();
+  const availableEditors = useServerAvailableEditors();
+  const observability = useServerObservability();
+  const keybindingsConfigPath = useServerKeybindingsConfigPath();
   const [openingPathByTarget, setOpeningPathByTarget] = useState({
     keybindings: false,
     logsDirectory: false,
@@ -502,78 +592,11 @@ export function GeneralSettingsPanel() {
   const [openPathErrorByTarget, setOpenPathErrorByTarget] = useState<
     Partial<Record<"keybindings" | "logsDirectory", string | null>>
   >({});
-  const [openProviderDetails, setOpenProviderDetails] = useState<Record<ProviderKind, boolean>>({
-    codex: Boolean(
-      settings.providers.codex.binaryPath !== DEFAULT_UNIFIED_SETTINGS.providers.codex.binaryPath ||
-      settings.providers.codex.homePath !== DEFAULT_UNIFIED_SETTINGS.providers.codex.homePath ||
-      settings.providers.codex.customModels.length > 0,
-    ),
-    claudeAgent: Boolean(
-      settings.providers.claudeAgent.binaryPath !==
-        DEFAULT_UNIFIED_SETTINGS.providers.claudeAgent.binaryPath ||
-      settings.providers.claudeAgent.customModels.length > 0 ||
-      settings.providers.claudeAgent.launchArgs !== "",
-    ),
-  });
-  const [customModelInputByProvider, setCustomModelInputByProvider] = useState<
-    Record<ProviderKind, string>
-  >({
-    codex: "",
-    claudeAgent: "",
-  });
-  const [customModelErrorByProvider, setCustomModelErrorByProvider] = useState<
-    Partial<Record<ProviderKind, string | null>>
-  >({});
-  const [isRefreshingProviders, setIsRefreshingProviders] = useState(false);
-  const refreshingRef = useRef(false);
-  const modelListRefs = useRef<Partial<Record<ProviderKind, HTMLDivElement | null>>>({});
-  const refreshProviders = useCallback(() => {
-    if (refreshingRef.current) return;
-    refreshingRef.current = true;
-    setIsRefreshingProviders(true);
-    void ensureLocalApi()
-      .server.refreshProviders()
-      .catch((error: unknown) => {
-        console.warn("Failed to refresh providers", error);
-      })
-      .finally(() => {
-        refreshingRef.current = false;
-        setIsRefreshingProviders(false);
-      });
-  }, []);
 
-  const keybindingsConfigPath = useServerKeybindingsConfigPath();
-  const availableEditors = useServerAvailableEditors();
-  const observability = useServerObservability();
-  const serverProviders = useServerProviders();
-  const codexHomePath = settings.providers.codex.homePath;
   const logsDirectoryPath = observability?.logsDirectoryPath ?? null;
-  const diagnosticsDescription = (() => {
-    const exports: string[] = [];
-    if (observability?.otlpTracesEnabled && observability.otlpTracesUrl) {
-      exports.push(`traces to ${observability.otlpTracesUrl}`);
-    }
-    if (observability?.otlpMetricsEnabled && observability.otlpMetricsUrl) {
-      exports.push(`metrics to ${observability.otlpMetricsUrl}`);
-    }
-    const mode = observability?.localTracingEnabled ? "Local trace file" : "Terminal logs only";
-    return exports.length > 0 ? `${mode}. OTLP exporting ${exports.join(" and ")}.` : `${mode}.`;
-  })();
-
-  const textGenerationModelSelection = resolveAppModelSelectionState(settings, serverProviders);
-  const textGenProvider = textGenerationModelSelection.provider;
-  const textGenModel = textGenerationModelSelection.model;
-  const textGenModelOptions = textGenerationModelSelection.options;
-  const gitModelOptionsByProvider = getCustomModelOptionsByProvider(
-    settings,
-    serverProviders,
-    textGenProvider,
-    textGenModel,
-  );
-  const isGitWritingModelDirty = !Equal.equals(
-    settings.textGenerationModelSelection ?? null,
-    DEFAULT_UNIFIED_SETTINGS.textGenerationModelSelection ?? null,
-  );
+  const diagnosticsDescription = observability?.localTracingEnabled
+    ? "Local trace file."
+    : "Terminal logs only.";
 
   const openInPreferredEditor = useCallback(
     (target: "keybindings" | "logsDirectory", path: string | null, failureMessage: string) => {
@@ -606,190 +629,9 @@ export function GeneralSettingsPanel() {
     [availableEditors],
   );
 
-  const openKeybindingsFile = useCallback(() => {
-    openInPreferredEditor("keybindings", keybindingsConfigPath, "Unable to open keybindings file.");
-  }, [keybindingsConfigPath, openInPreferredEditor]);
-
-  const openLogsDirectory = useCallback(() => {
-    openInPreferredEditor("logsDirectory", logsDirectoryPath, "Unable to open logs folder.");
-  }, [logsDirectoryPath, openInPreferredEditor]);
-
-  const openKeybindingsError = openPathErrorByTarget.keybindings ?? null;
-  const openDiagnosticsError = openPathErrorByTarget.logsDirectory ?? null;
-  const isOpeningKeybindings = openingPathByTarget.keybindings;
-  const isOpeningLogsDirectory = openingPathByTarget.logsDirectory;
-
-  const addCustomModel = useCallback(
-    (provider: ProviderKind) => {
-      const customModelInput = customModelInputByProvider[provider];
-      const customModels = settings.providers[provider].customModels;
-      const normalized = normalizeModelSlug(customModelInput, provider);
-      if (!normalized) {
-        setCustomModelErrorByProvider((existing) => ({
-          ...existing,
-          [provider]: "Enter a model slug.",
-        }));
-        return;
-      }
-      if (
-        serverProviders
-          .find((candidate) => candidate.provider === provider)
-          ?.models.some((option) => !option.isCustom && option.slug === normalized)
-      ) {
-        setCustomModelErrorByProvider((existing) => ({
-          ...existing,
-          [provider]: "That model is already built in.",
-        }));
-        return;
-      }
-      if (normalized.length > MAX_CUSTOM_MODEL_LENGTH) {
-        setCustomModelErrorByProvider((existing) => ({
-          ...existing,
-          [provider]: `Model slugs must be ${MAX_CUSTOM_MODEL_LENGTH} characters or less.`,
-        }));
-        return;
-      }
-      if (customModels.includes(normalized)) {
-        setCustomModelErrorByProvider((existing) => ({
-          ...existing,
-          [provider]: "That custom model is already saved.",
-        }));
-        return;
-      }
-
-      updateSettings({
-        providers: {
-          ...settings.providers,
-          [provider]: {
-            ...settings.providers[provider],
-            customModels: [...customModels, normalized],
-          },
-        },
-      });
-      setCustomModelInputByProvider((existing) => ({
-        ...existing,
-        [provider]: "",
-      }));
-      setCustomModelErrorByProvider((existing) => ({
-        ...existing,
-        [provider]: null,
-      }));
-
-      const el = modelListRefs.current[provider];
-      if (!el) return;
-      const scrollToEnd = () => el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-      requestAnimationFrame(scrollToEnd);
-      const observer = new MutationObserver(() => {
-        scrollToEnd();
-        observer.disconnect();
-      });
-      observer.observe(el, { childList: true, subtree: true });
-      setTimeout(() => observer.disconnect(), 2_000);
-    },
-    [customModelInputByProvider, serverProviders, settings, updateSettings],
-  );
-
-  const removeCustomModel = useCallback(
-    (provider: ProviderKind, slug: string) => {
-      updateSettings({
-        providers: {
-          ...settings.providers,
-          [provider]: {
-            ...settings.providers[provider],
-            customModels: settings.providers[provider].customModels.filter(
-              (model) => model !== slug,
-            ),
-          },
-        },
-      });
-      setCustomModelErrorByProvider((existing) => ({
-        ...existing,
-        [provider]: null,
-      }));
-    },
-    [settings, updateSettings],
-  );
-
-  const providerCards = PROVIDER_SETTINGS.map((providerSettings) => {
-    const liveProvider = serverProviders.find(
-      (candidate) => candidate.provider === providerSettings.provider,
-    );
-    const providerConfig = settings.providers[providerSettings.provider];
-    const defaultProviderConfig = DEFAULT_UNIFIED_SETTINGS.providers[providerSettings.provider];
-    const statusKey = liveProvider?.status ?? (providerConfig.enabled ? "warning" : "disabled");
-    const summary = getProviderSummary(liveProvider);
-    const models: ReadonlyArray<ServerProviderModel> =
-      liveProvider?.models ??
-      providerConfig.customModels.map((slug) => ({
-        slug,
-        name: slug,
-        isCustom: true,
-        capabilities: null,
-      }));
-
-    return {
-      provider: providerSettings.provider,
-      title: providerSettings.title,
-      binaryPlaceholder: providerSettings.binaryPlaceholder,
-      binaryDescription: providerSettings.binaryDescription,
-      homePathKey: providerSettings.homePathKey,
-      homePlaceholder: providerSettings.homePlaceholder,
-      homeDescription: providerSettings.homeDescription,
-      binaryPathValue: providerConfig.binaryPath,
-      isDirty: !Equal.equals(providerConfig, defaultProviderConfig),
-      liveProvider,
-      models,
-      providerConfig,
-      statusStyle: PROVIDER_STATUS_STYLES[statusKey],
-      summary,
-      versionLabel: getProviderVersionLabel(liveProvider?.version),
-    };
-  });
-
-  const lastCheckedAt =
-    serverProviders.length > 0
-      ? serverProviders.reduce(
-          (latest, provider) => (provider.checkedAt > latest ? provider.checkedAt : latest),
-          serverProviders[0]!.checkedAt,
-        )
-      : null;
-
   return (
     <SettingsPageContainer>
       <SettingsSection title="General">
-        <SettingsRow
-          title="Theme"
-          description="Choose how Multi looks across the app."
-          resetAction={
-            theme !== "system" ? (
-              <SettingResetButton label="theme" onClick={() => setTheme("system")} />
-            ) : null
-          }
-          control={
-            <Select
-              value={theme}
-              onValueChange={(value) => {
-                if (value === "system" || value === "light" || value === "dark") {
-                  setTheme(value);
-                }
-              }}
-            >
-              <SelectTrigger className="w-full sm:w-40" aria-label="Theme preference">
-                <SelectValue>
-                  {THEME_OPTIONS.find((option) => option.value === theme)?.label ?? "System"}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectPopup align="end" alignItemWithTrigger={false}>
-                {THEME_OPTIONS.map((option) => (
-                  <SelectItem hideIndicator key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectPopup>
-            </Select>
-          }
-        />
-
         <SettingsRow
           title="Time format"
           description="System default follows your browser or OS clock preference."
@@ -798,9 +640,7 @@ export function GeneralSettingsPanel() {
               <SettingResetButton
                 label="time format"
                 onClick={() =>
-                  updateSettings({
-                    timestampFormat: DEFAULT_UNIFIED_SETTINGS.timestampFormat,
-                  })
+                  updateSettings({ timestampFormat: DEFAULT_UNIFIED_SETTINGS.timestampFormat })
                 }
               />
             ) : null
@@ -814,7 +654,7 @@ export function GeneralSettingsPanel() {
                 }
               }}
             >
-              <SelectTrigger className="w-full sm:w-40" aria-label="Timestamp format">
+              <SelectTrigger size="xs" className="w-full sm:w-34" aria-label="Timestamp format">
                 <SelectValue>{TIMESTAMP_FORMAT_LABELS[settings.timestampFormat]}</SelectValue>
               </SelectTrigger>
               <SelectPopup align="end" alignItemWithTrigger={false}>
@@ -831,31 +671,301 @@ export function GeneralSettingsPanel() {
             </Select>
           }
         />
-
         <SettingsRow
-          title="Diff line wrapping"
-          description="Set the default wrap state when the diff panel opens."
+          title="Add project starts in"
+          description='Leave empty to use "~/" when the Add Project browser opens.'
           resetAction={
-            settings.diffWordWrap !== DEFAULT_UNIFIED_SETTINGS.diffWordWrap ? (
+            settings.addProjectBaseDirectory !==
+            DEFAULT_UNIFIED_SETTINGS.addProjectBaseDirectory ? (
               <SettingResetButton
-                label="diff line wrapping"
+                label="add project base directory"
                 onClick={() =>
                   updateSettings({
-                    diffWordWrap: DEFAULT_UNIFIED_SETTINGS.diffWordWrap,
+                    addProjectBaseDirectory: DEFAULT_UNIFIED_SETTINGS.addProjectBaseDirectory,
                   })
                 }
               />
             ) : null
           }
           control={
-            <Switch
-              checked={settings.diffWordWrap}
-              onCheckedChange={(checked) => updateSettings({ diffWordWrap: Boolean(checked) })}
-              aria-label="Wrap diff lines by default"
+            <Input
+              size="sm"
+              className="w-full sm:w-34"
+              value={settings.addProjectBaseDirectory}
+              onChange={(event) => updateSettings({ addProjectBaseDirectory: event.target.value })}
+              placeholder="~/"
+              spellCheck={false}
+              aria-label="Add project base directory"
             />
           }
         />
+      </SettingsSection>
 
+      <SettingsSection title="Advanced">
+        <SettingsRow
+          title="Keybindings"
+          description="Open the persisted keybindings file to edit advanced bindings directly."
+          status={
+            <>
+              <span className="block break-all font-mono text-[11px] text-[var(--cursor-text-secondary)]">
+                {keybindingsConfigPath ?? "Resolving keybindings path..."}
+              </span>
+              {openPathErrorByTarget.keybindings ? (
+                <span className="mt-1 block text-destructive">
+                  {openPathErrorByTarget.keybindings}
+                </span>
+              ) : null}
+            </>
+          }
+          control={
+            <Button
+              size="xs"
+              variant="outline"
+              disabled={!keybindingsConfigPath || openingPathByTarget.keybindings}
+              onClick={() =>
+                openInPreferredEditor(
+                  "keybindings",
+                  keybindingsConfigPath,
+                  "Unable to open keybindings file.",
+                )
+              }
+            >
+              {openingPathByTarget.keybindings ? "Opening..." : "Open"}
+            </Button>
+          }
+        />
+      </SettingsSection>
+
+      <SettingsSection title="About">
+        {isElectron ? (
+          <AboutVersionSection />
+        ) : (
+          <SettingsRow
+            title={<AboutVersionTitle />}
+            description="Current version of the application."
+          />
+        )}
+        <SettingsRow
+          title="Diagnostics"
+          description={diagnosticsDescription}
+          status={
+            <>
+              <span className="block break-all font-mono text-[11px] text-[var(--cursor-text-secondary)]">
+                {logsDirectoryPath ?? "Resolving logs directory..."}
+              </span>
+              {openPathErrorByTarget.logsDirectory ? (
+                <span className="mt-1 block text-destructive">
+                  {openPathErrorByTarget.logsDirectory}
+                </span>
+              ) : null}
+            </>
+          }
+          control={
+            <Button
+              size="xs"
+              variant="outline"
+              disabled={!logsDirectoryPath || openingPathByTarget.logsDirectory}
+              onClick={() =>
+                openInPreferredEditor(
+                  "logsDirectory",
+                  logsDirectoryPath,
+                  "Unable to open logs folder.",
+                )
+              }
+            >
+              {openingPathByTarget.logsDirectory ? "Opening..." : "Open"}
+            </Button>
+          }
+        />
+      </SettingsSection>
+    </SettingsPageContainer>
+  );
+}
+
+export function AppearanceSettingsPanel() {
+  const { theme, setTheme } = useTheme();
+  const appearance = useAppearanceSettingsSnapshot();
+
+  return (
+    <SettingsPageContainer>
+      <SettingsSection title="Appearance">
+        <SettingsRow
+          title="Theme"
+          description="Choose between light, dark, or system themes."
+          resetAction={
+            theme !== "system" ? (
+              <SettingResetButton label="theme" onClick={() => setTheme("system")} />
+            ) : null
+          }
+          control={
+            <Select
+              value={theme}
+              onValueChange={(value) => {
+                if (value === "system" || value === "light" || value === "dark") setTheme(value);
+              }}
+            >
+              <SelectTrigger size="xs" className="w-full sm:w-28" aria-label="Theme preference">
+                <SelectValue>
+                  {THEME_OPTIONS.find((option) => option.value === theme)?.label ?? "System"}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectPopup align="end" alignItemWithTrigger={false}>
+                {THEME_OPTIONS.map((option) => (
+                  <SelectItem hideIndicator key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectPopup>
+            </Select>
+          }
+        />
+      </SettingsSection>
+
+      <SettingsSection title="Colors">
+        <SettingsRow
+          title="Hue"
+          description="Choose a tint color."
+          control={
+            <SettingsSlider
+              label="Tint hue"
+              max={360}
+              min={0}
+              swatchHue={appearance.hue}
+              value={appearance.hue}
+              onChange={setTintHue}
+            />
+          }
+        />
+        <SettingsRow
+          title="Intensity"
+          description="Control how strongly the tint is applied."
+          control={
+            <SettingsSlider
+              label="Tint intensity"
+              max={100}
+              min={0}
+              suffix="%"
+              value={appearance.saturation}
+              onChange={setTintSaturation}
+            />
+          }
+        />
+        <SettingsRow
+          title="Glass transparency"
+          description="Control the opacity of translucent window surfaces."
+          control={
+            <SettingsSlider
+              label="Window transparency"
+              max={100}
+              min={0}
+              suffix="%"
+              value={appearance.transparency}
+              onChange={setWindowTransparency}
+            />
+          }
+        />
+        <SettingsRow
+          title="Reduce Transparency"
+          description="Replace translucent surfaces with opaque backgrounds."
+          control={
+            <Switch
+              checked={appearance.reduceTransparency}
+              aria-label="Reduce Transparency"
+              onCheckedChange={(checked) => setReduceTransparency(Boolean(checked))}
+            />
+          }
+        />
+      </SettingsSection>
+
+      <SettingsSection
+        title="Typography"
+        headerAction={
+          <Button size="xs" variant="ghost" onClick={resetAppearanceSettings}>
+            Reset
+          </Button>
+        }
+      >
+        <SettingsRow
+          title="UI Font Size"
+          description="Font size for the Multi user interface."
+          control={
+            <NumberStepper
+              label="UI Font Size"
+              max={16}
+              min={11}
+              value={appearance.uiFontSize}
+              onChange={setUiFontSize}
+            />
+          }
+        />
+        <SettingsRow
+          title="Code Font Size"
+          description="Font size for code editors and diffs."
+          control={
+            <NumberStepper
+              label="Code Font Size"
+              max={18}
+              min={10}
+              value={appearance.codeFontSize}
+              onChange={setCodeFontSize}
+            />
+          }
+        />
+        <SettingsRow
+          title="UI Font Family"
+          description="Override the Multi user interface typeface."
+          control={
+            <Input
+              size="sm"
+              className="w-full sm:w-36"
+              value={appearance.uiFont}
+              placeholder="System font"
+              aria-label="UI Font Family"
+              onChange={(event) => setUiFontFamily(event.target.value)}
+            />
+          }
+        />
+        <SettingsRow
+          title="Code Font Family"
+          description="Override the font for code editors and diffs."
+          control={
+            <Input
+              size="sm"
+              className="w-full sm:w-36"
+              value={appearance.codeFont}
+              placeholder="System monospace"
+              aria-label="Code Font Family"
+              onChange={(event) => setCodeFontFamily(event.target.value)}
+            />
+          }
+        >
+          <div className="mt-2 overflow-hidden rounded-sm text-[11px]/[16px]">
+            <div className="flex bg-rose-500/10 font-multi-mono text-foreground/72">
+              <span className="w-8 shrink-0 text-center text-rose-500/80">1</span>
+              <span>return a + b;</span>
+            </div>
+            <div className="flex bg-emerald-500/10 font-multi-mono text-foreground/72">
+              <span className="w-8 shrink-0 text-center text-emerald-600/80">1</span>
+              <span>const result = a + b;</span>
+            </div>
+            <div className="flex bg-emerald-500/10 font-multi-mono text-foreground/72">
+              <span className="w-8 shrink-0 text-center text-emerald-600/80">2</span>
+              <span>return result;</span>
+            </div>
+          </div>
+        </SettingsRow>
+      </SettingsSection>
+    </SettingsPageContainer>
+  );
+}
+
+export function AgentsSettingsPanel() {
+  const settings = useSettings();
+  const { updateSettings } = useUpdateSettings();
+
+  return (
+    <SettingsPageContainer>
+      <SettingsSection title="Agents">
         <SettingsRow
           title="Assistant output"
           description="Show token-by-token output while a response is in progress."
@@ -875,14 +985,13 @@ export function GeneralSettingsPanel() {
           control={
             <Switch
               checked={settings.enableAssistantStreaming}
+              aria-label="Stream assistant messages"
               onCheckedChange={(checked) =>
                 updateSettings({ enableAssistantStreaming: Boolean(checked) })
               }
-              aria-label="Stream assistant messages"
             />
           }
         />
-
         <SettingsRow
           title="New threads"
           description="Pick the default workspace mode for newly created draft threads."
@@ -907,7 +1016,7 @@ export function GeneralSettingsPanel() {
                 }
               }}
             >
-              <SelectTrigger className="w-full sm:w-44" aria-label="Default thread mode">
+              <SelectTrigger size="xs" className="w-full sm:w-34" aria-label="Default thread mode">
                 <SelectValue>
                   {settings.defaultThreadEnvMode === "worktree" ? "New worktree" : "Local"}
                 </SelectValue>
@@ -923,38 +1032,33 @@ export function GeneralSettingsPanel() {
             </Select>
           }
         />
+      </SettingsSection>
 
+      <SettingsSection title="Review">
         <SettingsRow
-          title="Add project starts in"
-          description='Leave empty to use "~/" when the Add Project browser opens.'
+          title="Diff line wrapping"
+          description="Set the default wrap state when the diff panel opens."
           resetAction={
-            settings.addProjectBaseDirectory !==
-            DEFAULT_UNIFIED_SETTINGS.addProjectBaseDirectory ? (
+            settings.diffWordWrap !== DEFAULT_UNIFIED_SETTINGS.diffWordWrap ? (
               <SettingResetButton
-                label="add project base directory"
+                label="diff line wrapping"
                 onClick={() =>
-                  updateSettings({
-                    addProjectBaseDirectory: DEFAULT_UNIFIED_SETTINGS.addProjectBaseDirectory,
-                  })
+                  updateSettings({ diffWordWrap: DEFAULT_UNIFIED_SETTINGS.diffWordWrap })
                 }
               />
             ) : null
           }
           control={
-            <Input
-              className="w-full sm:w-72"
-              value={settings.addProjectBaseDirectory}
-              onChange={(event) => updateSettings({ addProjectBaseDirectory: event.target.value })}
-              placeholder="~/"
-              spellCheck={false}
-              aria-label="Add project base directory"
+            <Switch
+              checked={settings.diffWordWrap}
+              aria-label="Wrap diff lines by default"
+              onCheckedChange={(checked) => updateSettings({ diffWordWrap: Boolean(checked) })}
             />
           }
         />
-
         <SettingsRow
           title="Archive confirmation"
-          description="Require a second click on the inline archive action before a thread is archived."
+          description="Require a second click before a thread is archived."
           resetAction={
             settings.confirmThreadArchive !== DEFAULT_UNIFIED_SETTINGS.confirmThreadArchive ? (
               <SettingResetButton
@@ -970,14 +1074,13 @@ export function GeneralSettingsPanel() {
           control={
             <Switch
               checked={settings.confirmThreadArchive}
+              aria-label="Confirm thread archiving"
               onCheckedChange={(checked) =>
                 updateSettings({ confirmThreadArchive: Boolean(checked) })
               }
-              aria-label="Confirm thread archiving"
             />
           }
         />
-
         <SettingsRow
           title="Delete confirmation"
           description="Ask before deleting a thread and its chat history."
@@ -996,14 +1099,139 @@ export function GeneralSettingsPanel() {
           control={
             <Switch
               checked={settings.confirmThreadDelete}
+              aria-label="Confirm thread deletion"
               onCheckedChange={(checked) =>
                 updateSettings({ confirmThreadDelete: Boolean(checked) })
               }
-              aria-label="Confirm thread deletion"
             />
           }
         />
+      </SettingsSection>
+    </SettingsPageContainer>
+  );
+}
 
+export function ModelsSettingsPanel() {
+  const settings = useSettings();
+  const { updateSettings } = useUpdateSettings();
+  const serverProviders = useServerProviders();
+  const [customModelInput, setCustomModelInput] = useState("");
+  const [customModelError, setCustomModelError] = useState<string | null>(null);
+  const [isRefreshingProviders, setIsRefreshingProviders] = useState(false);
+  const refreshingRef = useRef(false);
+  const codexProvider = serverProviders.find((provider) => provider.provider === "codex");
+  const providerConfig = settings.providers.codex;
+  const summary = getProviderSummary(codexProvider);
+  const versionLabel = getProviderVersionLabel(codexProvider?.version);
+  const statusKey = codexProvider?.status ?? (providerConfig.enabled ? "warning" : "disabled");
+  const models: ReadonlyArray<ServerProviderModel> =
+    codexProvider?.models ??
+    providerConfig.customModels.map((slug) => ({
+      slug,
+      name: slug,
+      isCustom: true,
+      capabilities: null,
+    }));
+  const textGenerationModelSelection = resolveAppModelSelectionState(
+    {
+      ...settings,
+      textGenerationModelSelection:
+        settings.textGenerationModelSelection?.provider === "codex"
+          ? settings.textGenerationModelSelection
+          : DEFAULT_UNIFIED_SETTINGS.textGenerationModelSelection,
+    },
+    serverProviders,
+  );
+  const textGenModelOptions = textGenerationModelSelection.options;
+  const modelOptionsByProvider = getCustomModelOptionsByProvider(
+    settings,
+    serverProviders,
+    "codex",
+    textGenerationModelSelection.model,
+  );
+  const isCodexDirty = !Equal.equals(providerConfig, DEFAULT_UNIFIED_SETTINGS.providers.codex);
+  const isGitWritingModelDirty = !Equal.equals(
+    settings.textGenerationModelSelection ?? null,
+    DEFAULT_UNIFIED_SETTINGS.textGenerationModelSelection ?? null,
+  );
+
+  const refreshProviders = useCallback(() => {
+    if (refreshingRef.current) return;
+    refreshingRef.current = true;
+    setIsRefreshingProviders(true);
+    void ensureLocalApi()
+      .server.refreshProviders()
+      .finally(() => {
+        refreshingRef.current = false;
+        setIsRefreshingProviders(false);
+      });
+  }, []);
+
+  const addCustomModel = useCallback(() => {
+    const normalized = normalizeModelSlug(customModelInput, "codex");
+    if (!normalized) {
+      setCustomModelError("Enter a model slug.");
+      return;
+    }
+    if (models.some((option) => option.slug === normalized)) {
+      setCustomModelError("That model is already saved.");
+      return;
+    }
+    if (normalized.length > MAX_CUSTOM_MODEL_LENGTH) {
+      setCustomModelError(`Model slugs must be ${MAX_CUSTOM_MODEL_LENGTH} characters or less.`);
+      return;
+    }
+
+    updateSettings({
+      providers: {
+        ...settings.providers,
+        codex: {
+          ...settings.providers.codex,
+          customModels: [...settings.providers.codex.customModels, normalized],
+        },
+      },
+    });
+    setCustomModelInput("");
+    setCustomModelError(null);
+  }, [customModelInput, models, settings.providers, updateSettings]);
+
+  const removeCustomModel = useCallback(
+    (slug: string) => {
+      updateSettings({
+        providers: {
+          ...settings.providers,
+          codex: {
+            ...settings.providers.codex,
+            customModels: settings.providers.codex.customModels.filter((model) => model !== slug),
+          },
+        },
+      });
+      setCustomModelError(null);
+    },
+    [settings.providers, updateSettings],
+  );
+
+  return (
+    <SettingsPageContainer>
+      <SettingsSection
+        title="Models"
+        headerAction={
+          <Button
+            size="icon-xs"
+            variant="ghost"
+            className="size-5 rounded-sm p-0 text-muted-foreground hover:text-foreground"
+            disabled={isRefreshingProviders}
+            onClick={() => void refreshProviders()}
+            aria-label="Refresh provider status"
+          >
+            {isRefreshingProviders ? (
+              <LoaderIcon className="size-3 animate-spin" />
+            ) : (
+              <RefreshCwIcon className="size-3" />
+            )}
+          </Button>
+        }
+      >
         <SettingsRow
           title="Text generation model"
           description="Configure the model used for generated commit messages, PR titles, and similar Git text."
@@ -1023,19 +1251,19 @@ export function GeneralSettingsPanel() {
           control={
             <div className="flex flex-wrap items-center justify-end gap-1.5">
               <ProviderModelPicker
-                provider={textGenProvider}
-                model={textGenModel}
-                lockedProvider={null}
+                provider="codex"
+                model={textGenerationModelSelection.model}
+                lockedProvider="codex"
                 providers={serverProviders}
-                modelOptionsByProvider={gitModelOptionsByProvider}
+                modelOptionsByProvider={modelOptionsByProvider}
                 triggerVariant="outline"
-                triggerClassName="min-w-0 max-w-none shrink-0 text-foreground/90 hover:text-foreground"
-                onProviderModelChange={(provider, model) => {
+                triggerClassName="h-6 min-w-0 max-w-none shrink-0 text-[12px] text-foreground/90 hover:text-foreground"
+                onProviderModelChange={(_, model) => {
                   updateSettings({
                     textGenerationModelSelection: resolveAppModelSelectionState(
                       {
                         ...settings,
-                        textGenerationModelSelection: { provider, model },
+                        textGenerationModelSelection: { provider: "codex", model },
                       },
                       serverProviders,
                     ),
@@ -1043,26 +1271,23 @@ export function GeneralSettingsPanel() {
                 }}
               />
               <TraitsPicker
-                provider={textGenProvider}
-                models={
-                  serverProviders.find((provider) => provider.provider === textGenProvider)
-                    ?.models ?? []
-                }
-                model={textGenModel}
+                provider="codex"
+                models={codexProvider?.models ?? []}
+                model={textGenerationModelSelection.model}
                 prompt=""
                 onPromptChange={() => {}}
                 modelOptions={textGenModelOptions}
                 allowPromptInjectedEffort={false}
                 triggerVariant="outline"
-                triggerClassName="min-w-0 max-w-none shrink-0 text-foreground/90 hover:text-foreground"
+                triggerClassName="h-6 min-w-0 max-w-none shrink-0 text-[12px] text-foreground/90 hover:text-foreground"
                 onModelOptionsChange={(nextOptions) => {
                   updateSettings({
                     textGenerationModelSelection: resolveAppModelSelectionState(
                       {
                         ...settings,
                         textGenerationModelSelection: {
-                          provider: textGenProvider,
-                          model: textGenModel,
+                          provider: "codex",
+                          model: textGenerationModelSelection.model,
                           ...(nextOptions ? { options: nextOptions } : {}),
                         },
                       },
@@ -1074,442 +1299,146 @@ export function GeneralSettingsPanel() {
             </div>
           }
         />
-      </SettingsSection>
-
-      <SettingsSection
-        title="Providers"
-        headerAction={
-          <div className="flex items-center gap-1.5">
-            <ProviderLastChecked lastCheckedAt={lastCheckedAt} />
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    size="icon-xs"
-                    variant="ghost"
-                    className="size-5 rounded-sm p-0 text-muted-foreground hover:text-foreground"
-                    disabled={isRefreshingProviders}
-                    onClick={() => void refreshProviders()}
-                    aria-label="Refresh provider status"
-                  >
-                    {isRefreshingProviders ? (
-                      <LoaderIcon className="size-3 animate-spin" />
-                    ) : (
-                      <RefreshCwIcon className="size-3" />
-                    )}
-                  </Button>
+        <SettingsRow
+          title="Codex app-server"
+          description={
+            summary.detail ? `${summary.headline} - ${summary.detail}` : summary.headline
+          }
+          status={
+            versionLabel ? (
+              <code className="text-[11px] text-[var(--cursor-text-secondary)]">
+                {versionLabel}
+              </code>
+            ) : null
+          }
+          resetAction={
+            isCodexDirty ? (
+              <SettingResetButton
+                label="Codex provider settings"
+                onClick={() =>
+                  updateSettings({
+                    providers: {
+                      ...settings.providers,
+                      codex: DEFAULT_UNIFIED_SETTINGS.providers.codex,
+                    },
+                  })
                 }
               />
-              <TooltipPopup side="top">Refresh provider status</TooltipPopup>
-            </Tooltip>
-          </div>
-        }
-      >
-        {providerCards.map((providerCard) => {
-          const customModelInput = customModelInputByProvider[providerCard.provider];
-          const customModelError = customModelErrorByProvider[providerCard.provider] ?? null;
-          const providerDisplayName =
-            PROVIDER_DISPLAY_NAMES[providerCard.provider] ?? providerCard.title;
-
-          return (
-            <div key={providerCard.provider} className="border-t border-border first:border-t-0">
-              <div className="px-4 py-4 sm:px-5">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <div className="flex min-h-5 items-center gap-1.5">
-                      <span
-                        className={cn("size-2 shrink-0 rounded-full", providerCard.statusStyle.dot)}
-                      />
-                      <h3 className="text-sm font-medium text-foreground">{providerDisplayName}</h3>
-                      {providerCard.versionLabel ? (
-                        <code className="text-xs text-muted-foreground">
-                          {providerCard.versionLabel}
-                        </code>
-                      ) : null}
-                      <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center">
-                        {providerCard.isDirty ? (
-                          <SettingResetButton
-                            label={`${providerDisplayName} provider settings`}
-                            onClick={() => {
-                              updateSettings({
-                                providers: {
-                                  ...settings.providers,
-                                  [providerCard.provider]:
-                                    DEFAULT_UNIFIED_SETTINGS.providers[providerCard.provider],
-                                },
-                              });
-                              setCustomModelErrorByProvider((existing) => ({
-                                ...existing,
-                                [providerCard.provider]: null,
-                              }));
-                            }}
-                          />
-                        ) : null}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {providerCard.summary.headline}
-                      {providerCard.summary.detail ? ` - ${providerCard.summary.detail}` : null}
-                    </p>
-                  </div>
-                  <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto sm:justify-end">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
-                      onClick={() =>
-                        setOpenProviderDetails((existing) => ({
-                          ...existing,
-                          [providerCard.provider]: !existing[providerCard.provider],
-                        }))
-                      }
-                      aria-label={`Toggle ${providerDisplayName} details`}
-                    >
-                      <ChevronDownIcon
-                        className={cn(
-                          "size-3.5 transition-transform",
-                          openProviderDetails[providerCard.provider] && "rotate-180",
-                        )}
-                      />
-                    </Button>
-                    <Switch
-                      checked={providerCard.providerConfig.enabled}
-                      onCheckedChange={(checked) => {
-                        const isDisabling = !checked;
-                        const shouldClearModelSelection =
-                          isDisabling && textGenProvider === providerCard.provider;
-                        updateSettings({
-                          providers: {
-                            ...settings.providers,
-                            [providerCard.provider]: {
-                              ...settings.providers[providerCard.provider],
-                              enabled: Boolean(checked),
-                            },
-                          },
-                          ...(shouldClearModelSelection
-                            ? {
-                                textGenerationModelSelection:
-                                  DEFAULT_UNIFIED_SETTINGS.textGenerationModelSelection,
-                              }
-                            : {}),
-                        });
-                      }}
-                      aria-label={`Enable ${providerDisplayName}`}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <Collapsible
-                open={openProviderDetails[providerCard.provider]}
-                onOpenChange={(open) =>
-                  setOpenProviderDetails((existing) => ({
-                    ...existing,
-                    [providerCard.provider]: open,
-                  }))
+            ) : null
+          }
+          control={
+            <div className="flex items-center gap-2">
+              <span
+                className={cn("size-2 rounded-full", PROVIDER_STATUS_STYLES[statusKey].dot)}
+                aria-hidden
+              />
+              <Switch
+                checked={providerConfig.enabled}
+                aria-label="Enable Codex"
+                onCheckedChange={(checked) =>
+                  updateSettings({
+                    providers: {
+                      ...settings.providers,
+                      codex: { ...settings.providers.codex, enabled: Boolean(checked) },
+                    },
+                  })
                 }
-              >
-                <CollapsibleContent>
-                  <div className="space-y-0">
-                    <div className="border-t border-border/60 px-4 py-3 sm:px-5">
-                      <label
-                        htmlFor={`provider-install-${providerCard.provider}-binary-path`}
-                        className="block"
-                      >
-                        <span className="text-xs font-medium text-foreground">
-                          {providerDisplayName} binary path
-                        </span>
-                        <Input
-                          id={`provider-install-${providerCard.provider}-binary-path`}
-                          className="mt-1.5"
-                          value={providerCard.binaryPathValue}
-                          onChange={(event) =>
-                            updateSettings({
-                              providers: {
-                                ...settings.providers,
-                                [providerCard.provider]: {
-                                  ...settings.providers[providerCard.provider],
-                                  binaryPath: event.target.value,
-                                },
-                              },
-                            })
-                          }
-                          placeholder={providerCard.binaryPlaceholder}
-                          spellCheck={false}
-                        />
-                        <span className="mt-1 block text-xs text-muted-foreground">
-                          {providerCard.binaryDescription}
-                        </span>
-                      </label>
-                    </div>
-
-                    {providerCard.homePathKey ? (
-                      <div className="border-t border-border/60 px-4 py-3 sm:px-5">
-                        <label
-                          htmlFor={`provider-install-${providerCard.homePathKey}`}
-                          className="block"
-                        >
-                          <span className="text-xs font-medium text-foreground">
-                            CODEX_HOME path
-                          </span>
-                          <Input
-                            id={`provider-install-${providerCard.homePathKey}`}
-                            className="mt-1.5"
-                            value={codexHomePath}
-                            onChange={(event) =>
-                              updateSettings({
-                                providers: {
-                                  ...settings.providers,
-                                  codex: {
-                                    ...settings.providers.codex,
-                                    homePath: event.target.value,
-                                  },
-                                },
-                              })
-                            }
-                            placeholder={providerCard.homePlaceholder}
-                            spellCheck={false}
-                          />
-                          {providerCard.homeDescription ? (
-                            <span className="mt-1 block text-xs text-muted-foreground">
-                              {providerCard.homeDescription}
-                            </span>
-                          ) : null}
-                        </label>
-                      </div>
-                    ) : null}
-
-                    {providerCard.provider === "claudeAgent" ? (
-                      <div className="border-t border-border/60 px-4 py-3 sm:px-5">
-                        <label htmlFor="provider-install-claudeAgent-launch-args" className="block">
-                          <span className="text-xs font-medium text-foreground">
-                            Launch arguments
-                          </span>
-                          <Input
-                            id="provider-install-claudeAgent-launch-args"
-                            className="mt-1.5"
-                            value={settings.providers.claudeAgent.launchArgs}
-                            onChange={(event) =>
-                              updateSettings({
-                                providers: {
-                                  ...settings.providers,
-                                  claudeAgent: {
-                                    ...settings.providers.claudeAgent,
-                                    launchArgs: event.target.value,
-                                  },
-                                },
-                              })
-                            }
-                            placeholder="e.g. --chrome"
-                            spellCheck={false}
-                          />
-                          <span className="mt-1 block text-xs text-muted-foreground">
-                            Additional CLI arguments passed to Claude Code on session start.
-                          </span>
-                        </label>
-                      </div>
-                    ) : null}
-
-                    <div className="border-t border-border/60 px-4 py-3 sm:px-5">
-                      <div className="text-xs font-medium text-foreground">Models</div>
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        {providerCard.models.length} model
-                        {providerCard.models.length === 1 ? "" : "s"} available.
-                      </div>
-                      <div
-                        ref={(el) => {
-                          modelListRefs.current[providerCard.provider] = el;
-                        }}
-                        className="mt-2 max-h-40 overflow-y-auto pb-1"
-                      >
-                        {providerCard.models.map((model) => {
-                          const caps = model.capabilities;
-                          const capLabels: string[] = [];
-                          if (caps?.supportsFastMode) capLabels.push("Fast mode");
-                          if (caps?.supportsThinkingToggle) capLabels.push("Thinking");
-                          if (
-                            caps?.reasoningEffortLevels &&
-                            caps.reasoningEffortLevels.length > 0
-                          ) {
-                            capLabels.push("Reasoning");
-                          }
-                          const hasDetails = capLabels.length > 0 || model.name !== model.slug;
-
-                          return (
-                            <div
-                              key={`${providerCard.provider}:${model.slug}`}
-                              className="flex items-center gap-2 py-1"
-                            >
-                              <span className="min-w-0 truncate text-xs text-foreground/90">
-                                {model.name}
-                              </span>
-                              {hasDetails ? (
-                                <Tooltip>
-                                  <TooltipTrigger
-                                    render={
-                                      <button
-                                        type="button"
-                                        className="shrink-0 text-muted-foreground/40 transition-colors hover:text-muted-foreground"
-                                        aria-label={`Details for ${model.name}`}
-                                      />
-                                    }
-                                  >
-                                    <InfoIcon className="size-3" />
-                                  </TooltipTrigger>
-                                  <TooltipPopup side="top" className="max-w-56">
-                                    <div className="space-y-1">
-                                      <code className="block text-[11px] text-foreground">
-                                        {model.slug}
-                                      </code>
-                                      {capLabels.length > 0 ? (
-                                        <div className="flex flex-wrap gap-x-2 gap-y-0.5">
-                                          {capLabels.map((label) => (
-                                            <span
-                                              key={label}
-                                              className="text-[10px] text-muted-foreground"
-                                            >
-                                              {label}
-                                            </span>
-                                          ))}
-                                        </div>
-                                      ) : null}
-                                    </div>
-                                  </TooltipPopup>
-                                </Tooltip>
-                              ) : null}
-                              {model.isCustom ? (
-                                <div className="ml-auto flex shrink-0 items-center gap-1.5">
-                                  <span className="text-[10px] text-muted-foreground">custom</span>
-                                  <button
-                                    type="button"
-                                    className="text-muted-foreground transition-colors hover:text-foreground"
-                                    aria-label={`Remove ${model.slug}`}
-                                    onClick={() =>
-                                      removeCustomModel(providerCard.provider, model.slug)
-                                    }
-                                  >
-                                    <XIcon className="size-3" />
-                                  </button>
-                                </div>
-                              ) : null}
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                        <Input
-                          id={`custom-model-${providerCard.provider}`}
-                          value={customModelInput}
-                          onChange={(event) => {
-                            const value = event.target.value;
-                            setCustomModelInputByProvider((existing) => ({
-                              ...existing,
-                              [providerCard.provider]: value,
-                            }));
-                            if (customModelError) {
-                              setCustomModelErrorByProvider((existing) => ({
-                                ...existing,
-                                [providerCard.provider]: null,
-                              }));
-                            }
-                          }}
-                          onKeyDown={(event) => {
-                            if (event.key !== "Enter") return;
-                            event.preventDefault();
-                            addCustomModel(providerCard.provider);
-                          }}
-                          placeholder={
-                            providerCard.provider === "codex"
-                              ? "gpt-6.7-codex-ultra-preview"
-                              : "claude-sonnet-5-0"
-                          }
-                          spellCheck={false}
-                        />
-                        <Button
-                          className="shrink-0"
-                          variant="outline"
-                          onClick={() => addCustomModel(providerCard.provider)}
-                        >
-                          <PlusIcon className="size-3.5" />
-                          Add
-                        </Button>
-                      </div>
-
-                      {customModelError ? (
-                        <p className="mt-2 text-xs text-destructive">{customModelError}</p>
-                      ) : null}
-                    </div>
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
+              />
             </div>
-          );
-        })}
-      </SettingsSection>
-
-      <SettingsSection title="Advanced">
-        <SettingsRow
-          title="Keybindings"
-          description="Open the persisted `keybindings.json` file to edit advanced bindings directly."
-          status={
-            <>
-              <span className="block break-all font-mono text-[11px] text-foreground">
-                {keybindingsConfigPath ?? "Resolving keybindings path..."}
-              </span>
-              {openKeybindingsError ? (
-                <span className="mt-1 block text-destructive">{openKeybindingsError}</span>
-              ) : (
-                <span className="mt-1 block">Opens in your preferred editor.</span>
-              )}
-            </>
-          }
-          control={
-            <Button
-              size="xs"
-              variant="outline"
-              disabled={!keybindingsConfigPath || isOpeningKeybindings}
-              onClick={openKeybindingsFile}
-            >
-              {isOpeningKeybindings ? "Opening..." : "Open file"}
-            </Button>
           }
         />
-      </SettingsSection>
-
-      <SettingsSection title="About">
-        {isElectron ? (
-          <AboutVersionSection />
-        ) : (
-          <SettingsRow
-            title={<AboutVersionTitle />}
-            description="Current version of the application."
-          />
-        )}
         <SettingsRow
-          title="Diagnostics"
-          description={diagnosticsDescription}
-          status={
-            <>
-              <span className="block break-all font-mono text-[11px] text-foreground">
-                {logsDirectoryPath ?? "Resolving logs directory..."}
-              </span>
-              {openDiagnosticsError ? (
-                <span className="mt-1 block text-destructive">{openDiagnosticsError}</span>
-              ) : null}
-            </>
-          }
+          title="Codex binary path"
+          description="Path to the Codex binary."
           control={
-            <Button
-              size="xs"
-              variant="outline"
-              disabled={!logsDirectoryPath || isOpeningLogsDirectory}
-              onClick={openLogsDirectory}
-            >
-              {isOpeningLogsDirectory ? "Opening..." : "Open logs folder"}
-            </Button>
+            <Input
+              size="sm"
+              className="w-full sm:w-44"
+              value={settings.providers.codex.binaryPath}
+              placeholder="codex"
+              spellCheck={false}
+              onChange={(event) =>
+                updateSettings({
+                  providers: {
+                    ...settings.providers,
+                    codex: { ...settings.providers.codex, binaryPath: event.target.value },
+                  },
+                })
+              }
+            />
           }
         />
+        <SettingsRow
+          title="CODEX_HOME path"
+          description="Optional custom Codex home and config directory."
+          control={
+            <Input
+              size="sm"
+              className="w-full sm:w-44"
+              value={settings.providers.codex.homePath}
+              placeholder="CODEX_HOME"
+              spellCheck={false}
+              onChange={(event) =>
+                updateSettings({
+                  providers: {
+                    ...settings.providers,
+                    codex: { ...settings.providers.codex, homePath: event.target.value },
+                  },
+                })
+              }
+            />
+          }
+        />
+        <SettingsRow
+          title="Available models"
+          description={`${models.length} Codex models available.`}
+        >
+          <div className="mt-2 max-h-48 overflow-y-auto pb-1">
+            {models.map((model) => (
+              <div
+                key={`codex:${model.slug}`}
+                className="flex min-h-7 items-center gap-2 border-t border-[var(--cursor-stroke-quaternary)] first:border-t-0"
+              >
+                <span className="min-w-0 flex-1 truncate text-[12px]/[16px] text-[var(--cursor-text-primary)]">
+                  {model.name}
+                </span>
+                {model.isCustom ? (
+                  <button
+                    type="button"
+                    className="text-[var(--cursor-text-tertiary)] hover:text-[var(--cursor-text-primary)]"
+                    aria-label={`Remove ${model.slug}`}
+                    onClick={() => removeCustomModel(model.slug)}
+                  >
+                    <XIcon className="size-3" />
+                  </button>
+                ) : null}
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+            <Input
+              size="sm"
+              value={customModelInput}
+              onChange={(event) => {
+                setCustomModelInput(event.target.value);
+                setCustomModelError(null);
+              }}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter") return;
+                event.preventDefault();
+                addCustomModel();
+              }}
+              placeholder="gpt-6.7-codex-ultra-preview"
+              spellCheck={false}
+            />
+            <Button size="xs" variant="outline" className="shrink-0" onClick={addCustomModel}>
+              Add
+            </Button>
+          </div>
+          {customModelError ? (
+            <p className="mt-2 text-[11px] text-destructive">{customModelError}</p>
+          ) : null}
+        </SettingsRow>
       </SettingsSection>
     </SettingsPageContainer>
   );

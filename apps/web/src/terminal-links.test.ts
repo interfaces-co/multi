@@ -21,6 +21,7 @@ describe("extractTerminalLinks", () => {
   it("finds http urls and path tokens", () => {
     const line =
       "failed at https://example.com/docs and src/components/thread-terminal-drawer.tsx:42";
+    const pathToken = "src/components/thread-terminal-drawer.tsx:42";
     expect(extractTerminalLinks(line)).toEqual([
       {
         kind: "url",
@@ -30,9 +31,9 @@ describe("extractTerminalLinks", () => {
       },
       {
         kind: "path",
-        text: "src/components/thread-terminal-drawer.tsx:42",
+        text: pathToken,
         start: 39,
-        end: 81,
+        end: 39 + pathToken.length,
       },
     ]);
   });

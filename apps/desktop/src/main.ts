@@ -1879,7 +1879,7 @@ function getWindowTitleBarOptions(): WindowTitleBarOptions {
     return {
       titleBarStyle: "hiddenInset",
       // Keep in sync with MACOS_TRAFFIC_LIGHTS in apps/web/src/lib/desktop-chrome.ts
-      trafficLightPosition: { x: 16, y: 18 },
+      trafficLightPosition: { x: 14, y: 14 },
     };
   }
 
@@ -2048,6 +2048,26 @@ function createWindow(): BrowserWindow {
 app.setPath("userData", resolveUserDataPath());
 
 configureAppIdentity();
+
+const singleInstanceLock = app.requestSingleInstanceLock({
+  devRoot: isDevelopment ? ROOT_DIR : undefined,
+});
+
+if (!singleInstanceLock) {
+  app.exit(0);
+}
+
+app.on("second-instance", () => {
+  const window = mainWindow ?? BrowserWindow.getAllWindows()[0];
+  if (!window) {
+    return;
+  }
+
+  if (window.isMinimized()) {
+    window.restore();
+  }
+  window.focus();
+});
 
 async function bootstrap(): Promise<void> {
   writeDesktopLogHeader("bootstrap start");

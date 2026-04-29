@@ -1,3 +1,4 @@
+import * as Fs from "node:fs";
 import path from "node:path";
 
 import * as NodeServices from "@effect/platform-node/NodeServices";
@@ -33,6 +34,7 @@ import {
   PtySpawnError,
 } from "../Services/PTY";
 import { makeTerminalManagerWithOptions } from "./Manager";
+import { runProcess } from "../../process-runner";
 
 class FakePtyProcess implements PtyProcess {
   readonly writes: string[] = [];
@@ -187,7 +189,8 @@ function multiTerminalHistoryLogPath(
 }
 
 interface CreateManagerOptions {
-  shellResolver?: () => string;
+  shellResolver?: () => string | undefined;
+  userLoginShellResolver?: () => string | undefined;
   subprocessChecker?: (terminalPid: number) => Effect.Effect<boolean>;
   subprocessPollIntervalMs?: number;
   processKillGraceMs?: number;
@@ -222,6 +225,9 @@ const createManager = (
         historyLineLimit,
         ptyAdapter,
         ...(options.shellResolver !== undefined ? { shellResolver: options.shellResolver } : {}),
+        ...(options.userLoginShellResolver !== undefined
+          ? { userLoginShellResolver: options.userLoginShellResolver }
+          : {}),
         ...(options.subprocessChecker !== undefined
           ? { subprocessChecker: options.subprocessChecker }
           : {}),
@@ -320,6 +326,30 @@ it.layer(NodeServices.layer, { excludeTestServices: true })("TerminalManager", (
       assert.equal(snapshot.status, "running");
       expect(ptyAdapter.spawnInputs).toHaveLength(1);
       expect(ptyAdapter.processes).toHaveLength(1);
+    }),
+  );
+
+  it.effect("starts terminals at the git worktree root when opened from a subdirectory", () =>
+    Effect.gen(function* () {
+      const { manager, ptyAdapter, baseDir, getEvents } = yield* createManager();
+      const repoRoot = path.resolve(path.join(baseDir, "repo"));
+      const nestedCwd = path.join(repoRoot, "apps", "server");
+      yield* makeDirectory(nestedCwd);
+      const initResult = yield* Effect.tryPromise({
+        try: () => runProcess("git", ["init", repoRoot], { allowNonZeroExit: true }),
+        catch: () => null,
+      });
+      if (initResult === null || initResult.code !== 0) return;
+      const expectedRepoRoot = Fs.realpathSync.native(repoRoot);
+
+      const snapshot = yield* manager.open(openInput({ cwd: nestedCwd }));
+
+      expect(snapshot.cwd).toBe(expectedRepoRoot);
+      expect(ptyAdapter.spawnInputs[0]?.cwd).toBe(expectedRepoRoot);
+      const startedEvent = (yield* getEvents).find(
+        (event): event is Extract<TerminalEvent, { type: "started" }> => event.type === "started",
+      );
+      expect(startedEvent?.snapshot.cwd).toBe(expectedRepoRoot);
     }),
   );
 
@@ -823,6 +853,7 @@ it.layer(NodeServices.layer, { excludeTestServices: true })("TerminalManager", (
     Effect.gen(function* () {
       const { manager, ptyAdapter } = yield* createManager(5, {
         shellResolver: () => "/definitely/missing-shell -l",
+        userLoginShellResolver: () => "/bin/fish",
       });
       ptyAdapter.spawnFailures.push(new Error("posix_spawnp failed."));
 
@@ -839,11 +870,7 @@ it.layer(NodeServices.layer, { excludeTestServices: true })("TerminalManager", (
           ),
         ).toBe(true);
       } else {
-        expect(
-          ptyAdapter.spawnInputs
-            .slice(1)
-            .some((input) => input.shell !== "/definitely/missing-shell"),
-        ).toBe(true);
+        expect(ptyAdapter.spawnInputs[1]?.shell).toBe("/bin/fish");
       }
     }),
   );
@@ -887,6 +914,9 @@ it.layer(NodeServices.layer, { excludeTestServices: true })("TerminalManager", (
         expect(spawnInput.env.MULTI_PORT).toBeUndefined();
         expect(spawnInput.env.VITE_DEV_SERVER_URL).toBeUndefined();
         expect(spawnInput.env.TEST_TERMINAL_KEEP).toBe("keep-me");
+        expect(spawnInput.env.TERM).toBe("xterm-256color");
+        expect(spawnInput.env.COLORTERM).toBe("truecolor");
+        expect(spawnInput.env.TERM_PROGRAM).toBe("Multi");
       } finally {
         restoreEnv();
       }
@@ -915,7 +945,25 @@ it.layer(NodeServices.layer, { excludeTestServices: true })("TerminalManager", (
     }),
   );
 
-  it.effect("starts zsh with prompt spacer disabled to avoid `%` end markers", () =>
+  it.effect("starts the OS login shell when SHELL is missing", () =>
+    Effect.gen(function* () {
+      if (process.platform === "win32") return;
+      const { manager, ptyAdapter } = yield* createManager(5, {
+        shellResolver: () => undefined,
+        userLoginShellResolver: () => "/opt/homebrew/bin/fish",
+      });
+      yield* manager.open(openInput());
+      const spawnInput = ptyAdapter.spawnInputs[0];
+      expect(spawnInput).toBeDefined();
+      if (!spawnInput) return;
+
+      expect(spawnInput.shell).toBe("/opt/homebrew/bin/fish");
+      expect(spawnInput.args).toEqual(["--login", "--interactive"]);
+      expect(spawnInput.env.SHELL).toBe("/opt/homebrew/bin/fish");
+    }),
+  );
+
+  it.effect("starts zsh as a login interactive shell with prompt spacer disabled", () =>
     Effect.gen(function* () {
       if (process.platform === "win32") return;
       const { manager, ptyAdapter } = yield* createManager(5, {
@@ -926,7 +974,37 @@ it.layer(NodeServices.layer, { excludeTestServices: true })("TerminalManager", (
       expect(spawnInput).toBeDefined();
       if (!spawnInput) return;
 
-      expect(spawnInput.args).toEqual(["-o", "nopromptsp"]);
+      expect(spawnInput.args).toEqual(["-l", "-i", "-o", "nopromptsp"]);
+    }),
+  );
+
+  it.effect("starts bash as a login interactive shell", () =>
+    Effect.gen(function* () {
+      if (process.platform === "win32") return;
+      const { manager, ptyAdapter } = yield* createManager(5, {
+        shellResolver: () => "/bin/bash",
+      });
+      yield* manager.open(openInput());
+      const spawnInput = ptyAdapter.spawnInputs[0];
+      expect(spawnInput).toBeDefined();
+      if (!spawnInput) return;
+
+      expect(spawnInput.args).toEqual(["--login", "-i"]);
+    }),
+  );
+
+  it.effect("starts fish as a login interactive shell", () =>
+    Effect.gen(function* () {
+      if (process.platform === "win32") return;
+      const { manager, ptyAdapter } = yield* createManager(5, {
+        shellResolver: () => "/opt/homebrew/bin/fish",
+      });
+      yield* manager.open(openInput());
+      const spawnInput = ptyAdapter.spawnInputs[0];
+      expect(spawnInput).toBeDefined();
+      if (!spawnInput) return;
+
+      expect(spawnInput.args).toEqual(["--login", "--interactive"]);
     }),
   );
 

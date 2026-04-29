@@ -39,6 +39,29 @@ function matchMedia() {
   };
 }
 
+function createMockElement() {
+  let innerHTML = "";
+  const element = {
+    append: () => {},
+    get innerHTML() {
+      return innerHTML;
+    },
+    set innerHTML(value: string) {
+      innerHTML = value;
+      element.textContent = value;
+    },
+    name: "",
+    setAttribute: () => {},
+    style: {
+      backgroundColor: "",
+      removeProperty: () => {},
+      setProperty: () => {},
+    },
+    textContent: "",
+  };
+  return element;
+}
+
 beforeAll(() => {
   const classList = {
     add: () => {},
@@ -57,6 +80,7 @@ beforeAll(() => {
     matchMedia,
     addEventListener: () => {},
     removeEventListener: () => {},
+    dispatchEvent: () => true,
     requestAnimationFrame: (callback: FrameRequestCallback) => {
       callback(0);
       return 0;
@@ -64,11 +88,25 @@ beforeAll(() => {
     cancelAnimationFrame: () => {},
     desktopBridge: undefined,
   });
+  vi.stubGlobal("getComputedStyle", () => ({
+    backgroundColor: "rgb(255, 255, 255)",
+  }));
   vi.stubGlobal("document", {
+    body: createMockElement(),
     documentElement: {
       classList,
       offsetHeight: 0,
+      style: {
+        backgroundColor: "",
+        removeProperty: () => {},
+        setProperty: () => {},
+      },
     },
+    createElement: createMockElement,
+    head: {
+      append: () => {},
+    },
+    querySelector: () => null,
   });
 });
 
@@ -157,7 +195,7 @@ describe("messages-timeline", () => {
     );
 
     expect(markup).toContain("Context compacted");
-    expect(markup).toContain("Work log");
+    expect(markup).toContain('data-timeline-row-kind="work"');
   });
 
   it("formats changed file paths from the workspace root", async () => {

@@ -5,6 +5,7 @@ import {
   type OrchestrationProposedPlanId,
   type OrchestrationThreadActivity,
   type ProviderKind,
+  type ProviderRequestKind,
   type ThreadId,
   type TurnId,
   type UserInputQuestion,
@@ -33,7 +34,7 @@ export const HIDDEN_ACTIVITY_KINDS = new Set<OrchestrationThreadActivity["kind"]
 
 export interface PendingApproval {
   requestId: ApprovalRequestId;
-  requestKind: "command" | "file-read" | "file-change";
+  requestKind: ProviderRequestKind;
   createdAt: string;
   detail?: string;
 }
@@ -121,8 +122,31 @@ function requestKindFromRequestType(requestType: unknown): PendingApproval["requ
     case "file_change_approval":
     case "apply_patch_approval":
       return "file-change";
+    case "permissions_approval":
+      return "permissions";
+    case "mcp_elicitation":
+      return "mcp-elicitation";
+    case "dynamic_tool_call":
+      return "dynamic-tool";
+    case "auth_tokens_refresh":
+      return "auth-refresh";
     default:
       return null;
+  }
+}
+
+function isProviderRequestKind(value: unknown): value is ProviderRequestKind {
+  switch (value) {
+    case "command":
+    case "file-read":
+    case "file-change":
+    case "permissions":
+    case "mcp-elicitation":
+    case "dynamic-tool":
+    case "auth-refresh":
+      return true;
+    default:
+      return false;
   }
 }
 
@@ -197,10 +221,7 @@ export function derivePendingApprovals(
         ? ApprovalRequestId.makeUnsafe(payload.requestId)
         : null;
     const requestKind =
-      payload &&
-      (payload.requestKind === "command" ||
-        payload.requestKind === "file-read" ||
-        payload.requestKind === "file-change")
+      payload && isProviderRequestKind(payload.requestKind)
         ? payload.requestKind
         : payload
           ? requestKindFromRequestType(payload.requestType)

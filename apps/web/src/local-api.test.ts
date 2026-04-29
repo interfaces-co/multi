@@ -1,5 +1,6 @@
 import {
   CommandId,
+  DEFAULT_CLIENT_SETTINGS,
   DEFAULT_SERVER_SETTINGS,
   type DesktopBridge,
   EnvironmentId,
@@ -48,6 +49,8 @@ const rpcClientMock = {
     ),
   },
   projects: {
+    listEntries: vi.fn(),
+    readFile: vi.fn(),
     searchEntries: vi.fn(),
     writeFile: vi.fn(),
   },
@@ -559,6 +562,7 @@ describe("wsApi", () => {
 
     await api.persistence.getClientSettings();
     await api.persistence.setClientSettings({
+      ...DEFAULT_CLIENT_SETTINGS,
       confirmThreadArchive: true,
       confirmThreadDelete: false,
       diffWordWrap: true,
@@ -577,6 +581,7 @@ describe("wsApi", () => {
 
     expect(getClientSettings).toHaveBeenCalledWith();
     expect(setClientSettings).toHaveBeenCalledWith({
+      ...DEFAULT_CLIENT_SETTINGS,
       confirmThreadArchive: true,
       confirmThreadDelete: false,
       diffWordWrap: true,
@@ -596,6 +601,7 @@ describe("wsApi", () => {
     const api = createLocalApi(rpcClientMock as never);
 
     await api.persistence.setClientSettings({
+      ...DEFAULT_CLIENT_SETTINGS,
       confirmThreadArchive: true,
       confirmThreadDelete: false,
       diffWordWrap: true,

@@ -25,6 +25,7 @@ import { WorkspacePaths } from "../Services/WorkspacePaths.ts";
 const WORKSPACE_CACHE_TTL_MS = 15_000;
 const WORKSPACE_CACHE_MAX_KEYS = 4;
 const WORKSPACE_INDEX_MAX_ENTRIES = 25_000;
+const WORKSPACE_LIST_DEFAULT_LIMIT = WORKSPACE_INDEX_MAX_ENTRIES;
 const WORKSPACE_SCAN_READDIR_CONCURRENCY = 32;
 const IGNORED_DIRECTORY_NAMES = new Set([
   ".git",
@@ -87,6 +88,14 @@ function toSearchableWorkspaceEntry(entry: ProjectEntry): SearchableWorkspaceEnt
     ...entry,
     normalizedPath,
     normalizedName: basenameOf(normalizedPath),
+  };
+}
+
+function toProjectEntry(entry: SearchableWorkspaceEntry): ProjectEntry {
+  return {
+    path: entry.path,
+    kind: entry.kind,
+    ...(entry.parentPath ? { parentPath: entry.parentPath } : {}),
   };
 }
 
@@ -497,9 +506,26 @@ export const makeWorkspaceEntries = Effect.gen(function* () {
     },
   );
 
+  const list: WorkspaceEntriesShape["list"] = Effect.fn("WorkspaceEntries.list")(function* (input) {
+    const normalizedCwd = yield* normalizeWorkspaceRoot(input.cwd);
+    return yield* Cache.get(workspaceIndexCache, normalizedCwd).pipe(
+      Effect.map((index) => {
+        const limit = input.limit ?? WORKSPACE_LIST_DEFAULT_LIMIT;
+        const entries = index.entries
+          .map(toProjectEntry)
+          .toSorted((left, right) => left.path.localeCompare(right.path));
+        return {
+          entries: entries.slice(0, limit),
+          truncated: index.truncated || entries.length > limit,
+        };
+      }),
+    );
+  });
+
   return {
     browse,
     invalidate,
+    list,
     search,
   } satisfies WorkspaceEntriesShape;
 });

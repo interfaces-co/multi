@@ -324,6 +324,12 @@ describe("WsTransport", () => {
     const secondSocket = getSocket();
     expect(secondSocket).not.toBe(firstSocket);
     expect(firstSocket.readyState).toBe(MockWebSocket.CLOSED);
+    expect(getWsConnectionStatus()).toMatchObject({
+      closeCode: null,
+      closeReason: null,
+      disconnectedAt: null,
+      phase: "connecting",
+    });
 
     const requestPromise = transport.request((client) =>
       client[WS_METHODS.serverUpsertKeybinding]({

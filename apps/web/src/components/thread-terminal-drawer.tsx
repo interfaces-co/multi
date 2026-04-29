@@ -6,7 +6,7 @@ import {
   type TerminalSessionSnapshot,
   type ThreadId,
 } from "@multi/contracts";
-import { Terminal, type ITheme } from "@xterm/xterm";
+import { Terminal } from "@xterm/xterm";
 import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
@@ -41,6 +41,12 @@ import {
 } from "../types";
 import { readEnvironmentApi } from "~/environment-api";
 import { readLocalApi } from "~/local-api";
+import {
+  readTerminalHostFontFamily,
+  readTerminalHostFontSize,
+  readTerminalHostTheme,
+  readTerminalHostThemeMode,
+} from "~/components/shell/terminal/terminal-host-theme";
 import { selectTerminalEventEntries, useTerminalStateStore } from "../terminal-state-store";
 
 const MIN_DRAWER_HEIGHT = 180;
@@ -58,14 +64,86 @@ function clampDrawerHeight(height: number): number {
   return Math.min(Math.max(Math.round(safeHeight), MIN_DRAWER_HEIGHT), maxHeight);
 }
 
-function writeSystemMessage(terminal: Terminal, message: string): void {
-  terminal.write(`\r\n[terminal] ${message}\r\n`);
+interface TerminalWriteQueue {
+  push(data: string): void;
+  flush(done?: () => void): void;
+  clear(): void;
 }
 
-function writeTerminalSnapshot(terminal: Terminal, snapshot: TerminalSessionSnapshot): void {
-  terminal.write("\u001bc");
+function createTerminalWriteQueue(terminal: Terminal): TerminalWriteQueue {
+  let chunks: string[] = [];
+  let waiters: Array<() => void> = [];
+  let scheduled = false;
+  let writing = false;
+
+  const settle = () => {
+    if (scheduled || writing || chunks.length > 0) return;
+    const nextWaiters = waiters;
+    waiters = [];
+    for (const done of nextWaiters) {
+      done();
+    }
+  };
+
+  const run = () => {
+    if (writing) return;
+    scheduled = false;
+    const nextChunks = chunks;
+    chunks = [];
+    if (nextChunks.length === 0) {
+      settle();
+      return;
+    }
+    writing = true;
+    terminal.write(nextChunks.join(""), () => {
+      writing = false;
+      if (chunks.length > 0 && !scheduled) {
+        scheduled = true;
+        queueMicrotask(run);
+        return;
+      }
+      settle();
+    });
+  };
+
+  return {
+    push(data) {
+      if (data.length === 0) return;
+      chunks.push(data);
+      if (scheduled || writing) return;
+      scheduled = true;
+      queueMicrotask(run);
+    },
+    flush(done) {
+      if (!scheduled && !writing && chunks.length === 0) {
+        done?.();
+        return;
+      }
+      if (done) {
+        waiters.push(done);
+      }
+      run();
+    },
+    clear() {
+      chunks = [];
+      waiters = [];
+      scheduled = false;
+    },
+  };
+}
+
+function writeSystemMessage(writer: TerminalWriteQueue, message: string): void {
+  writer.push(`\r\n[terminal] ${message}\r\n`);
+}
+
+function writeTerminalSnapshot(
+  writer: TerminalWriteQueue,
+  snapshot: TerminalSessionSnapshot,
+): void {
+  writer.clear();
+  writer.push("\u001bc");
   if (snapshot.history.length > 0) {
-    terminal.write(snapshot.history);
+    writer.push(snapshot.history);
   }
 }
 
@@ -81,93 +159,6 @@ export function selectPendingTerminalEventEntries(
   lastAppliedTerminalEventId: number,
 ): ReadonlyArray<{ id: number; event: TerminalEvent }> {
   return entries.filter((entry) => entry.id > lastAppliedTerminalEventId);
-}
-
-function normalizeComputedColor(value: string | null | undefined, fallback: string): string {
-  const normalizedValue = value?.trim().toLowerCase();
-  if (
-    !normalizedValue ||
-    normalizedValue === "transparent" ||
-    normalizedValue === "rgba(0, 0, 0, 0)" ||
-    normalizedValue === "rgba(0 0 0 / 0)"
-  ) {
-    return fallback;
-  }
-  return value ?? fallback;
-}
-
-function terminalThemeFromApp(mountElement?: HTMLElement | null): ITheme {
-  const isDark = document.documentElement.classList.contains("dark");
-  const fallbackBackground = isDark ? "rgb(14, 18, 24)" : "rgb(255, 255, 255)";
-  const fallbackForeground = isDark ? "rgb(237, 241, 247)" : "rgb(28, 33, 41)";
-  const drawerSurface =
-    mountElement?.closest(".thread-terminal-drawer") ??
-    document.querySelector(".thread-terminal-drawer") ??
-    document.body;
-  const drawerStyles = getComputedStyle(drawerSurface);
-  const bodyStyles = getComputedStyle(document.body);
-  const background = normalizeComputedColor(
-    drawerStyles.backgroundColor,
-    normalizeComputedColor(bodyStyles.backgroundColor, fallbackBackground),
-  );
-  const foreground = normalizeComputedColor(
-    drawerStyles.color,
-    normalizeComputedColor(bodyStyles.color, fallbackForeground),
-  );
-
-  if (isDark) {
-    return {
-      background,
-      foreground,
-      cursor: "rgb(180, 203, 255)",
-      selectionBackground: "rgba(180, 203, 255, 0.25)",
-      scrollbarSliderBackground: "rgba(255, 255, 255, 0.1)",
-      scrollbarSliderHoverBackground: "rgba(255, 255, 255, 0.18)",
-      scrollbarSliderActiveBackground: "rgba(255, 255, 255, 0.22)",
-      black: "rgb(24, 30, 38)",
-      red: "rgb(255, 122, 142)",
-      green: "rgb(134, 231, 149)",
-      yellow: "rgb(244, 205, 114)",
-      blue: "rgb(137, 190, 255)",
-      magenta: "rgb(208, 176, 255)",
-      cyan: "rgb(124, 232, 237)",
-      white: "rgb(210, 218, 230)",
-      brightBlack: "rgb(110, 120, 136)",
-      brightRed: "rgb(255, 168, 180)",
-      brightGreen: "rgb(176, 245, 186)",
-      brightYellow: "rgb(255, 224, 149)",
-      brightBlue: "rgb(174, 210, 255)",
-      brightMagenta: "rgb(229, 203, 255)",
-      brightCyan: "rgb(167, 244, 247)",
-      brightWhite: "rgb(244, 247, 252)",
-    };
-  }
-
-  return {
-    background,
-    foreground,
-    cursor: "rgb(38, 56, 78)",
-    selectionBackground: "rgba(37, 63, 99, 0.2)",
-    scrollbarSliderBackground: "rgba(0, 0, 0, 0.15)",
-    scrollbarSliderHoverBackground: "rgba(0, 0, 0, 0.25)",
-    scrollbarSliderActiveBackground: "rgba(0, 0, 0, 0.3)",
-    black: "rgb(44, 53, 66)",
-    red: "rgb(191, 70, 87)",
-    green: "rgb(60, 126, 86)",
-    yellow: "rgb(146, 112, 35)",
-    blue: "rgb(72, 102, 163)",
-    magenta: "rgb(132, 86, 149)",
-    cyan: "rgb(53, 127, 141)",
-    white: "rgb(210, 215, 223)",
-    brightBlack: "rgb(112, 123, 140)",
-    brightRed: "rgb(212, 95, 112)",
-    brightGreen: "rgb(85, 148, 111)",
-    brightYellow: "rgb(173, 133, 45)",
-    brightBlue: "rgb(91, 124, 194)",
-    brightMagenta: "rgb(153, 107, 172)",
-    brightCyan: "rgb(70, 149, 164)",
-    brightWhite: "rgb(236, 240, 246)",
-  };
 }
 
 function getTerminalSelectionRect(mountElement: HTMLElement): DOMRect | null {
@@ -305,11 +296,12 @@ export function TerminalViewport({
     const terminal = new Terminal({
       cursorBlink: true,
       lineHeight: 1.2,
-      fontSize: 12,
+      fontSize: readTerminalHostFontSize(mount),
       scrollback: 5_000,
-      fontFamily: '"SF Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace',
-      theme: terminalThemeFromApp(mount),
+      fontFamily: readTerminalHostFontFamily(mount),
+      theme: readTerminalHostTheme(mount, readTerminalHostThemeMode(mount)),
     });
+    const writer = createTerminalWriteQueue(terminal);
     terminal.loadAddon(fitAddon);
     terminal.open(mount);
     fitAddon.fit();
@@ -398,7 +390,7 @@ export function TerminalViewport({
       try {
         await api.terminal.write({ threadId, terminalId, data });
       } catch (error) {
-        writeSystemMessage(activeTerminal, error instanceof Error ? error.message : fallbackError);
+        writeSystemMessage(writer, error instanceof Error ? error.message : fallbackError);
       }
     };
 
@@ -468,7 +460,7 @@ export function TerminalViewport({
               if (match.kind === "url") {
                 void localApi.shell.openExternal(match.text).catch((error: unknown) => {
                   writeSystemMessage(
-                    latestTerminal,
+                    writer,
                     error instanceof Error ? error.message : "Unable to open link",
                   );
                 });
@@ -478,7 +470,7 @@ export function TerminalViewport({
               const target = resolvePathLinkTarget(match.text, cwd);
               void openInPreferredEditor(localApi, target).catch((error) => {
                 writeSystemMessage(
-                  latestTerminal,
+                  writer,
                   error instanceof Error ? error.message : "Unable to open path",
                 );
               });
@@ -492,10 +484,7 @@ export function TerminalViewport({
       void api.terminal
         .write({ threadId, terminalId, data })
         .catch((err) =>
-          writeSystemMessage(
-            terminal,
-            err instanceof Error ? err.message : "Terminal write failed",
-          ),
+          writeSystemMessage(writer, err instanceof Error ? err.message : "Terminal write failed"),
         );
     });
 
@@ -528,14 +517,86 @@ export function TerminalViewport({
       clearSelectionAction();
       selectionGestureActiveRef.current = event.button === 0;
     };
+    const handleCopy = (event: ClipboardEvent) => {
+      const selection = terminal.getSelection();
+      if (!selection) return;
+      const clipboard = event.clipboardData;
+      if (!clipboard) return;
+
+      event.preventDefault();
+      clipboard.setData("text/plain", selection);
+    };
+    const handlePaste = (event: ClipboardEvent) => {
+      const plainText = event.clipboardData?.getData("text/plain") ?? "";
+      const text = plainText || event.clipboardData?.getData("text") || "";
+      if (!text) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      terminal.paste(text);
+    };
     window.addEventListener("mouseup", handleMouseUp);
     mount.addEventListener("pointerdown", handlePointerDown);
+    mount.addEventListener("copy", handleCopy, true);
+    mount.addEventListener("paste", handlePaste, true);
+
+    let fitFrame: number | null = null;
+    let lastSyncedSize = { cols: terminal.cols, rows: terminal.rows };
+    const fitAndResize = () => {
+      fitFrame = null;
+      if (disposed) return;
+      const activeTerminal = terminalRef.current;
+      const activeFitAddon = fitAddonRef.current;
+      if (!activeTerminal || !activeFitAddon) return;
+      const wasAtBottom =
+        activeTerminal.buffer.active.viewportY >= activeTerminal.buffer.active.baseY;
+      activeFitAddon.fit();
+      if (wasAtBottom) {
+        activeTerminal.scrollToBottom();
+      }
+      if (
+        lastSyncedSize.cols === activeTerminal.cols &&
+        lastSyncedSize.rows === activeTerminal.rows
+      ) {
+        return;
+      }
+      lastSyncedSize = { cols: activeTerminal.cols, rows: activeTerminal.rows };
+      void api.terminal
+        .resize({
+          threadId,
+          terminalId,
+          cols: activeTerminal.cols,
+          rows: activeTerminal.rows,
+        })
+        .catch(() => undefined);
+    };
+    const scheduleFitAndResize = () => {
+      if (disposed || fitFrame !== null) return;
+      fitFrame = window.requestAnimationFrame(fitAndResize);
+    };
+    const resizeObserver = new ResizeObserver(scheduleFitAndResize);
+    resizeObserver.observe(mount);
+    if (document.fonts) {
+      void document.fonts.ready.then(() => {
+        if (!disposed) {
+          scheduleFitAndResize();
+        }
+      });
+    }
 
     const themeObserver = new MutationObserver(() => {
       const activeTerminal = terminalRef.current;
       if (!activeTerminal) return;
-      activeTerminal.options.theme = terminalThemeFromApp(containerRef.current);
+      const mountElement = containerRef.current;
+      if (!mountElement) return;
+      activeTerminal.options.theme = readTerminalHostTheme(
+        mountElement,
+        readTerminalHostThemeMode(mountElement),
+      );
+      activeTerminal.options.fontFamily = readTerminalHostFontFamily(mountElement);
+      activeTerminal.options.fontSize = readTerminalHostFontSize(mountElement);
       activeTerminal.refresh(0, activeTerminal.rows - 1);
+      scheduleFitAndResize();
     });
     themeObserver.observe(document.documentElement, {
       attributes: true,
@@ -553,7 +614,7 @@ export function TerminalViewport({
       }
 
       if (event.type === "output") {
-        activeTerminal.write(event.data);
+        writer.push(event.data);
         clearSelectionAction();
         return;
       }
@@ -561,19 +622,20 @@ export function TerminalViewport({
       if (event.type === "started" || event.type === "restarted") {
         hasHandledExitRef.current = false;
         clearSelectionAction();
-        writeTerminalSnapshot(activeTerminal, event.snapshot);
+        writeTerminalSnapshot(writer, event.snapshot);
         return;
       }
 
       if (event.type === "cleared") {
         clearSelectionAction();
         activeTerminal.clear();
-        activeTerminal.write("\u001bc");
+        writer.clear();
+        writer.push("\u001bc");
         return;
       }
 
       if (event.type === "error") {
-        writeSystemMessage(activeTerminal, event.message);
+        writeSystemMessage(writer, event.message);
         return;
       }
 
@@ -584,7 +646,7 @@ export function TerminalViewport({
         .filter((value): value is string => value !== null)
         .join(", ");
       writeSystemMessage(
-        activeTerminal,
+        writer,
         details.length > 0 ? `Process exited (${details})` : "Process exited",
       );
       if (hasHandledExitRef.current) {
@@ -655,7 +717,7 @@ export function TerminalViewport({
           ...(runtimeEnv ? { env: runtimeEnv } : {}),
         });
         if (disposed) return;
-        writeTerminalSnapshot(activeTerminal, snapshot);
+        writeTerminalSnapshot(writer, snapshot);
         const bufferedEntries = selectTerminalEventEntries(
           useTerminalStateStore.getState().terminalEventEntriesByKey,
           threadRef,
@@ -677,32 +739,11 @@ export function TerminalViewport({
         }
       } catch (err) {
         if (disposed) return;
-        writeSystemMessage(
-          terminal,
-          err instanceof Error ? err.message : "Failed to open terminal",
-        );
+        writeSystemMessage(writer, err instanceof Error ? err.message : "Failed to open terminal");
       }
     };
 
-    const fitTimer = window.setTimeout(() => {
-      const activeTerminal = terminalRef.current;
-      const activeFitAddon = fitAddonRef.current;
-      if (!activeTerminal || !activeFitAddon) return;
-      const wasAtBottom =
-        activeTerminal.buffer.active.viewportY >= activeTerminal.buffer.active.baseY;
-      activeFitAddon.fit();
-      if (wasAtBottom) {
-        activeTerminal.scrollToBottom();
-      }
-      void api.terminal
-        .resize({
-          threadId,
-          terminalId,
-          cols: activeTerminal.cols,
-          rows: activeTerminal.rows,
-        })
-        .catch(() => undefined);
-    }, 30);
+    scheduleFitAndResize();
     void openTerminal();
 
     return () => {
@@ -710,7 +751,9 @@ export function TerminalViewport({
       terminalHydratedRef.current = false;
       lastAppliedTerminalEventIdRef.current = 0;
       unsubscribeTerminalEvents();
-      window.clearTimeout(fitTimer);
+      if (fitFrame !== null) {
+        window.cancelAnimationFrame(fitFrame);
+      }
       inputDisposable.dispose();
       selectionDisposable.dispose();
       terminalLinksDisposable.dispose();
@@ -719,6 +762,9 @@ export function TerminalViewport({
       }
       window.removeEventListener("mouseup", handleMouseUp);
       mount.removeEventListener("pointerdown", handlePointerDown);
+      mount.removeEventListener("copy", handleCopy, true);
+      mount.removeEventListener("paste", handlePaste, true);
+      resizeObserver.disconnect();
       themeObserver.disconnect();
       terminalRef.current = null;
       fitAddonRef.current = null;
@@ -766,10 +812,7 @@ export function TerminalViewport({
     };
   }, [drawerHeight, environmentId, resizeEpoch, terminalId, threadId]);
   return (
-    <div
-      ref={containerRef}
-      className="relative h-full w-full overflow-hidden rounded-[4px] bg-background"
-    />
+    <div ref={containerRef} className="relative h-full w-full overflow-hidden bg-transparent" />
   );
 }
 
@@ -1151,7 +1194,7 @@ export default function ThreadTerminalDrawer({
                       }
                     }}
                   >
-                    <div className="h-full p-1">
+                    <div className="h-full">
                       <TerminalViewport
                         threadRef={threadRef}
                         threadId={threadId}
@@ -1172,7 +1215,7 @@ export default function ThreadTerminalDrawer({
                 ))}
               </div>
             ) : (
-              <div className="h-full p-1">
+              <div className="h-full">
                 <TerminalViewport
                   key={resolvedActiveTerminalId}
                   threadRef={threadRef}

@@ -10,10 +10,12 @@ export function ShellSidebarFooter(props: { settings?: boolean }) {
   const active = Boolean(props.settings);
 
   return (
-    <div className="mt-auto flex shrink-0 flex-col px-3 py-1.5">
+    <div className="agent-window-sidebar-footer mt-auto flex shrink-0 flex-col px-3 py-1.5">
       <UpdatePill />
       <div className="flex items-center justify-between py-1">
-        <span className="text-detail text-muted-foreground/50">Multi</span>
+        <span className="agent-window-account-label text-detail text-muted-foreground/50">
+          Multi
+        </span>
         <div className="flex items-center gap-0.5">
           <Link
             to={active ? "/" : "/settings/general"}

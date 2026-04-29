@@ -28,7 +28,7 @@ interface CommandPaletteResultsProps {
 export function CommandPaletteResults(props: CommandPaletteResultsProps) {
   if (props.groups.length === 0) {
     return (
-      <div className="py-10 text-center text-sm text-muted-foreground">
+      <div className="py-8 text-center font-multi text-[12px]/[16px] text-muted-foreground">
         {props.emptyStateMessage ??
           (props.isActionsOnly
             ? "No matching actions."
@@ -74,7 +74,7 @@ function CommandPaletteResultRow(props: {
       value={props.item.value}
       className={cn(
         "cursor-pointer gap-2 hover:bg-transparent hover:text-inherit data-highlighted:bg-transparent data-highlighted:text-inherit data-selected:bg-transparent data-selected:text-inherit [&[data-highlighted][data-selected]]:bg-transparent [&[data-highlighted][data-selected]]:text-inherit",
-        props.isActive && "bg-accent! text-accent-foreground!",
+        props.isActive && "bg-multi-hover! text-foreground!",
       )}
       onMouseDown={(event) => {
         event.preventDefault();
@@ -86,18 +86,18 @@ function CommandPaletteResultRow(props: {
       {props.item.icon}
       {props.item.description ? (
         <span className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-sm text-foreground">{props.item.title}</span>
-          <span className="truncate text-muted-foreground/70 text-xs">
+          <span className="truncate text-[12px]/[16px] text-foreground">{props.item.title}</span>
+          <span className="truncate text-[11px]/[14px] text-muted-foreground/64">
             {props.item.description}
           </span>
         </span>
       ) : (
-        <span className="flex min-w-0 items-center gap-1.5 truncate text-sm text-foreground">
+        <span className="flex min-w-0 items-center gap-1.5 truncate text-[12px]/[16px] text-foreground">
           <span className="truncate">{props.item.title}</span>
         </span>
       )}
       {props.item.timestamp ? (
-        <span className="min-w-12 shrink-0 text-right text-[10px] tabular-nums text-muted-foreground/70">
+        <span className="min-w-12 shrink-0 text-right text-[10px]/[12px] tabular-nums text-muted-foreground/62">
           {props.item.timestamp}
         </span>
       ) : null}

@@ -12,7 +12,9 @@ export default defineConfig([
     ...shared,
     entry: ["src/main.ts"],
     clean: true,
-    noExternal: (id) => id.startsWith("@multi/"),
+    deps: {
+      alwaysBundle: (id) => id.startsWith("@multi/"),
+    },
   },
   {
     ...shared,

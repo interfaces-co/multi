@@ -8,7 +8,7 @@ const LEFT_MAX = 400;
 const RIGHT_MIN = 340;
 const RIGHT_MAX = 600;
 
-export type WorkbenchTab = "git" | "terminal" | "browser";
+export type WorkbenchTab = "files" | "git" | "terminal" | "browser";
 
 interface ShellPanelState {
   leftOpen: boolean;
@@ -40,10 +40,10 @@ interface PersistedShellPanelState {
 
 const DEFAULT_PANEL_STATE: ShellPanelState = Object.freeze({
   leftOpen: true,
-  rightOpen: false,
+  rightOpen: true,
   leftW: 256,
   rightW: 400,
-  activeTab: "git",
+  activeTab: "files",
   muted: false,
 });
 
@@ -75,6 +75,7 @@ function readPersistedPanels(): Record<string, ShellPanelState> {
     const result: Record<string, ShellPanelState> = {};
     for (const [cwd, value] of Object.entries(parsed)) {
       const activeTab =
+        value?.activeTab === "files" ||
         value?.activeTab === "git" ||
         value?.activeTab === "terminal" ||
         value?.activeTab === "browser"

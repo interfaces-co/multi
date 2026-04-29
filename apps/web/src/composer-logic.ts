@@ -42,6 +42,10 @@ function tokenStartForCursor(text: string, cursor: number): number {
   return index + 1;
 }
 
+function expandedSkillSegmentLength(segment: { type: "skill"; name: string; path?: string }) {
+  return segment.path ? `[$${segment.name}](${segment.path})`.length : segment.name.length + 1;
+}
+
 export function expandCollapsedComposerCursor(text: string, cursorInput: number): number {
   const collapsedCursor = clampCursor(text, cursorInput);
   const segments = splitPromptIntoComposerSegments(text);
@@ -63,7 +67,7 @@ export function expandCollapsedComposerCursor(text: string, cursorInput: number)
       continue;
     }
     if (segment.type === "skill") {
-      const expandedLength = segment.name.length + 1;
+      const expandedLength = expandedSkillSegmentLength(segment);
       if (remaining <= 1) {
         return expandedCursor + (remaining === 0 ? 0 : expandedLength);
       }
@@ -154,7 +158,7 @@ export function collapseExpandedComposerCursor(text: string, cursorInput: number
       continue;
     }
     if (segment.type === "skill") {
-      const expandedLength = segment.name.length + 1;
+      const expandedLength = expandedSkillSegmentLength(segment);
       if (remaining === 0) {
         return collapsedCursor;
       }

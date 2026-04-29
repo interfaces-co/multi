@@ -55,11 +55,11 @@ function CommandDialogViewport({ className, ...props }: CommandDialogPrimitive.V
 function CommandDialogPopup({ className, children, ...props }: CommandDialogPrimitive.Popup.Props) {
   return (
     <CommandDialogPortal>
-      <CommandDialogBackdrop />
+      <CommandDialogBackdrop className="bg-background/45 backdrop-blur-[2px]" />
       <CommandDialogViewport>
         <CommandDialogPrimitive.Popup
           className={cn(
-            "-translate-y-[calc(1.25rem*var(--nested-dialogs))] relative row-start-2 flex max-h-105 min-h-0 w-full min-w-0 max-w-xl scale-[calc(1-0.1*var(--nested-dialogs))] flex-col rounded-2xl border bg-popover not-dark:bg-clip-padding text-popover-foreground opacity-[calc(1-0.1*var(--nested-dialogs))] shadow-lg/5 outline-none transition-[scale,opacity,translate] duration-200 ease-in-out will-change-transform before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-2xl)-1px)] before:bg-muted/72 before:shadow-[0_1px_--theme(--color-black/4%)] data-nested:data-ending-style:translate-y-8 data-nested:data-starting-style:translate-y-8 data-nested-dialog-open:origin-top data-ending-style:scale-98 data-starting-style:scale-98 data-ending-style:opacity-0 data-starting-style:opacity-0 **:data-[slot=scroll-area-viewport]:data-has-overflow-y:pe-1 dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
+            "-translate-y-[calc(1.25rem*var(--nested-dialogs))] relative row-start-2 flex max-h-105 min-h-0 w-full min-w-0 max-w-xl scale-[calc(1-0.1*var(--nested-dialogs))] flex-col overflow-hidden rounded-multi-card border border-multi-border/70 bg-multi-bubble-opaque font-multi text-popover-foreground opacity-[calc(1-0.1*var(--nested-dialogs))] shadow-multi-popup outline-none backdrop-blur-xl transition-[scale,opacity,translate] duration-150 ease-out will-change-transform data-nested:data-ending-style:translate-y-8 data-nested:data-starting-style:translate-y-8 data-nested-dialog-open:origin-top data-ending-style:scale-98 data-starting-style:scale-98 data-ending-style:opacity-0 data-starting-style:opacity-0 **:data-[slot=scroll-area-viewport]:data-has-overflow-y:pe-1",
             className,
           )}
           data-slot="command-dialog-popup"
@@ -97,11 +97,11 @@ function CommandInput({
   wrapperClassName?: string | undefined;
 }) {
   return (
-    <div className={cn("px-2.5 py-1.5", wrapperClassName)}>
+    <div className={cn("px-2 py-1.5", wrapperClassName)}>
       <AutocompleteInput
         autoFocus
         className={cn(
-          "border-transparent! bg-transparent! shadow-none before:hidden has-focus-visible:ring-0",
+          "border-transparent! bg-transparent! text-[13px]/[18px] shadow-none before:hidden has-focus-visible:ring-0",
           className,
         )}
         placeholder={placeholder}
@@ -116,7 +116,7 @@ function CommandInput({
 function CommandList({ className, ...props }: React.ComponentProps<typeof AutocompleteList>) {
   return (
     <AutocompleteList
-      className={cn("not-empty:scroll-py-2 not-empty:p-2", className)}
+      className={cn("not-empty:scroll-py-1 not-empty:p-1.5", className)}
       data-slot="command-list"
       {...props}
     />
@@ -137,7 +137,7 @@ function CommandPanel({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       className={cn(
-        "-mx-px not-has-[+[data-slot=command-footer]]:-mb-px relative min-h-0 rounded-t-xl not-has-[+[data-slot=command-footer]]:rounded-b-2xl border border-b-0 bg-popover bg-clip-padding shadow-xs/5 [clip-path:inset(0_1px)] not-has-[+[data-slot=command-footer]]:[clip-path:inset(0_1px_1px_1px_round_0_0_calc(var(--radius-2xl)-1px)_calc(var(--radius-2xl)-1px))] before:pointer-events-none before:absolute before:inset-0 before:rounded-t-[calc(var(--radius-xl)-1px)] **:data-[slot=scroll-area-scrollbar]:mt-2",
+        "relative min-h-0 border-t border-multi-border/45 bg-transparent **:data-[slot=scroll-area-scrollbar]:mt-2",
         className,
       )}
       {...props}
@@ -163,9 +163,7 @@ function CommandCollection({ ...props }: React.ComponentProps<typeof Autocomplet
 }
 
 function CommandItem({ className, ...props }: React.ComponentProps<typeof AutocompleteItem>) {
-  return (
-    <AutocompleteItem className={cn("py-1.5", className)} data-slot="command-item" {...props} />
-  );
+  return <AutocompleteItem className={cn("py-1", className)} data-slot="command-item" {...props} />;
 }
 
 function CommandSeparator({
@@ -185,7 +183,7 @@ function CommandShortcut({ className, ...props }: React.ComponentProps<"kbd">) {
   return (
     <kbd
       className={cn(
-        "ms-auto font-medium font-sans text-muted-foreground/72 text-xs tracking-widest",
+        "ms-auto font-multi text-[10px]/[12px] font-medium tracking-normal text-muted-foreground/64",
         className,
       )}
       data-slot="command-shortcut"
@@ -198,7 +196,7 @@ function CommandFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       className={cn(
-        "flex items-center justify-between gap-2 rounded-b-[calc(var(--radius-2xl)-1px)] border-t px-5 py-3 text-muted-foreground text-xs",
+        "flex items-center justify-between gap-2 border-t border-multi-border/45 px-4 py-2 font-multi text-[11px]/[14px] text-muted-foreground",
         className,
       )}
       data-slot="command-footer"

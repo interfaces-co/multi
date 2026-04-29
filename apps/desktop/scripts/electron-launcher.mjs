@@ -198,11 +198,41 @@ function buildMacLauncher(electronBinaryPath) {
   return targetBinaryPath;
 }
 
+function installElectronBinary(require) {
+  const electronPackagePath = require.resolve("electron/package.json");
+  const electronPackageDir = dirname(electronPackagePath);
+  const installScriptPath = join(electronPackageDir, "install.js");
+
+  const result = spawnSync("node", [installScriptPath], {
+    cwd: electronPackageDir,
+    encoding: "utf8",
+    env: process.env,
+  });
+
+  if (result.status !== 0) {
+    const details = [result.stdout, result.stderr].filter(Boolean).join("\n");
+    throw new Error(`Failed to install Electron binary: ${details}`.trim());
+  }
+}
+
 export function resolveElectronPath() {
   const require = createRequire(import.meta.url);
-  const electronBinaryPath = require("electron");
+  let electronBinaryPath;
+
+  try {
+    electronBinaryPath = require("electron");
+  } catch (error) {
+    installElectronBinary(require);
+    electronBinaryPath = require("electron");
+  }
 
   if (process.platform !== "darwin") {
+    return electronBinaryPath;
+  }
+
+  // Dev launches do not need a renamed app bundle badly enough to risk breaking
+  // Electron helper resource lookup on macOS.
+  if (isDevelopment) {
     return electronBinaryPath;
   }
 

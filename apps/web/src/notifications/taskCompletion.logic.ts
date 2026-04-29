@@ -1,3 +1,4 @@
+import type { ProviderRequestKind } from "@multi/contracts";
 import type { Thread, ThreadSession } from "../types";
 import {
   derivePendingApprovals,
@@ -22,7 +23,7 @@ export interface ThreadAttentionCandidate {
   title: string;
   requestId: string;
   createdAt: string;
-  requestKind?: "command" | "file-read" | "file-change";
+  requestKind?: ProviderRequestKind;
   summary?: string;
 }
 
@@ -113,7 +114,7 @@ export function collectCompletedThreadCandidates(
   return candidates;
 }
 
-function approvalSummary(requestKind: "command" | "file-read" | "file-change"): string {
+function approvalSummary(requestKind: ProviderRequestKind): string {
   switch (requestKind) {
     case "command":
       return "Command approval requested.";

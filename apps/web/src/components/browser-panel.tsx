@@ -530,11 +530,12 @@ export function BrowserPanel({ mode, threadId, onClosePanel }: BrowserPanelProps
           variant="ghost"
           size="icon-sm"
           className="size-7"
-          disabled={!activeTab}
+          disabled={!activeTab || !api?.screenshot}
           title="Take screenshot"
           onClick={() => {
-            if (!api || !activeTab) return;
-            void runBrowserAction(() => api.screenshot?.({ threadId, tabId: activeTab.id }));
+            const screenshot = api?.screenshot;
+            if (!screenshot || !activeTab) return;
+            void runBrowserAction(() => screenshot({ threadId, tabId: activeTab.id }));
           }}
         >
           <CameraIcon className="size-3.5" />

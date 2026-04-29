@@ -62,7 +62,11 @@ vi.mock("@xterm/xterm", () => ({
 
     open() {}
 
-    write() {}
+    write(_data?: string, callback?: () => void) {
+      callback?.();
+    }
+
+    paste() {}
 
     clear() {}
 
@@ -215,6 +219,8 @@ describe("TerminalViewport", () => {
     terminalDisposeSpy.mockClear();
     fitAddonFitSpy.mockClear();
     fitAddonLoadSpy.mockClear();
+    document.documentElement.style.removeProperty("--multi-font-mono");
+    document.documentElement.style.removeProperty("--multi-code-font-size-user");
   });
 
   it("does not create a terminal when APIs are unavailable", async () => {
@@ -311,6 +317,49 @@ describe("TerminalViewport", () => {
           }),
         }),
       );
+    } finally {
+      await mounted.cleanup();
+    }
+  });
+
+  it("uses the shared terminal font tokens", async () => {
+    const environment = createEnvironmentApi();
+    environmentApiById.set("environment-a", environment);
+    document.documentElement.style.setProperty("--multi-font-mono", '"JetBrains Mono"');
+    document.documentElement.style.setProperty("--multi-code-font-size-user", "15px");
+
+    const mounted = await mountTerminalViewport({
+      threadRef: scopeThreadRef("environment-a" as never, THREAD_ID),
+    });
+
+    try {
+      await vi.waitFor(() => {
+        expect(terminalConstructorSpy).toHaveBeenCalledTimes(1);
+      });
+
+      expect(terminalConstructorSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          fontFamily: expect.stringContaining("JetBrains Mono"),
+          fontSize: 15,
+        }),
+      );
+    } finally {
+      await mounted.cleanup();
+    }
+  });
+
+  it("renders the terminal viewport full bleed", async () => {
+    const environment = createEnvironmentApi();
+    environmentApiById.set("environment-a", environment);
+
+    const mounted = await mountTerminalViewport({
+      threadRef: scopeThreadRef("environment-a" as never, THREAD_ID),
+    });
+
+    try {
+      const viewport = document.querySelector(".thread-terminal-drawer > div > div");
+      expect(viewport?.className).toContain("bg-transparent");
+      expect(viewport?.className).not.toContain("rounded");
     } finally {
       await mounted.cleanup();
     }

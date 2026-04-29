@@ -281,7 +281,7 @@ function DockSession(props: { sessionId: string }) {
         since={session.since}
         expanded={expanded}
       />
-      <div className="relative">
+      <div className="agent-panel__composer-dock relative">
         <ChatComposer
           ref={composerRef}
           sessionId={props.sessionId}

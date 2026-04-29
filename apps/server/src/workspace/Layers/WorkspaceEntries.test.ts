@@ -68,6 +68,12 @@ const searchWorkspaceEntries = (input: { cwd: string; query: string; limit: numb
     return yield* workspaceEntries.search(input);
   });
 
+const listWorkspaceEntries = (input: { cwd: string; limit?: number }) =>
+  Effect.gen(function* () {
+    const workspaceEntries = yield* WorkspaceEntries;
+    return yield* workspaceEntries.list(input);
+  });
+
 const appendSeparator = (input: string) =>
   input.endsWith("/") || input.endsWith("\\")
     ? input
@@ -277,6 +283,47 @@ it.layer(TestLayer)("WorkspaceEntriesLive", (it) => {
         yield* searchWorkspaceEntries({ cwd, query: "", limit: 200 });
 
         expect(peakReads).toBeLessThanOrEqual(32);
+      }),
+    );
+  });
+
+  describe("list", () => {
+    it.effect("returns the full tree in stable path order", () =>
+      Effect.gen(function* () {
+        const cwd = yield* makeTempDir({ prefix: "multi-workspace-list-" });
+        yield* writeTextFile(cwd, "src/components/Button.tsx");
+        yield* writeTextFile(cwd, "src/index.ts");
+        yield* writeTextFile(cwd, "README.md");
+        yield* writeTextFile(cwd, ".git/HEAD");
+        yield* writeTextFile(cwd, "node_modules/pkg/index.js");
+
+        const result = yield* listWorkspaceEntries({ cwd });
+
+        expect(result.entries).toEqual([
+          { path: "README.md", kind: "file" },
+          { path: "src", kind: "directory" },
+          { path: "src/components", kind: "directory", parentPath: "src" },
+          {
+            path: "src/components/Button.tsx",
+            kind: "file",
+            parentPath: "src/components",
+          },
+          { path: "src/index.ts", kind: "file", parentPath: "src" },
+        ]);
+        expect(result.truncated).toBe(false);
+      }),
+    );
+
+    it.effect("tracks truncation when the requested list limit is smaller than the index", () =>
+      Effect.gen(function* () {
+        const cwd = yield* makeTempDir({ prefix: "multi-workspace-list-limit-" });
+        yield* writeTextFile(cwd, "src/a.ts");
+        yield* writeTextFile(cwd, "src/b.ts");
+
+        const result = yield* listWorkspaceEntries({ cwd, limit: 2 });
+
+        expect(result.entries).toHaveLength(2);
+        expect(result.truncated).toBe(true);
       }),
     );
   });

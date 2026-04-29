@@ -1,5 +1,6 @@
 import type { Json, UiBlock, UiSessionItem, UiToolCallBlock } from "~/lib/ui-session-types";
 import type { WorkLogEntry } from "./work-log";
+import type { ProviderRequestKind } from "@multi/contracts";
 import type { ProposedPlan } from "../types";
 import { resolvedToolName as resolve } from "./tool-renderers";
 
@@ -101,7 +102,7 @@ export type ChatRow =
   | {
       id: string;
       kind: "approval";
-      requestKind: "command" | "file-read" | "file-change" | null;
+      requestKind: ProviderRequestKind | null;
       summary: string;
       detail: string | null;
       decision: string | null;
@@ -564,12 +565,7 @@ function appendMessageRows(rows: TimelineRow[], map: Map<string, number>, entry:
         ? (msg.details as Record<string, Json>)
         : null;
     if (type === "approval.requested" || type === "approval.resolved") {
-      const rk =
-        data?.requestKind === "command" ||
-        data?.requestKind === "file-read" ||
-        data?.requestKind === "file-change"
-          ? data.requestKind
-          : null;
+      const rk = isProviderRequestKind(data?.requestKind) ? data.requestKind : null;
       rows.push({
         id: entry.id,
         kind: "approval",
@@ -640,6 +636,21 @@ function appendMessageRows(rows: TimelineRow[], map: Map<string, number>, entry:
   }
 
   rows.push({ id: entry.id, kind: "other", role, text: plain(msg.content) });
+}
+
+function isProviderRequestKind(value: unknown): value is ProviderRequestKind {
+  switch (value) {
+    case "command":
+    case "file-read":
+    case "file-change":
+    case "permissions":
+    case "mcp-elicitation":
+    case "dynamic-tool":
+    case "auth-refresh":
+      return true;
+    default:
+      return false;
+  }
 }
 
 export function parseMessageRows(entry: UiSessionItem): ChatRow[] {

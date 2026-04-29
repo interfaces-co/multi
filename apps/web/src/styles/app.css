@@ -70,6 +70,7 @@
 body {
   font-family: var(--multi-font-ui);
   font-size: var(--multi-ui-font-size-user, 13px);
+  font-synthesis: none;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   margin: 0;

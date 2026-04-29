@@ -1,6 +1,7 @@
 import {
   isToolLifecycleItemType,
   type OrchestrationThreadActivity,
+  type ProviderRequestKind,
   type ToolLifecycleItemType,
   type TurnId,
 } from "@multi/contracts";
@@ -16,7 +17,7 @@ export interface WorkLogEntry {
   tone: "thinking" | "tool" | "info" | "error";
   toolTitle?: string;
   itemType?: ToolLifecycleItemType;
-  requestKind?: "command" | "file-read" | "file-change";
+  requestKind?: ProviderRequestKind;
 }
 
 interface DerivedEntry extends WorkLogEntry {
@@ -199,11 +200,7 @@ function extractItemType(p: Record<string, unknown> | null): ToolLifecycleItemTy
 function extractRequestKind(
   p: Record<string, unknown> | null,
 ): WorkLogEntry["requestKind"] | undefined {
-  if (
-    p?.requestKind === "command" ||
-    p?.requestKind === "file-read" ||
-    p?.requestKind === "file-change"
-  ) {
+  if (isProviderRequestKind(p?.requestKind)) {
     return p.requestKind;
   }
   switch (p?.requestType) {
@@ -217,6 +214,17 @@ function extractRequestKind(
       return "file-change";
     default:
       return undefined;
+  }
+}
+
+function isProviderRequestKind(value: unknown): value is ProviderRequestKind {
+  switch (value) {
+    case "command":
+    case "file-read":
+    case "file-change":
+      return true;
+    default:
+      return false;
   }
 }
 

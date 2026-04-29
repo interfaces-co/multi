@@ -1081,13 +1081,7 @@ const ApprovalCard = memo(function ApprovalCard(props: {
               </div>
             ) : (
               <div className="text-[12px] leading-[1.45] text-muted-foreground/50">
-                {props.row.requestKind === "command"
-                  ? "Command execution approval"
-                  : props.row.requestKind === "file-read"
-                    ? "File read approval"
-                    : props.row.requestKind === "file-change"
-                      ? "File change approval"
-                      : "Approval request"}
+                {approvalLabelForKind(props.row.requestKind)}
               </div>
             )}
           </div>
@@ -1096,6 +1090,27 @@ const ApprovalCard = memo(function ApprovalCard(props: {
     </CardShell>
   );
 });
+
+function approvalLabelForKind(requestKind: WorkLogEntry["requestKind"] | null): string {
+  switch (requestKind) {
+    case "command":
+      return "Command execution approval";
+    case "file-read":
+      return "File read approval";
+    case "file-change":
+      return "File change approval";
+    case "permissions":
+      return "Permissions approval";
+    case "mcp-elicitation":
+      return "MCP input request";
+    case "dynamic-tool":
+      return "Tool approval";
+    case "auth-refresh":
+      return "Auth refresh request";
+    default:
+      return "Approval request";
+  }
+}
 
 const TaskActivityCard = memo(function TaskActivityCard(props: {
   row: Extract<ChatRow, { kind: "taskActivity" }>;

@@ -43,6 +43,35 @@ describe("splitPromptIntoComposerSegments", () => {
     ]);
   });
 
+  it("splits markdown skill links followed by whitespace into skill segments", () => {
+    expect(
+      splitPromptIntoComposerSegments(
+        "Use [$grill-me](/Users/workgyver/.agents/skills/grill-me/SKILL.md) please",
+      ),
+    ).toEqual([
+      { type: "text", text: "Use " },
+      {
+        type: "skill",
+        name: "grill-me",
+        path: "/Users/workgyver/.agents/skills/grill-me/SKILL.md",
+      },
+      { type: "text", text: " please" },
+    ]);
+  });
+
+  it("does not convert an incomplete trailing markdown skill link", () => {
+    expect(
+      splitPromptIntoComposerSegments(
+        "Use [$grill-me](/Users/workgyver/.agents/skills/grill-me/SKILL.md)",
+      ),
+    ).toEqual([
+      {
+        type: "text",
+        text: "Use [$grill-me](/Users/workgyver/.agents/skills/grill-me/SKILL.md)",
+      },
+    ]);
+  });
+
   it("keeps inline terminal context placeholders at their prompt positions", () => {
     expect(
       splitPromptIntoComposerSegments(

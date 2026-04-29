@@ -27,16 +27,15 @@ export function SettingsSection({
   children: ReactNode;
 }) {
   return (
-    <section className="space-y-2.5">
-      <div className="flex items-center justify-between px-1">
-        <h2 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground/50">
-          <span className="inline-block h-px w-3 bg-border" aria-hidden />
+    <section className="space-y-2">
+      <div className="flex min-h-5 items-center justify-between px-1.5">
+        <h2 className="flex items-center gap-1.5 text-[11px]/[14px] font-medium text-[var(--cursor-text-tertiary)]">
           {icon}
           {title}
         </h2>
         {headerAction}
       </div>
-      <div className="relative overflow-hidden rounded-2xl border bg-card text-card-foreground shadow-sm/4 not-dark:bg-clip-padding before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-2xl)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] dark:shadow-none dark:before:shadow-[0_-1px_--theme(--color-white/6%)]">
+      <div className="relative overflow-hidden rounded-lg bg-[var(--cursor-bg-quinary)] text-card-foreground">
         {children}
       </div>
     </section>
@@ -61,22 +60,26 @@ export function SettingsRow({
   return (
     <div
       className={cn(
-        "border-t border-border/60 px-4 first:border-t-0 sm:px-5",
-        children ? "pt-4 pb-0" : "py-4",
+        "border-t border-[var(--cursor-stroke-quaternary)] px-2.5 first:border-t-0 sm:px-3",
+        children ? "pt-3 pb-0" : "py-2.5",
       )}
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0 flex-1 space-y-1">
-          <div className="flex min-h-5 items-center gap-1.5">
-            <h3 className="text-[13px] font-semibold tracking-[-0.01em] text-foreground">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 flex-1">
+          <div className="flex min-h-4 items-center gap-1.5">
+            <h3 className="text-[12px]/[16px] font-medium text-[var(--cursor-text-primary)]">
               {title}
             </h3>
-            <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center">
+            <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center">
               {resetAction}
             </span>
           </div>
-          <p className="text-xs leading-relaxed text-muted-foreground/80">{description}</p>
-          {status ? <div className="pt-0.5 text-[11px] text-muted-foreground">{status}</div> : null}
+          <p className="text-[11px]/[14px] text-[var(--cursor-text-tertiary)]">{description}</p>
+          {status ? (
+            <div className="pt-1 text-[11px]/[14px] text-[var(--cursor-text-tertiary)]">
+              {status}
+            </div>
+          ) : null}
         </div>
         {control ? (
           <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto sm:justify-end">
@@ -115,8 +118,8 @@ export function SettingResetButton({ label, onClick }: { label: string; onClick:
 
 export function SettingsPageContainer({ children }: { children: ReactNode }) {
   return (
-    <div className="flex-1 overflow-y-auto p-6 sm:p-8">
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">{children}</div>
+    <div className="flex-1 overflow-y-auto px-5 py-12 sm:px-8 sm:py-17">
+      <div className="mx-auto flex w-full max-w-[550px] flex-col gap-5">{children}</div>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import type { EnvironmentId } from "@multi/contracts";
+import type { EditorId, EnvironmentId } from "@multi/contracts";
 import { Outlet, useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useCallback, useEffect, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
@@ -8,6 +8,7 @@ import { useCommandPaletteStore } from "~/command-palette-store";
 import { isElectron } from "~/env";
 import { useEnvironmentGitPanel } from "~/hooks/use-environment-git";
 import { useRouteThreadId } from "~/hooks/use-route-thread-id";
+import { useServerAvailableEditors } from "~/rpc/server-state";
 import { useChatDraftStore, hasDraft } from "~/lib/chat-draft-store";
 import type { ChatDraftSnapshot } from "~/lib/chat-draft-store";
 import { shellPanelsActions } from "~/lib/shell-panels-store";
@@ -24,6 +25,7 @@ import {
 } from "~/store";
 import type { Project, Thread } from "~/types";
 import { GitPanel } from "./shell/git/panel";
+import { WorkspaceFilesPanel } from "./shell/files/workspace-files-panel";
 import { AppShell } from "./shell/shell/app";
 import { WorkbenchPanel } from "./shell/shell/workbench-panel";
 import { ShellSettingsProvider } from "./shell/settings/context";
@@ -100,6 +102,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
   const routeThreadId = useRouteThreadId();
   const projects = useStore(useShallow(selectProjectsAcrossEnvironments));
   const threads = useStore(useShallow(selectThreadsAcrossEnvironments));
+  const availableEditors = useServerAvailableEditors();
   const firstProjectCwd = projects[0]?.cwd ?? null;
 
   const root = useChatDraftStore((store) => store.root);
@@ -206,8 +209,8 @@ function ChatShellHost(props: { children?: ReactNode }) {
   );
 
   const chatLeft = (
-    <div className="thread-rail-pad flex min-h-0 flex-1 flex-col px-0">
-      <div className={cn("shrink-0", isElectron && "no-drag")}>
+    <div className="agent-window__left-content thread-rail-pad flex min-h-0 flex-1 flex-col px-0">
+      <div className={cn("agent-window__sidebar-chrome shrink-0", isElectron && "no-drag")}>
         <ShellSidebarHeader
           onNewChat={create}
           onAddProject={openAddProject}
@@ -234,6 +237,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
         routeThreadId={routeThreadId}
         cwd={activeCwd}
         environmentId={activeEnvironmentId}
+        availableEditors={availableEditors}
       />
     );
   }
@@ -255,6 +259,7 @@ function DesktopChatShellHost(props: {
   routeThreadId: string | null;
   cwd: string | null;
   environmentId: EnvironmentId | null;
+  availableEditors: readonly EditorId[];
 }) {
   const git = useEnvironmentGitPanel(props.environmentId);
   const browserThreadId = resolveWorkbenchBrowserThreadId(props.cwd);
@@ -268,6 +273,15 @@ function DesktopChatShellHost(props: {
       left={props.left}
       center={props.center}
       right={{
+        files: (
+          <WorkbenchPanel>
+            <WorkspaceFilesPanel
+              cwd={props.cwd}
+              environmentId={props.environmentId}
+              availableEditors={props.availableEditors}
+            />
+          </WorkbenchPanel>
+        ),
         git: (
           <WorkbenchPanel>
             <GitPanel git={git} />

@@ -895,6 +895,10 @@ function workEntryIcon(workEntry: TimelineWorkEntry): LucideIcon {
   if (workEntry.requestKind === "command") return TerminalIcon;
   if (workEntry.requestKind === "file-read") return EyeIcon;
   if (workEntry.requestKind === "file-change") return SquarePenIcon;
+  if (workEntry.requestKind === "permissions") return WrenchIcon;
+  if (workEntry.requestKind === "mcp-elicitation") return HammerIcon;
+  if (workEntry.requestKind === "dynamic-tool") return WrenchIcon;
+  if (workEntry.requestKind === "auth-refresh") return ZapIcon;
 
   if (workEntry.itemType === "command_execution" || workEntry.command) {
     return TerminalIcon;
@@ -943,7 +947,8 @@ const CompactToolRow = memo(function CompactToolRow(props: {
   const preview = workEntryPreview(workEntry, workspaceRoot);
   const rawCommand = workEntryRawCommand(workEntry);
   const hasChangedFiles = (workEntry.changedFiles?.length ?? 0) > 0;
-  const isShellCommand = workEntry.requestKind === "command" || workEntry.itemType === "command_execution";
+  const isShellCommand =
+    workEntry.requestKind === "command" || workEntry.itemType === "command_execution";
 
   if (isShellCommand) {
     return (
@@ -962,8 +967,9 @@ const CompactToolRow = memo(function CompactToolRow(props: {
         <EntryIcon className="size-3" />
       </span>
       <span className="text-foreground/85">{heading}</span>
-      {preview && !hasChangedFiles && (
-        rawCommand ? (
+      {preview &&
+        !hasChangedFiles &&
+        (rawCommand ? (
           <Tooltip>
             <TooltipTrigger
               closeDelay={0}
@@ -986,8 +992,7 @@ const CompactToolRow = memo(function CompactToolRow(props: {
           </Tooltip>
         ) : (
           <span className="truncate text-muted-foreground/55">{preview}</span>
-        )
-      )}
+        ))}
       {hasChangedFiles && (
         <span className="text-muted-foreground/55">
           {workEntry.changedFiles?.length === 1

@@ -362,25 +362,6 @@ export interface GitState {
   files: GitFileSummary[];
 }
 
-// ── Terminal (Glass-specific shapes) ─────────────────────────────────
-
-export interface DesktopTerminalTheme {
-  background?: string;
-  foreground?: string;
-  cursor?: string;
-  cursorText?: string;
-  selectionBackground?: string;
-  selectionForeground?: string;
-  palette?: string[];
-  [key: string]: string | string[] | undefined;
-}
-
-export interface DesktopTerminalAppearance {
-  fontFamily: string;
-  fontSize: number;
-  theme: DesktopTerminalTheme | null;
-}
-
 // ── Provider notice ──────────────────────────────────────────────────
 
 export const PROVIDER_NOTICE_KIND = {

@@ -4,6 +4,9 @@ import {
   IconArchive,
   IconArrowRotateCounterClockwise,
   IconChainLink1,
+  IconCode,
+  IconColorSwatch,
+  IconRobot,
   IconSettingsGear2,
 } from "central-icons";
 import type { ComponentType } from "react";
@@ -13,11 +16,20 @@ import { cn } from "~/lib/utils";
 import { useSettingsRestoreState } from "../../settings/settings-restore-context";
 
 const items: {
-  to: "/settings/general" | "/settings/connections" | "/settings/archived";
+  to:
+    | "/settings/general"
+    | "/settings/appearance"
+    | "/settings/agents"
+    | "/settings/models"
+    | "/settings/connections"
+    | "/settings/archived";
   label: string;
   icon: ComponentType<{ className?: string }>;
 }[] = [
   { to: "/settings/general", label: "General", icon: IconSettingsGear2 },
+  { to: "/settings/appearance", label: "Appearance", icon: IconColorSwatch },
+  { to: "/settings/agents", label: "Agents", icon: IconRobot },
+  { to: "/settings/models", label: "Models", icon: IconCode },
   { to: "/settings/connections", label: "Connections", icon: IconChainLink1 },
   { to: "/settings/archived", label: "Archived", icon: IconArchive },
 ];
@@ -36,19 +48,19 @@ export function SettingsNavRail() {
               to={item.to}
               activeProps={{
                 className: cn(
-                  "font-multi sidebar-label-track flex min-h-7.5 min-w-0 w-full items-center justify-start gap-2 rounded-multi-control border border-transparent px-2 py-1 text-body/[18px] transition-colors",
+                  "font-multi flex min-h-[26px] min-w-0 w-full items-center justify-start gap-2 rounded-multi-control border border-transparent px-1.5 py-[5px] text-[12px]/[16px] transition-colors",
                   "border-multi-border/90 bg-multi-active text-foreground",
                 ),
                 "aria-current": "page",
               }}
               inactiveProps={{
                 className: cn(
-                  "font-multi sidebar-label-track flex min-h-7.5 min-w-0 w-full items-center justify-start gap-2 rounded-multi-control border border-transparent px-2 py-1 text-body/[18px] transition-colors",
+                  "font-multi flex min-h-[26px] min-w-0 w-full items-center justify-start gap-2 rounded-multi-control border border-transparent px-1.5 py-[5px] text-[12px]/[16px] transition-colors",
                   "text-muted-foreground hover:bg-multi-hover hover:text-foreground",
                 ),
               }}
             >
-              <Icon className="size-4 shrink-0 opacity-60" />
+              <Icon className="size-3.5 shrink-0 opacity-60" />
               {item.label}
             </Link>
           );

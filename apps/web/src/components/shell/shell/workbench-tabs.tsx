@@ -1,6 +1,12 @@
 "use client";
 
-import { IconBranch, IconConsole, IconGlobe, IconSidebarHiddenRightWide } from "central-icons";
+import {
+  IconBranch,
+  IconConsole,
+  IconFiles,
+  IconGlobe,
+  IconSidebarHiddenRightWide,
+} from "central-icons";
 import type { ComponentType } from "react";
 
 import type { WorkbenchTab } from "~/lib/shell-panels-store";
@@ -14,8 +20,9 @@ interface Tab {
 
 const tabs: Tab[] = [
   { id: "git", label: "Git", icon: IconBranch },
-  { id: "terminal", label: "Terminal", icon: IconConsole },
   { id: "browser", label: "Browser", icon: IconGlobe },
+  { id: "terminal", label: "Terminal", icon: IconConsole },
+  { id: "files", label: "Files", icon: IconFiles },
 ];
 
 export function WorkbenchTabBar(props: {
@@ -26,7 +33,7 @@ export function WorkbenchTabBar(props: {
 }) {
   return (
     <div className="no-drag relative h-(--multi-header-height) shrink-0 border-multi-border/30">
-      <div className="absolute inset-x-0 top-(--multi-titlebar-control-row-top) flex items-center gap-0.5 rounded-multi-control p-0.5 pl-2 pr-[calc(var(--multi-workbench-toggle-right)+var(--multi-titlebar-control-height))]">
+      <div className="absolute top-(--multi-titlebar-control-row-top) left-2 flex items-center gap-0.5 rounded-multi-control p-0.5">
         {tabs.map((tab) => {
           const selected = tab.id === props.active;
           const Icon = tab.icon;
@@ -36,18 +43,19 @@ export function WorkbenchTabBar(props: {
               type="button"
               onClick={() => props.onTab(tab.id)}
               className={cn(
-                "font-multi sidebar-label-track flex h-(--multi-titlebar-control-height) items-center gap-1 rounded-multi-control px-1.5 leading-none transition-colors [&_svg]:block",
+                "relative flex h-(--multi-titlebar-control-height) w-(--multi-titlebar-control-height) items-center justify-center rounded-multi-control p-0 leading-none transition-colors [&_svg]:block",
                 selected
                   ? "bg-multi-active/60 text-foreground"
                   : "text-muted-foreground/70 hover:bg-multi-hover hover:text-foreground",
               )}
+              aria-label={tab.label}
               aria-pressed={selected}
+              title={tab.label}
             >
               <Icon className="size-3.5 shrink-0" />
-              <span className="leading-none">{tab.label}</span>
               {tab.id === "git" && props.count > 0 ? (
-                <span className="flex min-w-4 items-center justify-center rounded bg-muted-foreground/20 px-1 py-0.5 leading-none text-inherit tabular-nums">
-                  {props.count}
+                <span className="absolute -top-0.5 -right-0.5 min-w-3.5 rounded-full bg-muted-foreground/30 px-0.5 text-[9px]/[12px] font-medium text-inherit tabular-nums">
+                  {Math.min(props.count, 9)}
                 </span>
               ) : null}
             </button>

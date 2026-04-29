@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 interface CommandPaletteOpenIntent {
-  kind: "add-project";
+  kind: "add-project" | "workspace";
   requestId: number;
 }
 
@@ -11,7 +11,12 @@ interface CommandPaletteStore {
   setOpen: (open: boolean) => void;
   toggleOpen: () => void;
   openAddProject: () => void;
+  openWorkspace: () => void;
   clearOpenIntent: () => void;
+}
+
+function nextRequestId(state: CommandPaletteStore): number {
+  return (state.openIntent?.requestId ?? 0) + 1;
 }
 
 export const useCommandPaletteStore = create<CommandPaletteStore>((set) => ({
@@ -25,7 +30,15 @@ export const useCommandPaletteStore = create<CommandPaletteStore>((set) => ({
       open: true,
       openIntent: {
         kind: "add-project",
-        requestId: (state.openIntent?.requestId ?? 0) + 1,
+        requestId: nextRequestId(state),
+      },
+    })),
+  openWorkspace: () =>
+    set((state) => ({
+      open: true,
+      openIntent: {
+        kind: "workspace",
+        requestId: nextRequestId(state),
       },
     })),
   clearOpenIntent: () => set({ openIntent: null }),

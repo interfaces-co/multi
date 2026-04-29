@@ -2583,7 +2583,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
             headRepositoryOwnerLogin: "binbandit",
           },
           repositoryCloneUrls: {
-            "binbandit/multi": {
+            "binbandit/Multi": {
               url: forkDir,
               sshUrl: forkDir,
             },

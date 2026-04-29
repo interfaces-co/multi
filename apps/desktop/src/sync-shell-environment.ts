@@ -38,7 +38,12 @@ export function syncShellEnvironment(
   const shellEnvironment: Partial<Record<string, string>> = {};
 
   try {
-    for (const shell of listLoginShellCandidates(platform, env.SHELL, options.userShell)) {
+    const shellCandidates = listLoginShellCandidates(platform, env.SHELL, options.userShell);
+    if (!env.SHELL && shellCandidates[0]) {
+      env.SHELL = shellCandidates[0];
+    }
+
+    for (const shell of shellCandidates) {
       try {
         Object.assign(shellEnvironment, readEnvironment(shell, LOGIN_SHELL_ENV_NAMES));
         if (shellEnvironment.PATH) {

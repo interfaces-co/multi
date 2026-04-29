@@ -296,3 +296,45 @@ describe("retainThreadDetailSubscription", () => {
     stop();
   });
 });
+
+describe("projection version guards", () => {
+  it("accepts only newer shell snapshots and events", async () => {
+    const { shouldApplyProjectionEvent, shouldApplyProjectionSnapshot } = await import("./service");
+
+    const current = {
+      sequence: 5,
+      updatedAt: "2026-04-13T00:00:00.000Z",
+    };
+
+    expect(
+      shouldApplyProjectionEvent({
+        current,
+        sequence: 6,
+      }),
+    ).toBe(true);
+    expect(
+      shouldApplyProjectionEvent({
+        current,
+        sequence: 5,
+      }),
+    ).toBe(false);
+    expect(
+      shouldApplyProjectionSnapshot({
+        current,
+        next: {
+          snapshotSequence: 5,
+          updatedAt: "2026-04-13T00:00:01.000Z",
+        },
+      }),
+    ).toBe(true);
+    expect(
+      shouldApplyProjectionSnapshot({
+        current,
+        next: {
+          snapshotSequence: 4,
+          updatedAt: "2026-04-13T00:00:01.000Z",
+        },
+      }),
+    ).toBe(false);
+  });
+});

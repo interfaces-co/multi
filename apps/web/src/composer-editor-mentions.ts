@@ -15,6 +15,7 @@ export type ComposerPromptSegment =
   | {
       type: "skill";
       name: string;
+      path?: string;
     }
   | {
       type: "terminal-context";
@@ -23,6 +24,7 @@ export type ComposerPromptSegment =
 
 const MENTION_TOKEN_REGEX = /(^|\s)@([^\s@]+)(?=\s)/g;
 const SKILL_TOKEN_REGEX = /(^|\s)\$([a-zA-Z][a-zA-Z0-9:_-]*)(?=\s)/g;
+const MARKDOWN_SKILL_TOKEN_REGEX = /(^|\s)\[\$([a-zA-Z][a-zA-Z0-9:_-]*)\]\(([^)]*)\)(?=\s)/g;
 
 function rangeIncludesIndex(start: number, end: number, index: number): boolean {
   return start <= index && index < end;
@@ -48,6 +50,7 @@ type InlineTokenMatch =
   | {
       type: "skill";
       value: string;
+      path?: string;
       start: number;
       end: number;
     };
@@ -76,6 +79,19 @@ function collectInlineTokenMatches(text: string): InlineTokenMatch[] {
     const end = start + fullMatch.length - prefix.length;
     if (skillName.length > 0) {
       matches.push({ type: "skill", value: skillName, start, end });
+    }
+  }
+
+  for (const match of text.matchAll(MARKDOWN_SKILL_TOKEN_REGEX)) {
+    const fullMatch = match[0];
+    const prefix = match[1] ?? "";
+    const skillName = match[2] ?? "";
+    const skillPath = match[3] ?? "";
+    const matchIndex = match.index ?? 0;
+    const start = matchIndex + prefix.length;
+    const end = start + fullMatch.length - prefix.length;
+    if (skillName.length > 0 && skillPath.length > 0) {
+      matches.push({ type: "skill", value: skillName, path: skillPath, start, end });
     }
   }
 
@@ -180,7 +196,11 @@ function splitPromptTextIntoComposerSegments(text: string): ComposerPromptSegmen
     if (match.type === "mention") {
       segments.push({ type: "mention", path: match.value });
     } else {
-      segments.push({ type: "skill", name: match.value });
+      segments.push({
+        type: "skill",
+        name: match.value,
+        ...(match.path ? { path: match.path } : {}),
+      });
     }
 
     cursor = match.end;

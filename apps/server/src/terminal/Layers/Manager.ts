@@ -7,6 +7,7 @@ import {
   type TerminalSessionStatus,
 } from "@multi/contracts";
 import { makeKeyedCoalescingWorker } from "@multi/shared/KeyedCoalescingWorker";
+import { listLoginShellCandidates, readUserLoginShell } from "@multi/shared/shell";
 import {
   Effect,
   Encoding,
@@ -186,11 +187,11 @@ function enqueueProcessEvent(
   return true;
 }
 
-function defaultShellResolver(): string {
+function defaultShellResolver(): string | undefined {
   if (process.platform === "win32") {
     return process.env.ComSpec ?? "cmd.exe";
   }
-  return process.env.SHELL ?? "bash";
+  return process.env.SHELL;
 }
 
 function normalizeShellCommand(value: string | undefined): string | null {
@@ -210,8 +211,16 @@ function normalizeShellCommand(value: string | undefined): string | null {
 function shellCandidateFromCommand(command: string | null): ShellCandidate | null {
   if (!command || command.length === 0) return null;
   const shellName = path.basename(command).toLowerCase();
-  if (process.platform !== "win32" && shellName === "zsh") {
-    return { shell: command, args: ["-o", "nopromptsp"] };
+  if (process.platform !== "win32") {
+    if (shellName === "zsh") {
+      return { shell: command, args: ["-l", "-i", "-o", "nopromptsp"] };
+    }
+    if (shellName === "bash") {
+      return { shell: command, args: ["--login", "-i"] };
+    }
+    if (shellName === "fish") {
+      return { shell: command, args: ["--login", "--interactive"] };
+    }
   }
   return { shell: command };
 }
@@ -234,7 +243,10 @@ function uniqueShellCandidates(candidates: Array<ShellCandidate | null>): ShellC
   return ordered;
 }
 
-function resolveShellCandidates(shellResolver: () => string): ShellCandidate[] {
+function resolveShellCandidates(
+  shellResolver: () => string | undefined,
+  userLoginShellResolver: () => string | undefined,
+): ShellCandidate[] {
   const requested = shellCandidateFromCommand(normalizeShellCommand(shellResolver()));
 
   if (process.platform === "win32") {
@@ -246,12 +258,19 @@ function resolveShellCandidates(shellResolver: () => string): ShellCandidate[] {
     ]);
   }
 
+  const loginShellCandidates = listLoginShellCandidates(
+    process.platform,
+    requested?.shell,
+    userLoginShellResolver(),
+  ).map((shell) => shellCandidateFromCommand(normalizeShellCommand(shell)));
+
   return uniqueShellCandidates([
-    requested,
-    shellCandidateFromCommand(normalizeShellCommand(process.env.SHELL)),
+    ...loginShellCandidates,
+    shellCandidateFromCommand("/bin/fish"),
     shellCandidateFromCommand("/bin/zsh"),
     shellCandidateFromCommand("/bin/bash"),
     shellCandidateFromCommand("/bin/sh"),
+    shellCandidateFromCommand("fish"),
     shellCandidateFromCommand("zsh"),
     shellCandidateFromCommand("bash"),
     shellCandidateFromCommand("sh"),
@@ -629,6 +648,9 @@ function createTerminalSpawnEnv(
     if (shouldExcludeTerminalEnvKey(key)) continue;
     spawnEnv[key] = value;
   }
+  spawnEnv.TERM = "xterm-256color";
+  spawnEnv.COLORTERM = "truecolor";
+  spawnEnv.TERM_PROGRAM = "Multi";
   if (runtimeEnv) {
     for (const [key, value] of Object.entries(runtimeEnv)) {
       spawnEnv[key] = value;
@@ -646,11 +668,25 @@ function normalizedRuntimeEnv(
   return Object.fromEntries(entries.toSorted(([left], [right]) => left.localeCompare(right)));
 }
 
+async function resolveGitWorkTreeRoot(cwd: string): Promise<string | null> {
+  const result = await runProcess("git", ["-C", cwd, "rev-parse", "--show-toplevel"], {
+    allowNonZeroExit: true,
+    timeoutMs: 2_000,
+    maxBufferBytes: 32 * 1024,
+    outputMode: "truncate",
+  });
+  if (result.code !== 0) return null;
+
+  const root = result.stdout.trim();
+  return root.length > 0 ? path.resolve(root) : null;
+}
+
 interface TerminalManagerOptions {
   logsDir: string;
   historyLineLimit?: number;
   ptyAdapter: PtyAdapterShape;
-  shellResolver?: () => string;
+  shellResolver?: () => string | undefined;
+  userLoginShellResolver?: () => string | undefined;
   subprocessChecker?: TerminalSubprocessChecker;
   subprocessPollIntervalMs?: number;
   processKillGraceMs?: number;
@@ -675,6 +711,7 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
     const logsDir = options.logsDir;
     const historyLineLimit = options.historyLineLimit ?? DEFAULT_HISTORY_LINE_LIMIT;
     const shellResolver = options.shellResolver ?? defaultShellResolver;
+    const userLoginShellResolver = options.userLoginShellResolver ?? readUserLoginShell;
     const subprocessChecker = options.subprocessChecker ?? defaultSubprocessChecker;
     const subprocessPollIntervalMs =
       options.subprocessPollIntervalMs ?? DEFAULT_SUBPROCESS_POLL_INTERVAL_MS;
@@ -1043,6 +1080,17 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
       }
     });
 
+    const resolveTerminalCwd = Effect.fn("terminal.resolveTerminalCwd")(function* (cwd: string) {
+      yield* assertValidCwd(cwd);
+      const gitRoot = yield* Effect.promise(() => resolveGitWorkTreeRoot(cwd).catch(() => null));
+      if (!gitRoot || gitRoot === cwd) {
+        return cwd;
+      }
+
+      yield* assertValidCwd(gitRoot);
+      return gitRoot;
+    });
+
     const getSession = Effect.fn("terminal.getSession")(function* (
       threadId: string,
       terminalId: string,
@@ -1275,6 +1323,8 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
         );
       }
 
+      const candidateEnv =
+        process.platform === "win32" ? spawnEnv : { ...spawnEnv, SHELL: candidate.shell };
       const attempt = yield* Effect.result(
         options.ptyAdapter.spawn({
           shell: candidate.shell,
@@ -1282,7 +1332,7 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
           cwd: session.cwd,
           cols: session.cols,
           rows: session.rows,
-          env: spawnEnv,
+          env: candidateEnv,
         }),
       );
 
@@ -1337,7 +1387,7 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
         increment(terminalSessionsTotal, { lifecycle: eventType }).pipe(
           Effect.andThen(
             Effect.gen(function* () {
-              const shellCandidates = resolveShellCandidates(shellResolver);
+              const shellCandidates = resolveShellCandidates(shellResolver, userLoginShellResolver);
               const terminalEnv = createTerminalSpawnEnv(process.env, session.runtimeEnv);
               const spawnResult = yield* trySpawn(shellCandidates, terminalEnv, session);
               ptyProcess = spawnResult.process;
@@ -1573,7 +1623,7 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
         input.threadId,
         Effect.gen(function* () {
           const terminalId = input.terminalId ?? DEFAULT_TERMINAL_ID;
-          yield* assertValidCwd(input.cwd);
+          const cwd = yield* resolveTerminalCwd(input.cwd);
 
           const sessionKey = toSessionKey(input.threadId, terminalId);
           const existing = yield* getSession(input.threadId, terminalId);
@@ -1585,7 +1635,7 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
             const session: TerminalSessionState = {
               threadId: input.threadId,
               terminalId,
-              cwd: input.cwd,
+              cwd,
               worktreePath: input.worktreePath ?? null,
               status: "starting",
               pid: null,
@@ -1619,7 +1669,7 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
               {
                 threadId: input.threadId,
                 terminalId,
-                cwd: input.cwd,
+                cwd,
                 ...(input.worktreePath !== undefined ? { worktreePath: input.worktreePath } : {}),
                 cols,
                 rows,
@@ -1637,9 +1687,9 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
           const targetRows = input.rows ?? liveSession.rows;
           const runtimeEnvChanged = !Equal.equals(currentRuntimeEnv, nextRuntimeEnv);
 
-          if (liveSession.cwd !== input.cwd || runtimeEnvChanged) {
+          if (liveSession.cwd !== cwd || runtimeEnvChanged) {
             yield* stopProcess(liveSession);
-            liveSession.cwd = input.cwd;
+            liveSession.cwd = cwd;
             liveSession.worktreePath = input.worktreePath ?? null;
             liveSession.runtimeEnv = nextRuntimeEnv;
             liveSession.history = "";
@@ -1673,7 +1723,7 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
               {
                 threadId: input.threadId,
                 terminalId,
-                cwd: input.cwd,
+                cwd,
                 worktreePath: liveSession.worktreePath,
                 cols: targetCols,
                 rows: targetRows,
@@ -1753,7 +1803,7 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
         Effect.gen(function* () {
           yield* increment(terminalRestartsTotal, { scope: "thread" });
           const terminalId = input.terminalId ?? DEFAULT_TERMINAL_ID;
-          yield* assertValidCwd(input.cwd);
+          const cwd = yield* resolveTerminalCwd(input.cwd);
 
           const sessionKey = toSessionKey(input.threadId, terminalId);
           const existingSession = yield* getSession(input.threadId, terminalId);
@@ -1764,7 +1814,7 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
             session = {
               threadId: input.threadId,
               terminalId,
-              cwd: input.cwd,
+              cwd,
               worktreePath: input.worktreePath ?? null,
               status: "starting",
               pid: null,
@@ -1794,7 +1844,7 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
           } else {
             session = existingSession.value;
             yield* stopProcess(session);
-            session.cwd = input.cwd;
+            session.cwd = cwd;
             session.worktreePath = input.worktreePath ?? null;
             session.runtimeEnv = normalizedRuntimeEnv(input.env);
           }
@@ -1813,7 +1863,7 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
             {
               threadId: input.threadId,
               terminalId,
-              cwd: input.cwd,
+              cwd,
               ...(input.worktreePath !== undefined ? { worktreePath: input.worktreePath } : {}),
               cols,
               rows,

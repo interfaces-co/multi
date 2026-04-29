@@ -1,5 +1,18 @@
 import type { ITheme } from "@xterm/xterm";
 
+function normalizePaint(value: string | null | undefined): string | null {
+  const normalized = value?.trim().toLowerCase();
+  if (
+    !normalized ||
+    normalized === "transparent" ||
+    normalized === "rgba(0, 0, 0, 0)" ||
+    normalized === "rgba(0 0 0 / 0)"
+  ) {
+    return null;
+  }
+  return value ?? null;
+}
+
 function readVarPaint(doc: Document, kind: "fg" | "bg", expr: string, fallback: string): string {
   const mount = doc.documentElement;
   const node = doc.createElement("span");
@@ -12,8 +25,7 @@ function readVarPaint(doc: Document, kind: "fg" | "bg", expr: string, fallback: 
   const s = getComputedStyle(node);
   const out = kind === "fg" ? s.color : s.backgroundColor;
   node.remove();
-  if (!out || out === "rgba(0, 0, 0, 0)") return fallback;
-  return out;
+  return normalizePaint(out) ?? fallback;
 }
 
 const dark: ITheme = {
@@ -55,41 +67,78 @@ const light: ITheme = {
 };
 
 function readTextColor(el: HTMLElement, value: string) {
-  const node = document.createElement("span");
+  const node = el.ownerDocument.createElement("span");
   node.style.position = "absolute";
   node.style.opacity = "0";
   node.style.pointerEvents = "none";
   node.style.color = value;
   el.append(node);
-  const color = getComputedStyle(node).color || value;
+  const color = normalizePaint(getComputedStyle(node).color) ?? value;
   node.remove();
   return color;
 }
 
 function readBackgroundColor(el: HTMLElement, value: string) {
-  const node = document.createElement("span");
+  const node = el.ownerDocument.createElement("span");
   node.style.position = "absolute";
   node.style.opacity = "0";
   node.style.pointerEvents = "none";
   node.style.backgroundColor = value;
   el.append(node);
-  const color = getComputedStyle(node).backgroundColor || value;
+  const color = normalizePaint(getComputedStyle(node).backgroundColor) ?? value;
   node.remove();
   return color;
+}
+
+function readNearestComputedPaint(
+  el: HTMLElement,
+  property: "color" | "backgroundColor",
+): string | null {
+  let node: HTMLElement | null = el;
+  while (node) {
+    const value = getComputedStyle(node)[property];
+    const normalized = normalizePaint(value);
+    if (normalized) return normalized;
+    node = node.parentElement;
+  }
+  return null;
+}
+
+export function readTerminalHostThemeMode(el: HTMLElement): "light" | "dark" {
+  return el.ownerDocument.documentElement.classList.contains("dark") ? "dark" : "light";
+}
+
+export function readTerminalHostFontFamily(el: HTMLElement): string {
+  const node = el.ownerDocument.createElement("span");
+  node.style.position = "absolute";
+  node.style.opacity = "0";
+  node.style.pointerEvents = "none";
+  node.style.fontFamily = "var(--multi-font-mono), ui-monospace, monospace";
+  el.append(node);
+  const value = getComputedStyle(node).fontFamily || "ui-monospace, monospace";
+  node.remove();
+  return value;
+}
+
+export function readTerminalHostFontSize(el: HTMLElement): number {
+  const node = el.ownerDocument.createElement("span");
+  node.style.position = "absolute";
+  node.style.opacity = "0";
+  node.style.pointerEvents = "none";
+  node.style.fontSize = "var(--multi-code-font-size-user, 12px)";
+  el.append(node);
+  const value = Number.parseFloat(getComputedStyle(node).fontSize);
+  node.remove();
+  return Number.isFinite(value) && value > 0 ? value : 12;
 }
 
 export function readWorkbenchFallbackTheme(el: HTMLElement, mode: "light" | "dark"): ITheme {
   const base = mode === "dark" ? dark : light;
   const host = el.parentElement ?? el;
-  const style = getComputedStyle(host);
-  const fg =
-    style.color && style.color !== "rgba(0, 0, 0, 0)"
-      ? style.color
-      : readTextColor(host, "hsl(var(--foreground))");
+  const fg = readNearestComputedPaint(host, "color") ?? readTextColor(host, "var(--foreground)");
   const bg =
-    style.backgroundColor && style.backgroundColor !== "rgba(0, 0, 0, 0)"
-      ? style.backgroundColor
-      : readBackgroundColor(host, "hsl(var(--background))");
+    readNearestComputedPaint(host, "backgroundColor") ??
+    readBackgroundColor(host, "var(--background)");
 
   return {
     ...base,

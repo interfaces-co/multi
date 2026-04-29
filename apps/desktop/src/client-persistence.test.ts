@@ -49,9 +49,13 @@ function makeSecretStorage(available: boolean): DesktopSecretStorage {
 }
 
 const clientSettings: ClientSettings = {
+  autoOpenPlanSidebar: true,
   confirmThreadArchive: true,
   confirmThreadDelete: false,
   diffWordWrap: true,
+  favorites: [],
+  sidebarProjectGroupingMode: "repository",
+  sidebarProjectGroupingOverrides: {},
   sidebarProjectSortOrder: "manual",
   sidebarThreadSortOrder: "created_at",
   timestampFormat: "24-hour",

@@ -18,8 +18,8 @@ export function RowButton(
       variant="ghost"
       className={cn(
         variant === "chrome"
-          ? "font-multi sidebar-label-track flex min-h-7.5 w-full items-center justify-start gap-2 rounded-multi-control border border-transparent px-2 py-1 text-left text-muted-foreground transition-colors"
-          : "font-multi flex min-h-7.5 w-full items-center justify-start gap-2 rounded-multi-control border border-transparent px-2 py-1 text-left text-body/[18px] text-muted-foreground transition-colors",
+          ? "font-multi flex min-h-7 w-full items-center justify-start gap-2 rounded-multi-control border border-transparent px-3 py-1.5 text-left text-[12px]/[16px] text-muted-foreground transition-colors"
+          : "agent-sidebar-cell font-multi flex min-h-0 w-full items-center justify-start gap-3 rounded-multi-control border border-transparent px-1.5 py-[5px] text-left text-[12px]/[16px] text-muted-foreground transition-colors",
         "hover:bg-multi-hover hover:text-foreground data-[selected=true]:border-multi-border/90 data-[selected=true]:bg-multi-active data-[selected=true]:text-foreground",
         className,
       )}

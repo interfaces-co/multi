@@ -1,7 +1,6 @@
 :root {
   --multi-font-ui:
-    "SF Pro Text", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    sans-serif;
+    -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", system-ui, sans-serif;
   --multi-font-mono: "SF Mono", "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
   --multi-header-height: var(--multi-header-height-user, 40px);
   --multi-titlebar-control-height: 22px;
@@ -9,13 +8,13 @@
     (var(--multi-header-height) - var(--multi-titlebar-control-height)) / 2
   );
   /* macOS traffic lights + margin; keeps shell controls clear of the stoplight region */
-  --multi-electron-traffic-inset: 84px;
+  --multi-electron-traffic-inset: 80px;
   /* Vertical inset below traffic lights; 0 in browser, set on [data-electron] (desktop is mac-only) */
   --multi-electron-traffic-padding-top: var(--multi-electron-traffic-padding-top-user, 0px);
   /* User overrides: set --*-user on :root or [data-settings-theme] from Appearance settings */
-  --multi-sidebar-label-size: var(--multi-sidebar-label-size-user, 13px);
+  --multi-sidebar-label-size: var(--multi-sidebar-label-size-user, 11px);
   --multi-sidebar-label-weight: var(--multi-sidebar-label-weight-user, 400);
-  --multi-sidebar-label-leading: var(--multi-sidebar-label-leading-user, 1.35);
+  --multi-sidebar-label-leading: var(--multi-sidebar-label-leading-user, 14px);
   --multi-workbench-toggle-left: var(--multi-workbench-toggle-left-user, 12px);
   --multi-workbench-toggle-right: var(--multi-workbench-toggle-right-user, 12px);
   /* Width of floating Changes chip (label + count + icon) in AppShell; right panel header pads by this + toggle-right */
@@ -23,9 +22,14 @@
   /* Typography scale — relative to user preference */
   --multi-text-caption: calc(var(--multi-ui-font-size-user, 13px) - 3px);
   --multi-text-detail: calc(var(--multi-ui-font-size-user, 13px) - 2px);
-  --multi-text-body: var(--multi-ui-font-size-user, 13px);
-  --multi-text-title: calc(var(--multi-ui-font-size-user, 13px) + 2px);
-  --multi-text-heading: calc(var(--multi-ui-font-size-user, 13px) + 5px);
+  --multi-text-body: calc(var(--multi-ui-font-size-user, 13px) - 1px);
+  --multi-text-title: var(--multi-ui-font-size-user, 13px);
+  --multi-text-heading: calc(var(--multi-ui-font-size-user, 13px) + 3px);
+  --multi-leading-caption: 12px;
+  --multi-leading-detail: 14px;
+  --multi-leading-body: 16px;
+  --multi-leading-title: 18px;
+  --multi-leading-heading: 21px;
   /* Border radius */
   --multi-radius-control: 6px;
   --multi-radius-card: var(--multi-radius-card-user, 10px);
@@ -161,13 +165,38 @@
     var(--multi-electron-traffic-inset)
   );
   /* Pad shell chrome + left rail below the stoplight row (hiddenInset; trafficLightPosition in desktop main). */
-  --multi-electron-traffic-padding-top: var(--multi-electron-traffic-padding-top-user, 32px);
+  --multi-electron-traffic-padding-top: var(--multi-electron-traffic-padding-top-user, 28px);
 }
 
 .sidebar-label-track {
   font-size: var(--multi-sidebar-label-size);
   font-weight: var(--multi-sidebar-label-weight);
   line-height: var(--multi-sidebar-label-leading);
+}
+
+.cursor-text-xs {
+  font-size: 10px;
+  line-height: 12px;
+}
+
+.cursor-text-sm {
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.cursor-text-base {
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.cursor-text-lg {
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.cursor-text-xl {
+  font-size: 16px;
+  line-height: 21px;
 }
 
 .composer-toolbar-icon {
@@ -194,16 +223,11 @@
 
 .dark {
   --multi-ring: oklch(0.68 0.04 240 / 0.2);
-  --multi-plan-mode-selected-fg: color-mix(
-    in srgb,
-    rgb(var(--multi-cursor-action-rgb)) 72%,
-    white
-  );
+  --multi-plan-mode-selected-fg: color-mix(in srgb, rgb(var(--multi-cursor-action-rgb)) 72%, white);
   --multi-base-sidebar: color-mix(
     in srgb,
     var(--background) 90%,
-    oklch(0.35 calc(0.03 + var(--multi-intensity, 33) / 100 * 0.04) var(--multi-user-hue, 255))
-      10%
+    oklch(0.35 calc(0.03 + var(--multi-intensity, 33) / 100 * 0.04) var(--multi-user-hue, 255)) 10%
   );
   --multi-base-chat: color-mix(
     in srgb,
@@ -213,14 +237,12 @@
   --multi-base-editor: color-mix(
     in srgb,
     var(--background) 96%,
-    oklch(0.34 calc(0.018 + var(--multi-intensity, 33) / 100 * 0.022) var(--multi-user-hue, 255))
-      4%
+    oklch(0.34 calc(0.018 + var(--multi-intensity, 33) / 100 * 0.022) var(--multi-user-hue, 255)) 4%
   );
   --multi-base-surface: color-mix(
     in srgb,
     var(--background) 93%,
-    oklch(0.33 calc(0.02 + var(--multi-intensity, 33) / 100 * 0.028) var(--multi-user-hue, 255))
-      7%
+    oklch(0.33 calc(0.02 + var(--multi-intensity, 33) / 100 * 0.028) var(--multi-user-hue, 255)) 7%
   );
   --multi-base-elevated: color-mix(
     in srgb,
@@ -423,4 +445,273 @@ body {
 .traffic-lights-spacer {
   flex-shrink: 0;
   width: var(--multi-traffic-lights-spacer-width, var(--multi-electron-traffic-inset));
+}
+
+/* Cursor Agents window theme parity. */
+.agent-window {
+  --vscode-foreground: var(--foreground);
+  --vscode-disabledForeground: color-mix(in srgb, var(--foreground) 44%, transparent);
+  --vscode-focusBorder: var(--ring);
+  --vscode-widget-border: var(--multi-color-border);
+  --vscode-widget-shadow: rgb(0 0 0 / 0.18);
+  --vscode-sideBar-background: var(--multi-color-sidebar);
+  --vscode-editor-background: var(--multi-color-editor);
+  --vscode-dropdown-background: var(--multi-color-bubble-opaque);
+  --vscode-quickInput-background: var(--multi-color-bubble-opaque);
+  --vscode-list-activeSelectionBackground: var(--multi-color-active);
+  --vscode-list-activeSelectionForeground: var(--foreground);
+  --vscode-list-focusBackground: var(--multi-color-hover);
+  --vscode-list-focusForeground: var(--foreground);
+  --vscode-input-border: var(--multi-color-border);
+  --vscode-input-background: var(--multi-color-bubble-opaque);
+  --vscode-button-background: rgb(var(--multi-cursor-action-rgb));
+  --vscode-scrollbarSlider-background: color-mix(in srgb, var(--foreground) 14%, transparent);
+  --vscode-scrollbarSlider-hoverBackground: color-mix(in srgb, var(--foreground) 24%, transparent);
+  --vscode-scrollbarSlider-activeBackground: color-mix(in srgb, var(--foreground) 34%, transparent);
+  --vscode-charts-red: oklch(0.63 0.22 25);
+  --vscode-charts-orange: oklch(0.72 0.16 58);
+  --vscode-charts-yellow: oklch(0.8 0.14 88);
+  --vscode-charts-green: oklch(0.67 0.15 145);
+  --vscode-charts-purple: oklch(0.68 0.14 305);
+  --vscode-terminal-ansiCyan: oklch(0.72 0.12 205);
+  --vscode-terminal-ansiBlue: rgb(var(--multi-cursor-action-rgb));
+  --vscode-terminal-ansiMagenta: oklch(0.7 0.15 325);
+  --glass-chat-bubble-background: var(--multi-color-bubble);
+  --cursor-red: var(--vscode-charts-red);
+  --cursor-orange: var(--vscode-charts-orange);
+  --cursor-yellow: var(--vscode-charts-yellow);
+  --cursor-green: var(--vscode-charts-green);
+  --cursor-cyan: var(--vscode-terminal-ansiCyan);
+  --cursor-blue: var(--vscode-terminal-ansiBlue);
+  --cursor-magenta: var(--vscode-terminal-ansiMagenta);
+  --cursor-purple: var(--vscode-charts-purple);
+  --cursor-text-primary: var(--vscode-foreground);
+  --cursor-text-secondary: color-mix(in srgb, var(--vscode-foreground) 74%, transparent);
+  --cursor-text-tertiary: color-mix(in srgb, var(--vscode-foreground) 54%, transparent);
+  --cursor-text-quaternary: color-mix(in srgb, var(--vscode-foreground) 36%, transparent);
+  --cursor-text-active: var(--vscode-list-activeSelectionForeground);
+  --cursor-text-focused: var(--vscode-list-focusForeground);
+  --cursor-text-red-primary: var(--cursor-red);
+  --cursor-text-green-primary: var(--cursor-green);
+  --cursor-icon-primary: color-mix(in srgb, var(--vscode-foreground) 86%, transparent);
+  --cursor-icon-secondary: color-mix(in srgb, var(--vscode-foreground) 66%, transparent);
+  --cursor-icon-tertiary: color-mix(in srgb, var(--vscode-foreground) 46%, transparent);
+  --cursor-icon-quaternary: color-mix(in srgb, var(--vscode-foreground) 28%, transparent);
+  --cursor-bg-primary: color-mix(in srgb, var(--vscode-foreground) 20%, transparent);
+  --cursor-bg-secondary: color-mix(in srgb, var(--vscode-foreground) 14%, transparent);
+  --cursor-bg-tertiary: color-mix(in srgb, var(--vscode-foreground) 8%, transparent);
+  --cursor-bg-quaternary: color-mix(in srgb, var(--vscode-foreground) 6%, transparent);
+  --cursor-bg-quinary: color-mix(in srgb, var(--vscode-foreground) 4%, transparent);
+  --cursor-bg-elevated: var(--vscode-dropdown-background, var(--vscode-quickInput-background));
+  --cursor-bg-active: var(--vscode-list-activeSelectionBackground);
+  --cursor-bg-focused: var(--vscode-list-focusBackground);
+  --cursor-bg-green-primary: var(--cursor-green);
+  --cursor-stroke-primary: color-mix(in srgb, var(--vscode-foreground) 20%, transparent);
+  --cursor-stroke-secondary: color-mix(in srgb, var(--vscode-foreground) 12%, transparent);
+  --cursor-stroke-tertiary: color-mix(in srgb, var(--vscode-foreground) 8%, transparent);
+  --cursor-stroke-quaternary: color-mix(in srgb, var(--vscode-foreground) 4%, transparent);
+  --cursor-stroke-focused: var(--vscode-focusBorder);
+  --cursor-shadow-primary: var(--vscode-widget-shadow);
+  --cursor-shadow-secondary: color-mix(in srgb, var(--vscode-widget-shadow) 60%, transparent);
+  --cursor-shadow-tertiary: color-mix(in srgb, var(--vscode-widget-shadow) 30%, transparent);
+  --cursor-box-shadow-sm:
+    0 0 0 1px var(--vscode-widget-border, var(--cursor-stroke-tertiary)),
+    0 2px 8px 0px var(--cursor-shadow-secondary);
+  --cursor-box-shadow-base:
+    0 0 0 1px var(--vscode-widget-border, var(--cursor-stroke-tertiary)),
+    0 0 4px 0px var(--cursor-shadow-secondary), 0 8px 24px -2px var(--cursor-shadow-secondary);
+  --cursor-box-shadow-lg:
+    0 0 0 1px var(--vscode-widget-border, var(--cursor-stroke-tertiary)),
+    0 0 4px 0 var(--cursor-shadow-secondary), 0 16px 24px 0 var(--cursor-shadow-secondary);
+  --cursor-shadow-workbench: 0 0 8px 2px
+    color-mix(in srgb, var(--vscode-widget-shadow) 40%, transparent);
+  --composer-tab-label-max-width: 200px;
+  font-family: var(--multi-font-ui);
+  font-size: var(--multi-text-title);
+  font-synthesis: none;
+  letter-spacing: 0;
+}
+
+.agent-window {
+  background: color-mix(in srgb, var(--vscode-sideBar-background) 80%, transparent);
+}
+
+.agent-window__sidebar {
+  background: var(--vscode-sideBar-background);
+}
+
+.agent-window__agent-panel {
+  background: var(--multi-chat-surface-background);
+}
+
+.agent-window__workbench {
+  background: var(--vscode-editor-background);
+}
+
+.agent-sidebar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-bottom: 11px;
+}
+
+.agent-sidebar-section {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.agent-sidebar-section-heading {
+  align-items: center;
+  display: flex;
+  gap: 0;
+  min-height: 24px;
+  padding: 0 6px;
+}
+
+.agent-sidebar-section-toggle {
+  color: var(--cursor-text-tertiary);
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.agent-sidebar-section-toggle:hover,
+.agent-sidebar-section-new:hover,
+.agent-sidebar-more:hover,
+.agent-window-open-workspace:hover {
+  background: var(--cursor-bg-quaternary);
+  color: var(--cursor-text-primary);
+}
+
+.agent-sidebar-section-items {
+  gap: 1px;
+}
+
+.agent-sidebar-cell {
+  --agent-sidebar-cell-hover-actions-width: 60px;
+  align-items: center;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  gap: 12px;
+  padding: 5px 6px;
+  position: relative;
+}
+
+.agent-sidebar-cell:hover {
+  background: var(--cursor-bg-quaternary);
+}
+
+.agent-sidebar-cell[data-selected="true"] {
+  background: var(--cursor-bg-tertiary);
+}
+
+.agent-sidebar-cell-text {
+  color: var(--cursor-text-secondary, hsla(0, 0%, 89%, 0.55));
+  font-size: 12px;
+  line-height: 16px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.agent-sidebar-cell[data-selected="true"] .agent-sidebar-cell-text {
+  color: var(--cursor-text-primary, hsla(0, 0%, 89%, 0.92));
+}
+
+.agent-sidebar-cell-subtitle {
+  color: var(--cursor-text-tertiary, hsla(0, 0%, 89%, 0.37));
+  font-size: 11px;
+  line-height: 14px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.agent-sidebar-cell[data-selected="true"] .agent-sidebar-cell-subtitle {
+  color: var(--cursor-text-secondary, hsla(0, 0%, 89%, 0.55));
+}
+
+.agent-sidebar-cell[data-renaming="true"] {
+  background: var(--cursor-bg-tertiary);
+  border-color: var(--cursor-stroke-primary);
+}
+
+.agent-window-new-agent {
+  background: var(--cursor-bg-quinary);
+  color: var(--cursor-text-secondary);
+}
+
+.agent-window-new-agent:hover {
+  background: var(--cursor-bg-quaternary);
+  color: var(--cursor-text-primary);
+}
+
+.agent-window-shortcut {
+  color: var(--cursor-text-quaternary);
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.agent-window-icon-button,
+.agent-sidebar-section-new {
+  color: var(--cursor-icon-secondary);
+}
+
+.agent-window-icon-button:hover,
+.agent-sidebar-section-new:hover {
+  color: var(--cursor-icon-primary);
+}
+
+.agent-panel__root {
+  background: var(--vscode-editor-background);
+}
+
+.agent-panel__composer-dock {
+  background: linear-gradient(
+    to top,
+    var(--vscode-editor-background) 0%,
+    color-mix(in srgb, var(--vscode-editor-background) 88%, transparent) 64%,
+    transparent 100%
+  );
+}
+
+.cursor-bg-glass {
+  backdrop-filter: blur(8px);
+  background-color: color-mix(in srgb, var(--cursor-bg-elevated) 92%, transparent);
+}
+
+.cursor-box-shadow-sm {
+  box-shadow: var(--cursor-box-shadow-sm);
+}
+
+.cursor-box-shadow-base {
+  box-shadow: var(--cursor-box-shadow-base);
+}
+
+.cursor-box-shadow-lg {
+  box-shadow: var(--cursor-box-shadow-lg);
+}
+
+.cursor-text-xs {
+  font-size: 10px;
+  line-height: 12px;
+}
+
+.cursor-text-sm {
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.cursor-text-base {
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.cursor-text-lg {
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.cursor-text-xl {
+  font-size: 16px;
+  line-height: 21px;
 }

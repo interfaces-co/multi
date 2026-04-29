@@ -1,6 +1,7 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { it } from "@effect/vitest";
 import { Effect, FileSystem, Layer, Path } from "effect";
+import { createModelSelection } from "@multi/shared/model";
 import { expect } from "vitest";
 
 import { ServerConfig } from "../../config.ts";
@@ -13,7 +14,7 @@ const ClaudeTextGenerationTestLayer = ClaudeTextGenerationLive.pipe(
   Layer.provideMerge(ServerSettingsService.layerTest()),
   Layer.provideMerge(
     ServerConfig.layerTest(process.cwd(), {
-      prefix: "multi-claude-text-generation-test-",
+      prefix: "t3code-claude-text-generation-test-",
     }),
   ),
   Layer.provideMerge(NodeServices.layer),
@@ -78,7 +79,7 @@ function withFakeClaudeEnv<A, E, R>(
   return Effect.acquireUseRelease(
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
-      const tempDir = yield* fs.makeTempDirectoryScoped({ prefix: "multi-claude-text-" });
+      const tempDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3code-claude-text-" });
       const binDir = yield* makeFakeClaudeBinary(tempDir);
       const previousPath = process.env.PATH;
       const previousOutput = process.env.T3_FAKE_CLAUDE_OUTPUT;
@@ -199,12 +200,10 @@ it.layer(ClaudeTextGenerationTestLayer)("ClaudeTextGenerationLive", (it) => {
           stagedSummary: "M README.md",
           stagedPatch: "diff --git a/README.md b/README.md",
           modelSelection: {
-            provider: "claudeAgent",
-            model: "claude-haiku-4-5",
-            options: {
-              thinking: false,
-              effort: "high",
-            },
+            ...createModelSelection("claudeAgent", "claude-haiku-4-5", [
+              { id: "thinking", value: false },
+              { id: "effort", value: "high" },
+            ]),
           },
         });
 
@@ -235,12 +234,10 @@ it.layer(ClaudeTextGenerationTestLayer)("ClaudeTextGenerationLive", (it) => {
           diffSummary: "1 file changed",
           diffPatch: "diff --git a/README.md b/README.md",
           modelSelection: {
-            provider: "claudeAgent",
-            model: "claude-opus-4-6",
-            options: {
-              effort: "max",
-              fastMode: true,
-            },
+            ...createModelSelection("claudeAgent", "claude-opus-4-6", [
+              { id: "effort", value: "max" },
+              { id: "fastMode", value: true },
+            ]),
           },
         });
 

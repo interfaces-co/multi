@@ -78,6 +78,7 @@ import {
   buildRootGroups,
   buildThreadActionItems,
   type CommandPaletteActionItem,
+  type CommandPaletteGroup,
   type CommandPaletteSubmenuItem,
   type CommandPaletteView,
   filterBrowseEntries,
@@ -461,6 +462,36 @@ function OpenCommandPaletteDialog() {
       }),
     [openProjectFromSearch, projects],
   );
+  const workspaceProjectItems = useMemo<CommandPaletteActionItem[]>(
+    () =>
+      [...projects]
+        .toSorted((left, right) => {
+          const leftCurrent = left.cwd === currentProjectCwd;
+          const rightCurrent = right.cwd === currentProjectCwd;
+          if (leftCurrent !== rightCurrent) {
+            return leftCurrent ? -1 : 1;
+          }
+          return left.name.localeCompare(right.name);
+        })
+        .map((project) => ({
+          kind: "action",
+          value: `workspace:${project.environmentId}:${project.id}`,
+          searchTerms: [project.name, project.cwd],
+          title: project.name,
+          description: project.cwd === currentProjectCwd ? `Current • ${project.cwd}` : project.cwd,
+          icon: (
+            <ProjectFavicon
+              environmentId={project.environmentId}
+              cwd={project.cwd}
+              className={ITEM_ICON_CLASS}
+            />
+          ),
+          run: async () => {
+            await openProjectFromSearch(project);
+          },
+        })),
+    [currentProjectCwd, openProjectFromSearch, projects],
+  );
 
   const projectThreadItems = useMemo(
     () =>
@@ -523,6 +554,7 @@ function OpenCommandPaletteDialog() {
         addonIcon: view.addonIcon,
         groups: view.groups,
         ...(view.initialQuery ? { initialQuery: view.initialQuery } : {}),
+        ...(view.placeholder ? { placeholder: view.placeholder } : {}),
       },
     ]);
     setHighlightedItemValue(null);
@@ -534,6 +566,7 @@ function OpenCommandPaletteDialog() {
       addonIcon: item.addonIcon,
       groups: item.groups,
       ...(item.initialQuery ? { initialQuery: item.initialQuery } : {}),
+      ...(item.placeholder ? { placeholder: item.placeholder } : {}),
     });
   }
 
@@ -619,13 +652,61 @@ function OpenCommandPaletteDialog() {
     startAddProjectBrowse,
   ]);
 
+  const workspaceGroups = useMemo<CommandPaletteView["groups"]>(() => {
+    const groups: CommandPaletteGroup[] = [];
+    if (workspaceProjectItems.length > 0) {
+      groups.push({
+        value: "workspaces",
+        label: "Workspaces",
+        items: workspaceProjectItems,
+      });
+    }
+    groups.push({
+      value: "workspace-actions",
+      label: "Actions",
+      items: [
+        {
+          kind: "action",
+          value: "workspace:add-project",
+          searchTerms: ["add workspace", "add project", "folder", "directory", "browse"],
+          title: "Add Workspace",
+          description:
+            addProjectEnvironmentOptions.length > 1
+              ? "Choose an environment and folder"
+              : "Choose a folder",
+          icon: <FolderPlusIcon className={ITEM_ICON_CLASS} />,
+          keepOpen: true,
+          run: async () => {
+            openAddProjectFlow();
+          },
+        },
+      ],
+    });
+    return groups;
+  }, [addProjectEnvironmentOptions.length, openAddProjectFlow, workspaceProjectItems]);
+
+  const openWorkspaceFlow = useCallback(() => {
+    pushPaletteView({
+      addonIcon: <FolderIcon className={ADDON_ICON_CLASS} />,
+      groups: workspaceGroups,
+      placeholder: "Search workspaces...",
+    });
+  }, [workspaceGroups]);
+
   useEffect(() => {
-    if (openIntent?.kind !== "add-project") {
+    if (!openIntent) {
       return;
     }
+
     clearOpenIntent();
-    openAddProjectFlow();
-  }, [clearOpenIntent, openAddProjectFlow, openIntent]);
+
+    if (openIntent.kind === "add-project") {
+      openAddProjectFlow();
+      return;
+    }
+
+    openWorkspaceFlow();
+  }, [clearOpenIntent, openAddProjectFlow, openIntent, openWorkspaceFlow]);
 
   const actionItems: Array<CommandPaletteActionItem | CommandPaletteSubmenuItem> = [];
 
@@ -855,7 +936,8 @@ function OpenCommandPaletteDialog() {
     displayedGroups = relativePathNeedsActiveProject ? [] : browseGroups;
   }
 
-  const inputPlaceholder = getCommandPaletteInputPlaceholder(paletteMode);
+  const inputPlaceholder =
+    currentView?.placeholder ?? getCommandPaletteInputPlaceholder(paletteMode);
   const isSubmenu = paletteMode === "submenu" || paletteMode === "submenu-browse";
   const hasHighlightedBrowseItem = highlightedItemValue?.startsWith("browse:") ?? false;
   const canSubmitBrowsePath = isBrowsing && !relativePathNeedsActiveProject;

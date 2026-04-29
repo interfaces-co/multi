@@ -3,6 +3,7 @@ import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import babel from "@rolldown/plugin-babel";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import { defineConfig } from "vite";
+import solid from "vite-plugin-solid";
 import pkg from "./package.json" with { type: "json" };
 
 const port = Number(process.env.PORT ?? 5733);
@@ -44,12 +45,14 @@ const devProxyTarget = resolveDevProxyTarget(configuredWsUrl);
 export default defineConfig({
   plugins: [
     tanstackRouter(),
-    react(),
+    solid({ include: /\.solid\.[jt]sx$/ }),
+    react({ exclude: /\.solid\.[jt]sx$/ }),
     babel({
       // We need to be explicit about the parser options after moving to @vitejs/plugin-react v6.0.0
       // This is because the babel plugin only automatically parses typescript and jsx based on relative paths (e.g. "**/*.ts")
       // whereas the previous version of the plugin parsed all files with a .ts extension.
       // This is causing our packages/ directory to fail to parse, as they are not relative to the CWD.
+      exclude: [/[/\\]node_modules[/\\]/, /^\0rolldown\/runtime\.js$/, /\.solid\.[jt]sx$/],
       parserOpts: { plugins: ["typescript", "jsx"] },
       presets: [reactCompilerPreset()],
     }),

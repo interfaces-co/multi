@@ -1,5 +1,6 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import type { ServerProvider } from "@multi/contracts";
+import { createModelCapabilities } from "@multi/shared/model";
 import { assert, it } from "@effect/vitest";
 import { Effect, FileSystem } from "effect";
 
@@ -8,7 +9,9 @@ import {
   readProviderStatusCache,
   resolveProviderStatusCachePath,
   writeProviderStatusCache,
-} from "./provider-status-cache";
+} from "./provider-status-cache.ts";
+
+const emptyCapabilities = createModelCapabilities({ optionDescriptors: [] });
 
 const makeProvider = (
   provider: ServerProvider["provider"],
@@ -27,7 +30,7 @@ const makeProvider = (
   ...overrides,
 });
 
-it.layer(NodeServices.layer)("provider-status-cache", (it) => {
+it.layer(NodeServices.layer)("providerStatusCache", (it) => {
   it.effect("writes and reads provider status snapshots", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
@@ -37,6 +40,10 @@ it.layer(NodeServices.layer)("provider-status-cache", (it) => {
         status: "warning",
         auth: { status: "unknown" },
       });
+      const openCodeProvider = makeProvider("opencode", {
+        status: "warning",
+        auth: { status: "unknown", type: "opencode" },
+      });
       const codexPath = resolveProviderStatusCachePath({
         cacheDir: tempDir,
         provider: "codex",
@@ -44,6 +51,10 @@ it.layer(NodeServices.layer)("provider-status-cache", (it) => {
       const claudePath = resolveProviderStatusCachePath({
         cacheDir: tempDir,
         provider: "claudeAgent",
+      });
+      const openCodePath = resolveProviderStatusCachePath({
+        cacheDir: tempDir,
+        provider: "opencode",
       });
 
       yield* writeProviderStatusCache({
@@ -54,16 +65,28 @@ it.layer(NodeServices.layer)("provider-status-cache", (it) => {
         filePath: claudePath,
         provider: claudeProvider,
       });
+      yield* writeProviderStatusCache({
+        filePath: openCodePath,
+        provider: openCodeProvider,
+      });
 
       assert.deepStrictEqual(yield* readProviderStatusCache(codexPath), codexProvider);
       assert.deepStrictEqual(yield* readProviderStatusCache(claudePath), claudeProvider);
+      assert.deepStrictEqual(yield* readProviderStatusCache(openCodePath), openCodeProvider);
     }),
   );
 
-  it("hydrates cached provider status onto current settings-derived models", () => {
+  it("hydrates cached provider status while preserving current settings-derived models", () => {
     const cachedCodex = makeProvider("codex", {
       checkedAt: "2026-04-10T12:00:00.000Z",
-      models: [],
+      models: [
+        {
+          slug: "gpt-5-mini",
+          name: "GPT-5 Mini",
+          isCustom: false,
+          capabilities: emptyCapabilities,
+        },
+      ],
       message: "Cached message",
       skills: [
         {
@@ -80,13 +103,7 @@ it.layer(NodeServices.layer)("provider-status-cache", (it) => {
           slug: "gpt-5.4",
           name: "GPT-5.4",
           isCustom: false,
-          capabilities: {
-            reasoningEffortLevels: [],
-            supportsFastMode: false,
-            supportsThinkingToggle: false,
-            contextWindowOptions: [],
-            promptInjectedEffortLevels: [],
-          },
+          capabilities: emptyCapabilities,
         },
       ],
       message: "Pending refresh",
@@ -99,6 +116,15 @@ it.layer(NodeServices.layer)("provider-status-cache", (it) => {
       }),
       {
         ...fallbackCodex,
+        models: [
+          ...fallbackCodex.models,
+          {
+            slug: "gpt-5-mini",
+            name: "GPT-5 Mini",
+            isCustom: false,
+            capabilities: emptyCapabilities,
+          },
+        ],
         installed: cachedCodex.installed,
         version: cachedCodex.version,
         status: cachedCodex.status,
@@ -122,7 +148,7 @@ it.layer(NodeServices.layer)("provider-status-cache", (it) => {
       version: null,
       status: "disabled",
       auth: { status: "unknown" },
-      message: "Codex is disabled in Multi settings.",
+      message: "Codex is disabled in T3 Code settings.",
     });
 
     assert.deepStrictEqual(

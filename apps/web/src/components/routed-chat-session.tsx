@@ -1,8 +1,6 @@
 // @ts-nocheck
 import type { EnvironmentId, ThreadId, ProviderInteractionMode } from "@multi/contracts";
 import type { UiPromptInput, UiSessionItem, UiWorkingState } from "~/lib/ui-session-types";
-import type { RuntimeModelItem } from "~/lib/runtime-models";
-import type { ThinkingLevel } from "~/lib/ui-session-types";
 
 import { useCallback, useMemo, useRef } from "react";
 
@@ -11,9 +9,7 @@ import { ChatMessages } from "./shell/chat/messages";
 import { useChatDraftStore } from "~/lib/chat-draft-store";
 import { useStore } from "~/store";
 import { createThreadSelectorByRef } from "~/store-selectors";
-import { readEnvironmentApi } from "~/environment-api";
-import { newCommandId } from "~/lib/utils";
-import { sendChatPrompt, type SendChatPromptContext } from "~/lib/chat-send-adapter";
+import { useRuntimeSession } from "./shell/session/runtime";
 
 function mapMessagesToSessionItems(
   messages: ReadonlyArray<{
@@ -49,6 +45,8 @@ export function RoutedChatSession(props: {
 }) {
   const { threadId, environmentId } = props;
   const composerRef = useRef<ChatComposerHandle>(null);
+  const sessionId = props.routeKind === "server" ? (threadId ?? null) : null;
+  const session = useRuntimeSession(sessionId);
 
   const threadSelector = useMemo(
     () => createThreadSelectorByRef(threadId ? { environmentId, threadId } : null),
@@ -64,7 +62,7 @@ export function RoutedChatSession(props: {
     return mapMessagesToSessionItems(thread.messages as never);
   }, [thread]);
 
-  const busy = thread?.session?.orchestrationStatus === "running";
+  const busy = session.busy || thread?.session?.orchestrationStatus === "running";
   const work: UiWorkingState | null = null;
 
   const onDraft = useCallback(
@@ -74,40 +72,23 @@ export function RoutedChatSession(props: {
 
   const onSend = useCallback(
     async (input: UiPromptInput): Promise<{ clear: boolean } | false> => {
-      if (!threadId || !environmentId || !thread) return false;
-      const ctx: SendChatPromptContext = {
-        environmentId,
-        threadId,
-        modelSelection: thread.modelSelection,
-        runtimeMode: thread.runtimeMode,
-        interactionMode: thread.interactionMode,
-        titleSeed: input.text.slice(0, 80),
-      };
-      return sendChatPrompt(input, ctx);
+      return session.send(
+        input,
+        props.routeKind === "draft" && props.draftId
+          ? {
+              id: props.draftId,
+              title: input.text.slice(0, 80),
+              interactionMode: draft.interactionMode,
+            }
+          : null,
+      );
     },
-    [environmentId, thread, threadId],
+    [draft.interactionMode, props.draftId, props.routeKind, session],
   );
 
   const onAbort = useCallback(() => {
-    if (!thread?.session?.activeTurnId || !environmentId) return;
-    const api = readEnvironmentApi(environmentId);
-    if (!api) return;
-    void api.orchestration.dispatchCommand({
-      type: "thread.turn.interrupt",
-      commandId: newCommandId(),
-      threadId: thread.id,
-      turnId: thread.session.activeTurnId,
-      createdAt: new Date().toISOString(),
-    });
-  }, [environmentId, thread]);
-
-  const onModel = useCallback((_item: RuntimeModelItem) => {
-    // TODO: wire to setProviderModelSelect via composerDraftStore
-  }, []);
-
-  const onThinkingLevel = useCallback((_level: ThinkingLevel) => {
-    // TODO: wire to composerDraftStore thinking level
-  }, []);
+    session.abort();
+  }, [session]);
 
   const interactionMode: ProviderInteractionMode = thread?.interactionMode ?? "default";
 
@@ -137,9 +118,14 @@ export function RoutedChatSession(props: {
           onDraft={onDraft}
           onSend={onSend}
           onAbort={onAbort}
-          onModel={onModel}
-          onThinkingLevel={onThinkingLevel}
-          model={null}
+          onModel={session.setModel}
+          onThinkingLevel={session.setThinkingLevel}
+          model={session.model}
+          modelLoading={session.modelLoading}
+          fastActive={session.fastActive}
+          fastSupported={session.fastSupported}
+          onFastMode={session.setFastMode}
+          onFastToggle={session.toggleFastMode}
           busy={busy}
           planActive={interactionMode === "plan"}
         />

@@ -26,11 +26,11 @@ function AutocompleteInput({
   const sizeValue = (size ?? "default") as "sm" | "default" | "lg" | number;
 
   return (
-    <div className="relative not-has-[>*.w-full]:w-fit w-full text-foreground has-disabled:opacity-64">
+    <div className="relative not-has-[>*.w-full]:w-fit w-full font-multi text-foreground has-disabled:opacity-40">
       {startAddon && (
         <div
           aria-hidden="true"
-          className="[&_svg]:-mx-0.5 pointer-events-none absolute inset-y-0 start-px z-10 flex items-center ps-[calc(--spacing(3)-1px)] opacity-80 has-[+[data-size=sm]]:ps-[calc(--spacing(2.5)-1px)] [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4"
+          className="[&_svg]:-mx-0.5 pointer-events-none absolute inset-y-0 start-px z-10 flex items-center ps-[calc(--spacing(2.5)-1px)] opacity-70 has-[+[data-size=sm]]:ps-[calc(--spacing(2)-1px)] [&_svg:not([class*='size-'])]:size-4"
           data-slot="autocomplete-start-addon"
         >
           {startAddon}
@@ -125,7 +125,7 @@ function AutocompleteItem({ className, children, ...props }: AutocompletePrimiti
   return (
     <AutocompletePrimitive.Item
       className={cn(
-        "flex min-h-8 cursor-default select-none items-center rounded-sm px-2 py-1 text-base outline-none hover:bg-accent data-disabled:pointer-events-none data-selected:bg-accent/50 data-selected:text-foreground data-highlighted:bg-accent data-highlighted:text-accent-foreground [&[data-highlighted][data-selected]]:bg-accent [&[data-highlighted][data-selected]]:text-accent-foreground data-disabled:opacity-64 sm:min-h-7 sm:text-sm",
+        "flex min-h-7 cursor-default select-none items-center rounded-multi-control px-2 py-1 font-multi text-[12px]/[16px] outline-none hover:bg-multi-hover data-disabled:pointer-events-none data-selected:bg-multi-hover/60 data-selected:text-foreground data-highlighted:bg-multi-hover data-highlighted:text-foreground [&[data-highlighted][data-selected]]:bg-multi-hover [&[data-highlighted][data-selected]]:text-foreground data-disabled:opacity-40",
         className,
       )}
       data-slot="autocomplete-item"
@@ -159,7 +159,10 @@ function AutocompleteGroup({ className, ...props }: AutocompletePrimitive.Group.
 function AutocompleteGroupLabel({ className, ...props }: AutocompletePrimitive.GroupLabel.Props) {
   return (
     <AutocompletePrimitive.GroupLabel
-      className={cn("px-2 py-1.5 font-medium text-muted-foreground text-xs", className)}
+      className={cn(
+        "px-2 py-1.5 font-multi text-[11px]/[14px] text-muted-foreground/68",
+        className,
+      )}
       data-slot="autocomplete-group-label"
       {...props}
     />
@@ -170,7 +173,7 @@ function AutocompleteEmpty({ className, ...props }: AutocompletePrimitive.Empty.
   return (
     <AutocompletePrimitive.Empty
       className={cn(
-        "not-empty:p-2 text-center text-base text-muted-foreground sm:text-sm",
+        "not-empty:p-2 text-center font-multi text-[12px]/[16px] text-muted-foreground",
         className,
       )}
       data-slot="autocomplete-empty"

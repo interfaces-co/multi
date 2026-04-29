@@ -132,11 +132,16 @@ export const AgentRow = memo(
           variant="agent"
           data-selected={props.selected}
           data-chat-item=""
+          data-agent-sidebar-cell=""
           onClick={() => props.onSelectAgent(props.item.id)}
         >
           <StatusDot item={props.item} />
-          <span className="min-w-0 flex-1 truncate">{props.item.title}</span>
-          <span className="shrink-0 text-detail text-muted-foreground/50">{props.item.ago}</span>
+          <span className="agent-sidebar-cell-text min-w-0 flex-1 truncate">
+            {props.item.title}
+          </span>
+          <span className="agent-sidebar-cell-subtitle shrink-0 text-detail text-muted-foreground/50">
+            {props.item.ago}
+          </span>
         </RowButton>
       );
     }
@@ -165,9 +170,11 @@ export const AgentRow = memo(
         {renaming ? (
           <div
             className={cn(
-              "font-multi flex min-h-7.5 w-full min-w-0 items-center gap-2 rounded-multi-control border border-transparent px-2 py-1 text-left text-body/[18px]",
+              "agent-sidebar-cell font-multi flex min-h-7.5 w-full min-w-0 items-center gap-2 rounded-multi-control border border-transparent px-2 py-1 text-left text-body/[18px]",
               "border-multi-stroke-strong bg-multi-active",
             )}
+            data-agent-sidebar-cell=""
+            data-renaming="true"
           >
             <StatusDot item={props.item} />
             <input
@@ -181,18 +188,25 @@ export const AgentRow = memo(
               className="min-w-0 flex-1 bg-transparent text-body/[18px] text-foreground outline-none ring-0"
               aria-label="Rename thread"
             />
-            <span className="shrink-0 text-detail text-muted-foreground/50">{props.item.ago}</span>
+            <span className="agent-sidebar-cell-subtitle shrink-0 text-detail text-muted-foreground/50">
+              {props.item.ago}
+            </span>
           </div>
         ) : (
           <RowButton
             variant="agent"
             data-selected={props.selected}
             data-chat-item=""
+            data-agent-sidebar-cell=""
             onClick={() => props.onSelectAgent(props.item.id)}
           >
             <StatusDot item={props.item} />
-            <span className="min-w-0 flex-1 truncate">{props.item.title}</span>
-            <span className="shrink-0 text-detail text-muted-foreground/50">{props.item.ago}</span>
+            <span className="agent-sidebar-cell-text min-w-0 flex-1 truncate">
+              {props.item.title}
+            </span>
+            <span className="agent-sidebar-cell-subtitle shrink-0 text-detail text-muted-foreground/50">
+              {props.item.ago}
+            </span>
           </RowButton>
         )}
       </ThreadContextMenu>

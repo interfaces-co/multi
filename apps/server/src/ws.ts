@@ -14,6 +14,8 @@ import {
   OrchestrationGetSnapshotError,
   OrchestrationGetTurnDiffError,
   ORCHESTRATION_WS_METHODS,
+  ProjectListEntriesError,
+  ProjectReadFileError,
   ProjectSearchEntriesError,
   ProjectWriteFileError,
   OrchestrationReplayEventsError,
@@ -675,13 +677,6 @@ const makeWsRpcLayer = (currentSessionId: AuthSessionId) =>
                   .pipe(Effect.map((readModel) => readModel.snapshotSequence)),
               ]);
 
-              if (Option.isNone(threadDetail)) {
-                return yield* new OrchestrationGetSnapshotError({
-                  message: `Thread ${input.threadId} was not found`,
-                  cause: input.threadId,
-                });
-              }
-
               const liveStream = orchestrationEngine.streamDomainEvents.pipe(
                 Stream.filter(
                   (event) =>
@@ -694,6 +689,10 @@ const makeWsRpcLayer = (currentSessionId: AuthSessionId) =>
                   event,
                 })),
               );
+
+              if (Option.isNone(threadDetail)) {
+                return liveStream;
+              }
 
               return Stream.concat(
                 Stream.make({
@@ -746,6 +745,36 @@ const makeWsRpcLayer = (currentSessionId: AuthSessionId) =>
                     cause,
                   }),
               ),
+            ),
+            { "rpc.aggregate": "workspace" },
+          ),
+        [WS_METHODS.projectsListEntries]: (input) =>
+          observeRpcEffect(
+            WS_METHODS.projectsListEntries,
+            workspaceEntries.list(input).pipe(
+              Effect.mapError(
+                (cause) =>
+                  new ProjectListEntriesError({
+                    message: `Failed to list workspace entries: ${cause.detail}`,
+                    cause,
+                  }),
+              ),
+            ),
+            { "rpc.aggregate": "workspace" },
+          ),
+        [WS_METHODS.projectsReadFile]: (input) =>
+          observeRpcEffect(
+            WS_METHODS.projectsReadFile,
+            workspaceFileSystem.readFile(input).pipe(
+              Effect.mapError((cause) => {
+                const message = Schema.is(WorkspacePathOutsideRootError)(cause)
+                  ? "Workspace file path must stay within the project root."
+                  : `Failed to read workspace file: ${cause.detail}`;
+                return new ProjectReadFileError({
+                  message,
+                  cause,
+                });
+              }),
             ),
             { "rpc.aggregate": "workspace" },
           ),

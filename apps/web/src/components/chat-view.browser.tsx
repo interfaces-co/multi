@@ -3761,10 +3761,10 @@ describe("ChatView timeline estimator parity (full app)", () => {
         codex: {
           provider: "codex",
           model: "gpt-5.3-codex",
-          options: {
-            reasoningEffort: "medium",
-            fastMode: true,
-          },
+          options: [
+            { id: "reasoningEffort", value: "medium" },
+            { id: "fastMode", value: true },
+          ],
         },
       },
       stickyActiveProvider: "codex",
@@ -3796,9 +3796,7 @@ describe("ChatView timeline estimator parity (full app)", () => {
           codex: {
             provider: "codex",
             model: "gpt-5.3-codex",
-            options: {
-              fastMode: true,
-            },
+            options: [{ id: "fastMode", value: true }],
           },
         },
         activeProvider: "codex",
@@ -3814,10 +3812,10 @@ describe("ChatView timeline estimator parity (full app)", () => {
         claudeAgent: {
           provider: "claudeAgent",
           model: "claude-opus-4-6",
-          options: {
-            effort: "max",
-            fastMode: true,
-          },
+          options: [
+            { id: "effort", value: "max" },
+            { id: "fastMode", value: true },
+          ],
         },
       },
       stickyActiveProvider: "claudeAgent",
@@ -3849,10 +3847,10 @@ describe("ChatView timeline estimator parity (full app)", () => {
           claudeAgent: {
             provider: "claudeAgent",
             model: "claude-opus-4-6",
-            options: {
-              effort: "max",
-              fastMode: true,
-            },
+            options: [
+              { id: "effort", value: "max" },
+              { id: "fastMode", value: true },
+            ],
           },
         },
         activeProvider: "claudeAgent",
@@ -3896,10 +3894,10 @@ describe("ChatView timeline estimator parity (full app)", () => {
         codex: {
           provider: "codex",
           model: "gpt-5.3-codex",
-          options: {
-            reasoningEffort: "medium",
-            fastMode: true,
-          },
+          options: [
+            { id: "reasoningEffort", value: "medium" },
+            { id: "fastMode", value: true },
+          ],
         },
       },
       stickyActiveProvider: "codex",
@@ -3931,9 +3929,7 @@ describe("ChatView timeline estimator parity (full app)", () => {
           codex: {
             provider: "codex",
             model: "gpt-5.3-codex",
-            options: {
-              fastMode: true,
-            },
+            options: [{ id: "fastMode", value: true }],
           },
         },
         activeProvider: "codex",
@@ -3942,10 +3938,10 @@ describe("ChatView timeline estimator parity (full app)", () => {
       useComposerDraftStore.getState().setModelSelection(draftId, {
         provider: "codex",
         model: "gpt-5.4",
-        options: {
-          reasoningEffort: "low",
-          fastMode: true,
-        },
+        options: [
+          { id: "reasoningEffort", value: "low" },
+          { id: "fastMode", value: true },
+        ],
       });
 
       await newThreadButton.click();
@@ -3960,10 +3956,10 @@ describe("ChatView timeline estimator parity (full app)", () => {
           codex: {
             provider: "codex",
             model: "gpt-5.4",
-            options: {
-              reasoningEffort: "low",
-              fastMode: true,
-            },
+            options: [
+              { id: "reasoningEffort", value: "low" },
+              { id: "fastMode", value: true },
+            ],
           },
         },
         activeProvider: "codex",

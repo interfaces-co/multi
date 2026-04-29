@@ -31,6 +31,7 @@ export interface CommandPaletteSubmenuItem extends CommandPaletteItem {
   readonly addonIcon: ReactNode;
   readonly groups: ReadonlyArray<CommandPaletteGroup>;
   readonly initialQuery?: string;
+  readonly placeholder?: string;
 }
 
 export interface CommandPaletteGroup {
@@ -43,6 +44,7 @@ export interface CommandPaletteView {
   readonly addonIcon: ReactNode;
   readonly groups: ReadonlyArray<CommandPaletteGroup>;
   readonly initialQuery?: string;
+  readonly placeholder?: string;
 }
 
 export type CommandPaletteMode = "root" | "root-browse" | "submenu" | "submenu-browse";

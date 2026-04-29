@@ -108,6 +108,7 @@ type SerializedComposerSkillNode = Spread<
     skillName: string;
     skillLabel?: string;
     skillDescription?: string;
+    skillPath?: string;
     type: "composer-skill";
     version: 1;
   },
@@ -286,6 +287,7 @@ class ComposerSkillNode extends DecoratorNode<ReactElement> {
   __skillName: string;
   __skillLabel: string;
   __skillDescription: string | null;
+  __skillPath: string | null;
 
   static override getType(): string {
     return "composer-skill";
@@ -296,6 +298,7 @@ class ComposerSkillNode extends DecoratorNode<ReactElement> {
       node.__skillName,
       node.__skillLabel,
       node.__skillDescription,
+      node.__skillPath,
       node.__key,
     );
   }
@@ -305,6 +308,7 @@ class ComposerSkillNode extends DecoratorNode<ReactElement> {
       serializedNode.skillName,
       serializedNode.skillLabel ?? serializedNode.skillName,
       serializedNode.skillDescription ?? null,
+      serializedNode.skillPath ?? null,
     ).updateFromJSON(serializedNode);
   }
 
@@ -312,6 +316,7 @@ class ComposerSkillNode extends DecoratorNode<ReactElement> {
     skillName: string,
     skillLabel: string,
     skillDescription: string | null,
+    skillPath: string | null,
     key?: NodeKey,
   ) {
     super(key);
@@ -319,6 +324,7 @@ class ComposerSkillNode extends DecoratorNode<ReactElement> {
     this.__skillName = normalizedSkillName;
     this.__skillLabel = skillLabel;
     this.__skillDescription = skillDescription;
+    this.__skillPath = skillPath;
   }
 
   override exportJSON(): SerializedComposerSkillNode {
@@ -327,6 +333,7 @@ class ComposerSkillNode extends DecoratorNode<ReactElement> {
       skillName: this.__skillName,
       skillLabel: this.__skillLabel,
       ...(this.__skillDescription ? { skillDescription: this.__skillDescription } : {}),
+      ...(this.__skillPath ? { skillPath: this.__skillPath } : {}),
       type: "composer-skill",
       version: 1,
     };
@@ -343,6 +350,9 @@ class ComposerSkillNode extends DecoratorNode<ReactElement> {
   }
 
   override getTextContent(): string {
+    if (this.__skillPath) {
+      return `[$${this.__skillName}](${this.__skillPath})`;
+    }
     return `$${this.__skillName}`;
   }
 
@@ -364,8 +374,11 @@ function $createComposerSkillNode(
   skillName: string,
   skillLabel: string,
   skillDescription: string | null,
+  skillPath: string | null,
 ): ComposerSkillNode {
-  return $applyNodeReplacement(new ComposerSkillNode(skillName, skillLabel, skillDescription));
+  return $applyNodeReplacement(
+    new ComposerSkillNode(skillName, skillLabel, skillDescription, skillPath),
+  );
 }
 
 function ComposerTerminalContextDecorator(props: { context: TerminalContextDraft }) {
@@ -848,6 +861,7 @@ function $setComposerEditorPrompt(
           segment.name,
           metadata?.label ?? formatProviderSkillDisplayName({ name: segment.name }),
           metadata?.description ?? null,
+          segment.path ?? null,
         ),
       );
       continue;

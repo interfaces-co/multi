@@ -848,6 +848,86 @@ describe("respondToUserInput", () => {
     expect(request?.requestKind).toBe("file-read");
     expect(request?.method).toBe("item/fileRead/requestApproval");
   });
+
+  it("tracks permissions approval requests with the correct method", () => {
+    const manager = new CodexAppServerManager();
+    const context = {
+      session: {
+        sessionId: "sess_1",
+        provider: "codex",
+        status: "ready",
+        threadId: asThreadId("thread_1"),
+        resumeCursor: { threadId: "thread_1" },
+        createdAt: "2026-02-10T00:00:00.000Z",
+        updatedAt: "2026-02-10T00:00:00.000Z",
+      },
+      pendingApprovals: new Map(),
+      pendingUserInputs: new Map(),
+      collabReceiverTurns: new Map(),
+    };
+    type ApprovalRequestContext = {
+      session: typeof context.session;
+      pendingApprovals: typeof context.pendingApprovals;
+      pendingUserInputs: typeof context.pendingUserInputs;
+      collabReceiverTurns: typeof context.collabReceiverTurns;
+    };
+
+    (
+      manager as unknown as {
+        handleServerRequest: (
+          context: ApprovalRequestContext,
+          request: Record<string, unknown>,
+        ) => void;
+      }
+    ).handleServerRequest(context, {
+      jsonrpc: "2.0",
+      id: 43,
+      method: "item/permissions/requestApproval",
+      params: {},
+    });
+
+    const request = Array.from(context.pendingApprovals.values())[0];
+    expect(request?.requestKind).toBe("permissions");
+    expect(request?.method).toBe("item/permissions/requestApproval");
+  });
+
+  it("tracks MCP elicitation as a typed user-input request", () => {
+    const manager = new CodexAppServerManager();
+    const context = {
+      session: {
+        sessionId: "sess_1",
+        provider: "codex",
+        status: "ready",
+        threadId: asThreadId("thread_1"),
+        resumeCursor: { threadId: "thread_1" },
+        createdAt: "2026-02-10T00:00:00.000Z",
+        updatedAt: "2026-02-10T00:00:00.000Z",
+      },
+      pendingApprovals: new Map(),
+      pendingUserInputs: new Map(),
+      collabReceiverTurns: new Map(),
+    };
+    type RequestContext = {
+      session: typeof context.session;
+      pendingApprovals: typeof context.pendingApprovals;
+      pendingUserInputs: typeof context.pendingUserInputs;
+      collabReceiverTurns: typeof context.collabReceiverTurns;
+    };
+
+    (
+      manager as unknown as {
+        handleServerRequest: (context: RequestContext, request: Record<string, unknown>) => void;
+      }
+    ).handleServerRequest(context, {
+      jsonrpc: "2.0",
+      id: 44,
+      method: "mcpServer/elicitation/request",
+      params: {},
+    });
+
+    const request = Array.from(context.pendingUserInputs.values())[0];
+    expect(request?.method).toBe("mcpServer/elicitation/request");
+  });
 });
 
 describe("collab child conversation routing", () => {

@@ -8,8 +8,12 @@
     },
     "dev": {
       "dependsOn": ["usemulti#build"],
+      "with": ["@multi/web#dev", "@multi/desktop#dev:bundle"],
       "persistent": true,
-      "with": ["@multi/web#dev"],
+    },
+    "dev:bundle": {
+      "cache": false,
+      "persistent": true,
     },
     "start": {
       "dependsOn": ["build", "@multi/web#build", "usemulti#build"],

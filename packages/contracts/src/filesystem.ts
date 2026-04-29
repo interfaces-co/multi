@@ -21,6 +21,11 @@ export const FilesystemBrowseResult = Schema.Struct({
 });
 export type FilesystemBrowseResult = typeof FilesystemBrowseResult.Type;
 
+export const FilesystemPreviewSyntax = Schema.Struct({
+  languageId: TrimmedNonEmptyString,
+});
+export type FilesystemPreviewSyntax = typeof FilesystemPreviewSyntax.Type;
+
 export class FilesystemBrowseError extends Schema.TaggedErrorClass<FilesystemBrowseError>()(
   "FilesystemBrowseError",
   {

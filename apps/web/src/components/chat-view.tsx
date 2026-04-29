@@ -1,7 +1,6 @@
 import {
   type ApprovalRequestId,
   DEFAULT_MODEL_BY_PROVIDER,
-  type ClaudeCodeEffort,
   type EnvironmentId,
   type MessageId,
   type ModelSelection,
@@ -294,8 +293,12 @@ function formatOutgoingPrompt(params: {
   text: string;
 }): string {
   const caps = getProviderModelCapabilities(params.models, params.model, params.provider);
-  if (params.effort && caps.promptInjectedEffortLevels.includes(params.effort)) {
-    return applyClaudePromptEffortPrefix(params.text, params.effort as ClaudeCodeEffort | null);
+  const promptInjectedValues =
+    caps.optionDescriptors
+      ?.filter((descriptor) => descriptor.type === "select")
+      .flatMap((descriptor) => descriptor.promptInjectedValues ?? []) ?? [];
+  if (params.effort && promptInjectedValues.includes(params.effort)) {
+    return applyClaudePromptEffortPrefix(params.text, params.effort);
   }
   return params.text;
 }
@@ -2995,7 +2998,7 @@ export default function ChatView(props: ChatViewProps) {
 
   const onProviderModelSelect = useCallback(
     (provider: ProviderKind, model: string) => {
-      if (!activeThread) return;
+      if (!activeThread && routeKind !== "draft") return;
       if (lockedProvider !== null && provider !== lockedProvider) {
         scheduleComposerFocus();
         return;
@@ -3012,7 +3015,9 @@ export default function ChatView(props: ChatViewProps) {
         model: resolvedModel,
       };
       setComposerDraftModelSelection(
-        scopeThreadRef(activeThread.environmentId, activeThread.id),
+        activeThread
+          ? scopeThreadRef(activeThread.environmentId, activeThread.id)
+          : composerDraftTarget,
         nextModelSelection,
       );
       setStickyComposerModelSelection(nextModelSelection);
@@ -3020,7 +3025,9 @@ export default function ChatView(props: ChatViewProps) {
     },
     [
       activeThread,
+      composerDraftTarget,
       lockedProvider,
+      routeKind,
       scheduleComposerFocus,
       setComposerDraftModelSelection,
       setStickyComposerModelSelection,

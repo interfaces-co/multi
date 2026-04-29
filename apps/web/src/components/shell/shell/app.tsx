@@ -180,11 +180,12 @@ function LeftAside(props: { cwd: string | null; children: ReactNode }) {
   return (
     <aside
       className={cn(
-        "multi-shell-sidebar relative flex shrink-0 flex-col overflow-hidden border-multi-border/50",
+        "agent-window__sidebar multi-shell-sidebar relative flex shrink-0 flex-col overflow-hidden border-multi-border/50",
         dragging
           ? "transition-none"
           : "transition-[width,border-right-width] duration-150 ease-out motion-reduce:transition-none",
       )}
+      data-agent-window-sidebar=""
       ref={asideRef}
       style={{
         width: leftOpen ? leftWidth : 0,
@@ -340,11 +341,12 @@ function RightAside(props: {
   return (
     <aside
       className={cn(
-        "multi-shell-surface relative flex shrink-0 flex-col overflow-hidden border-multi-border/50",
+        "agent-window__workbench multi-shell-surface relative flex shrink-0 flex-col overflow-hidden border-multi-border/50",
         dragging
           ? "transition-none"
           : "transition-[width,border-left-width] duration-100 ease-[cubic-bezier(0.19,1,0.22,1)] motion-reduce:transition-none",
       )}
+      data-agent-window-workbench=""
       ref={asideRef}
       style={{
         width: rightOpen ? rightWidth : 0,
@@ -481,13 +483,17 @@ export function AppShell(props: {
   const showRight = props.right !== null;
 
   return (
-    <div className="relative flex h-full min-w-0 flex-1 flex-row bg-transparent">
+    <div
+      className="agent-window relative flex h-full min-w-0 flex-1 flex-row bg-transparent"
+      data-component="root"
+      data-agent-window=""
+    >
       <LeftAside cwd={props.cwd}>{props.left}</LeftAside>
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="agent-window__body flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="relative flex min-h-0 flex-1 flex-row">
           <main
-            className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-multi-chat outline-hidden"
+            className="agent-panel agent-window__agent-panel flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-multi-chat outline-hidden"
             data-component="agent-panel"
           >
             {electron ? (

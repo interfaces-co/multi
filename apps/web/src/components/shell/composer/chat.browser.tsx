@@ -16,6 +16,14 @@ const mocks = vi.hoisted(() => ({
       listSkills: vi.fn(async () => []),
     },
     projects: {
+      listEntries: vi.fn(async () => ({ entries: [], truncated: false })),
+      readFile: vi.fn(async () => ({
+        relativePath: "README.md",
+        contents: "",
+        sizeBytes: 0,
+        truncated: false,
+        syntax: { languageId: "markdown" },
+      })),
       searchEntries: vi.fn(async () => ({ entries: [] })),
     },
     git: {
@@ -49,6 +57,12 @@ vi.mock("~/native-api", () => ({
   readNativeApi: () => mocks.api,
 }));
 
+vi.mock("~/lib/native-runtime-api", () => ({
+  ensureNativeEnvironmentApi: () => mocks.api,
+  readNativeEnvironmentApi: () => mocks.api,
+  readNativeRuntimeApi: () => mocks.api,
+}));
+
 vi.mock("~/hooks/use-runtime-models", () => ({
   useRuntimeModels: () => mocks.runtime,
 }));
@@ -70,8 +84,74 @@ vi.mock("~/lib/thread-session-store", () => ({
 }));
 
 vi.mock("~/store", () => ({
+  selectProjectsAcrossEnvironments: () => [
+    {
+      id: "project-1",
+      environmentId: "env-1",
+      name: "Project",
+      cwd: "/tmp/project",
+      repositoryIdentity: null,
+      defaultModelSelection: null,
+      scripts: [],
+    },
+  ],
+  selectBootstrapCompleteForActiveEnvironment: () => true,
+  selectEnvironmentState: (state: { environmentStateById: Record<string, unknown> }, id: string) =>
+    state.environmentStateById[id],
+  selectProjectByRef: () => null,
+  selectProjectsForEnvironment: () => [],
+  selectSidebarThreadsForProjectRef: () => [],
+  selectSidebarThreadsForProjectRefs: () => [],
+  selectSidebarThreadsAcrossEnvironments: () => [],
+  selectSidebarThreadSummaryByRef: () => null,
+  selectThreadByRef: () => null,
+  selectThreadExistsByRef: () => false,
+  selectThreadIdsByProjectRef: () => [],
+  selectThreadShellsAcrossEnvironments: () => [],
+  selectThreadsAcrossEnvironments: () => [],
+  selectThreadsForEnvironment: () => [],
   useStore: (pick: (state: object) => unknown) =>
     pick({
+      activeEnvironmentId: "env-1",
+      environmentStateById: {
+        "env-1": {
+          projectIds: ["project-1"],
+          projectById: {
+            "project-1": {
+              id: "project-1",
+              environmentId: "env-1",
+              name: "Project",
+              cwd: "/tmp/project",
+              repositoryIdentity: null,
+              defaultModelSelection: null,
+              scripts: [],
+            },
+          },
+          threadIds: ["thread-fast"],
+          threadIdsByProjectId: { "project-1": ["thread-fast"] },
+          threadShellById: {
+            "thread-fast": {
+              id: "thread-fast",
+              projectId: "project-1",
+              environmentId: "env-1",
+              title: "Thread",
+              branch: null,
+            },
+          },
+          threadSessionById: {},
+          threadTurnStateById: {},
+          messageIdsByThreadId: {},
+          messageByThreadId: {},
+          activityIdsByThreadId: {},
+          activityByThreadId: {},
+          proposedPlanIdsByThreadId: {},
+          proposedPlanByThreadId: {},
+          turnDiffIdsByThreadId: {},
+          turnDiffSummaryByThreadId: {},
+          sidebarThreadSummaryById: {},
+          bootstrapComplete: true,
+        },
+      },
       threads: [{ id: "thread-fast", branch: null }],
     }),
 }));

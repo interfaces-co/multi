@@ -1,18 +1,19 @@
-// @ts-nocheck
 import {
   CommandId,
   DEFAULT_MODEL_BY_PROVIDER,
   PROVIDER_DISPLAY_NAMES,
-  type ClaudeModelOptions,
-  type CodexModelOptions,
   type ModelSelection,
+  type ProviderOptionDescriptor,
+  type ProviderOptionSelection,
   type ProviderKind,
   type ServerProvider,
 } from "@multi/contracts";
 import type { HarnessModelRef, ThinkingLevel } from "~/lib/ui-session-types";
 import {
-  normalizeClaudeModelOptionsWithCapabilities,
-  normalizeCodexModelOptionsWithCapabilities,
+  buildProviderOptionSelectionsFromDescriptors,
+  getModelSelectionBooleanOptionValue,
+  getModelSelectionStringOptionValue,
+  getProviderOptionDescriptors,
   resolveSelectableModel,
 } from "@multi/shared/model";
 
@@ -24,7 +25,7 @@ import {
   getProviderModels,
   resolveSelectableProvider,
 } from "../provider-models";
-import { useStore } from "../store";
+import { selectProjectsForEnvironment, useStore } from "../store";
 import type { Project } from "../types";
 import { readStoredWorkspaceCwd } from "./workspace-state";
 
@@ -48,7 +49,7 @@ export interface RuntimeDefaultsRead {
   modelRef: RuntimeModelItem | HarnessModelRef | null;
 }
 
-const commandId = () => CommandId.makeUnsafe(crypto.randomUUID());
+const commandId = () => CommandId.make(crypto.randomUUID());
 
 export function readStoredCwd() {
   return readStoredWorkspaceCwd();
@@ -75,17 +76,69 @@ export function displayProviderName(provider: string) {
     : provider;
 }
 
-function supportsXhigh(
-  provider: ProviderKind,
-  caps: ServerProvider["models"][number]["capabilities"],
-) {
-  if (!caps) return false;
-  if (provider === "codex") {
-    return caps.reasoningEffortLevels.some((item) => item.value === "xhigh");
-  }
-  return caps.reasoningEffortLevels.some(
-    (item) => item.value === "max" || item.value === "ultrathink",
+function supportsXhigh(caps: ServerProvider["models"][number]["capabilities"]) {
+  const descriptor = getReasoningDescriptor(caps);
+  return Boolean(
+    descriptor?.type === "select" &&
+    descriptor.options.some(
+      (item) => item.id === "xhigh" || item.id === "max" || item.id === "ultrathink",
+    ),
   );
+}
+
+const REASONING_OPTION_IDS = ["reasoningEffort", "effort", "reasoning"] as const;
+
+function findOptionDescriptor(
+  caps: ServerProvider["models"][number]["capabilities"],
+  ids: ReadonlyArray<string>,
+): ProviderOptionDescriptor | undefined {
+  return caps?.optionDescriptors?.find((descriptor) => ids.includes(descriptor.id));
+}
+
+function getReasoningDescriptor(
+  caps: ServerProvider["models"][number]["capabilities"],
+): ProviderOptionDescriptor | undefined {
+  return findOptionDescriptor(caps, REASONING_OPTION_IDS);
+}
+
+function hasBooleanOption(
+  caps: ServerProvider["models"][number]["capabilities"],
+  id: string,
+): boolean {
+  return caps?.optionDescriptors?.some((descriptor) => descriptor.id === id) ?? false;
+}
+
+function getReasoningSelection(selection: ModelSelection | null | undefined): string | undefined {
+  for (const id of REASONING_OPTION_IDS) {
+    const value = getModelSelectionStringOptionValue(selection, id);
+    if (value) return value;
+  }
+  return undefined;
+}
+
+function setOptionSelection(
+  options: ReadonlyArray<ProviderOptionSelection> | null | undefined,
+  id: string,
+  value: string | boolean | undefined,
+): Array<ProviderOptionSelection> | undefined {
+  const next = (options ?? []).filter((option) => option.id !== id);
+  if (typeof value === "string" && value.trim().length > 0) {
+    next.push({ id, value });
+  } else if (typeof value === "boolean") {
+    next.push({ id, value });
+  }
+  return next.length > 0 ? next : undefined;
+}
+
+function withOptions(
+  selection: ModelSelection,
+  options: ReadonlyArray<ProviderOptionSelection> | undefined,
+): ModelSelection {
+  return {
+    provider: selection.provider,
+    model: selection.model,
+    ...(options && options.length > 0 ? { options } : {}),
+  } as ModelSelection;
 }
 
 export function toModelItem(
@@ -98,10 +151,10 @@ export function toModelItem(
     id: item.slug,
     name: item.name,
     reasoning:
-      Boolean(item.capabilities?.supportsThinkingToggle) ||
-      Boolean(item.capabilities?.reasoningEffortLevels.length),
-    supportsFastMode: Boolean(item.capabilities?.supportsFastMode),
-    supportsXhigh: supportsXhigh(provider, item.capabilities),
+      Boolean(getReasoningDescriptor(item.capabilities)) ||
+      hasBooleanOption(item.capabilities, "thinking"),
+    supportsFastMode: hasBooleanOption(item.capabilities, "fastMode"),
+    supportsXhigh: supportsXhigh(item.capabilities),
   };
 }
 
@@ -111,9 +164,8 @@ function fallbackModel(selection: ModelSelection): HarnessModelRef {
     id: selection.model,
     name: selection.model,
     reasoning:
-      selection.provider === "codex"
-        ? Boolean(selection.options?.reasoningEffort)
-        : Boolean(selection.options?.thinking) || Boolean(selection.options?.effort),
+      Boolean(getReasoningSelection(selection)) ||
+      getModelSelectionBooleanOptionValue(selection, "thinking") === true,
   };
 }
 
@@ -146,16 +198,11 @@ export function resolveRuntimeSelection(
     model,
     provider,
   );
-  const options =
-    provider === "codex"
-      ? normalizeCodexModelOptionsWithCapabilities(
-          caps,
-          prev?.provider === "codex" ? prev.options : undefined,
-        )
-      : normalizeClaudeModelOptionsWithCapabilities(
-          caps,
-          prev?.provider === "claudeAgent" ? prev.options : undefined,
-        );
+  const descriptors = getProviderOptionDescriptors({
+    caps,
+    selections: prev?.provider === provider ? prev.options : undefined,
+  });
+  const options = buildProviderOptionSelectionsFromDescriptors(descriptors);
 
   return {
     provider,
@@ -184,23 +231,8 @@ export function filterRuntimeModels(items: readonly RuntimeModelItem[], query: s
 
 export function selectionToThinking(selection: ModelSelection | null | undefined): ThinkingLevel {
   if (!selection) return "off";
-  if (selection.provider === "codex") {
-    switch (selection.options?.reasoningEffort) {
-      case "low":
-        return "low";
-      case "medium":
-        return "medium";
-      case "high":
-        return "high";
-      case "xhigh":
-        return "xhigh";
-      default:
-        return "off";
-    }
-  }
-
-  if (selection.options?.thinking === false) return "off";
-  switch (selection.options?.effort) {
+  if (getModelSelectionBooleanOptionValue(selection, "thinking") === false) return "off";
+  switch (getReasoningSelection(selection)) {
     case "low":
       return "low";
     case "medium":
@@ -211,12 +243,12 @@ export function selectionToThinking(selection: ModelSelection | null | undefined
     case "ultrathink":
       return "xhigh";
     default:
-      return selection.options?.thinking ? "medium" : "off";
+      return getModelSelectionBooleanOptionValue(selection, "thinking") === true ? "medium" : "off";
   }
 }
 
 export function selectionToFastMode(selection: ModelSelection | null | undefined) {
-  return selection?.options?.fastMode === true;
+  return getModelSelectionBooleanOptionValue(selection, "fastMode") === true;
 }
 
 export function selectionSupportsFastMode(
@@ -224,40 +256,17 @@ export function selectionSupportsFastMode(
   selection: ModelSelection | null | undefined,
 ) {
   if (!selection) return false;
-  return getProviderModelCapabilities(
-    getProviderModels(providers, selection.provider),
-    selection.model,
-    selection.provider,
-  ).supportsFastMode;
+  return (
+    getProviderModelCapabilities(
+      getProviderModels(providers, selection.provider),
+      selection.model,
+      selection.provider,
+    ).optionDescriptors?.some((descriptor) => descriptor.id === "fastMode") ?? false
+  );
 }
 
 export function applyThinking(selection: ModelSelection, level: ThinkingLevel): ModelSelection {
-  if (selection.provider === "codex") {
-    const reasoningEffort: CodexModelOptions["reasoningEffort"] =
-      level === "off"
-        ? undefined
-        : level === "minimal" || level === "low"
-          ? "low"
-          : level === "medium"
-            ? "medium"
-            : level === "xhigh"
-              ? "xhigh"
-              : "high";
-    const options: CodexModelOptions = {
-      ...(reasoningEffort ? { reasoningEffort } : {}),
-      ...(selection.options?.fastMode !== undefined
-        ? { fastMode: selection.options.fastMode }
-        : {}),
-    };
-    const next: Extract<ModelSelection, { provider: "codex" }> = {
-      provider: "codex",
-      model: selection.model,
-      ...(Object.keys(options).length > 0 ? { options } : {}),
-    };
-    return next;
-  }
-
-  const effort: ClaudeModelOptions["effort"] =
+  const reasoningValue =
     level === "off"
       ? undefined
       : level === "minimal" || level === "low"
@@ -267,50 +276,21 @@ export function applyThinking(selection: ModelSelection, level: ThinkingLevel): 
           : level === "xhigh"
             ? "max"
             : "high";
-  const options: ClaudeModelOptions = {
-    thinking: level !== "off",
-    ...(effort ? { effort } : {}),
-    ...(selection.options?.fastMode !== undefined ? { fastMode: selection.options.fastMode } : {}),
-    ...(selection.options?.contextWindow !== undefined
-      ? { contextWindow: selection.options.contextWindow }
-      : {}),
-  };
-  const next: Extract<ModelSelection, { provider: "claudeAgent" }> = {
-    provider: "claudeAgent",
-    model: selection.model,
-    ...(Object.keys(options).length > 0 ? { options } : {}),
-  };
-  return next;
+  const id =
+    selection.provider === "codex"
+      ? "reasoningEffort"
+      : selection.provider === "cursor"
+        ? "reasoning"
+        : "effort";
+  let options = setOptionSelection(selection.options, id, reasoningValue);
+  if (selection.options?.some((option) => option.id === "thinking")) {
+    options = setOptionSelection(options, "thinking", level !== "off");
+  }
+  return withOptions(selection, options);
 }
 
 export function applyFastMode(selection: ModelSelection, on: boolean): ModelSelection {
-  if (selection.provider === "codex") {
-    const options: CodexModelOptions = {
-      ...(selection.options?.reasoningEffort
-        ? { reasoningEffort: selection.options.reasoningEffort }
-        : {}),
-      ...(on || selection.options?.fastMode !== undefined ? { fastMode: on } : {}),
-    };
-    return {
-      provider: "codex",
-      model: selection.model,
-      ...(Object.keys(options).length > 0 ? { options } : {}),
-    };
-  }
-
-  const options: ClaudeModelOptions = {
-    ...(selection.options?.thinking !== undefined ? { thinking: selection.options.thinking } : {}),
-    ...(selection.options?.effort ? { effort: selection.options.effort } : {}),
-    ...(on || selection.options?.fastMode !== undefined ? { fastMode: on } : {}),
-    ...(selection.options?.contextWindow !== undefined
-      ? { contextWindow: selection.options.contextWindow }
-      : {}),
-  };
-  return {
-    provider: "claudeAgent",
-    model: selection.model,
-    ...(Object.keys(options).length > 0 ? { options } : {}),
-  };
+  return withOptions(selection, setOptionSelection(selection.options, "fastMode", on));
 }
 
 export function listRuntimeModelsFromProviders(
@@ -376,7 +356,10 @@ export function readRuntimeDefaults(
 }
 
 export async function writeRuntimeDefaultModel(model: HarnessModelRef) {
-  const project = resolveActiveProject(useStore.getState().projects);
+  const state = useStore.getState();
+  const project = resolveActiveProject(
+    selectProjectsForEnvironment(state, state.activeEnvironmentId),
+  );
   if (!project) return;
   const orchestration = readNativeEnvironmentApi(project.environmentId)?.orchestration;
   if (!orchestration) return;
@@ -398,7 +381,10 @@ export async function writeRuntimeDefaultModel(model: HarnessModelRef) {
 }
 
 export async function clearRuntimeDefaultModel() {
-  const project = resolveActiveProject(useStore.getState().projects);
+  const state = useStore.getState();
+  const project = resolveActiveProject(
+    selectProjectsForEnvironment(state, state.activeEnvironmentId),
+  );
   if (!project) return;
   const orchestration = readNativeEnvironmentApi(project.environmentId)?.orchestration;
   if (!orchestration) return;
@@ -411,7 +397,10 @@ export async function clearRuntimeDefaultModel() {
 }
 
 export async function writeRuntimeDefaultThinkingLevel(level: ThinkingLevel) {
-  const project = resolveActiveProject(useStore.getState().projects);
+  const state = useStore.getState();
+  const project = resolveActiveProject(
+    selectProjectsForEnvironment(state, state.activeEnvironmentId),
+  );
   if (!project) return;
   const orchestration = readNativeEnvironmentApi(project.environmentId)?.orchestration;
   if (!orchestration) return;
@@ -426,7 +415,10 @@ export async function writeRuntimeDefaultThinkingLevel(level: ThinkingLevel) {
 }
 
 export async function writeRuntimeDefaultFastMode(on: boolean) {
-  const project = resolveActiveProject(useStore.getState().projects);
+  const state = useStore.getState();
+  const project = resolveActiveProject(
+    selectProjectsForEnvironment(state, state.activeEnvironmentId),
+  );
   if (!project) return;
   const orchestration = readNativeEnvironmentApi(project.environmentId)?.orchestration;
   if (!orchestration) return;
