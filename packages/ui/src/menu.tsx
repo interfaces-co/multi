@@ -12,6 +12,26 @@ const Menu = MenuPrimitive.Root;
 
 const MenuPortal = MenuPrimitive.Portal;
 
+const cursorMenuPopupClassName =
+  "multi-slash-menu-popup flex max-h-[min(var(--available-height),20rem)] min-w-48 flex-col overflow-hidden rounded-[12px] border border-cursor-stroke-tertiary bg-cursor-bg-elevated font-multi text-[12px]/[16px] text-cursor-text-primary shadow-multi-popup outline-none backdrop-blur-xl focus:outline-none focus-visible:outline-none";
+
+const cursorMenuViewportClassName = "max-h-(--available-height) w-full overflow-y-auto p-1";
+
+const cursorMenuItemClassName =
+  "flex min-h-6 cursor-pointer select-none items-center gap-1.5 rounded-[4px] px-1 py-[3px] text-[12px]/[16px] text-cursor-text-secondary outline-none transition-colors hover:bg-cursor-bg-quaternary hover:text-cursor-text-primary data-disabled:pointer-events-none data-highlighted:bg-cursor-bg-tertiary data-highlighted:text-cursor-text-primary data-disabled:opacity-40 [&>svg:not([class*='size-'])]:size-3 [&>svg]:pointer-events-none [&>svg]:shrink-0";
+
+const cursorMenuIconSlotClassName =
+  "inline-flex h-4 w-4 shrink-0 items-center justify-center text-cursor-text-tertiary [&>svg]:size-3 [&>svg]:shrink-0";
+
+const cursorMenuPrimaryTextClassName = "truncate text-[12px]/[16px] text-cursor-text-primary";
+
+const cursorMenuMetaTextClassName = "truncate text-[11px]/[14px] text-cursor-text-tertiary";
+
+const cursorMenuLabelClassName =
+  "px-1 pt-1.5 pb-0.5 font-normal text-[11px]/[14px] text-cursor-text-tertiary first:pt-0.5";
+
+const cursorMenuSeparatorClassName = "mx-0 my-1 h-px shrink-0 bg-cursor-stroke-tertiary";
+
 function MenuTrigger({ className, children, ...props }: MenuPrimitive.Trigger.Props) {
   return (
     <MenuPrimitive.Trigger className={className} data-slot="menu-trigger" {...props}>
@@ -23,6 +43,7 @@ function MenuTrigger({ className, children, ...props }: MenuPrimitive.Trigger.Pr
 function MenuPopup({
   children,
   className,
+  variant = "default",
   sideOffset = 4,
   align = "center",
   alignOffset,
@@ -30,6 +51,7 @@ function MenuPopup({
   anchor,
   ...props
 }: MenuPrimitive.Popup.Props & {
+  variant?: "default" | "cursor";
   align?: MenuPrimitive.Positioner.Props["align"];
   sideOffset?: MenuPrimitive.Positioner.Props["sideOffset"];
   alignOffset?: MenuPrimitive.Positioner.Props["alignOffset"];
@@ -49,13 +71,23 @@ function MenuPopup({
       >
         <MenuPrimitive.Popup
           className={cn(
-            "relative flex not-[class*='w-']:min-w-32 origin-(--transform-origin) rounded-lg border bg-popover not-dark:bg-clip-padding shadow-lg/5 outline-none before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-lg)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] focus:outline-none dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
+            variant === "cursor"
+              ? cursorMenuPopupClassName
+              : "relative flex not-[class*='w-']:min-w-32 origin-(--transform-origin) rounded-lg border bg-popover not-dark:bg-clip-padding shadow-lg/5 outline-none before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-lg)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] focus:outline-none dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
             className,
           )}
           data-slot="menu-popup"
           {...props}
         >
-          <div className="max-h-(--available-height) w-full overflow-y-auto p-1">{children}</div>
+          <div
+            className={
+              variant === "cursor"
+                ? cursorMenuViewportClassName
+                : "max-h-(--available-height) w-full overflow-y-auto p-1"
+            }
+          >
+            {children}
+          </div>
         </MenuPrimitive.Popup>
       </MenuPrimitive.Positioner>
     </MenuPrimitive.Portal>
@@ -73,12 +105,14 @@ function MenuItem({
   ...props
 }: MenuPrimitive.Item.Props & {
   inset?: boolean;
-  variant?: "default" | "destructive";
+  variant?: "default" | "destructive" | "cursor";
 }) {
   return (
     <MenuPrimitive.Item
       className={cn(
-        "[&>svg]:-mx-0.5 flex min-h-8 cursor-default select-none items-center gap-2 rounded-sm px-2 py-1 text-base text-foreground outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-inset:ps-8 data-[variant=destructive]:text-destructive-foreground data-highlighted:text-accent-foreground data-disabled:opacity-64 sm:min-h-7 sm:text-sm [&>svg:not([class*='opacity-'])]:opacity-80 [&>svg:not([class*='size-'])]:size-4.5 sm:[&>svg:not([class*='size-'])]:size-4 [&>svg]:pointer-events-none [&>svg]:shrink-0",
+        variant === "cursor"
+          ? cursorMenuItemClassName
+          : "[&>svg]:-mx-0.5 flex min-h-8 cursor-default select-none items-center gap-2 rounded-sm px-2 py-1 text-base text-foreground outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-inset:ps-8 data-[variant=destructive]:text-destructive-foreground data-highlighted:text-accent-foreground data-disabled:opacity-64 sm:min-h-7 sm:text-sm [&>svg:not([class*='opacity-'])]:opacity-80 [&>svg:not([class*='size-'])]:size-4.5 sm:[&>svg:not([class*='size-'])]:size-4 [&>svg]:pointer-events-none [&>svg]:shrink-0",
         className,
       )}
       data-inset={inset}
@@ -180,14 +214,18 @@ function MenuRadioItem({ className, children, ...props }: MenuPrimitive.RadioIte
 function MenuGroupLabel({
   className,
   inset,
+  variant = "default",
   ...props
 }: MenuPrimitive.GroupLabel.Props & {
   inset?: boolean;
+  variant?: "default" | "cursor";
 }) {
   return (
     <MenuPrimitive.GroupLabel
       className={cn(
-        "px-2 py-1.5 font-medium text-muted-foreground text-xs data-inset:ps-9 sm:data-inset:ps-8",
+        variant === "cursor"
+          ? cursorMenuLabelClassName
+          : "px-2 py-1.5 font-medium text-muted-foreground text-xs data-inset:ps-9 sm:data-inset:ps-8",
         className,
       )}
       data-inset={inset}
@@ -197,10 +235,17 @@ function MenuGroupLabel({
   );
 }
 
-function MenuSeparator({ className, ...props }: MenuPrimitive.Separator.Props) {
+function MenuSeparator({
+  className,
+  variant = "default",
+  ...props
+}: MenuPrimitive.Separator.Props & { variant?: "default" | "cursor" }) {
   return (
     <MenuPrimitive.Separator
-      className={cn("mx-2 my-1 h-px bg-border", className)}
+      className={cn(
+        variant === "cursor" ? cursorMenuSeparatorClassName : "mx-2 my-1 h-px bg-border",
+        className,
+      )}
       data-slot="menu-separator"
       {...props}
     />
@@ -307,4 +352,12 @@ export {
   MenuSubTrigger as DropdownMenuSubTrigger,
   MenuSubPopup,
   MenuSubPopup as DropdownMenuSubContent,
+  cursorMenuItemClassName,
+  cursorMenuIconSlotClassName,
+  cursorMenuLabelClassName,
+  cursorMenuMetaTextClassName,
+  cursorMenuPrimaryTextClassName,
+  cursorMenuPopupClassName,
+  cursorMenuSeparatorClassName,
+  cursorMenuViewportClassName,
 };

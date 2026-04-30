@@ -212,6 +212,12 @@ function extractRequestKind(
     case "file_change_approval":
     case "apply_patch_approval":
       return "file-change";
+    case "permissions_approval":
+      return "permissions";
+    case "dynamic_tool_call":
+      return "dynamic-tool";
+    case "auth_tokens_refresh":
+      return "auth-refresh";
     default:
       return undefined;
   }
@@ -222,6 +228,10 @@ function isProviderRequestKind(value: unknown): value is ProviderRequestKind {
     case "command":
     case "file-read":
     case "file-change":
+    case "permissions":
+    case "mcp-elicitation":
+    case "dynamic-tool":
+    case "auth-refresh":
       return true;
     default:
       return false;

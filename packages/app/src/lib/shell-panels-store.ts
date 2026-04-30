@@ -3,8 +3,8 @@ import { create } from "zustand";
 const STORAGE_KEY = "multi.shell.panels.v1";
 const DEFAULT_CWD_KEY = "default";
 
-const LEFT_MIN = 180;
-const LEFT_MAX = 400;
+const LEFT_MIN = 164;
+const LEFT_MAX = 220;
 const RIGHT_MIN = 340;
 const RIGHT_MAX = 600;
 
@@ -41,7 +41,7 @@ interface PersistedShellPanelState {
 const DEFAULT_PANEL_STATE: ShellPanelState = Object.freeze({
   leftOpen: true,
   rightOpen: true,
-  leftW: 256,
+  leftW: 180,
   rightW: 400,
   activeTab: "files",
   muted: false,

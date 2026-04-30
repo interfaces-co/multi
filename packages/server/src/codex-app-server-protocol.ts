@@ -318,6 +318,14 @@ export function requestKindForCodexMethod(method: string): ProviderRequestKind |
       return "file-read";
     case "item/fileChange/requestApproval":
       return "file-change";
+    case "item/permissions/requestApproval":
+      return "permissions";
+    case "mcpServer/elicitation/request":
+      return "mcp-elicitation";
+    case "item/tool/call":
+      return "dynamic-tool";
+    case "account/chatgptAuthTokens/refresh":
+      return "auth-refresh";
     default:
       return undefined;
   }

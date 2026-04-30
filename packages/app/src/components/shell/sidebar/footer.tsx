@@ -10,17 +10,20 @@ export function ShellSidebarFooter(props: { settings?: boolean }) {
   const active = Boolean(props.settings);
 
   return (
-    <div className="agent-window-sidebar-footer mt-auto flex shrink-0 flex-col px-3 py-1.5">
+    <div className="agent-window-sidebar-footer mt-auto flex shrink-0 flex-col px-2 py-1.5">
       <UpdatePill />
-      <div className="flex items-center justify-between py-1">
-        <span className="agent-window-account-label text-detail text-muted-foreground/50">
-          Multi
+      <div className="agent-window-account-row flex min-h-7 items-center justify-between gap-2 rounded-multi-control px-1.5 py-1">
+        <span className="agent-window-account-label flex min-w-0 items-center gap-1.5 text-detail text-muted-foreground/55">
+          <span className="agent-window-account-avatar flex size-4 shrink-0 items-center justify-center rounded-full text-[9px]/[10px] font-medium">
+            M
+          </span>
+          <span className="min-w-0 truncate">Multi</span>
         </span>
         <div className="flex items-center gap-0.5">
           <Link
             to={active ? "/" : "/settings/general"}
             className={cn(
-              "flex size-7 items-center justify-center rounded-multi-control border border-transparent transition-colors",
+              "agent-window-footer-icon flex size-6 items-center justify-center rounded-multi-control border border-transparent transition-colors",
               active
                 ? "border-multi-border/90 bg-multi-active text-foreground hover:bg-multi-active"
                 : "text-muted-foreground/60 hover:bg-multi-hover hover:text-foreground",

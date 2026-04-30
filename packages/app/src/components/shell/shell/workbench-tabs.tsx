@@ -1,29 +1,64 @@
 "use client";
 
+import { Menu } from "@base-ui/react/menu";
 import {
-  IconBranch,
-  IconConsole,
-  IconFiles,
-  IconGlobe,
-  IconSidebarHiddenRightWide,
-} from "central-icons";
-import type { ComponentType } from "react";
+  CheckIcon,
+  FileTextIcon,
+  GitBranchIcon,
+  GlobeIcon,
+  PlusIcon,
+  SearchIcon,
+  TerminalIcon,
+} from "lucide-react";
+import { IconSidebarHiddenRightWide } from "central-icons";
+import { useMemo, useState, type ComponentType } from "react";
 
 import type { WorkbenchTab } from "~/lib/shell-panels-store";
 import { cn } from "~/lib/utils";
+import {
+  cursorMenuIconSlotClassName,
+  cursorMenuItemClassName,
+  cursorMenuMetaTextClassName,
+  cursorMenuPopupClassName,
+  cursorMenuPrimaryTextClassName,
+} from "@multi/ui/menu";
+
+const NEW_TAB_MENU_WIDTH =
+  "w-[min(280px,var(--available-width))] min-w-[min(280px,var(--available-width))] max-w-[280px]";
+const NEW_TAB_MENU_MAX_HEIGHT = "max-h-[min(720px,var(--available-height))]";
 
 interface Tab {
   id: WorkbenchTab;
   label: string;
+  menuLabel: string;
   icon: ComponentType<{ className?: string }>;
+  disabled?: boolean;
 }
 
 const tabs: Tab[] = [
-  { id: "git", label: "Git", icon: IconBranch },
-  { id: "browser", label: "Browser", icon: IconGlobe },
-  { id: "terminal", label: "Terminal", icon: IconConsole },
-  { id: "files", label: "Files", icon: IconFiles },
+  { id: "git", label: "Changes", menuLabel: "Changes", icon: GitBranchIcon },
+  { id: "terminal", label: "Terminal", menuLabel: "Terminal", icon: TerminalIcon },
+  { id: "browser", label: "Browser", menuLabel: "Browser", icon: GlobeIcon },
+  { id: "files", label: "Files", menuLabel: "File", icon: FileTextIcon },
 ];
+
+const openMenuItems: Array<
+  | Tab
+  | {
+      id: "canvas";
+      label: string;
+      menuLabel: string;
+      disabled: true;
+      icon: ComponentType<{ className?: string }>;
+    }
+> = [
+  ...tabs,
+  { id: "canvas", label: "Canvas", menuLabel: "Canvas", icon: FileTextIcon, disabled: true },
+];
+
+function stopMenuSearchBubbling(event: React.KeyboardEvent) {
+  event.stopPropagation();
+}
 
 export function WorkbenchTabBar(props: {
   active: WorkbenchTab;
@@ -31,45 +66,132 @@ export function WorkbenchTabBar(props: {
   count: number;
   onToggle: () => void;
 }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const active = tabs.find((tab) => tab.id === props.active) ?? tabs[0]!;
+  const filteredOpenItems = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return openMenuItems;
+    return openMenuItems.filter((item) =>
+      `${item.menuLabel} ${item.label}`.toLowerCase().includes(needle),
+    );
+  }, [query]);
+
   return (
-    <div className="no-drag relative h-(--multi-header-height) shrink-0 border-multi-border/30">
-      <div className="absolute top-(--multi-titlebar-control-row-top) left-2 flex items-center gap-0.5 rounded-multi-control p-0.5">
+    <div className="ui-tab-system editor-panel-tab-root editor-panel-tab-root--simple-tabs no-drag flex h-[35px] shrink-0 items-stretch border-b border-cursor-stroke-tertiary bg-[var(--glass-editor-panel-tab-background,color-mix(in_srgb,var(--cursor-bg-elevated)_88%,transparent))] px-1.5 backdrop-blur-xl [--tab-system-bar-background:transparent]">
+      <div className="editor-panel-tab-bar-tab-cluster no-scrollbar flex min-w-0 flex-1 items-stretch overflow-hidden">
         {tabs.map((tab) => {
           const selected = tab.id === props.active;
           const Icon = tab.icon;
+          const countText = tab.id === "git" && props.count > 0 ? `, ${props.count} changes` : "";
           return (
             <button
               key={tab.id}
               type="button"
               onClick={() => props.onTab(tab.id)}
               className={cn(
-                "relative flex h-(--multi-titlebar-control-height) w-(--multi-titlebar-control-height) items-center justify-center rounded-multi-control p-0 leading-none transition-colors [&_svg]:block",
-                selected
-                  ? "bg-multi-active/60 text-foreground"
-                  : "text-muted-foreground/70 hover:bg-multi-hover hover:text-foreground",
+                "ui-tab-system-tab my-1.5 flex size-[22px] shrink-0 items-center justify-center rounded-[5px] text-cursor-icon-secondary transition-colors hover:bg-cursor-bg-quaternary hover:text-cursor-icon-primary",
+                selected && "bg-cursor-bg-tertiary text-cursor-icon-primary",
               )}
-              aria-label={tab.label}
-              aria-pressed={selected}
-              title={tab.label}
+              aria-current={selected ? "page" : undefined}
+              aria-label={`${tab.label}${countText}`}
+              title={`${tab.label}${countText}`}
             >
-              <Icon className="size-3.5 shrink-0" />
-              {tab.id === "git" && props.count > 0 ? (
-                <span className="absolute -top-0.5 -right-0.5 min-w-3.5 rounded-full bg-muted-foreground/30 px-0.5 text-[9px]/[12px] font-medium text-inherit tabular-nums">
-                  {Math.min(props.count, 9)}
-                </span>
-              ) : null}
+              <Icon className="size-3.5" aria-hidden />
             </button>
           );
         })}
+        <div className="editor-panel-tab-bar-spacer min-w-0 flex-1" />
+        <div className="sr-only" aria-live="polite">
+          {active.label}
+        </div>
       </div>
-      <div className="pointer-events-none absolute top-(--multi-titlebar-control-row-top) right-0 flex pr-(--multi-workbench-toggle-right)">
+
+      <Menu.Root
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next);
+          if (!next) setQuery("");
+        }}
+      >
+        <Menu.Trigger
+          className="glass-editor-panel-new-tab-menu-trigger ui-icon-button my-1.5 flex size-[22px] shrink-0 items-center justify-center rounded-[5px] text-cursor-icon-secondary hover:bg-cursor-bg-quaternary hover:text-cursor-icon-primary data-[popup-open]:bg-cursor-bg-tertiary data-[popup-open]:text-cursor-icon-primary"
+          aria-expanded={open}
+          aria-label="Open new tab menu"
+          title="Open new tab menu"
+        >
+          <PlusIcon className="size-3.5" aria-hidden />
+        </Menu.Trigger>
+        <Menu.Portal>
+          <Menu.Positioner
+            className="z-50 outline-none ring-0"
+            side="bottom"
+            align="end"
+            sideOffset={4}
+          >
+            <Menu.Popup
+              className={cn(
+                cursorMenuPopupClassName,
+                "glass-editor-panel-new-tab-menu",
+                NEW_TAB_MENU_WIDTH,
+                NEW_TAB_MENU_MAX_HEIGHT,
+              )}
+            >
+              <div className="ui-menu__search-row flex items-center gap-1 border-b border-cursor-stroke-tertiary px-1.5 py-1.5">
+                <SearchIcon className="size-3.5 shrink-0 text-cursor-text-tertiary" aria-hidden />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  onKeyDown={stopMenuSearchBubbling}
+                  placeholder="Open any file, URL, ..."
+                  className="h-6 min-w-0 flex-1 bg-transparent text-[12px]/[16px] text-cursor-text-primary outline-none placeholder:text-cursor-text-quaternary"
+                />
+              </div>
+              <div className="ui-menu__list flex flex-col gap-px p-1">
+                {filteredOpenItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = item.id === props.active;
+                  return (
+                    <Menu.Item
+                      key={item.id}
+                      disabled={item.disabled}
+                      onClick={() => {
+                        if (item.disabled) return;
+                        props.onTab(item.id as WorkbenchTab);
+                        setOpen(false);
+                      }}
+                      className={cn(cursorMenuItemClassName, "ui-menu__row gap-2")}
+                    >
+                      <span className={cursorMenuIconSlotClassName}>
+                        <Icon className="size-3.5" aria-hidden />
+                      </span>
+                      <span className={cn(cursorMenuPrimaryTextClassName, "flex-1")}>
+                        {item.menuLabel}
+                      </span>
+                      {item.disabled ? (
+                        <span className={cursorMenuMetaTextClassName}>Soon</span>
+                      ) : null}
+                      {isActive ? (
+                        <CheckIcon className="size-3.5 shrink-0 text-cursor-text-tertiary" />
+                      ) : null}
+                    </Menu.Item>
+                  );
+                })}
+              </div>
+            </Menu.Popup>
+          </Menu.Positioner>
+        </Menu.Portal>
+      </Menu.Root>
+
+      <div className="editor-panel-overflow-action flex shrink-0 items-center py-1.5">
         <button
           type="button"
           onClick={props.onToggle}
-          className="pointer-events-auto no-drag flex h-(--multi-titlebar-control-height) w-(--multi-titlebar-control-height) shrink-0 items-center justify-center rounded-multi-control bg-transparent p-0 leading-none text-muted-foreground/70 [&_svg]:block hover:bg-multi-hover hover:text-foreground"
-          aria-label="Collapse panel"
+          className="flex size-[22px] shrink-0 items-center justify-center rounded-[5px] text-cursor-icon-secondary hover:bg-cursor-bg-quaternary hover:text-cursor-icon-primary"
+          aria-label="Hide Panel"
+          title="Hide Panel"
         >
-          <IconSidebarHiddenRightWide className="size-4 shrink-0 opacity-60" />
+          <IconSidebarHiddenRightWide className="size-4 shrink-0" />
         </button>
       </div>
     </div>

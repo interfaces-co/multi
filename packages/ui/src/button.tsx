@@ -16,6 +16,9 @@ const buttonVariants = cva(
     },
     variants: {
       size: {
+        cursor: "h-7 px-[calc(--spacing(2.5)-1px)] text-[12px]/[16px]",
+        "cursor-icon": "size-7 [&_svg:not([class*='size-'])]:size-4",
+        "cursor-sm": "h-6 gap-1 px-[calc(--spacing(2)-1px)] text-[12px]/[16px]",
         default: "h-7 px-[calc(--spacing(2.5)-1px)]",
         icon: "size-7",
         "icon-lg": "size-8",
@@ -29,6 +32,12 @@ const buttonVariants = cva(
         xs: "h-5.5 gap-1 rounded-sm px-[calc(--spacing(1.5)-1px)] text-[11px]/[14px] before:rounded-[calc(var(--radius-sm)-1px)] [&_svg:not([class*='size-'])]:size-3.5",
       },
       variant: {
+        cursor:
+          "border-cursor-stroke-tertiary bg-cursor-bg-quinary text-cursor-text-secondary shadow-none hover:border-cursor-stroke-secondary hover:bg-cursor-bg-quaternary hover:text-cursor-text-primary data-pressed:bg-cursor-bg-tertiary",
+        "cursor-ghost":
+          "border-transparent bg-transparent text-cursor-text-secondary shadow-none hover:bg-cursor-bg-quaternary hover:text-cursor-text-primary data-pressed:bg-cursor-bg-tertiary",
+        "cursor-primary":
+          "border-transparent bg-primary text-primary-foreground shadow-none hover:bg-primary/90 data-pressed:bg-primary/90",
         default:
           "border-primary bg-primary text-primary-foreground shadow-primary/16 shadow-xs [:disabled,:active,[data-pressed]]:shadow-none [:hover,[data-pressed]]:bg-primary/90",
         destructive:

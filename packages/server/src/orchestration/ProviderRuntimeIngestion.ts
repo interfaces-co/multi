@@ -154,6 +154,12 @@ function requestKindFromCanonicalRequestType(
     case "file_change_approval":
     case "apply_patch_approval":
       return "file-change";
+    case "permissions_approval":
+      return "permissions";
+    case "dynamic_tool_call":
+      return "dynamic-tool";
+    case "auth_tokens_refresh":
+      return "auth-refresh";
     default:
       return undefined;
   }

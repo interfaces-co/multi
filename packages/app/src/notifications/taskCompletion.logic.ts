@@ -122,6 +122,14 @@ function approvalSummary(requestKind: ProviderRequestKind): string {
       return "File-read approval requested.";
     case "file-change":
       return "File-change approval requested.";
+    case "permissions":
+      return "Permissions approval requested.";
+    case "mcp-elicitation":
+      return "MCP input requested.";
+    case "dynamic-tool":
+      return "Tool approval requested.";
+    case "auth-refresh":
+      return "Auth refresh requested.";
   }
 }
 

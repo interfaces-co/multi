@@ -23,7 +23,7 @@ import {
 import { cn } from "~/lib/utils";
 import { WorkbenchTabBar } from "./workbench-tabs";
 
-const LEFT_LIMITS = { min: 180, max: 400 } as const;
+const LEFT_LIMITS = { min: 164, max: 220 } as const;
 const RIGHT_LIMITS = { min: 340, max: 600 } as const;
 
 interface ResizeState {
@@ -341,7 +341,7 @@ function RightAside(props: {
   return (
     <aside
       className={cn(
-        "agent-window__workbench multi-shell-surface relative flex shrink-0 flex-col overflow-hidden border-multi-border/50",
+        "agent-window__workbench editor-panel-container multi-shell-surface relative flex shrink-0 flex-col overflow-hidden border-multi-border/50",
         dragging
           ? "transition-none"
           : "transition-[width,border-left-width] duration-100 ease-[cubic-bezier(0.19,1,0.22,1)] motion-reduce:transition-none",
@@ -356,7 +356,7 @@ function RightAside(props: {
       <div
         aria-hidden={!rightOpen}
         className={cn(
-          "flex h-full min-h-0 w-full flex-col transition-opacity duration-150 ease-out motion-reduce:transition-none",
+          "editor-panel-inner flex h-full min-h-0 w-full flex-col transition-opacity duration-150 ease-out motion-reduce:transition-none",
           rightOpen ? "opacity-100" : "opacity-0",
         )}
       >
