@@ -1630,7 +1630,7 @@ function normalizeCurrentPersistedComposerDraftStoreState(
   };
 }
 
-function readPersistedAttachmentIdsFromStorage(threadKey: string): string[] {
+function readPersistedAttachmentIdsFromStorage(threadKey: string): string[] | null {
   if (threadKey.length === 0) {
     return [];
   }
@@ -1640,13 +1640,13 @@ function readPersistedAttachmentIdsFromStorage(threadKey: string): string[] {
       PersistedComposerDraftStoreStorage,
     );
     if (!persisted || persisted.version !== COMPOSER_DRAFT_STORAGE_VERSION) {
-      return [];
+      return null;
     }
     return (persisted.state.draftsByThreadKey[threadKey]?.attachments ?? []).map(
       (attachment) => attachment.id,
     );
   } catch {
-    return [];
+    return null;
   }
 }
 
@@ -1666,9 +1666,12 @@ function verifyPersistedAttachments(
   let persistedIdSet = new Set<string>();
   try {
     composerDebouncedStorage.flush();
-    persistedIdSet = new Set(readPersistedAttachmentIdsFromStorage(threadKey));
+    const persistedAttachmentIds = readPersistedAttachmentIdsFromStorage(threadKey);
+    persistedIdSet = new Set(
+      persistedAttachmentIds ?? attachments.map((attachment) => attachment.id),
+    );
   } catch {
-    persistedIdSet = new Set();
+    persistedIdSet = new Set(attachments.map((attachment) => attachment.id));
   }
   set((state) => {
     const current = state.draftsByThreadKey[threadKey];

@@ -4,14 +4,9 @@ import {
   type ResolvedKeybindingsConfig,
 } from "@multi/contracts";
 import { memo } from "react";
-import { DiffIcon, TerminalSquareIcon } from "lucide-react";
 import { IconSidebar } from "central-icons";
-import { Badge } from "@multi/ui/badge";
 import { Button } from "@multi/ui/button";
-import { Tooltip, TooltipPopup, TooltipTrigger } from "@multi/ui/tooltip";
-import ProjectScriptsControl, { type NewProjectScriptInput } from "../project-scripts-control";
-import { Toggle } from "@multi/ui/toggle";
-import { OpenInPicker } from "./open-in-picker";
+import type { NewProjectScriptInput } from "../project-scripts-control";
 import { shellPanelsActions } from "~/lib/shell-panels-store";
 
 interface ChatHeaderProps {
@@ -38,122 +33,29 @@ interface ChatHeaderProps {
 
 export const ChatHeader = memo(function ChatHeader({
   activeThreadTitle,
-  activeProjectName,
-  isGitRepo,
   openInCwd,
-  activeProjectScripts,
-  preferredScriptId,
-  keybindings,
-  availableEditors,
-  terminalAvailable,
-  terminalOpen,
-  terminalToggleShortcutLabel,
-  diffToggleShortcutLabel,
-  diffOpen,
-  onRunProjectScript,
-  onAddProjectScript,
-  onUpdateProjectScript,
-  onDeleteProjectScript,
-  onToggleTerminal,
-  onToggleDiff,
 }: ChatHeaderProps) {
   return (
-    <div className="@container/header-actions flex min-w-0 flex-1 items-center gap-2">
-      <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden sm:gap-3">
+    <div className="@container/header-actions flex min-w-0 flex-1 items-center gap-2 text-[12px]/[16px]">
+      <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
         <Button
           type="button"
-          variant="ghost"
-          size="icon-xs"
-          className="size-7 shrink-0 md:hidden"
+          variant="cursor-ghost"
+          size="cursor-icon"
+          className="size-6 shrink-0 md:hidden"
           aria-label="Toggle sidebar"
           onClick={() => shellPanelsActions.toggleLeft(openInCwd)}
         >
-          <IconSidebar className="size-4" />
+          <IconSidebar className="size-3.5" />
         </Button>
-        <h2
-          className="min-w-0 shrink truncate text-sm font-medium text-foreground"
+        <button
+          type="button"
+          aria-label={`Chat title. Right-click for more actions. ${activeThreadTitle}`}
+          className="no-drag flex min-w-0 shrink items-center rounded-[4px] px-1 py-0.5 text-left text-[12px]/[16px] font-medium text-cursor-text-primary hover:bg-cursor-bg-quaternary"
           title={activeThreadTitle}
         >
-          {activeThreadTitle}
-        </h2>
-        {activeProjectName && (
-          <Badge variant="outline" className="min-w-0 shrink overflow-hidden">
-            <span className="min-w-0 truncate">{activeProjectName}</span>
-          </Badge>
-        )}
-        {activeProjectName && !isGitRepo && (
-          <Badge variant="outline" className="shrink-0 text-[10px] text-amber-700">
-            No Git
-          </Badge>
-        )}
-      </div>
-      <div className="flex shrink-0 items-center justify-end gap-2 @3xl/header-actions:gap-3">
-        {activeProjectScripts && (
-          <ProjectScriptsControl
-            scripts={activeProjectScripts}
-            keybindings={keybindings}
-            preferredScriptId={preferredScriptId}
-            onRunScript={onRunProjectScript}
-            onAddScript={onAddProjectScript}
-            onUpdateScript={onUpdateProjectScript}
-            onDeleteScript={onDeleteProjectScript}
-          />
-        )}
-        {activeProjectName && (
-          <OpenInPicker
-            keybindings={keybindings}
-            availableEditors={availableEditors}
-            openInCwd={openInCwd}
-          />
-        )}
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Toggle
-                className="shrink-0"
-                pressed={terminalOpen}
-                onPressedChange={onToggleTerminal}
-                aria-label="Toggle terminal drawer"
-                variant="outline"
-                size="xs"
-                disabled={!terminalAvailable}
-              >
-                <TerminalSquareIcon className="size-3" />
-              </Toggle>
-            }
-          />
-          <TooltipPopup side="bottom">
-            {!terminalAvailable
-              ? "Terminal is unavailable until this thread has an active project."
-              : terminalToggleShortcutLabel
-                ? `Toggle terminal drawer (${terminalToggleShortcutLabel})`
-                : "Toggle terminal drawer"}
-          </TooltipPopup>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Toggle
-                className="shrink-0"
-                pressed={diffOpen}
-                onPressedChange={onToggleDiff}
-                aria-label="Toggle diff panel"
-                variant="outline"
-                size="xs"
-                disabled={!isGitRepo}
-              >
-                <DiffIcon className="size-3" />
-              </Toggle>
-            }
-          />
-          <TooltipPopup side="bottom">
-            {!isGitRepo
-              ? "Diff panel is unavailable because this project is not a git repository."
-              : diffToggleShortcutLabel
-                ? `Toggle diff panel (${diffToggleShortcutLabel})`
-                : "Toggle diff panel"}
-          </TooltipPopup>
-        </Tooltip>
+          <span className="min-w-0 truncate">{activeThreadTitle}</span>
+        </button>
       </div>
     </div>
   );

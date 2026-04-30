@@ -7,7 +7,7 @@ import type { HarnessDescriptor } from "~/lib/ui-session-types";
 import type { ChatDraftFile } from "./types";
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -247,23 +247,22 @@ async function mount(opts: { supported?: boolean; files?: ChatDraftFile[] } = {}
   };
 }
 
-function seg(text: string) {
-  for (const node of document.querySelectorAll<HTMLSpanElement>(".multi-composer-mirror span")) {
-    if (node.textContent === text) return node;
-  }
-  return undefined;
+function editorLocator() {
+  return page.getByTestId("composer-editor");
 }
 
-function check(node: HTMLSpanElement) {
-  const style = getComputedStyle(node);
-  const cut =
-    style.getPropertyValue("box-decoration-break") ||
-    style.getPropertyValue("-webkit-box-decoration-break");
-  expect(parseFloat(style.paddingLeft)).toBeGreaterThan(0);
-  expect(parseFloat(style.paddingRight)).toBeGreaterThan(0);
-  expect(parseFloat(style.borderRadius)).toBeGreaterThan(0);
-  expect(cut).toBe("clone");
-  expect(style.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+function editorNode() {
+  return document.querySelector<HTMLElement>('[data-testid="composer-editor"]');
+}
+
+function editorText() {
+  return editorNode()?.textContent ?? "";
+}
+
+function pressEditorKey(key: string) {
+  editorNode()?.dispatchEvent(
+    new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key }),
+  );
 }
 
 describe("ChatComposer fast mode", () => {
@@ -284,7 +283,7 @@ describe("ChatComposer fast mode", () => {
   it("shows /fast, toggles it from the slash menu, and updates the pill state", async () => {
     await using _ = await mount({ supported: true });
 
-    await page.getByRole("textbox").fill("/fa");
+    await editorLocator().fill("/fa");
 
     await vi.waitFor(() => {
       const text = document.body.textContent ?? "";
@@ -295,13 +294,11 @@ describe("ChatComposer fast mode", () => {
     await page.getByRole("option").click();
 
     await vi.waitFor(() => {
-      expect((document.querySelector("textarea") as HTMLTextAreaElement | null)?.value ?? "").toBe(
-        "",
-      );
+      expect(editorText()).toBe("");
       expect(document.body.textContent ?? "").toContain("Fast");
     });
 
-    await page.getByRole("textbox").fill("/fa");
+    await editorLocator().fill("/fa");
 
     await vi.waitFor(() => {
       expect(document.body.textContent ?? "").toContain("Turn off fast mode");
@@ -309,7 +306,8 @@ describe("ChatComposer fast mode", () => {
 
     await page.getByLabelText("Turn off fast mode").click();
 
-    await page.getByRole("textbox").fill("/fa");
+    await editorLocator().fill("");
+    await editorLocator().fill("/fa");
 
     await vi.waitFor(() => {
       expect(document.body.textContent ?? "").toContain("Turn on fast mode");
@@ -319,18 +317,12 @@ describe("ChatComposer fast mode", () => {
   it("toggles fast mode from a raw /fast submit without sending a message", async () => {
     await using _ = await mount({ supported: true });
 
-    await page.getByRole("textbox").fill("/fast");
-    document
-      .querySelector("textarea")
-      ?.dispatchEvent(
-        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Enter" }),
-      );
+    await editorLocator().fill("/fast");
+    pressEditorKey("Enter");
 
     await vi.waitFor(() => {
       expect(mocks.send).not.toHaveBeenCalled();
-      expect((document.querySelector("textarea") as HTMLTextAreaElement | null)?.value ?? "").toBe(
-        "",
-      );
+      expect(editorText()).toBe("");
       expect(document.body.textContent ?? "").toContain("Fast");
     });
   });
@@ -338,24 +330,18 @@ describe("ChatComposer fast mode", () => {
   it("Enter commits the top slash command without arrow navigation", async () => {
     await using _ = await mount({ supported: true });
 
-    await page.getByRole("textbox").fill("/fa");
+    await editorLocator().fill("/fa");
 
     await vi.waitFor(() => {
       expect(document.body.textContent ?? "").toContain("/fast");
       expect(document.body.textContent ?? "").toContain("Turn on fast mode");
     });
 
-    document
-      .querySelector("textarea")
-      ?.dispatchEvent(
-        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Enter" }),
-      );
+    pressEditorKey("Enter");
 
     await vi.waitFor(() => {
       expect(mocks.send).not.toHaveBeenCalled();
-      expect((document.querySelector("textarea") as HTMLTextAreaElement | null)?.value ?? "").toBe(
-        "",
-      );
+      expect(editorText()).toBe("");
       expect(document.body.textContent ?? "").toContain("Fast");
     });
   });
@@ -363,7 +349,7 @@ describe("ChatComposer fast mode", () => {
   it("does not offer /fast when the selected model does not support it", async () => {
     await using _ = await mount({ supported: false });
 
-    await page.getByRole("textbox").fill("/fa");
+    await editorLocator().fill("/fa");
 
     await vi.waitFor(() => {
       expect(document.body.textContent ?? "").not.toContain("/fast");
@@ -372,7 +358,7 @@ describe("ChatComposer fast mode", () => {
   });
 });
 
-describe("ChatComposer mirror tokens", () => {
+describe("ChatComposer rich editor tokens", () => {
   beforeEach(() => {
     mocks.api.server.listSkills.mockClear();
     mocks.api.server.listSkills.mockImplementation(async () => []);
@@ -384,7 +370,7 @@ describe("ChatComposer mirror tokens", () => {
     document.body.innerHTML = "";
   });
 
-  it("renders idle skill tokens as tinted text and keeps mentions as chips", async () => {
+  it("renders selected skill tokens as editor chips", async () => {
     mocks.api.server.listSkills.mockResolvedValue([
       {
         id: "/Users/workgyver/.agents/skills/tailwind",
@@ -396,37 +382,25 @@ describe("ChatComposer mirror tokens", () => {
 
     await using _ = await mount({ supported: true });
 
-    await page.getByRole("textbox").fill("/ta");
+    await editorLocator().fill("/ta");
     await page.getByRole("option", { name: /tailwind/i }).click();
-    await page.getByRole("textbox").fill('/tailwind @"foo bar"');
 
     await vi.waitFor(() => {
-      expect(seg("/tailwind")).toBeTruthy();
-      expect(seg('@"foo bar"')).toBeTruthy();
+      expect(document.querySelector('[data-composer-skill-chip="true"]')?.textContent).toContain(
+        "tailwind",
+      );
     });
-
-    const skill = seg("/tailwind")!;
-    const style = getComputedStyle(skill);
-    expect(style.backgroundColor).toBe("rgba(0, 0, 0, 0)");
-    expect(parseFloat(style.paddingLeft)).toBe(0);
-
-    check(seg('@"foo bar"')!);
   });
 
   it("renders pending slash text as plain unstyled text", async () => {
     await using _ = await mount({ supported: true });
 
-    await page.getByRole("textbox").fill("/tai");
+    await editorLocator().fill("/tai");
 
     await vi.waitFor(() => {
-      expect(seg("/tai")).toBeTruthy();
+      expect(editorText()).toBe("/tai");
+      expect(document.querySelector('[data-composer-skill-chip="true"]')).toBeNull();
     });
-
-    const node = seg("/tai")!;
-    const style = getComputedStyle(node);
-    expect(style.backgroundColor).toBe("rgba(0, 0, 0, 0)");
-    expect(parseFloat(style.paddingLeft)).toBe(0);
-    expect(parseFloat(style.paddingRight)).toBe(0);
   });
 
   it("Enter with slash menu open inserts the top skill as a token", async () => {
@@ -441,22 +415,19 @@ describe("ChatComposer mirror tokens", () => {
 
     await using _ = await mount({ supported: true });
 
-    await page.getByRole("textbox").fill("/tailwind");
+    await editorLocator().fill("/tailwind");
 
     await vi.waitFor(() => {
       expect(document.body.textContent ?? "").toContain("tailwind");
     });
 
-    document
-      .querySelector("textarea")
-      ?.dispatchEvent(
-        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Enter" }),
-      );
+    pressEditorKey("Enter");
 
     await vi.waitFor(() => {
       expect(mocks.send).not.toHaveBeenCalled();
-      const node = document.querySelector("textarea") as HTMLTextAreaElement | null;
-      expect(node?.value ?? "").toContain("/tailwind");
+      expect(document.querySelector('[data-composer-skill-chip="true"]')?.textContent).toContain(
+        "tailwind",
+      );
     });
   });
 
@@ -472,13 +443,9 @@ describe("ChatComposer mirror tokens", () => {
 
     await using _ = await mount({ supported: true });
 
-    await page.getByRole("textbox").fill("/ta");
+    await editorLocator().fill("/ta");
     await page.getByRole("option", { name: /tailwind/i }).click();
-    document
-      .querySelector("textarea")
-      ?.dispatchEvent(
-        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Enter" }),
-      );
+    pressEditorKey("Enter");
 
     await vi.waitFor(() => {
       expect(mocks.send).toHaveBeenCalledWith({
@@ -488,7 +455,7 @@ describe("ChatComposer mirror tokens", () => {
     });
   });
 
-  it("deletes a selected skill token as a block", async () => {
+  it("clears a selected skill token through the rich editor", async () => {
     mocks.api.server.listSkills.mockResolvedValue([
       {
         id: "/Users/workgyver/.agents/skills/tailwind",
@@ -500,25 +467,18 @@ describe("ChatComposer mirror tokens", () => {
 
     await using _ = await mount({ supported: true });
 
-    await page.getByRole("textbox").fill("/ta");
+    await editorLocator().fill("/ta");
     await page.getByRole("option", { name: /tailwind/i }).click();
 
-    const node = document.querySelector("textarea") as HTMLTextAreaElement;
-    node.focus();
-    node.setSelectionRange(2, 2);
-    node.dispatchEvent(new Event("select", { bubbles: true }));
-
     await vi.waitFor(() => {
-      expect(node.selectionStart).toBe(0);
-      expect(node.selectionEnd).toBe(9);
+      expect(document.querySelector('[data-composer-skill-chip="true"]')).toBeTruthy();
     });
 
-    node.dispatchEvent(
-      new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Backspace" }),
-    );
+    await userEvent.click(editorLocator());
+    await editorLocator().fill("");
 
     await vi.waitFor(() => {
-      expect(node.value).toBe("");
+      expect(editorText()).toBe("");
     });
   });
 
@@ -538,13 +498,11 @@ describe("ChatComposer mirror tokens", () => {
       ],
     });
 
-    await page.getByRole("textbox").fill("/fa");
+    await editorLocator().fill("/fa");
     await page.getByRole("option").click();
 
     await vi.waitFor(() => {
-      expect((document.querySelector("textarea") as HTMLTextAreaElement | null)?.value ?? "").toBe(
-        "",
-      );
+      expect(editorText()).toBe("");
       expect(document.body.textContent ?? "").toContain("README.md");
       expect(document.body.textContent ?? "").toContain("Fast");
     });

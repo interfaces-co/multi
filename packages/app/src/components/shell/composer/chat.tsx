@@ -1,4 +1,5 @@
 // @ts-nocheck
+import type { ServerProviderSkill } from "@multi/contracts";
 import type {
   UiPromptInput,
   UiPromptPathAttachment,
@@ -32,9 +33,8 @@ import {
   useMemo,
   useRef,
   useState,
-  type ClipboardEvent,
+  type ClipboardEventHandler,
   type DragEvent,
-  type KeyboardEvent,
 } from "react";
 import { flushSync } from "react-dom";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
@@ -62,27 +62,27 @@ import {
   applyFile,
   draftSlash,
   fileMatch,
-  mirrorActiveSeg,
-  mirrorSegmentsDraft,
   rankFileHits,
   slashPrefix,
   slashMatch,
-  type MirrorSeg,
 } from "./search";
-import { buildSlashMenuRows, type SlashItem, type SlashMenuRow } from "./slash-registry";
+import {
+  buildSlashMenuRows,
+  type SlashAction,
+  type SlashItem,
+  type SlashMenuRow,
+} from "./slash-registry";
 import { readSlashRecents, recordSlashUse } from "./slash-recents";
 import { ComposerTokenMenu } from "./slash-menu";
 import { ModelPicker, type ModelPickerHandle } from "~/components/shell/pickers/model";
-import {
-  applySkill,
-  dropSkill,
-  expandSkills,
-  shiftSkills,
-  snapSkillSelection,
-  touchSkill,
-} from "./skill-tokens";
+import { applySkill, expandSkills, shiftSkills } from "./skill-tokens";
+import { serializeComposerDocument } from "./inline-tokens";
 import { WorkspacePicker } from "~/components/shell/pickers/workspace";
 import { useHotkey } from "@tanstack/react-hotkeys";
+import {
+  ComposerPromptEditor,
+  type ComposerPromptEditorHandle,
+} from "~/components/composer-prompt-editor";
 
 type Pick = ChatDraftFile;
 
@@ -106,17 +106,6 @@ const defaultCaps = {
   interactive: true,
   fileAttachments: true,
 } as const;
-
-function segCls(kind: MirrorSeg["kind"], on: boolean) {
-  if (kind === "plain") return "text-foreground";
-  if (kind === "skill" && !on) return "text-primary/70";
-  return cn(
-    "box-decoration-clone rounded-sm px-1.5 py-px [-webkit-box-decoration-break:clone]",
-    on
-      ? "bg-[var(--multi-composer-object-bg-active)] text-[color:var(--multi-composer-object-fg)] shadow-[inset_0_0_0_1px_var(--multi-composer-object-border-active)]"
-      : "bg-[var(--multi-composer-object-bg)] text-[color:var(--multi-composer-object-fg-muted)] shadow-[inset_0_0_0_1px_var(--multi-composer-object-border)]",
-  );
-}
 
 interface Props {
   variant: "hero" | "dock";
@@ -152,6 +141,7 @@ export interface ChatComposerHandle {
   focus: () => void;
   activatePlan: () => void;
   togglePlan: () => void;
+  insertTranscriptText: (text: string) => void;
 }
 
 function same(left: HarnessModelRef | null, right: HarnessModelRef | null) {
@@ -573,7 +563,7 @@ const ChatComposerImpl = memo(
     const api = readNativeRuntimeApi(activeEnvironmentId, {
       allowPrimaryEnvironmentFallback: true,
     });
-    const area = useRef<HTMLTextAreaElement | null>(null);
+    const editorRef = useRef<ComposerPromptEditorHandle | null>(null);
     const modelPickerRef = useRef<ModelPickerHandle | null>(null);
     const shellRef = useRef<HTMLDivElement | null>(null);
     const nextCursor = useRef<number | null>(null);
@@ -585,7 +575,6 @@ const ChatComposerImpl = memo(
     const [cursor, setCursor] = useState(0);
     const cursorRef = useRef(cursor);
     cursorRef.current = cursor;
-    const [composing, setComposing] = useState(false);
     const [localFiles, setLocalFiles] = useState<Pick[]>([]);
     const [localSkills, setLocalSkills] = useState<ChatDraftSkill[]>([]);
     const [defs, setDefs] = useState<UiSkill[]>([]);
@@ -603,41 +592,20 @@ const ChatComposerImpl = memo(
     const empty = !props.draft.trim() && files.length === 0;
     const caps = props.harnessDescriptor?.capabilities ?? defaultCaps;
     const branch = metaBranch ?? git;
-    const text = () => area.current?.value ?? draftRef.current;
-    const span = () => ({
-      start: area.current?.selectionStart ?? cursorRef.current,
-      end: area.current?.selectionEnd ?? cursorRef.current,
-    });
-
-    const select = (start: number, end = start) => {
-      const node = area.current;
-      if (!node) return;
-      node.setSelectionRange(start, end);
-      setCursor(start);
-    };
-
-    const syncSel = (node: HTMLTextAreaElement) => {
-      const start = node.selectionStart ?? 0;
-      const end = node.selectionEnd ?? start;
-      const next = snapSkillSelection(text(), marksRef.current, start, end);
-      if (!next) {
-        setCursor(start === end ? start : end);
-        return false;
-      }
-      if (next.start === start && next.end === end) {
-        setCursor(start === end ? start : end);
-        return false;
-      }
-      node.setSelectionRange(next.start, next.end);
-      setCursor(next.start);
-      return true;
-    };
-
-    const dropToken = (skill: ChatDraftSkill) => {
-      const raw = text();
-      const next = dropSkill(raw, marksRef.current, skill);
-      flushSync(() => update(next.value, next.cursor, next.skills, raw));
-      return true;
+    const snapshot = () =>
+      editorRef.current?.readSnapshot() ?? {
+        value: draftRef.current,
+        cursor: cursorRef.current,
+        expandedCursor: cursorRef.current,
+        terminalContextIds: [],
+      };
+    const text = () => snapshot().value;
+    const span = () => {
+      const snap = snapshot();
+      return {
+        start: snap.cursor,
+        end: snap.cursor,
+      };
     };
 
     const writeFiles = (next: Pick[] | ((cur: Pick[]) => Pick[])) => {
@@ -725,7 +693,7 @@ const ChatComposerImpl = memo(
       planOn();
     };
 
-    const exec = (item: Extract<SlashItem, { kind: "command" }>) => {
+    const exec = (item: Extract<SlashItem, { action: SlashAction }>) => {
       if (item.action === "new-chat") {
         void navigate({ to: "/" });
         return true;
@@ -747,6 +715,12 @@ const ChatComposerImpl = memo(
         props.onPlanMode?.();
         return true;
       }
+      if (item.action === "default-mode") {
+        if (props.planActive && props.onPlanToggle) {
+          props.onPlanToggle();
+        }
+        return true;
+      }
       if (item.action === "fast-mode") {
         if (props.onFastToggle) {
           props.onFastToggle();
@@ -759,7 +733,7 @@ const ChatComposerImpl = memo(
     };
 
     const run = (
-      item: Extract<SlashItem, { kind: "command" }>,
+      item: Extract<SlashItem, { action: SlashAction }>,
       raw: string,
       hit: { query: string; start: number; end: number },
     ) => {
@@ -783,13 +757,16 @@ const ChatComposerImpl = memo(
 
     useImperativeHandle(ref, () => ({
       focus: () => {
-        area.current?.focus();
+        editorRef.current?.focus();
       },
       activatePlan: () => {
         planOn();
       },
       togglePlan: () => {
         togglePlan();
+      },
+      insertTranscriptText: (text) => {
+        editorRef.current?.insertText(text);
       },
     }));
 
@@ -800,7 +777,7 @@ const ChatComposerImpl = memo(
         togglePlan();
       },
       {
-        target: area,
+        target: shellRef,
         ignoreInputs: false,
         preventDefault: true,
         enabled: Boolean(props.onPlanMode || props.onPlanToggle),
@@ -813,28 +790,28 @@ const ChatComposerImpl = memo(
           ? [
               {
                 id: "command:new",
-                kind: "command" as const,
+                kind: "action" as const,
                 name: "new",
-                description: "Start a new chat",
-                pill: "command",
+                description: "Start a new agent with the current prompt",
+                pill: "Action",
                 action: "new-chat" as const,
               },
               {
                 id: "command:settings",
-                kind: "command" as const,
+                kind: "open" as const,
                 name: "settings",
                 description: "Open settings",
-                pill: "command",
+                pill: "Open",
                 action: "open-settings" as const,
               },
               ...(caps.modelPicker
                 ? [
                     {
                       id: "command:model",
-                      kind: "command" as const,
+                      kind: "open" as const,
                       name: "model",
-                      description: "Open model picker",
-                      pill: "command",
+                      description: "Select Model",
+                      pill: "Open",
                       action: "open-model-picker" as const,
                     },
                   ]
@@ -843,21 +820,29 @@ const ChatComposerImpl = memo(
                 ? [
                     {
                       id: "command:fast",
-                      kind: "command" as const,
+                      kind: "tool" as const,
                       name: "fast",
                       description: props.fastActive ? "Turn off fast mode" : "Turn on fast mode",
-                      pill: "command",
+                      pill: "Tool",
                       action: "fast-mode" as const,
                     },
                   ]
                 : []),
               {
                 id: "command:plan",
-                kind: "command" as const,
+                kind: "mode" as const,
                 name: "plan",
                 description: props.planActive ? "Turn off plan mode" : "Turn on plan mode",
-                pill: "command",
+                pill: "Mode",
                 action: "plan-mode" as const,
+              },
+              {
+                id: "command:build",
+                kind: "mode" as const,
+                name: "build",
+                description: "Switch this thread back to normal build mode",
+                pill: "Mode",
+                action: "default-mode" as const,
               },
             ]
           : []) satisfies SlashItem[],
@@ -870,15 +855,12 @@ const ChatComposerImpl = memo(
       nextCursor.current = null;
       const focus = nextFocus.current;
       nextFocus.current = true;
-      const node = area.current;
-      if (!node) return;
       if (!focus) {
         setCursor(pos);
         return;
       }
       window.requestAnimationFrame(() => {
-        node.focus();
-        node.setSelectionRange(pos, pos);
+        editorRef.current?.focusAt(pos);
         setCursor(pos);
       });
     }, [props.draft]);
@@ -894,6 +876,9 @@ const ChatComposerImpl = memo(
     const key = at ? `file:${at.token}` : slash ? `slash:${slash.query}` : null;
     const slashOpen = slash !== null;
     const [recSnap, setRecSnap] = useState(readSlashRecents);
+    const [expandedSlashGroups, setExpandedSlashGroups] = useState<ReadonlySet<string>>(
+      () => new Set(),
+    );
     const skillItems = useMemo(
       () =>
         defs.map(
@@ -907,10 +892,57 @@ const ChatComposerImpl = memo(
         ),
       [defs],
     );
-    const items = useMemo(() => [...actions, ...skillItems], [actions, skillItems]);
+    const editorSkills = useMemo<ServerProviderSkill[]>(
+      () =>
+        defs.map((item) => ({
+          name: item.name,
+          description: item.description,
+          shortDescription: item.description,
+          displayName: item.name,
+          path: `skill://${encodeURIComponent(item.id)}`,
+          enabled: true,
+        })),
+      [defs],
+    );
+    const modelItems = useMemo(
+      () =>
+        caps.modelPicker
+          ? models.items.slice(0, 8).map(
+              (item): SlashItem => ({
+                id: `model:${item.key}`,
+                kind: "model",
+                name: item.name,
+                description: `${item.provider} model`,
+                pill: item.supportsXhigh ? "Reasoning" : "Model",
+                action: "open-model-picker",
+              }),
+            )
+          : [],
+      [caps.modelPicker, models.items],
+    );
+    const projectItems = useMemo(
+      () =>
+        shell.cwd
+          ? [
+              {
+                id: "project:current",
+                kind: "project" as const,
+                name: shell.cwd.split("/").at(-1) ?? shell.cwd,
+                description: "Current workspace",
+                pill: "Project",
+                action: "new-chat" as const,
+              },
+            ]
+          : [],
+      [shell.cwd],
+    );
+    const items = useMemo(
+      () => [...skillItems, ...actions, ...modelItems, ...projectItems],
+      [actions, modelItems, projectItems, skillItems],
+    );
     const slashRows = useMemo(
-      () => buildSlashMenuRows(items, slash?.query ?? "", recSnap),
-      [items, slash?.query, recSnap],
+      () => buildSlashMenuRows(items, slash?.query ?? "", recSnap, expandedSlashGroups),
+      [expandedSlashGroups, items, slash?.query, recSnap],
     );
     const options = useMemo(
       () =>
@@ -920,15 +952,6 @@ const ChatComposerImpl = memo(
       [slashRows],
     );
     const rankedHits = useMemo(() => rankFileHits(hits, at?.query ?? ""), [hits, at?.query]);
-    const mirrorMarks = useMemo(
-      () => marks.map((item) => ({ kind: "skill" as const, start: item.start, end: item.end })),
-      [marks],
-    );
-    const segs = useMemo(
-      () => mirrorSegmentsDraft(props.draft, mirrorMarks),
-      [props.draft, mirrorMarks],
-    );
-    const activeSeg = useMemo(() => mirrorActiveSeg(segs, cursor, at), [segs, cursor, at]);
 
     useEffect(() => {
       if (!api) return;
@@ -953,6 +976,10 @@ const ChatComposerImpl = memo(
         off = true;
       };
     }, [api, slashOpen]);
+
+    useEffect(() => {
+      setExpandedSlashGroups(new Set());
+    }, [slash?.query]);
 
     useEffect(() => {
       const projectsApi = api?.projects;
@@ -1035,7 +1062,7 @@ const ChatComposerImpl = memo(
       const raw = text();
       const hit = slashMatch(raw, span().start);
       if (!hit) return;
-      if (item.kind === "command") {
+      if ("action" in item) {
         run(item, raw, hit);
         return;
       }
@@ -1063,7 +1090,9 @@ const ChatComposerImpl = memo(
       const value = text();
       const raw = value.trim();
       const hit = draftSlash(value);
-      const item = hit ? (actions.find((entry) => entry.name === hit.query) ?? null) : null;
+      const item = hit
+        ? (items.find((entry) => "action" in entry && entry.name === hit.query) ?? null)
+        : null;
       if (item && hit) {
         run(item, value, hit);
         return;
@@ -1073,12 +1102,12 @@ const ChatComposerImpl = memo(
         const shotText = shot(value, files);
         if (shotText) fireHeroFx(shotText);
       }
-      let body = value;
+      let body = serializeComposerDocument(value);
       if (marks.length > 0 && api) {
         const next = await fetchListSkillsIfSupported(api);
         if (next) {
           setDefs(next);
-          body = expandSkills(value, marks, next);
+          body = serializeComposerDocument(expandSkills(value, marks, next));
         }
       }
       const res = await props.onSend({
@@ -1144,7 +1173,7 @@ const ChatComposerImpl = memo(
       }
     };
 
-    const paste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+    const paste: ClipboardEventHandler<HTMLElement> = (event) => {
       const list = Array.from(event.clipboardData.items ?? [])
         .flatMap((item) => {
           const file = item.kind === "file" ? item.getAsFile() : null;
@@ -1167,6 +1196,39 @@ const ChatComposerImpl = memo(
       return;
     };
 
+    const handleEditorCommandKey = (
+      keyName: "ArrowDown" | "ArrowUp" | "Enter" | "Tab",
+      event: KeyboardEvent,
+    ) => {
+      if (keyName === "Tab" && event.shiftKey) {
+        togglePlan();
+        return true;
+      }
+      if (open && (keyName === "ArrowDown" || keyName === "ArrowUp")) {
+        const dir = keyName === "ArrowDown" ? 1 : -1;
+        setIndex((cur) => {
+          const max = (at ? rankedHits.length : options.length) - 1;
+          if (max < 0) return 0;
+          const next = cur + dir;
+          if (next < 0) return max;
+          if (next > max) return 0;
+          return next;
+        });
+        return true;
+      }
+      if (open && (keyName === "Tab" || keyName === "Enter")) {
+        choose();
+        return true;
+      }
+      if (keyName !== "Enter" || event.shiftKey) return false;
+      if (props.busy) {
+        props.onAbort();
+        return true;
+      }
+      void submit();
+      return true;
+    };
+
     const menu = (
       <ComposerTokenMenu
         open={open}
@@ -1183,6 +1245,13 @@ const ChatComposerImpl = memo(
           setIndex(next);
         }}
         onSlashPick={pickSlash}
+        onSlashShowMore={(groupKey) => {
+          setExpandedSlashGroups((current) => {
+            const next = new Set(current);
+            next.add(groupKey);
+            return next;
+          });
+        }}
         hits={rankedHits}
         fileActive={index}
         onFileHover={setIndex}
@@ -1222,7 +1291,7 @@ const ChatComposerImpl = memo(
         <div
           className={cn(props.variant === "hero" ? "w-full" : "shrink-0 px-4 pt-2 pb-4 md:px-6")}
         >
-          <div className={cn(props.variant === "dock" ? "mx-auto w-full max-w-3xl" : "w-full")}>
+          <div className={cn(props.variant === "dock" ? "mx-auto w-full max-w-[560px]" : "w-full")}>
             <div className="relative">
               {menu}
               {props.variant === "hero" ? (
@@ -1244,85 +1313,43 @@ const ChatComposerImpl = memo(
                 </div>
               ) : null}
               <div
-                ref={shellRef}
-                data-dragging={drag || undefined}
-                className={cn(
-                  "overflow-hidden rounded-multi-card border border-multi-stroke-tertiary bg-multi-bubble shadow-multi-card backdrop-blur-[10px] transition-none focus-within:border-multi-stroke-strong",
-                  drag && "border-multi-stroke-strong shadow-[0_0_0_2px_var(--multi-ring)]",
-                )}
-                onDragLeave={(event) => {
-                  const rect = event.currentTarget.getBoundingClientRect();
-                  const x = event.clientX;
-                  const y = event.clientY;
-                  if (x <= rect.left || x >= rect.right || y <= rect.top || y >= rect.bottom) {
-                    setDrag(false);
-                  }
-                }}
-                onDragOver={(event) => {
-                  event.preventDefault();
-                  if (!props.busy) setDrag(true);
-                }}
-                onDrop={(event) => {
-                  if (props.busy) return;
-                  void drop(event);
-                }}
+                className="agent-prompt-input-root ui-agent-tray__prompt-wrap ui-prompt-input ui-prompt-input--agent-tray-stack flex min-w-0 flex-col gap-[var(--prompt-input-section-gap)] [--prompt-input-section-gap:8px]"
+                data-variant={props.variant === "dock" ? "compact" : "expanded"}
               >
-                {files.length ? (
-                  <AttachmentStrip
-                    files={files}
-                    onRemove={(id) => writeFiles((cur) => cur.filter((f) => f.id !== id))}
-                  />
-                ) : null}
-                <ComposerTray variant={props.variant} sessionId={props.sessionId} />
-                <div className="relative min-h-10">
+                <div
+                  ref={shellRef}
+                  data-dragging={drag || undefined}
+                  data-variant={props.variant === "dock" ? "compact" : "expanded"}
+                  className={cn(
+                    "ui-prompt-input__container chat-composer-shell relative overflow-hidden",
+                    drag && "border-[var(--prompt-input-container-border-hover)]",
+                  )}
+                  onDragLeave={(event) => {
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    const x = event.clientX;
+                    const y = event.clientY;
+                    if (x <= rect.left || x >= rect.right || y <= rect.top || y >= rect.bottom) {
+                      setDrag(false);
+                    }
+                  }}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    if (!props.busy) setDrag(true);
+                  }}
+                  onDrop={(event) => {
+                    if (props.busy) return;
+                    void drop(event);
+                  }}
+                >
+                  {files.length ? (
+                    <AttachmentStrip
+                      files={files}
+                      onRemove={(id) => writeFiles((cur) => cur.filter((f) => f.id !== id))}
+                    />
+                  ) : null}
+                  <ComposerTray variant={props.variant} sessionId={props.sessionId} />
                   <div
-                    className="multi-composer-mirror font-multi pointer-events-none absolute inset-0 z-0 px-3 pt-3 pb-1 text-body whitespace-pre-wrap break-words"
-                    aria-hidden
-                  >
-                    {composing ? (
-                      <span className="text-foreground">{props.draft}</span>
-                    ) : (
-                      segs.map((seg: MirrorSeg, idx: number) => {
-                        return (
-                          <span
-                            key={`${seg.kind}-${seg.start}-${seg.end}`}
-                            className={segCls(seg.kind, activeSeg === idx)}
-                          >
-                            {seg.text}
-                          </span>
-                        );
-                      })
-                    )}
-                  </div>
-                  <textarea
-                    ref={area}
-                    value={props.draft}
-                    spellCheck={false}
-                    autoCapitalize="none"
-                    autoComplete="off"
-                    autoCorrect="off"
-                    data-gramm="false"
-                    data-gramm_editor="false"
-                    data-enable-grammarly="false"
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      setClosed(null);
-                      writeSkills(shiftSkills(props.draft, value, marks));
-                      props.onDraft(value);
-                      setCursor(event.target.selectionStart ?? value.length);
-                    }}
-                    onClick={(event) => {
-                      syncSel(event.currentTarget);
-                    }}
-                    onKeyUp={(event) => {
-                      syncSel(event.currentTarget);
-                    }}
-                    onSelect={(event) => {
-                      syncSel(event.currentTarget);
-                    }}
-                    onCompositionStart={() => setComposing(true)}
-                    onCompositionEnd={() => setComposing(false)}
-                    onPaste={paste}
+                    className="ui-prompt-input__editor ui-prompt-input-editor relative min-h-10 px-3 pt-2.5 pb-1.5"
                     onDragOver={(event) => {
                       event.preventDefault();
                       if (!props.busy && caps.fileAttachments) setDrag(true);
@@ -1331,202 +1358,144 @@ const ChatComposerImpl = memo(
                       if (props.busy || !caps.fileAttachments) return;
                       void drop(event);
                     }}
-                    placeholder={placeholderText}
-                    rows={1}
-                    className="field-sizing-content font-multi relative z-10 block min-h-10 max-h-56 w-full resize-none bg-transparent px-3 pt-3 pb-1 text-body text-transparent caret-foreground outline-hidden placeholder:text-muted-foreground selection:bg-primary/25"
-                    onKeyDown={(event: KeyboardEvent<HTMLTextAreaElement>) => {
-                      const raw = text();
-                      const { start, end } = span();
-                      const picked = marksRef.current.find(
-                        (item) => item.start === start && item.end === end,
-                      );
-
-                      if (
-                        !event.shiftKey &&
-                        (event.key === "ArrowLeft" || event.key === "ArrowRight")
-                      ) {
-                        if (picked) {
-                          event.preventDefault();
-                          select(event.key === "ArrowLeft" ? picked.start : picked.end);
-                          return;
-                        }
-                        if (start === end) {
-                          const hit = touchSkill(
-                            raw,
-                            marksRef.current,
-                            start,
-                            event.key === "ArrowLeft" ? "left" : "right",
-                          );
-                          if (hit) {
-                            event.preventDefault();
-                            select(hit.start, hit.end);
-                            return;
-                          }
-                        }
-                      }
-
-                      if (event.key === "Backspace" || event.key === "Delete") {
-                        if (picked) {
-                          event.preventDefault();
-                          dropToken(picked);
-                          return;
-                        }
-                        if (start === end) {
-                          const hit = touchSkill(
-                            raw,
-                            marksRef.current,
-                            start,
-                            event.key === "Backspace" ? "left" : "right",
-                          );
-                          if (hit) {
-                            event.preventDefault();
-                            dropToken(hit);
-                            return;
-                          }
-                        }
-                      }
-
-                      if (open && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
-                        event.preventDefault();
-                        const dir = event.key === "ArrowDown" ? 1 : -1;
-                        setIndex((cur) => {
-                          const max = (at ? rankedHits.length : options.length) - 1;
-                          if (max < 0) return 0;
-                          const next = cur + dir;
-                          if (next < 0) return max;
-                          if (next > max) return 0;
-                          return next;
-                        });
-                        return;
-                      }
-                      if (open && event.key === "Tab") {
-                        event.preventDefault();
-                        choose();
-                        return;
-                      }
-                      if (open && event.key === "Enter") {
-                        event.preventDefault();
-                        choose();
-                        return;
-                      }
-                      if (open && event.key === "Escape") {
-                        event.preventDefault();
-                        if (key) setClosed(key);
-                        return;
-                      }
-                      if (event.key !== "Enter" || event.shiftKey) return;
+                    onKeyDownCapture={(event) => {
+                      if (event.key !== "Escape" || !open) return;
                       event.preventDefault();
-                      if (props.busy) {
-                        props.onAbort();
-                        return;
-                      }
-                      void submit();
+                      event.stopPropagation();
+                      if (key) setClosed(key);
                     }}
-                  />
-                </div>
-                <div className="flex items-center justify-between gap-2 px-2 pt-0 pb-1">
-                  <div className="flex min-w-0 items-center gap-1">
-                    {caps.fileAttachments ? (
-                      <button
-                        type="button"
-                        disabled={props.busy}
-                        onClick={pickFiles}
-                        className="flex size-8 items-center justify-center rounded-multi-card text-muted-foreground/62 transition-colors hover:bg-multi-hover hover:text-foreground disabled:opacity-35"
-                        aria-label="Add files"
-                      >
-                        <IconPlusLarge className="composer-toolbar-icon" />
-                      </button>
-                    ) : null}
-                    {caps.modelPicker ? (
-                      <ModelPicker
-                        ref={modelPickerRef}
-                        items={models.items}
-                        status={props.modelLoading ? "loading" : models.status}
-                        selection={{
-                          model: props.model,
-                          ...(props.fastActive !== undefined ? { fastMode: props.fastActive } : {}),
-                          ...(caps.thinkingLevels
-                            ? { thinkingLevel: snap?.thinkingLevel ?? models.thinkingLevel }
-                            : {}),
-                        }}
-                        disabled={props.busy}
-                        variant={props.variant}
-                        onSelect={(model) => {
-                          props.onModel(model);
-                          area.current?.focus();
-                        }}
-                        {...(props.onFastMode ? { onFastMode: props.onFastMode } : {})}
-                        {...(caps.thinkingLevels ? { onThinkingLevel: props.onThinkingLevel } : {})}
-                      />
-                    ) : null}
-                    {props.fastActive ? (
-                      <button
-                        type="button"
-                        disabled={props.busy}
-                        className={cn(
-                          "font-multi inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border border-multi-stroke-strong pl-2 pr-1 text-body shadow-multi-card outline-none backdrop-blur-md transition-colors",
-                          "bg-multi-hover/70 hover:bg-multi-hover focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50",
-                        )}
-                        onClick={() =>
-                          props.onFastToggle
-                            ? props.onFastToggle()
-                            : props.onFastMode?.(!props.fastActive)
-                        }
-                        aria-pressed
-                        aria-label="Turn off fast mode"
-                        title="Turn off fast mode"
-                      >
-                        <IconLightning className="size-3 shrink-0 opacity-90" />
-                        <span className="max-w-40 truncate">Fast</span>
-                        <IconCrossSmall className="size-3 shrink-0 opacity-80" />
-                      </button>
-                    ) : null}
-                    {props.planActive ? (
-                      <button
-                        type="button"
-                        disabled={props.busy}
-                        className={cn(
-                          "font-multi multi-plan-mode-chip--on inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border pl-2 pr-1 text-body shadow-multi-card outline-none backdrop-blur-md transition-colors",
-                          "hover:border-multi-stroke-strong hover:bg-multi-hover focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50",
-                        )}
-                        onClick={() => props.onPlanToggle?.()}
-                        aria-pressed
-                        aria-label="Turn off plan mode"
-                        title="Turn off plan mode (⇧Tab)"
-                      >
-                        <IconBulletList className="size-3 shrink-0 opacity-90" />
-                        <span className="max-w-40 truncate">Plan</span>
-                        <IconCrossSmall className="size-3 shrink-0 opacity-80" />
-                      </button>
-                    ) : null}
-                  </div>
-                  <button
-                    type="button"
-                    disabled={!props.busy && empty}
-                    onClick={() => {
-                      if (props.busy) {
-                        props.onAbort();
-                        return;
-                      }
-                      void submit();
-                    }}
-                    className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity disabled:opacity-30"
-                    aria-label={props.busy ? "Stop" : "Send"}
                   >
-                    {props.busy ? (
-                      <IconStop className="composer-toolbar-icon" />
-                    ) : (
-                      <IconArrowUp className="composer-toolbar-icon" />
-                    )}
-                  </button>
-                </div>
-                {drag ? (
-                  <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-multi-card bg-multi-active/15 backdrop-blur-[2px]">
-                    <div className="rounded-multi-pill border border-multi-border/40 bg-multi-bubble px-3 py-2 text-body font-medium text-foreground/84 shadow-multi-card">
-                      Drop files to attach
-                    </div>
+                    <ComposerPromptEditor
+                      ref={editorRef}
+                      value={props.draft}
+                      cursor={cursor}
+                      terminalContexts={[]}
+                      skills={editorSkills}
+                      disabled={props.busy}
+                      placeholder={placeholderText}
+                      className="max-h-56 min-h-10 text-[12px]/[16px] text-cursor-text-primary"
+                      onRemoveTerminalContext={() => {}}
+                      onPaste={paste}
+                      onCommandKeyDown={handleEditorCommandKey}
+                      onChange={(value, nextCursor) => {
+                        setClosed(null);
+                        writeSkills(shiftSkills(props.draft, value, marks));
+                        props.onDraft(value);
+                        setCursor(nextCursor);
+                      }}
+                    />
                   </div>
-                ) : null}
+                  <div className="ui-prompt-input__footer ui-prompt-input-toolbar flex items-center justify-between gap-2 px-2 pt-0 pb-1.5">
+                    <div className="ui-prompt-input-toolbar__left flex min-w-0 items-center gap-1">
+                      {caps.fileAttachments ? (
+                        <button
+                          type="button"
+                          disabled={props.busy}
+                          onClick={pickFiles}
+                          className="flex size-6 items-center justify-center rounded-full text-cursor-text-tertiary transition-colors hover:bg-cursor-bg-quaternary hover:text-cursor-text-primary disabled:opacity-35"
+                          aria-label="Add files"
+                        >
+                          <IconPlusLarge className="composer-toolbar-icon" />
+                        </button>
+                      ) : null}
+                      {caps.modelPicker ? (
+                        <span className="glass-model-picker-wrapper" data-compact-visible="">
+                          <ModelPicker
+                            ref={modelPickerRef}
+                            items={models.items}
+                            status={props.modelLoading ? "loading" : models.status}
+                            selection={{
+                              model: props.model,
+                              ...(props.fastActive !== undefined
+                                ? { fastMode: props.fastActive }
+                                : {}),
+                              ...(caps.thinkingLevels
+                                ? { thinkingLevel: snap?.thinkingLevel ?? models.thinkingLevel }
+                                : {}),
+                            }}
+                            disabled={props.busy}
+                            variant={props.variant}
+                            onSelect={(model) => {
+                              props.onModel(model);
+                              editorRef.current?.focus();
+                            }}
+                            onAddModels={() => void navigate({ to: "/settings/models" })}
+                            {...(props.onFastMode ? { onFastMode: props.onFastMode } : {})}
+                            {...(caps.thinkingLevels
+                              ? { onThinkingLevel: props.onThinkingLevel }
+                              : {})}
+                          />
+                        </span>
+                      ) : null}
+                      {props.fastActive ? (
+                        <button
+                          type="button"
+                          disabled={props.busy}
+                          className={cn(
+                            "font-multi inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border border-multi-stroke-strong pl-2 pr-1 text-body shadow-multi-card outline-none backdrop-blur-md transition-colors",
+                            "bg-multi-hover/70 hover:bg-multi-hover focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50",
+                          )}
+                          onClick={() =>
+                            props.onFastToggle
+                              ? props.onFastToggle()
+                              : props.onFastMode?.(!props.fastActive)
+                          }
+                          aria-pressed
+                          aria-label="Turn off fast mode"
+                          title="Turn off fast mode"
+                        >
+                          <IconLightning className="size-3 shrink-0 opacity-90" />
+                          <span className="max-w-40 truncate">Fast</span>
+                          <IconCrossSmall className="size-3 shrink-0 opacity-80" />
+                        </button>
+                      ) : null}
+                      {props.planActive ? (
+                        <button
+                          type="button"
+                          disabled={props.busy}
+                          className={cn(
+                            "font-multi multi-plan-mode-chip--on inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border pl-2 pr-1 text-body shadow-multi-card outline-none backdrop-blur-md transition-colors",
+                            "hover:border-multi-stroke-strong hover:bg-multi-hover focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50",
+                          )}
+                          onClick={() => props.onPlanToggle?.()}
+                          aria-pressed
+                          aria-label="Turn off plan mode"
+                          title="Turn off plan mode (⇧Tab)"
+                        >
+                          <IconBulletList className="size-3 shrink-0 opacity-90" />
+                          <span className="max-w-40 truncate">Plan</span>
+                          <IconCrossSmall className="size-3 shrink-0 opacity-80" />
+                        </button>
+                      ) : null}
+                    </div>
+                    <button
+                      type="button"
+                      disabled={!props.busy && empty}
+                      onClick={() => {
+                        if (props.busy) {
+                          props.onAbort();
+                          return;
+                        }
+                        void submit();
+                      }}
+                      className="flex size-6 items-center justify-center rounded-full bg-[rgb(var(--cursor-action-icon-primary-rgb))] text-white shadow-[0_1px_1px_rgb(0_0_0_/_0.12)] transition-opacity hover:opacity-90 disabled:opacity-30"
+                      aria-label={props.busy ? "Stop" : "Send"}
+                    >
+                      {props.busy ? (
+                        <IconStop className="composer-toolbar-icon" />
+                      ) : (
+                        <IconArrowUp className="composer-toolbar-icon" />
+                      )}
+                    </button>
+                  </div>
+                  {drag ? (
+                    <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-multi-card bg-multi-active/15 backdrop-blur-[2px]">
+                      <div className="rounded-multi-pill border border-multi-border/40 bg-multi-bubble px-3 py-2 text-body font-medium text-foreground/84 shadow-multi-card">
+                        Drop files to attach
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
               </div>
             </div>
           </div>

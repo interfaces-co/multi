@@ -10,16 +10,21 @@ import {
   touchSkill,
 } from "./skill-tokens";
 
+function token(id: string, name: string) {
+  return `[$${name}](skill://${encodeURIComponent(id)})`;
+}
+
 describe("skill-tokens", () => {
   it("drops a tracked skill when the edit touches the token", () => {
-    const prev = "/tailwind hello";
-    const next = "/tailwXnd hello";
+    const tailwind = token("/Users/workgyver/.agents/skills/tailwind", "tailwind");
+    const prev = `${tailwind} hello`;
+    const next = `${tailwind.slice(0, 5)}X${tailwind.slice(6)} hello`;
     const skills = [
       {
         id: "/Users/workgyver/.agents/skills/tailwind",
         name: "tailwind",
         start: 0,
-        end: "/tailwind".length,
+        end: tailwind.length,
       },
     ];
 
@@ -27,14 +32,15 @@ describe("skill-tokens", () => {
   });
 
   it("shifts a tracked skill when text is inserted before it", () => {
-    const prev = "/tailwind hello";
-    const next = "Use /tailwind hello";
+    const tailwind = token("/Users/workgyver/.agents/skills/tailwind", "tailwind");
+    const prev = `${tailwind} hello`;
+    const next = `Use ${tailwind} hello`;
     const skills = [
       {
         id: "/Users/workgyver/.agents/skills/tailwind",
         name: "tailwind",
         start: 0,
-        end: "/tailwind".length,
+        end: tailwind.length,
       },
     ];
 
@@ -43,25 +49,27 @@ describe("skill-tokens", () => {
         id: "/Users/workgyver/.agents/skills/tailwind",
         name: "tailwind",
         start: 4,
-        end: 4 + "/tailwind".length,
+        end: 4 + tailwind.length,
       },
     ]);
   });
 
   it("expands only explicitly tracked skills", () => {
-    const text = "/tailwind build\n/plain text";
+    const tailwind = token("/Users/workgyver/.agents/skills/tailwind", "tailwind");
+    const plain = token("/Users/workgyver/.agents/skills/plain", "plain");
+    const text = `${tailwind} build\n${plain} text`;
     const skills = [
       {
         id: "/Users/workgyver/.agents/skills/tailwind",
         name: "tailwind",
         start: 0,
-        end: "/tailwind".length,
+        end: tailwind.length,
       },
       {
         id: "/Users/workgyver/.agents/skills/plain",
         name: "plain",
-        start: "/tailwind build\n".length,
-        end: "/tailwind build\n/plain".length,
+        start: `${tailwind} build\n`.length,
+        end: `${tailwind} build\n${plain}`.length,
       },
     ];
 
@@ -74,10 +82,11 @@ describe("skill-tokens", () => {
           body: "Use Tailwind skill body.",
         },
       ]),
-    ).toBe("Use Tailwind skill body. build\n/plain text");
+    ).toBe(`Use Tailwind skill body. build\n${plain} text`);
   });
 
   it("adds a tracked skill when inserted from the slash menu", () => {
+    const tailwind = token("tailwind", "tailwind");
     expect(
       applySkill(
         "/tai",
@@ -86,50 +95,51 @@ describe("skill-tokens", () => {
         [],
       ),
     ).toEqual({
-      value: "/tailwind ",
-      cursor: 10,
+      value: `${tailwind} `,
+      cursor: tailwind.length + 1,
       skills: [
         {
           id: "tailwind",
           name: "tailwind",
           start: 0,
-          end: 9,
+          end: tailwind.length,
         },
       ],
     });
   });
 
   it("finds a token touched from the left or right edge", () => {
+    const grillMe = token("grill-me", "grill-me");
     expect(
       touchSkill(
-        "/grill-me ",
+        `${grillMe} `,
         [
           {
             id: "grill-me",
             name: "grill-me",
             start: 0,
-            end: 9,
+            end: grillMe.length,
           },
         ],
-        9,
+        grillMe.length,
         "left",
       ),
     ).toEqual({
       id: "grill-me",
       name: "grill-me",
       start: 0,
-      end: 9,
+      end: grillMe.length,
     });
 
     expect(
       touchSkill(
-        "/grill-me ",
+        `${grillMe} `,
         [
           {
             id: "grill-me",
             name: "grill-me",
             start: 0,
-            end: 9,
+            end: grillMe.length,
           },
         ],
         0,
@@ -139,45 +149,48 @@ describe("skill-tokens", () => {
       id: "grill-me",
       name: "grill-me",
       start: 0,
-      end: 9,
+      end: grillMe.length,
     });
   });
 
   it("expands a selection that lands inside a tracked token", () => {
+    const grillMe = token("grill-me", "grill-me");
+    const text = `hello ${grillMe} world`;
     expect(
       snapSkillSelection(
-        "hello /grill-me world",
+        text,
         [
           {
             id: "grill-me",
             name: "grill-me",
             start: 6,
-            end: 15,
+            end: 6 + grillMe.length,
           },
         ],
         9,
         9,
       ),
-    ).toEqual({ start: 6, end: 15 });
+    ).toEqual({ start: 6, end: 6 + grillMe.length });
   });
 
   it("drops a tracked token and its trailing gap", () => {
+    const tailwind = token("tailwind", "tailwind");
     expect(
       dropSkill(
-        "/tailwind hello",
+        `${tailwind} hello`,
         [
           {
             id: "tailwind",
             name: "tailwind",
             start: 0,
-            end: 9,
+            end: tailwind.length,
           },
         ],
         {
           id: "tailwind",
           name: "tailwind",
           start: 0,
-          end: 9,
+          end: tailwind.length,
         },
       ),
     ).toEqual({

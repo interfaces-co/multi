@@ -18,6 +18,12 @@ export type ComposerPromptSegment =
       path?: string;
     }
   | {
+      type: "inline-token";
+      label: string;
+      sourceUri: string;
+      markdown: string;
+    }
+  | {
       type: "terminal-context";
       context: TerminalContextDraft | null;
     };
@@ -25,6 +31,7 @@ export type ComposerPromptSegment =
 const MENTION_TOKEN_REGEX = /(^|\s)@([^\s@]+)(?=\s)/g;
 const SKILL_TOKEN_REGEX = /(^|\s)\$([a-zA-Z][a-zA-Z0-9:_-]*)(?=\s)/g;
 const MARKDOWN_SKILL_TOKEN_REGEX = /(^|\s)\[\$([a-zA-Z][a-zA-Z0-9:_-]*)\]\(([^)]*)\)(?=\s)/g;
+const MARKDOWN_INLINE_TOKEN_REGEX = /(^|\s)\[([^\]]+)]\(([^)\s]+)\)(?=\s|$)/g;
 
 function rangeIncludesIndex(start: number, end: number, index: number): boolean {
   return start <= index && index < end;
@@ -53,7 +60,27 @@ type InlineTokenMatch =
       path?: string;
       start: number;
       end: number;
+    }
+  | {
+      type: "inline-token";
+      label: string;
+      sourceUri: string;
+      markdown: string;
+      start: number;
+      end: number;
     };
+
+function isMarkdownInlineToken(label: string, sourceUri: string): boolean {
+  if (label.startsWith("$")) return false;
+  if (label.startsWith("@")) return true;
+  return (
+    sourceUri.startsWith("plugin://") ||
+    sourceUri.startsWith("tool://") ||
+    sourceUri.startsWith("model://") ||
+    sourceUri.startsWith("file://") ||
+    sourceUri.startsWith("vscode-file://")
+  );
+}
 
 function collectInlineTokenMatches(text: string): InlineTokenMatch[] {
   const matches: InlineTokenMatch[] = [];
@@ -92,6 +119,27 @@ function collectInlineTokenMatches(text: string): InlineTokenMatch[] {
     const end = start + fullMatch.length - prefix.length;
     if (skillName.length > 0 && skillPath.length > 0) {
       matches.push({ type: "skill", value: skillName, path: skillPath, start, end });
+    }
+  }
+
+  for (const match of text.matchAll(MARKDOWN_INLINE_TOKEN_REGEX)) {
+    const fullMatch = match[0];
+    const prefix = match[1] ?? "";
+    const label = match[2] ?? "";
+    const sourceUri = match[3] ?? "";
+    const matchIndex = match.index ?? 0;
+    const start = matchIndex + prefix.length;
+    const markdown = fullMatch.slice(prefix.length);
+    const end = start + markdown.length;
+    if (isMarkdownInlineToken(label, sourceUri)) {
+      matches.push({
+        type: "inline-token",
+        label: label.startsWith("@") ? label.slice(1) : label,
+        sourceUri,
+        markdown,
+        start,
+        end,
+      });
     }
   }
 
@@ -195,11 +243,18 @@ function splitPromptTextIntoComposerSegments(text: string): ComposerPromptSegmen
 
     if (match.type === "mention") {
       segments.push({ type: "mention", path: match.value });
-    } else {
+    } else if (match.type === "skill") {
       segments.push({
         type: "skill",
         name: match.value,
         ...(match.path ? { path: match.path } : {}),
+      });
+    } else {
+      segments.push({
+        type: "inline-token",
+        label: match.label,
+        sourceUri: match.sourceUri,
+        markdown: match.markdown,
       });
     }
 

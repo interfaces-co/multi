@@ -258,7 +258,7 @@ const HumanBubble = memo(function HumanBubble(props: {
           </div>
         ) : null}
         {props.text ? (
-          <div className="max-w-[min(100%,36rem)] whitespace-pre-wrap break-words rounded-[20px] border border-multi-border/40 bg-multi-active px-3.5 py-2 text-body/5 text-foreground shadow-multi-card backdrop-blur-sm">
+          <div className="max-w-[min(100%,36rem)] whitespace-pre-wrap break-words rounded-[8px] border border-cursor-stroke-tertiary bg-[var(--glass-chat-bubble-background,var(--prompt-input-container-bg))] px-3 py-2 text-[12px]/[16px] text-cursor-text-primary shadow-multi-card backdrop-blur-[10px]">
             {props.text}
           </div>
         ) : null}

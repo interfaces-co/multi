@@ -33,6 +33,14 @@ function StatusDot(props: { item: SidebarChatItem }) {
   return <span className="size-[5.5px] shrink-0 rounded-full bg-muted-foreground/50" aria-hidden />;
 }
 
+function StatusSlot(props: { item: SidebarChatItem }) {
+  return (
+    <span className="agent-sidebar-cell-status flex size-3 shrink-0 items-center justify-center">
+      <StatusDot item={props.item} />
+    </span>
+  );
+}
+
 export const AgentRow = memo(
   function AgentRow(props: {
     item: SidebarChatItem;
@@ -138,11 +146,11 @@ export const AgentRow = memo(
           onPointerEnter={() => props.onPrefetchAgent?.(props.item.id)}
           onClick={() => props.onSelectAgent(props.item.id)}
         >
-          <StatusDot item={props.item} />
+          <StatusSlot item={props.item} />
           <span className="agent-sidebar-cell-text min-w-0 flex-1 truncate">
             {props.item.title}
           </span>
-          <span className="agent-sidebar-cell-subtitle shrink-0 text-detail text-muted-foreground/50">
+          <span className="agent-sidebar-cell-subtitle shrink-0 tabular-nums text-detail text-muted-foreground/50">
             {props.item.ago}
           </span>
         </RowButton>
@@ -173,13 +181,13 @@ export const AgentRow = memo(
         {renaming ? (
           <div
             className={cn(
-              "agent-sidebar-cell font-multi flex min-h-7.5 w-full min-w-0 items-center gap-2 rounded-multi-control border border-transparent px-2 py-1 text-left text-body/[18px]",
+              "agent-sidebar-cell font-multi flex min-h-6 w-full min-w-0 items-center gap-2 rounded-multi-control border border-transparent px-1.5 py-1 text-left text-[12px]/[16px]",
               "border-multi-stroke-strong bg-multi-active",
             )}
             data-agent-sidebar-cell=""
             data-renaming="true"
           >
-            <StatusDot item={props.item} />
+            <StatusSlot item={props.item} />
             <input
               ref={inputRef}
               type="text"
@@ -188,10 +196,10 @@ export const AgentRow = memo(
               onKeyDown={onRenameKeyDown}
               onBlur={onBlur}
               onClick={(e) => e.stopPropagation()}
-              className="min-w-0 flex-1 bg-transparent text-body/[18px] text-foreground outline-none ring-0"
+              className="min-w-0 flex-1 bg-transparent text-[12px]/[16px] text-foreground outline-none ring-0"
               aria-label="Rename thread"
             />
-            <span className="agent-sidebar-cell-subtitle shrink-0 text-detail text-muted-foreground/50">
+            <span className="agent-sidebar-cell-subtitle shrink-0 tabular-nums text-detail text-muted-foreground/50">
               {props.item.ago}
             </span>
           </div>
@@ -205,11 +213,11 @@ export const AgentRow = memo(
             onPointerEnter={() => props.onPrefetchAgent?.(props.item.id)}
             onClick={() => props.onSelectAgent(props.item.id)}
           >
-            <StatusDot item={props.item} />
+            <StatusSlot item={props.item} />
             <span className="agent-sidebar-cell-text min-w-0 flex-1 truncate">
               {props.item.title}
             </span>
-            <span className="agent-sidebar-cell-subtitle shrink-0 text-detail text-muted-foreground/50">
+            <span className="agent-sidebar-cell-subtitle shrink-0 tabular-nums text-detail text-muted-foreground/50">
               {props.item.ago}
             </span>
           </RowButton>

@@ -16,6 +16,14 @@
 import type { ShellFileHit, ShellFilePreview } from "~/lib/ui-session-types";
 import { Popover } from "@base-ui/react/popover";
 import {
+  cursorMenuIconSlotClassName,
+  cursorMenuItemClassName,
+  cursorMenuLabelClassName,
+  cursorMenuMetaTextClassName,
+  cursorMenuPrimaryTextClassName,
+  cursorMenuPopupClassName,
+} from "@multi/ui/menu";
+import {
   IconBuildingBlocks,
   IconChevronRight,
   IconFileBend,
@@ -81,6 +89,7 @@ export function ComposerTokenMenu(props: {
   slashActive: number;
   onSlashHover: (optionIndex: number) => void;
   onSlashPick: (item: SlashItem) => void;
+  onSlashShowMore: (groupKey: string) => void;
   hits: ShellFileHit[];
   fileActive: number;
   onFileHover: (i: number) => void;
@@ -108,10 +117,10 @@ export function ComposerTokenMenu(props: {
             initialFocus={false}
             finalFocus={false}
             className={cn(
-              "multi-slash-menu-popup multi-composer-token-menu",
+              "multi-composer-token-menu",
               "origin-[var(--transform-origin)]",
-              "overflow-hidden rounded-multi-card border border-multi-stroke bg-multi-bubble shadow-multi-popup backdrop-blur-xl",
-              "w-[min(320px,calc(100vw-2rem))] text-[12px] leading-[16px] select-none",
+              cursorMenuPopupClassName,
+              "w-[min(320px,calc(100vw-2rem))] text-[12px]/[16px] select-none",
             )}
           >
             {props.mode === "file" ? <FilePane {...props} /> : <SlashPane {...props} />}
@@ -130,6 +139,7 @@ function SlashPane(props: {
   slashActive: number;
   onSlashHover: (optionIndex: number) => void;
   onSlashPick: (item: SlashItem) => void;
+  onSlashShowMore: (groupKey: string) => void;
 }) {
   return (
     <div className="max-h-72 min-h-0 overflow-y-auto overscroll-contain">
@@ -141,11 +151,29 @@ function SlashPane(props: {
               <div
                 key={row.key}
                 /* Section title: 11px/14px tertiary */
-                className="px-1 pt-1.5 pb-0.5 text-[11px] leading-[14px] text-muted-foreground/55 first:pt-0.5"
+                className={cursorMenuLabelClassName}
                 role="presentation"
               >
                 {row.label}
               </div>
+            );
+          }
+          if (row.kind === "more") {
+            return (
+              <button
+                key={row.key}
+                type="button"
+                className={cn(
+                  cursorMenuItemClassName,
+                  "w-full text-left text-[11px]/[14px] text-cursor-text-tertiary hover:text-cursor-text-secondary",
+                )}
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  props.onSlashShowMore(row.key.replace(/:more$/, ""));
+                }}
+              >
+                Show <span className="text-cursor-text-secondary">{row.count}</span> more
+              </button>
             );
           }
           const active = row.optionIndex === props.slashActive;
@@ -159,10 +187,11 @@ function SlashPane(props: {
               data-highlighted={active ? "" : undefined}
               /* Menu row: 3px×4px padding, 6px gap, 4px radius */
               className={cn(
-                "flex w-full items-center gap-[6px] rounded-sm px-1 py-[3px] text-left transition-colors motion-reduce:transition-none",
+                cursorMenuItemClassName,
+                "w-full text-left motion-reduce:transition-none",
                 active
-                  ? "bg-multi-active text-foreground"
-                  : "text-foreground/82 hover:bg-multi-hover/40",
+                  ? "bg-cursor-bg-tertiary text-cursor-text-primary"
+                  : "text-cursor-text-secondary hover:bg-cursor-bg-quaternary",
               )}
               onMouseDown={(event) => {
                 event.preventDefault();
@@ -172,24 +201,30 @@ function SlashPane(props: {
               onMouseEnter={() => props.onSlashHover(row.optionIndex)}
             >
               {/* Leading icon slot: 12×16 secondary */}
-              <span className="inline-flex h-4 w-3 shrink-0 items-center justify-center text-muted-foreground/60">
+              <span className={cursorMenuIconSlotClassName}>
                 <Glyph className="size-3" />
               </span>
               {/* Title row: 8px gap, flex-1 */}
               <span className="flex min-w-0 flex-1 items-center gap-2">
                 {/* Primary title, truncate */}
-                <span className="truncate text-foreground">
-                  /{highlightMatch(row.item.name, props.query)}
+                <span className={cursorMenuPrimaryTextClassName}>
+                  {row.item.kind === "skill" ? "" : "/"}
+                  {highlightMatch(row.item.name, props.query)}
                 </span>
                 {/* Inline description: tertiary, truncate */}
                 {row.item.description ? (
-                  <span className="min-w-0 flex-1 truncate text-[11px] leading-[14px] text-muted-foreground/50">
+                  <span className={cn("min-w-0 flex-1", cursorMenuMetaTextClassName)}>
                     {row.item.description}
                   </span>
                 ) : null}
               </span>
               {/* Trailing pill: tertiary, max 180px */}
-              <span className="max-w-[180px] shrink-0 truncate text-[11px] leading-[14px] text-muted-foreground/45">
+              <span
+                className={cn(
+                  "max-w-[180px] shrink-0 text-cursor-text-quaternary",
+                  cursorMenuMetaTextClassName,
+                )}
+              >
                 {row.item.pill}
               </span>
             </button>
@@ -224,9 +259,7 @@ function FilePane(props: {
             aria-busy={props.loading}
           >
             {props.loading ? (
-              <div className="px-1 py-2 text-[11px] leading-[14px] text-muted-foreground/55">
-                Loading…
-              </div>
+              <div className="px-1 py-2 text-[11px]/[14px] text-cursor-text-tertiary">Loading…</div>
             ) : (
               props.hits.map((item, i) => {
                 const active = i === props.fileActive;
@@ -240,10 +273,11 @@ function FilePane(props: {
                     data-highlighted={active ? "" : undefined}
                     /* Menu row: 3px×4px padding, 6px gap, 4px radius */
                     className={cn(
-                      "flex w-full items-center gap-[6px] rounded-sm px-1 py-[3px] text-left transition-colors motion-reduce:transition-none",
+                      cursorMenuItemClassName,
+                      "w-full text-left motion-reduce:transition-none",
                       active
                         ? "multi-composer-object-row--active"
-                        : "text-foreground/82 hover:bg-multi-hover/40",
+                        : "text-cursor-text-secondary hover:bg-cursor-bg-quaternary",
                     )}
                     onMouseDown={(event) => {
                       event.preventDefault();
@@ -255,7 +289,7 @@ function FilePane(props: {
                     {/* Leading icon slot: 12×16 */}
                     <span
                       className={cn(
-                        "inline-flex h-4 w-3 shrink-0 items-center justify-center",
+                        cursorMenuIconSlotClassName,
                         active
                           ? "text-[color:var(--multi-composer-object-fg-muted)]"
                           : "text-muted-foreground/60",
@@ -272,7 +306,8 @@ function FilePane(props: {
                     <span className="flex min-w-0 flex-1 items-baseline gap-1">
                       <span
                         className={cn(
-                          "shrink-0 truncate",
+                          "shrink-0",
+                          cursorMenuPrimaryTextClassName,
                           active ? "text-current" : "text-foreground",
                         )}
                       >
@@ -281,7 +316,8 @@ function FilePane(props: {
                       {dir ? (
                         <span
                           className={cn(
-                            "min-w-0 truncate text-[11px] leading-[14px]",
+                            "min-w-0",
+                            cursorMenuMetaTextClassName,
                             active
                               ? "text-[color:var(--multi-composer-object-fg-muted)]"
                               : "text-muted-foreground/40",

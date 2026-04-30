@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ModelPicker } from "./model";
 import type { RuntimeModelItem } from "~/lib/runtime-models";
+import type { ThinkingLevel } from "~/lib/ui-session-types";
 
 const fastModel: RuntimeModelItem = {
   key: "codex/gpt-5.4",
@@ -29,8 +30,11 @@ const slowModel: RuntimeModelItem = {
   supportsFastMode: false,
 };
 
-function Harness(props: { item: RuntimeModelItem }) {
+function Harness(props: { item: RuntimeModelItem; thinking?: boolean }) {
   const [fast, setFast] = useState(false);
+  const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevel>(
+    props.item.reasoning ? "medium" : "off",
+  );
   return (
     <ModelPicker
       items={[props.item]}
@@ -42,19 +46,26 @@ function Harness(props: { item: RuntimeModelItem }) {
           reasoning: Boolean(props.item.reasoning),
         },
         fastMode: fast,
+        ...(props.thinking ? { thinkingLevel } : {}),
       }}
       variant="settings"
       onSelect={() => {}}
       onFastMode={setFast}
+      {...(props.thinking ? { onThinkingLevel: setThinkingLevel } : {})}
     />
   );
 }
 
-async function mount(item: RuntimeModelItem) {
+async function mount(item: RuntimeModelItem, options: { thinking?: boolean } = {}) {
   const host = document.createElement("div");
   document.body.append(host);
   const root = createRoot(host);
-  root.render(<Harness item={item} />);
+  root.render(
+    <Harness
+      item={item}
+      {...(options.thinking !== undefined ? { thinking: options.thinking } : {})}
+    />,
+  );
   await Promise.resolve();
   const cleanup = async () => {
     root.unmount();
@@ -71,20 +82,13 @@ describe("ModelPicker", () => {
     document.body.innerHTML = "";
   });
 
-  it("shows fast mode controls for supported models and updates the trigger state", async () => {
+  it("shows fast mode trigger state for supported models", async () => {
     await using _ = await mount(fastModel);
 
     await page.getByRole("button").click();
 
     await vi.waitFor(() => {
-      expect(document.body.textContent ?? "").toContain("Fast Mode");
-    });
-
-    await page.getByText("Fast Mode").click();
-    await page.getByText("On").click();
-
-    await vi.waitFor(() => {
-      expect(document.body.textContent ?? "").toContain("Fast: On");
+      expect(document.body.textContent ?? "").toContain("Fast: Off");
     });
   });
 
@@ -95,6 +99,31 @@ describe("ModelPicker", () => {
 
     await vi.waitFor(() => {
       expect(document.body.textContent ?? "").not.toContain("Fast Mode");
+    });
+  });
+
+  it("shows the Cursor MAX confirmation flow before enabling MAX mode", async () => {
+    await using _ = await mount(
+      {
+        ...fastModel,
+        reasoning: true,
+        supportsXhigh: true,
+      },
+      { thinking: true },
+    );
+
+    await page.getByRole("button").click();
+    await page.getByText("MAX Mode").click();
+
+    await vi.waitFor(() => {
+      expect(document.body.textContent ?? "").toContain("Enable MAX Mode?");
+    });
+
+    await page.getByRole("button", { name: "Enable MAX" }).click();
+
+    await vi.waitFor(() => {
+      expect(document.body.textContent ?? "").toContain("MAX");
+      expect(document.body.textContent ?? "").toContain("Thinking: Extra High");
     });
   });
 });

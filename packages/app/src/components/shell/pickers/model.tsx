@@ -1,5 +1,13 @@
 import type { HarnessModelRef, ThinkingLevel } from "~/lib/ui-session-types";
 import { Menu } from "@base-ui/react/menu";
+import { LockIcon } from "lucide-react";
+import {
+  cursorMenuIconSlotClassName,
+  cursorMenuItemClassName,
+  cursorMenuMetaTextClassName,
+  cursorMenuPrimaryTextClassName,
+  cursorMenuSeparatorClassName,
+} from "@multi/ui/menu";
 import { IconBrain, IconCheckmark1Small, IconChevronRight } from "central-icons";
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { Skeleton } from "@multi/ui/skeleton";
@@ -76,10 +84,12 @@ export const ModelPicker = forwardRef<
     onSelect: (item: RuntimeModelItem) => void;
     onFastMode?: (on: boolean) => void;
     onThinkingLevel?: (level: ThinkingLevel) => void;
+    onAddModels?: () => void;
   }
 >(function ModelPicker(props, ref) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [confirmMax, setConfirmMax] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const list = useMemo(() => filterRuntimeModels(props.items, query), [props.items, query]);
@@ -93,17 +103,12 @@ export const ModelPicker = forwardRef<
     [props.items, props.selection.model],
   );
   const xhigh = Boolean(cur?.supportsXhigh);
-  const thinkingItems = useMemo(
-    () => (xhigh ? thinkingOptions : thinkingOptions.filter((item) => item.value !== "xhigh")),
-    [xhigh],
-  );
-
   useEffect(() => {
     if (open) return;
     setQuery("");
+    setConfirmMax(false);
   }, [open]);
 
-  // Focus search input when menu opens
   useEffect(() => {
     if (open && inputRef.current) {
       inputRef.current.focus();
@@ -154,7 +159,7 @@ export const ModelPicker = forwardRef<
     if (failed) {
       return "Models unavailable";
     }
-    return "Select model";
+    return "Auto";
   })();
 
   const side = props.variant === "dock" ? "top" : "bottom";
@@ -179,10 +184,10 @@ export const ModelPicker = forwardRef<
         aria-label={`Model: ${triggerLabel}${props.onThinkingLevel ? `, thinking ${thinkingDetailLabel(thinkingValue)}` : ""}${showFast ? `, fast mode ${fastValue}` : ""}`}
         disabled={!idle}
         className={cn(
-          "ui-model-picker__trigger inline-flex min-w-0 gap-1.5 rounded-multi-control border text-left text-body outline-none transition-colors focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none",
+          "ui-model-picker__trigger inline-flex min-w-0 gap-1.5 rounded-full border text-left text-[12px]/[16px] outline-none transition-colors focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none",
           settings
-            ? "h-auto min-h-6 w-full max-w-full flex-col items-stretch gap-0.5 border-multi-stroke/50 bg-multi-hover/20 py-1 pl-2 pr-1 hover:bg-multi-hover/40"
-            : "h-6 max-w-[min(100%,280px)] items-center border-multi-stroke/40 bg-multi-hover/15 pl-2 pr-1.5 hover:border-multi-stroke/60 hover:bg-multi-hover/35",
+            ? "h-auto min-h-7 w-full max-w-full flex-col items-stretch gap-0.5 border-cursor-stroke-tertiary bg-cursor-bg-quinary py-1 pl-2 pr-1 hover:border-cursor-stroke-secondary hover:bg-cursor-bg-quaternary"
+            : "h-6 max-w-[min(100%,240px)] items-center border-transparent bg-transparent px-1.5 py-0 hover:bg-cursor-bg-quaternary",
           cur != null || props.selection.model?.id
             ? "text-foreground/90"
             : "text-muted-foreground/70",
@@ -198,29 +203,28 @@ export const ModelPicker = forwardRef<
           </div>
         ) : (
           <>
-            <div className={cn("flex min-w-0 items-center gap-1.5", settings && "w-full")}>
-              {cur?.reasoning ? (
-                <span
-                  className="inline-flex shrink-0 items-center text-muted-foreground/70"
-                  aria-hidden
-                  title="Reasoning model"
-                >
-                  <IconBrain className="size-3" />
-                </span>
-              ) : null}
-              <span className="min-w-0 flex-1 overflow-hidden">
+            <div className={cn("flex min-w-0 items-center gap-1", settings && "w-full")}>
+              <span className="ui-model-picker__trigger-text min-w-0 flex-1 overflow-hidden">
                 <PretextOneLine
                   text={triggerLabel}
                   className={cn(
-                    "block w-full min-w-0 text-left text-body",
+                    "block w-full min-w-0 text-left text-[12px]/[16px]",
                     cur != null || props.selection.model?.id
                       ? "text-foreground/90"
                       : "text-muted-foreground/70",
                   )}
                 />
               </span>
+              {thinkingValue === "xhigh" ? (
+                <span className="inline-flex h-4 shrink-0 items-center rounded-[4px] bg-cursor-bg-tertiary px-1 text-[9px]/[12px] font-semibold text-cursor-text-secondary">
+                  MAX
+                </span>
+              ) : null}
+              {locked ? (
+                <LockIcon className="size-3 shrink-0 text-cursor-text-tertiary" aria-hidden />
+              ) : null}
               <IconChevronRight
-                className="size-3 shrink-0 rotate-90 text-muted-foreground/50"
+                className="size-3 shrink-0 rotate-90 text-cursor-text-tertiary"
                 aria-hidden
               />
             </div>
@@ -243,10 +247,10 @@ export const ModelPicker = forwardRef<
         >
           <Menu.Popup
             className={cn(
-              "flex max-h-[min(var(--available-height),20rem)] w-[min(16rem,var(--available-width))] min-w-[12rem] max-w-[16rem] flex-col overflow-hidden rounded-multi-card border border-multi-stroke bg-multi-bubble text-foreground shadow-multi-popup outline-none ring-0 backdrop-blur-xl focus:outline-none focus-visible:outline-none",
+              "multi-slash-menu-popup flex max-h-[min(var(--available-height),20rem)] w-[min(18rem,var(--available-width))] min-w-[15rem] max-w-[18rem] flex-col overflow-hidden rounded-[12px] border border-cursor-stroke-tertiary bg-cursor-bg-elevated font-multi text-[12px]/[16px] text-cursor-text-primary shadow-multi-popup outline-none ring-0 backdrop-blur-xl focus:outline-none focus-visible:outline-none",
             )}
           >
-            <div className="shrink-0 border-b border-multi-stroke/50 px-2 py-1.5">
+            <div className="shrink-0 border-b border-cursor-stroke-tertiary px-1.5 py-1.5">
               <input
                 ref={inputRef}
                 type="search"
@@ -254,11 +258,76 @@ export const ModelPicker = forwardRef<
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={stopMenuSearchBubbling}
                 placeholder="Search models"
-                className="flex h-7 w-full rounded-multi-control border-0 bg-multi-hover/50 px-2 text-body text-foreground outline-none ring-0 placeholder:text-muted-foreground/50 focus:outline-none focus-visible:outline-none focus-visible:ring-0"
+                className="flex h-6 w-full rounded-[6px] border-0 bg-cursor-bg-quinary px-2 text-[12px]/[16px] text-cursor-text-primary outline-none ring-0 placeholder:text-cursor-text-quaternary focus:outline-none focus-visible:outline-none focus-visible:ring-0"
               />
             </div>
+            {confirmMax ? (
+              <div className="flex flex-col gap-2 border-b border-cursor-stroke-tertiary px-3 py-2.5">
+                <div className="text-[12px]/[16px] font-medium text-cursor-text-primary">
+                  Enable MAX Mode?
+                </div>
+                <div className="text-[11px]/[14px] text-cursor-text-tertiary">
+                  MAX uses the deepest reasoning level for this model.
+                </div>
+                <div className="flex items-center justify-end gap-1.5 pt-0.5">
+                  <button
+                    type="button"
+                    className="h-6 rounded-[5px] px-2 text-[12px]/[16px] text-cursor-text-secondary hover:bg-cursor-bg-quaternary hover:text-cursor-text-primary"
+                    onClick={() => setConfirmMax(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="h-6 rounded-[5px] bg-cursor-bg-tertiary px-2 text-[12px]/[16px] font-medium text-cursor-text-primary hover:bg-cursor-bg-secondary"
+                    data-action="variant_selected"
+                    onClick={() => {
+                      props.onThinkingLevel?.("xhigh");
+                      setConfirmMax(false);
+                    }}
+                  >
+                    Enable MAX
+                  </button>
+                </div>
+              </div>
+            ) : null}
+            {showThinking ? (
+              <button
+                type="button"
+                disabled={!xhigh || locked}
+                onClick={() => {
+                  if (thinkingValue === "xhigh") {
+                    props.onThinkingLevel?.("medium");
+                    return;
+                  }
+                  setConfirmMax(true);
+                }}
+                className={cn(
+                  cursorMenuItemClassName,
+                  "w-full rounded-none border-b border-cursor-stroke-tertiary px-2 text-left text-cursor-text-primary disabled:cursor-default disabled:opacity-50",
+                )}
+                aria-pressed={thinkingValue === "xhigh"}
+                data-action="toggle_changed"
+              >
+                <span className="min-w-0 flex-1">MAX Mode</span>
+                <span
+                  className={cn(
+                    "relative inline-flex h-4 w-7 shrink-0 items-center rounded-full p-px transition-colors",
+                    thinkingValue === "xhigh" ? "bg-primary" : "bg-cursor-bg-tertiary",
+                  )}
+                  aria-hidden
+                >
+                  <span
+                    className={cn(
+                      "size-3.5 rounded-full bg-background shadow-sm transition-transform",
+                      thinkingValue === "xhigh" && "translate-x-3",
+                    )}
+                  />
+                </span>
+              </button>
+            ) : null}
             {list.length === 0 ? (
-              <div className="shrink-0 px-4 py-3 text-center text-body text-muted-foreground/70">
+              <div className="shrink-0 px-4 py-3 text-center text-[12px]/[16px] text-cursor-text-tertiary">
                 {failed
                   ? "Unable to load models."
                   : props.items.length === 0
@@ -287,24 +356,34 @@ export const ModelPicker = forwardRef<
                         setOpen(false);
                         setQuery("");
                       }}
+                      data-action="model_selected"
                       className={cn(
-                        "group flex min-h-7 cursor-pointer items-center gap-2 rounded px-4 py-1 text-body outline-none ring-0 transition-colors hover:bg-multi-hover data-highlighted:bg-multi-hover focus-visible:outline-none focus-visible:ring-0",
-                        selected && "bg-multi-active",
+                        cursorMenuItemClassName,
+                        "group mx-1 px-1.5",
+                        selected && "bg-cursor-bg-tertiary text-cursor-text-primary",
                       )}
                     >
                       <div className="flex min-w-0 flex-1 items-center gap-2">
                         <span className="min-w-0 flex-1 overflow-hidden">
                           <PretextOneLine
                             text={displayModelName(item.name || item.id)}
-                            className="block w-full min-w-0 text-left text-body text-foreground"
+                            className={cn(
+                              "block w-full min-w-0 text-left",
+                              cursorMenuPrimaryTextClassName,
+                            )}
                           />
                         </span>
-                        <span className="max-w-[5rem] shrink-0 truncate text-detail text-muted-foreground/70">
+                        <span
+                          className={cn(
+                            "max-w-[5rem] shrink-0 text-muted-foreground/70",
+                            cursorMenuMetaTextClassName,
+                          )}
+                        >
                           {displayProviderName(item.provider)}
                         </span>
                         <div className="flex shrink-0 items-center gap-1">
                           {item.reasoning ? (
-                            <span className="inline-flex shrink-0" title={modeLabel}>
+                            <span className={cursorMenuIconSlotClassName} title={modeLabel}>
                               <IconBrain
                                 className="size-3 shrink-0 text-muted-foreground/75"
                                 aria-hidden
@@ -321,131 +400,21 @@ export const ModelPicker = forwardRef<
                 })}
               </div>
             ) : null}
-            {showThinking || showFast ? (
+            {props.onAddModels ? (
               <>
-                <Menu.Separator className="mx-0 my-0 h-px shrink-0 bg-multi-stroke/50" />
-                {showThinking ? (
-                  <Menu.SubmenuRoot>
-                    <Menu.SubmenuTrigger
-                      disabled={locked}
-                      className="flex min-h-7 cursor-pointer items-center gap-2 rounded px-4 py-1 text-body outline-none ring-0 hover:bg-multi-hover data-[highlighted]:bg-multi-hover data-[disabled]:pointer-events-none data-[disabled]:opacity-40 focus-visible:outline-none focus-visible:ring-0"
-                      label="Thinking"
-                    >
-                      <span className="min-w-0 flex-1 text-left">Thinking</span>
-                      <span className="shrink-0 text-muted-foreground/70">
-                        {thinkingDetailLabel(thinkingValue)}
-                      </span>
-                      <IconChevronRight className="size-3.5 shrink-0 text-muted-foreground/60" />
-                    </Menu.SubmenuTrigger>
-                    <Menu.Portal>
-                      <Menu.Positioner
-                        className="z-50 outline-none ring-0"
-                        side="right"
-                        align="end"
-                        sideOffset={2}
-                      >
-                        <Menu.Popup
-                          className={cn(
-                            "w-[min(14rem,var(--available-width))] min-w-[10rem] max-w-[14rem] overflow-hidden rounded-multi-card border border-multi-stroke bg-multi-bubble py-1 text-foreground shadow-multi-popup outline-none ring-0 backdrop-blur-md focus:outline-none focus-visible:outline-none",
-                          )}
-                        >
-                          <Menu.Group>
-                            <Menu.GroupLabel className="px-4 pb-1 pt-2 text-detail text-muted-foreground/70">
-                              Reasoning
-                            </Menu.GroupLabel>
-                            <Menu.RadioGroup
-                              value={thinkingValue}
-                              onValueChange={(v) => {
-                                props.onThinkingLevel?.(v as ThinkingLevel);
-                              }}
-                            >
-                              {thinkingItems.map((opt) => (
-                                <Menu.RadioItem
-                                  key={opt.value}
-                                  value={opt.value}
-                                  closeOnClick={false}
-                                  className="flex min-h-7 cursor-pointer items-center gap-2 rounded px-4 py-1 text-body outline-none ring-0 hover:bg-multi-hover data-[highlighted]:bg-multi-hover focus-visible:outline-none focus-visible:ring-0"
-                                >
-                                  <span className="min-w-0 flex-1">{opt.label}</span>
-                                  <Menu.RadioItemIndicator className="flex size-4 shrink-0 items-center justify-center">
-                                    <IconCheckmark1Small className="size-3.5 text-muted-foreground/80" />
-                                  </Menu.RadioItemIndicator>
-                                </Menu.RadioItem>
-                              ))}
-                            </Menu.RadioGroup>
-                          </Menu.Group>
-                        </Menu.Popup>
-                      </Menu.Positioner>
-                    </Menu.Portal>
-                  </Menu.SubmenuRoot>
-                ) : null}
-                {showFast ? (
-                  <>
-                    {showThinking ? (
-                      <Menu.Separator className="mx-0 my-0 h-px shrink-0 bg-multi-stroke/50" />
-                    ) : null}
-                    <Menu.SubmenuRoot>
-                      <Menu.SubmenuTrigger
-                        disabled={locked}
-                        className="flex min-h-7 cursor-pointer items-center gap-2 rounded px-4 py-1 text-body outline-none ring-0 hover:bg-multi-hover data-[highlighted]:bg-multi-hover data-[disabled]:pointer-events-none data-[disabled]:opacity-40 focus-visible:outline-none focus-visible:ring-0"
-                        label="Fast Mode"
-                      >
-                        <span className="min-w-0 flex-1 text-left">Fast Mode</span>
-                        <span className="shrink-0 text-muted-foreground/70">
-                          {fastValue === "on" ? "On" : "Off"}
-                        </span>
-                        <IconChevronRight className="size-3.5 shrink-0 text-muted-foreground/60" />
-                      </Menu.SubmenuTrigger>
-                      <Menu.Portal>
-                        <Menu.Positioner
-                          className="z-50 outline-none ring-0"
-                          side="right"
-                          align="end"
-                          sideOffset={2}
-                        >
-                          <Menu.Popup
-                            className={cn(
-                              "w-[min(14rem,var(--available-width))] min-w-[10rem] max-w-[14rem] overflow-hidden rounded-multi-card border border-multi-stroke bg-multi-bubble py-1 text-foreground shadow-multi-popup outline-none ring-0 backdrop-blur-md focus:outline-none focus-visible:outline-none",
-                            )}
-                          >
-                            <Menu.Group>
-                              <Menu.GroupLabel className="px-4 pb-1 pt-2 text-detail text-muted-foreground/70">
-                                Service Tier
-                              </Menu.GroupLabel>
-                              <Menu.RadioGroup
-                                value={fastValue}
-                                onValueChange={(v) => {
-                                  props.onFastMode?.(v === "on");
-                                }}
-                              >
-                                <Menu.RadioItem
-                                  value="off"
-                                  closeOnClick={false}
-                                  className="flex min-h-7 cursor-pointer items-center gap-2 rounded px-4 py-1 text-body outline-none ring-0 hover:bg-multi-hover data-[highlighted]:bg-multi-hover focus-visible:outline-none focus-visible:ring-0"
-                                >
-                                  <span className="min-w-0 flex-1">Off</span>
-                                  <Menu.RadioItemIndicator className="flex size-4 shrink-0 items-center justify-center">
-                                    <IconCheckmark1Small className="size-3.5 text-muted-foreground/80" />
-                                  </Menu.RadioItemIndicator>
-                                </Menu.RadioItem>
-                                <Menu.RadioItem
-                                  value="on"
-                                  closeOnClick={false}
-                                  className="flex min-h-7 cursor-pointer items-center gap-2 rounded px-4 py-1 text-body outline-none ring-0 hover:bg-multi-hover data-[highlighted]:bg-multi-hover focus-visible:outline-none focus-visible:ring-0"
-                                >
-                                  <span className="min-w-0 flex-1">On</span>
-                                  <Menu.RadioItemIndicator className="flex size-4 shrink-0 items-center justify-center">
-                                    <IconCheckmark1Small className="size-3.5 text-muted-foreground/80" />
-                                  </Menu.RadioItemIndicator>
-                                </Menu.RadioItem>
-                              </Menu.RadioGroup>
-                            </Menu.Group>
-                          </Menu.Popup>
-                        </Menu.Positioner>
-                      </Menu.Portal>
-                    </Menu.SubmenuRoot>
-                  </>
-                ) : null}
+                <Menu.Separator className={cn(cursorMenuSeparatorClassName, "mx-0 my-0")} />
+                <button
+                  type="button"
+                  className={cn(cursorMenuItemClassName, "mx-1 mb-1 w-[calc(100%-0.5rem)] px-2")}
+                  onClick={() => {
+                    setOpen(false);
+                    props.onAddModels?.();
+                  }}
+                  data-action="open-model-settings"
+                >
+                  <span className="min-w-0 flex-1 text-left">Add Models</span>
+                  <IconChevronRight className="size-3 shrink-0 text-cursor-text-tertiary" />
+                </button>
               </>
             ) : null}
           </Menu.Popup>

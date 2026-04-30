@@ -102,8 +102,8 @@ function ModeButton(props: {
       title={props.label}
       onClick={props.onClick}
       className={cn(
-        "flex size-6 items-center justify-center rounded-multi-control text-muted-foreground/70 transition-colors hover:bg-multi-hover hover:text-foreground [&_svg]:block",
-        props.active && "bg-multi-active/60 text-foreground",
+        "ui-icon-button flex size-6 items-center justify-center rounded-[5px] text-cursor-text-secondary transition-colors hover:bg-cursor-bg-quaternary hover:text-cursor-text-primary [&_svg]:block",
+        props.active && "bg-cursor-bg-tertiary text-cursor-text-primary",
       )}
     >
       {props.children}
@@ -124,7 +124,7 @@ function NavButton(props: {
       title={props.label}
       disabled={props.disabled}
       onClick={props.onClick}
-      className="flex size-6 items-center justify-center rounded-multi-control text-muted-foreground/65 transition-colors hover:bg-multi-hover hover:text-foreground disabled:text-muted-foreground/25 disabled:hover:bg-transparent disabled:hover:text-muted-foreground/25 [&_svg]:block"
+      className="ui-icon-button flex size-6 items-center justify-center rounded-[5px] text-cursor-text-secondary transition-colors hover:bg-cursor-bg-quaternary hover:text-cursor-text-primary disabled:text-cursor-text-quaternary/45 disabled:hover:bg-transparent disabled:hover:text-cursor-text-quaternary/45 [&_svg]:block"
     >
       {props.children}
     </button>
@@ -142,7 +142,7 @@ function EmptyFilePreview(props: { onOpenFile: () => void }) {
       <button
         type="button"
         onClick={props.onOpenFile}
-        className="flex h-7 items-center gap-1.5 rounded-multi-control border border-multi-border/60 bg-multi-active/35 px-2.5 text-[12px]/[16px] font-medium text-foreground/80 hover:bg-multi-hover hover:text-foreground"
+        className="flex h-7 items-center gap-1.5 rounded-[5px] border border-cursor-stroke-tertiary bg-cursor-bg-quinary px-2.5 text-[12px]/[16px] font-medium text-cursor-text-primary hover:bg-cursor-bg-quaternary"
       >
         <IconFileBend className="size-3.5" />
         Open File
@@ -162,18 +162,18 @@ function PreviewTabs(props: {
   }
 
   return (
-    <div className="group/tabbar flex h-9 shrink-0 items-center gap-1 border-b border-black/10 bg-white px-2 pt-1">
-      <div className="no-scrollbar flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+    <div className="editor-panel-tab-root editor-panel-tab-root--simple-tabs group/tabbar flex h-8 shrink-0 items-stretch gap-1 border-b border-cursor-stroke-tertiary bg-[color-mix(in_srgb,var(--cursor-bg-elevated)_88%,transparent)] px-1.5 backdrop-blur-xl">
+      <div className="editor-panel-tab-bar-tab-cluster no-scrollbar flex min-w-0 flex-1 items-stretch gap-px overflow-x-auto">
         {props.openPaths.map((path) => {
           const isActive = path === props.activePath;
           return (
             <div
               key={path}
               className={cn(
-                "group relative isolate flex h-7 max-w-[200px] items-center overflow-hidden rounded-sm text-xs font-medium transition-colors",
+                "ui-tab-system-tab group relative isolate my-1 flex h-6 max-w-[200px] items-center overflow-hidden rounded-[5px] text-[12px]/[16px] font-medium transition-colors",
                 isActive
-                  ? "bg-zinc-100 text-zinc-900"
-                  : "bg-transparent text-zinc-500 hover:bg-zinc-200/70 hover:text-zinc-900",
+                  ? "bg-cursor-bg-tertiary text-cursor-text-primary"
+                  : "bg-transparent text-cursor-text-secondary hover:bg-cursor-bg-quaternary hover:text-cursor-text-primary",
               )}
             >
               <button
@@ -189,8 +189,10 @@ function PreviewTabs(props: {
               <span
                 aria-hidden="true"
                 className={cn(
-                  "pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l to-transparent opacity-0 transition-opacity group-hover:opacity-100",
-                  isActive ? "from-zinc-100 via-zinc-100" : "from-zinc-200 via-zinc-200",
+                  "pointer-events-none absolute inset-y-0 right-0 w-10 bg-linear-to-l to-transparent opacity-0 transition-opacity group-hover:opacity-100",
+                  isActive
+                    ? "from-[var(--cursor-bg-tertiary)] via-[var(--cursor-bg-tertiary)]"
+                    : "from-[var(--cursor-bg-quaternary)] via-[var(--cursor-bg-quaternary)]",
                 )}
               />
               <button
@@ -204,8 +206,8 @@ function PreviewTabs(props: {
                 className={cn(
                   "absolute right-1 z-10 flex size-4 items-center justify-center rounded-sm opacity-0 transition-opacity group-hover:opacity-100",
                   isActive
-                    ? "bg-zinc-200 text-zinc-500 hover:text-zinc-900"
-                    : "bg-zinc-100 text-zinc-500 hover:text-zinc-900",
+                    ? "bg-cursor-bg-secondary text-cursor-text-tertiary hover:text-cursor-text-primary"
+                    : "bg-cursor-bg-tertiary text-cursor-text-tertiary hover:text-cursor-text-primary",
                 )}
               >
                 <XIcon className="size-3" />
@@ -377,8 +379,8 @@ export function WorkspaceFilesPanel(props: {
   }, [props.cwd, props.environmentId]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex h-7 shrink-0 items-center gap-0.5 border-b border-multi-border/35 px-2">
+    <div className="editor-panel-inner flex min-h-0 flex-1 flex-col bg-[var(--glass-editor-surface-background,color-mix(in_srgb,var(--cursor-bg-elevated)_76%,transparent))]">
+      <div className="flex h-8 shrink-0 items-center gap-0.5 border-b border-cursor-stroke-tertiary px-2">
         <ModeButton
           active={mode === "browse"}
           label="Browse Files"
@@ -421,7 +423,7 @@ export function WorkspaceFilesPanel(props: {
           onOpenFile={openPreviewPath}
           searchOpen={mode === "search"}
           selectedPath={selectedPath}
-          className="min-h-0 w-[220px] shrink-0 border-r border-b-0 border-multi-border/35"
+          className="min-h-0 w-[220px] shrink-0 border-r border-b-0 border-cursor-stroke-tertiary bg-[color-mix(in_srgb,var(--cursor-bg-elevated)_78%,transparent)]"
         />
         {selectedPath ? (
           <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-white">

@@ -11,8 +11,8 @@ function sort(skills: ChatDraftSkill[]) {
   });
 }
 
-function token(skill: Pick<ChatDraftSkill, "name">) {
-  return `/${skill.name}`;
+function token(skill: Pick<ChatDraftSkill, "id" | "name">) {
+  return `[$${skill.name}](skill://${encodeURIComponent(skill.id)})`;
 }
 
 function valid(text: string, skill: ChatDraftSkill) {
@@ -68,17 +68,18 @@ export function applySkill(
   item: Pick<UiSkill, "id" | "name">,
   skills: ChatDraftSkill[],
 ) {
-  const next = `${value.slice(0, hit.start)}/${item.name} ${value.slice(hit.end)}`;
+  const nextToken = token(item);
+  const next = `${value.slice(0, hit.start)}${nextToken} ${value.slice(hit.end)}`;
   return {
     value: next,
-    cursor: hit.start + item.name.length + 2,
+    cursor: hit.start + nextToken.length + 1,
     skills: sort([
       ...shiftSkills(value, next, skills),
       {
         id: item.id,
         name: item.name,
         start: hit.start,
-        end: hit.start + item.name.length + 1,
+        end: hit.start + nextToken.length,
       },
     ]),
   };

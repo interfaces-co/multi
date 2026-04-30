@@ -115,6 +115,17 @@ type SerializedComposerSkillNode = Spread<
   SerializedLexicalNode
 >;
 
+type SerializedComposerInlineTokenNode = Spread<
+  {
+    label: string;
+    markdown: string;
+    sourceUri: string;
+    type: "composer-inline-token";
+    version: 1;
+  },
+  SerializedLexicalNode
+>;
+
 type SerializedComposerTerminalContextNode = Spread<
   {
     context: TerminalContextDraft;
@@ -381,6 +392,101 @@ function $createComposerSkillNode(
   );
 }
 
+function ComposerInlineTokenDecorator(props: { label: string; sourceUri: string }) {
+  const displayLabel = props.label || props.sourceUri;
+  const chip = (
+    <span
+      className={COMPOSER_INLINE_CHIP_CLASS_NAME}
+      contentEditable={false}
+      spellCheck={false}
+      data-composer-inline-token-chip="true"
+    >
+      <span className={COMPOSER_INLINE_CHIP_LABEL_CLASS_NAME}>{displayLabel}</span>
+    </span>
+  );
+
+  return (
+    <Tooltip>
+      <TooltipTrigger render={chip} />
+      <TooltipPopup side="top" className="max-w-[30rem] whitespace-normal leading-tight">
+        {props.sourceUri}
+      </TooltipPopup>
+    </Tooltip>
+  );
+}
+
+class ComposerInlineTokenNode extends DecoratorNode<ReactElement> {
+  __label: string;
+  __sourceUri: string;
+  __markdown: string;
+
+  static override getType(): string {
+    return "composer-inline-token";
+  }
+
+  static override clone(node: ComposerInlineTokenNode): ComposerInlineTokenNode {
+    return new ComposerInlineTokenNode(node.__label, node.__sourceUri, node.__markdown, node.__key);
+  }
+
+  static override importJSON(
+    serializedNode: SerializedComposerInlineTokenNode,
+  ): ComposerInlineTokenNode {
+    return $createComposerInlineTokenNode(
+      serializedNode.label,
+      serializedNode.sourceUri,
+      serializedNode.markdown,
+    ).updateFromJSON(serializedNode);
+  }
+
+  constructor(label: string, sourceUri: string, markdown: string, key?: NodeKey) {
+    super(key);
+    this.__label = label;
+    this.__sourceUri = sourceUri;
+    this.__markdown = markdown;
+  }
+
+  override exportJSON(): SerializedComposerInlineTokenNode {
+    return {
+      ...super.exportJSON(),
+      label: this.__label,
+      sourceUri: this.__sourceUri,
+      markdown: this.__markdown,
+      type: "composer-inline-token",
+      version: 1,
+    };
+  }
+
+  override createDOM(): HTMLElement {
+    const dom = document.createElement("span");
+    dom.className = "inline-flex align-middle leading-none";
+    return dom;
+  }
+
+  override updateDOM(): false {
+    return false;
+  }
+
+  override getTextContent(): string {
+    return this.__markdown;
+  }
+
+  override isInline(): true {
+    return true;
+  }
+
+  override decorate(): ReactElement {
+    return <ComposerInlineTokenDecorator label={this.__label} sourceUri={this.__sourceUri} />;
+  }
+}
+
+function $createComposerInlineTokenNode(
+  label: string,
+  sourceUri: string,
+  markdown: string,
+): ComposerInlineTokenNode {
+  return $applyNodeReplacement(new ComposerInlineTokenNode(label, sourceUri, markdown));
+}
+
 function ComposerTerminalContextDecorator(props: { context: TerminalContextDraft }) {
   return <ComposerPendingTerminalContextChip context={props.context} />;
 }
@@ -445,15 +551,17 @@ function $createComposerTerminalContextNode(
   return $applyNodeReplacement(new ComposerTerminalContextNode(context));
 }
 
-type ComposerInlineTokenNode =
+type ComposerInlineTokenLikeNode =
   | ComposerMentionNode
   | ComposerSkillNode
+  | ComposerInlineTokenNode
   | ComposerTerminalContextNode;
 
-function isComposerInlineTokenNode(candidate: unknown): candidate is ComposerInlineTokenNode {
+function isComposerInlineTokenNode(candidate: unknown): candidate is ComposerInlineTokenLikeNode {
   return (
     candidate instanceof ComposerMentionNode ||
     candidate instanceof ComposerSkillNode ||
+    candidate instanceof ComposerInlineTokenNode ||
     candidate instanceof ComposerTerminalContextNode
   );
 }
@@ -500,16 +608,16 @@ function clampExpandedCursor(value: string, cursor: number): number {
   return Math.max(0, Math.min(value.length, Math.floor(cursor)));
 }
 
-function getComposerInlineTokenTextLength(_node: ComposerInlineTokenNode): 1 {
+function getComposerInlineTokenTextLength(_node: ComposerInlineTokenLikeNode): 1 {
   return 1;
 }
 
-function getComposerInlineTokenExpandedTextLength(node: ComposerInlineTokenNode): number {
+function getComposerInlineTokenExpandedTextLength(node: ComposerInlineTokenLikeNode): number {
   return node.getTextContentSize();
 }
 
 function getAbsoluteOffsetForInlineTokenPoint(
-  node: ComposerInlineTokenNode,
+  node: ComposerInlineTokenLikeNode,
   absoluteOffset: number,
   pointOffset: number,
 ): number {
@@ -517,7 +625,7 @@ function getAbsoluteOffsetForInlineTokenPoint(
 }
 
 function getExpandedAbsoluteOffsetForInlineTokenPoint(
-  node: ComposerInlineTokenNode,
+  node: ComposerInlineTokenLikeNode,
   absoluteOffset: number,
   pointOffset: number,
 ): number {
@@ -525,7 +633,7 @@ function getExpandedAbsoluteOffsetForInlineTokenPoint(
 }
 
 function findSelectionPointForInlineToken(
-  node: ComposerInlineTokenNode,
+  node: ComposerInlineTokenLikeNode,
   remainingRef: { value: number },
 ): { key: string; offset: number; type: "element" } | null {
   const parent = node.getParent();
@@ -866,6 +974,12 @@ function $setComposerEditorPrompt(
       );
       continue;
     }
+    if (segment.type === "inline-token") {
+      paragraph.append(
+        $createComposerInlineTokenNode(segment.label, segment.sourceUri, segment.markdown),
+      );
+      continue;
+    }
     if (segment.type === "terminal-context") {
       if (segment.context) {
         paragraph.append($createComposerTerminalContextNode(segment.context));
@@ -890,6 +1004,7 @@ export interface ComposerPromptEditorHandle {
   focus: () => void;
   focusAt: (cursor: number) => void;
   focusAtEnd: () => void;
+  insertText: (text: string) => void;
   readSnapshot: () => {
     value: string;
     cursor: number;
@@ -1562,6 +1677,35 @@ function ComposerPromptEditorInner({
     return snapshot;
   }, [editor]);
 
+  const insertText = useCallback(
+    (text: string) => {
+      if (!text) return;
+      const current = readSnapshot();
+      const expandedCursor = expandCollapsedComposerCursor(current.value, current.cursor);
+      const nextValue = `${current.value.slice(0, expandedCursor)}${text}${current.value.slice(expandedCursor)}`;
+      const nextCursor = collapseExpandedComposerCursor(nextValue, expandedCursor + text.length);
+      editor.update(() => {
+        $setComposerEditorPrompt(nextValue, terminalContexts, skillMetadataRef.current);
+        $setSelectionAtComposerOffset(nextCursor);
+      });
+      const nextSnapshot = {
+        value: nextValue,
+        cursor: nextCursor,
+        expandedCursor: expandedCursor + text.length,
+        terminalContextIds: current.terminalContextIds,
+      };
+      snapshotRef.current = nextSnapshot;
+      onChangeRef.current(
+        nextSnapshot.value,
+        nextSnapshot.cursor,
+        nextSnapshot.expandedCursor,
+        false,
+        nextSnapshot.terminalContextIds,
+      );
+    },
+    [editor, readSnapshot, terminalContexts],
+  );
+
   useImperativeHandle(
     editorRef,
     () => ({
@@ -1577,9 +1721,10 @@ function ComposerPromptEditorInner({
           ),
         );
       },
+      insertText,
       readSnapshot,
     }),
-    [focusAt, readSnapshot],
+    [focusAt, insertText, readSnapshot],
   );
 
   const handleEditorChange = useCallback((editorState: EditorState) => {
@@ -1694,7 +1839,12 @@ export const ComposerPromptEditor = forwardRef<
     () => ({
       namespace: "multi-composer-editor",
       editable: true,
-      nodes: [ComposerMentionNode, ComposerSkillNode, ComposerTerminalContextNode],
+      nodes: [
+        ComposerMentionNode,
+        ComposerSkillNode,
+        ComposerInlineTokenNode,
+        ComposerTerminalContextNode,
+      ],
       editorState: () => {
         $setComposerEditorPrompt(
           initialValueRef.current,

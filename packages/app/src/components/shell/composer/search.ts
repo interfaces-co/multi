@@ -1,4 +1,5 @@
 import type { ShellFileHit } from "~/lib/ui-session-types";
+import { tokenRangesFromComposerMarkdown } from "./inline-tokens";
 
 const marks = new Set([" ", "\t", '"', "'", "="]);
 
@@ -206,14 +207,14 @@ export function rankFileHits(hits: ShellFileHit[], query: string): ShellFileHit[
 }
 
 export type MirrorSeg = {
-  kind: "plain" | "skill" | "mention";
+  kind: "plain" | "skill" | "mention" | "token";
   text: string;
   start: number;
   end: number;
 };
 
 export type MirrorMark = {
-  kind: Exclude<MirrorSeg["kind"], "plain" | "mention">;
+  kind: Exclude<MirrorSeg["kind"], "plain" | "mention" | "token">;
   start: number;
   end: number;
 };
@@ -230,6 +231,7 @@ function pushSeg(out: MirrorSeg[], kind: MirrorSeg["kind"], text: string, at: nu
 }
 
 function rangeOrder(kind: MirrorRange["kind"]) {
+  if (kind === "token") return 0;
   if (kind === "skill") return 0;
   if (kind === "mention") return 1;
   return 2;
@@ -267,7 +269,12 @@ export function mirrorSegmentsDraft(
 ): MirrorSeg[] {
   const lines = value.split("\n");
   let offset = 0;
-  const marks: MirrorRange[] = [];
+  const tokenRanges = tokenRangesFromComposerMarkdown(value).map((item) => ({
+    kind: "token" as const,
+    start: item.start,
+    end: item.end,
+  }));
+  const marks: MirrorRange[] = [...tokenRanges];
   for (let li = 0; li < lines.length; li += 1) {
     const line = lines[li] ?? "";
     marks.push(...mentionRanges(line, offset));
@@ -311,5 +318,7 @@ export function mirrorActiveSeg(
   }
   const skill = segs.findIndex((s) => s.kind === "skill" && cursor >= s.start && cursor <= s.end);
   if (skill >= 0) return skill;
+  const token = segs.findIndex((s) => s.kind === "token" && cursor >= s.start && cursor <= s.end);
+  if (token >= 0) return token;
   return null;
 }
