@@ -30,7 +30,7 @@ import { applyClaudePromptEffortPrefix } from "@multi/shared/model";
 import { projectScriptCwd, projectScriptRuntimeEnv } from "@multi/shared/project-scripts";
 import { truncate } from "@multi/shared/String";
 import { Debouncer } from "@tanstack/react-pacer";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useShallow } from "zustand/react/shallow";
 import { useGitStatus } from "~/lib/git-status-state";
@@ -92,7 +92,6 @@ import { buildTemporaryWorktreeBranchName } from "@multi/shared/git";
 import { resolveShortcutCommand, shortcutLabelForCommand } from "../keybindings";
 import PlanSidebar from "./plan-sidebar";
 import ThreadTerminalDrawer from "./thread-terminal-drawer";
-import { ChevronDownIcon } from "lucide-react";
 import { cn, randomUUID } from "~/lib/utils";
 import { toastManager } from "~/app/toast";
 import { decodeProjectScriptKeybindingRule } from "~/lib/project-script-keybindings";
@@ -166,6 +165,14 @@ import {
 import { sanitizeThreadErrorMessage } from "~/rpc/transport-error";
 import { retainThreadDetailSubscription } from "../environments/runtime/service";
 import { traceBrowserEvent } from "~/observability/browserDebug";
+import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  FolderOpenIcon,
+  FolderPlusIcon,
+  SettingsIcon,
+  type LucideIcon,
+} from "lucide-react";
 
 const IMAGE_ONLY_BOOTSTRAP_PROMPT =
   "[User attached one or more images without additional text. Respond using the conversation context and the attached image(s).]";
@@ -173,6 +180,85 @@ const EMPTY_ACTIVITIES: OrchestrationThreadActivity[] = [];
 const EMPTY_PROPOSED_PLANS: Thread["proposedPlans"] = [];
 const EMPTY_PROVIDERS: ServerProvider[] = [];
 const EMPTY_PENDING_USER_INPUT_ANSWERS: Record<string, PendingUserInputDraftAnswer> = {};
+
+type HeroActionTone = "accent" | "blue" | "green";
+
+const HERO_ACTION_ACCENT: Record<HeroActionTone, string> = {
+  accent: "var(--primary)",
+  blue: "var(--multi-action)",
+  green: "var(--success)",
+};
+
+function heroActionStyle(tone: HeroActionTone): CSSProperties {
+  return {
+    "--hero-action-accent": HERO_ACTION_ACCENT[tone],
+  } as CSSProperties;
+}
+
+interface HeroComposerActionCardProps {
+  title: string;
+  detail: string;
+  icon: LucideIcon;
+  tone: HeroActionTone;
+  onClick: () => void;
+}
+
+function HeroComposerActionCard(props: HeroComposerActionCardProps) {
+  const Icon = props.icon;
+
+  return (
+    <button
+      type="button"
+      onClick={props.onClick}
+      style={heroActionStyle(props.tone)}
+      className="group flex h-24 min-h-24 flex-col justify-between rounded-[8px] border border-[color-mix(in_srgb,var(--hero-action-accent)_20%,var(--multi-stroke-tertiary))] bg-[color-mix(in_srgb,var(--hero-action-accent)_6%,var(--multi-color-bubble))] p-3 text-left shadow-sm transition-colors hover:border-[color-mix(in_srgb,var(--hero-action-accent)_42%,var(--multi-stroke-secondary))] hover:bg-[color-mix(in_srgb,var(--hero-action-accent)_10%,var(--multi-color-bubble))] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+    >
+      <span className="flex items-center justify-between gap-2">
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-[7px] border border-[color-mix(in_srgb,var(--hero-action-accent)_28%,transparent)] bg-[color-mix(in_srgb,var(--hero-action-accent)_13%,transparent)] text-[var(--hero-action-accent)]">
+          <Icon className="size-3.5" />
+        </span>
+        <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground/42 transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--hero-action-accent)]" />
+      </span>
+      <span className="grid gap-0.5">
+        <span className="truncate text-body/[1.25] font-medium text-foreground">{props.title}</span>
+        <span className="truncate text-detail/[1.3] text-muted-foreground">{props.detail}</span>
+      </span>
+    </button>
+  );
+}
+
+function HeroComposerActions(props: {
+  activeProjectName: string | null;
+  onAddProject: () => void;
+  onOpenAppearance: () => void;
+  onOpenWorkspaces: () => void;
+}) {
+  return (
+    <div className="mt-3 grid w-full gap-2.5 sm:grid-cols-3">
+      <HeroComposerActionCard
+        title="Workspaces"
+        detail={props.activeProjectName ?? "Browse projects"}
+        icon={FolderOpenIcon}
+        tone="blue"
+        onClick={props.onOpenWorkspaces}
+      />
+      <HeroComposerActionCard
+        title="Add project"
+        detail="Choose a folder"
+        icon={FolderPlusIcon}
+        tone="green"
+        onClick={props.onAddProject}
+      />
+      <HeroComposerActionCard
+        title="Appearance"
+        detail="Theme and accent"
+        icon={SettingsIcon}
+        tone="accent"
+        onClick={props.onOpenAppearance}
+      />
+    </div>
+  );
+}
 
 type ThreadPlanCatalogEntry = Pick<Thread, "id" | "proposedPlans">;
 
@@ -608,6 +694,8 @@ export default function ChatView(props: ChatViewProps) {
   );
   const timestampFormat = settings.timestampFormat;
   const navigate = useNavigate();
+  const openAddProject = useCommandPaletteStore((store) => store.openAddProject);
+  const openWorkspace = useCommandPaletteStore((store) => store.openWorkspace);
   const rawSearch = useSearch({
     strict: false,
     select: (params) => parseDiffRouteSearch(params),
@@ -827,6 +915,9 @@ export default function ChatView(props: ChatViewProps) {
   const activeProject = useStore(
     useMemo(() => createProjectSelectorByRef(activeProjectRef), [activeProjectRef]),
   );
+  const openAppearanceSettings = useCallback(() => {
+    void navigate({ to: "/settings/appearance" });
+  }, [navigate]);
 
   useEffect(() => {
     if (routeKind !== "server") {
@@ -2268,6 +2359,8 @@ export default function ChatView(props: ChatViewProps) {
     const sendCtx = composerRef.current?.getSendContext();
     if (!sendCtx) return;
     const {
+      prompt: promptForSend,
+      promptDoc: promptDocForSend,
       images: composerImages,
       terminalContexts: composerTerminalContexts,
       selectedProvider: ctxSelectedProvider,
@@ -2276,7 +2369,6 @@ export default function ChatView(props: ChatViewProps) {
       selectedPromptEffort: ctxSelectedPromptEffort,
       selectedModelSelection: ctxSelectedModelSelection,
     } = sendCtx;
-    const promptForSend = promptRef.current;
     const {
       trimmedPrompt: trimmed,
       sendableTerminalContexts: sendableComposerTerminalContexts,
@@ -2530,7 +2622,7 @@ export default function ChatView(props: ChatViewProps) {
         const retryComposerImages = composerImagesSnapshot.map(cloneComposerImageForRetry);
         composerImagesRef.current = retryComposerImages;
         composerTerminalContextsRef.current = composerTerminalContextsSnapshot;
-        setComposerDraftPrompt(composerDraftTarget, promptForSend);
+        setComposerDraftPrompt(composerDraftTarget, promptForSend, promptDocForSend);
         addComposerDraftImages(composerDraftTarget, retryComposerImages);
         setComposerDraftTerminalContexts(composerDraftTarget, composerTerminalContextsSnapshot);
         composerRef.current?.resetCursorState({
@@ -3028,7 +3120,6 @@ export default function ChatView(props: ChatViewProps) {
     [
       activeThread,
       composerDraftTarget,
-      lockedProvider,
       routeKind,
       scheduleComposerFocus,
       setComposerDraftModelSelection,
@@ -3091,7 +3182,9 @@ export default function ChatView(props: ChatViewProps) {
     return <NoActiveThreadState />;
   }
 
-  if (isLocalDraftThread && !threadHasStarted(activeThread)) {
+  const isHeroComposer = isLocalDraftThread && !threadHasStarted(activeThread);
+
+  if (isHeroComposer) {
     traceBrowserEvent("chat-view.render.hero-composer", {
       routeKind,
       environmentId,
@@ -3153,7 +3246,7 @@ export default function ChatView(props: ChatViewProps) {
         {/* Chat column */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           {/* Messages Wrapper — hidden in hero mode */}
-          {!(isLocalDraftThread && !threadHasStarted(activeThread)) && (
+          {!isHeroComposer && (
             <div className="relative flex min-h-0 flex-1 flex-col">
               <MessagesTimeline
                 key={activeThread.id}
@@ -3198,20 +3291,19 @@ export default function ChatView(props: ChatViewProps) {
           {/* Input bar — centered when hero, docked when active thread */}
           <div
             className={cn(
-              isLocalDraftThread && !threadHasStarted(activeThread)
-                ? "agent-panel-empty-state-shell"
-                : "px-3 pt-1.5 sm:px-5 sm:pt-2",
-              isLocalDraftThread && !threadHasStarted(activeThread)
-                ? undefined
-                : isGitRepo
-                  ? "pb-1"
-                  : "pb-3 sm:pb-4",
+              "agent-panel-followup-input",
+              isHeroComposer ? "agent-panel-empty-state-shell" : "px-3 pt-1.5 sm:px-5 sm:pt-2",
+              isHeroComposer ? undefined : isGitRepo ? "pb-1" : "pb-3 sm:pb-4",
+              isConnecting ? "agent-panel-followup-input--disabled" : undefined,
+              !showScrollToBottom ? "agent-panel-followup-input--conversation-overlay" : undefined,
             )}
-            data-layout={isLocalDraftThread && !threadHasStarted(activeThread) ? "wide" : undefined}
+            data-layout={isHeroComposer ? "wide" : undefined}
+            {...(isConnecting ? { "data-disabled": "true" } : {})}
+            {...(showScrollToBottom ? {} : { "data-scrolled-to-bottom": "" })}
           >
             <ChatComposer
               ref={composerRef}
-              variant={isLocalDraftThread && !threadHasStarted(activeThread) ? "hero" : "dock"}
+              variant={isHeroComposer ? "hero" : "dock"}
               composerDraftTarget={composerDraftTarget}
               environmentId={environmentId}
               routeKind={routeKind}
@@ -3278,6 +3370,14 @@ export default function ChatView(props: ChatViewProps) {
               setThreadError={setThreadError}
               onExpandImage={onExpandTimelineImage}
             />
+            {isHeroComposer ? (
+              <HeroComposerActions
+                activeProjectName={activeProject?.name ?? null}
+                onAddProject={openAddProject}
+                onOpenAppearance={openAppearanceSettings}
+                onOpenWorkspaces={openWorkspace}
+              />
+            ) : null}
           </div>
 
           {pullRequestDialogState ? (

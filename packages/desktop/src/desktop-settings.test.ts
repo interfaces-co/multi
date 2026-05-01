@@ -8,6 +8,7 @@ import {
   DEFAULT_DESKTOP_SETTINGS,
   readDesktopSettings,
   setDesktopServerExposurePreference,
+  setDesktopThemePreference,
   setDesktopUpdateChannelPreference,
   writeDesktopSettings,
 } from "./desktop-settings";
@@ -21,7 +22,7 @@ afterEach(() => {
 });
 
 function makeSettingsPath() {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "t3-desktop-settings-test-"));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "multi-desktop-settings-test-"));
   tempDirectories.push(directory);
   return path.join(directory, "desktop-settings.json");
 }
@@ -36,11 +37,13 @@ describe("desktopSettings", () => {
 
     writeDesktopSettings(settingsPath, {
       serverExposureMode: "network-accessible",
+      themeSource: "system",
       updateChannel: "latest",
     });
 
     expect(readDesktopSettings(settingsPath)).toEqual({
       serverExposureMode: "network-accessible",
+      themeSource: "system",
       updateChannel: "latest",
     });
   });
@@ -50,12 +53,14 @@ describe("desktopSettings", () => {
       setDesktopServerExposurePreference(
         {
           serverExposureMode: "local-only",
+          themeSource: "system",
           updateChannel: "latest",
         },
         "network-accessible",
       ),
     ).toEqual({
       serverExposureMode: "network-accessible",
+      themeSource: "system",
       updateChannel: "latest",
     });
   });
@@ -65,13 +70,32 @@ describe("desktopSettings", () => {
       setDesktopUpdateChannelPreference(
         {
           serverExposureMode: "local-only",
+          themeSource: "system",
           updateChannel: "latest",
         },
         "nightly",
       ),
     ).toEqual({
       serverExposureMode: "local-only",
+      themeSource: "system",
       updateChannel: "nightly",
+    });
+  });
+
+  it("persists the requested desktop theme source", () => {
+    expect(
+      setDesktopThemePreference(
+        {
+          serverExposureMode: "local-only",
+          themeSource: "system",
+          updateChannel: "latest",
+        },
+        "dark",
+      ),
+    ).toEqual({
+      serverExposureMode: "local-only",
+      themeSource: "dark",
+      updateChannel: "latest",
     });
   });
 

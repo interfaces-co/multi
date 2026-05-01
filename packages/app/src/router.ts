@@ -11,8 +11,8 @@ export function getRouter(history: RouterHistory) {
   return createRouter({
     routeTree,
     history,
-    defaultPreload: "intent",
-    defaultPreloadStaleTime: 0,
+    // t3code parity: keep router preloading defaults.
+    // Adding defaultPreload here breaks Electron entry-point startup handling.
     context: {
       queryClient,
     },

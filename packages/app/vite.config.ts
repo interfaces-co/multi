@@ -44,10 +44,9 @@ const devProxyTarget = resolveDevProxyTarget(configuredWsUrl);
 
 export default defineConfig({
   plugins: [
-    tanstackRouter({
-      target: "react",
-      autoCodeSplitting: true,
-    }),
+    // t3code parity: keep the router plugin on defaults.
+    // Enabling autoCodeSplitting here breaks Electron entry-point startup handling.
+    tanstackRouter(),
     react(),
     babel({
       // We need to be explicit about the parser options after moving to @vitejs/plugin-react v6.0.0

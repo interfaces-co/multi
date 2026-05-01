@@ -42,6 +42,11 @@ import { useShallow } from "zustand/react/shallow";
 import { createDebouncedStorage, createMemoryStorage } from "./lib/storage";
 import { getDefaultServerModel } from "./provider-models";
 import { UnifiedSettings } from "@multi/contracts/settings";
+import {
+  parseComposerPromptDoc,
+  sanitizeComposerPromptDocForPersist,
+  type ComposerPromptDoc,
+} from "./composer-prompt-doc";
 
 export const COMPOSER_DRAFT_STORAGE_KEY = "multi:composer-drafts:v1";
 const COMPOSER_DRAFT_STORAGE_VERSION = 6;
@@ -93,6 +98,7 @@ type PersistedTerminalContextDraft = typeof PersistedTerminalContextDraft.Type;
 
 const PersistedComposerThreadDraftState = Schema.Struct({
   prompt: Schema.String,
+  promptDoc: Schema.optionalKey(Schema.Unknown),
   attachments: Schema.Array(PersistedComposerImageAttachment),
   terminalContexts: Schema.optionalKey(Schema.Array(PersistedTerminalContextDraft)),
   // Keyed by `ProviderInstanceId` (open branded slug) so custom provider
@@ -211,6 +217,7 @@ const PersistedComposerDraftStoreStorage = Schema.Struct({
  */
 export interface ComposerThreadDraftState {
   prompt: string;
+  promptDoc: ComposerPromptDoc | null;
   images: ComposerImageAttachment[];
   nonPersistedImageIds: string[];
   persistedAttachments: PersistedComposerImageAttachment[];
@@ -350,7 +357,11 @@ interface ComposerDraftStoreState {
   finalizePromotedDraftThread: (threadRef: ComposerThreadTarget) => void;
   clearDraftThread: (threadRef: ComposerThreadTarget) => void;
   setStickyModelSelection: (modelSelection: ModelSelection | null | undefined) => void;
-  setPrompt: (threadRef: ComposerThreadTarget, prompt: string) => void;
+  setPrompt: (
+    threadRef: ComposerThreadTarget,
+    prompt: string,
+    promptDoc?: ComposerPromptDoc | null,
+  ) => void;
   setTerminalContexts: (threadRef: ComposerThreadTarget, contexts: TerminalContextDraft[]) => void;
   setModelSelection: (
     threadRef: ComposerThreadTarget,
@@ -480,6 +491,7 @@ const EMPTY_COMPOSER_DRAFT_MODEL_STATE = Object.freeze<ComposerDraftModelState>(
 
 const EMPTY_THREAD_DRAFT = Object.freeze<ComposerThreadDraftState>({
   prompt: "",
+  promptDoc: null,
   images: EMPTY_IMAGES,
   nonPersistedImageIds: EMPTY_IDS,
   persistedAttachments: EMPTY_PERSISTED_ATTACHMENTS,
@@ -493,6 +505,7 @@ const EMPTY_THREAD_DRAFT = Object.freeze<ComposerThreadDraftState>({
 function createEmptyThreadDraft(): ComposerThreadDraftState {
   return {
     prompt: "",
+    promptDoc: null,
     images: [],
     nonPersistedImageIds: [],
     persistedAttachments: [],
@@ -564,6 +577,7 @@ function normalizeTerminalContextsForThread(
 function shouldRemoveDraft(draft: ComposerThreadDraftState): boolean {
   return (
     draft.prompt.length === 0 &&
+    draft.promptDoc === null &&
     draft.images.length === 0 &&
     draft.persistedAttachments.length === 0 &&
     draft.terminalContexts.length === 0 &&
@@ -1639,6 +1653,7 @@ function partializeComposerDraftStoreState(
       Object.keys(draft.modelSelectionByProvider).length > 0 || draft.activeProvider !== null;
     if (
       draft.prompt.length === 0 &&
+      draft.promptDoc === null &&
       draft.persistedAttachments.length === 0 &&
       draft.terminalContexts.length === 0 &&
       !hasModelData &&
@@ -1649,6 +1664,9 @@ function partializeComposerDraftStoreState(
     }
     const persistedDraft: DeepMutable<PersistedComposerThreadDraftState> = {
       prompt: draft.prompt,
+      ...(draft.promptDoc
+        ? { promptDoc: sanitizeComposerPromptDocForPersist(draft.promptDoc) }
+        : {}),
       attachments: draft.persistedAttachments,
       ...(draft.terminalContexts.length > 0
         ? {
@@ -1888,6 +1906,7 @@ function toHydratedThreadDraft(
 
   return {
     prompt: persistedDraft.prompt,
+    promptDoc: parseComposerPromptDoc(persistedDraft.promptDoc),
     images: hydrateImagesFromPersisted(persistedDraft.attachments),
     nonPersistedImageIds: [],
     persistedAttachments: [...persistedDraft.attachments],
@@ -2307,7 +2326,7 @@ const composerDraftStore = create<ComposerDraftStoreState>()(
             return { draftsByThreadKey: nextDraftsByThreadKey };
           });
         },
-        setPrompt: (threadRef, prompt) => {
+        setPrompt: (threadRef, prompt, promptDoc = null) => {
           const threadKey = resolveComposerDraftKey(get(), threadRef) ?? "";
           if (threadKey.length === 0) {
             return;
@@ -2317,6 +2336,7 @@ const composerDraftStore = create<ComposerDraftStoreState>()(
             const nextDraft: ComposerThreadDraftState = {
               ...existing,
               prompt,
+              promptDoc: parseComposerPromptDoc(promptDoc),
             };
             const nextDraftsByThreadKey = { ...state.draftsByThreadKey };
             if (shouldRemoveDraft(nextDraft)) {
@@ -2336,12 +2356,14 @@ const composerDraftStore = create<ComposerDraftStoreState>()(
           const normalizedContexts = normalizeTerminalContextsForThread(threadId, contexts);
           set((state) => {
             const existing = state.draftsByThreadKey[threadKey] ?? createEmptyThreadDraft();
+            const nextPrompt = ensureInlineTerminalContextPlaceholders(
+              existing.prompt,
+              normalizedContexts.length,
+            );
             const nextDraft: ComposerThreadDraftState = {
               ...existing,
-              prompt: ensureInlineTerminalContextPlaceholders(
-                existing.prompt,
-                normalizedContexts.length,
-              ),
+              prompt: nextPrompt,
+              promptDoc: existing.prompt === nextPrompt ? existing.promptDoc : null,
               terminalContexts: normalizedContexts,
             };
             const nextDraftsByThreadKey = { ...state.draftsByThreadKey };
@@ -2701,6 +2723,7 @@ const composerDraftStore = create<ComposerDraftStoreState>()(
             const nextDraft: ComposerThreadDraftState = {
               ...existing,
               prompt,
+              promptDoc: null,
               terminalContexts: [
                 ...existing.terminalContexts.slice(0, boundedIndex),
                 normalizedContext,
@@ -2742,15 +2765,17 @@ const composerDraftStore = create<ComposerDraftStoreState>()(
             if (acceptedContexts.length === 0) {
               return state;
             }
+            const nextPrompt = ensureInlineTerminalContextPlaceholders(
+              existing.prompt,
+              existing.terminalContexts.length + acceptedContexts.length,
+            );
             return {
               draftsByThreadKey: {
                 ...state.draftsByThreadKey,
                 [threadKey]: {
                   ...existing,
-                  prompt: ensureInlineTerminalContextPlaceholders(
-                    existing.prompt,
-                    existing.terminalContexts.length + acceptedContexts.length,
-                  ),
+                  prompt: nextPrompt,
+                  promptDoc: existing.prompt === nextPrompt ? existing.promptDoc : null,
                   terminalContexts: [...existing.terminalContexts, ...acceptedContexts],
                 },
               },
@@ -2769,6 +2794,7 @@ const composerDraftStore = create<ComposerDraftStoreState>()(
             }
             const nextDraft: ComposerThreadDraftState = {
               ...current,
+              promptDoc: null,
               terminalContexts: current.terminalContexts.filter(
                 (context) => context.id !== contextId,
               ),
@@ -2794,6 +2820,7 @@ const composerDraftStore = create<ComposerDraftStoreState>()(
             }
             const nextDraft: ComposerThreadDraftState = {
               ...current,
+              promptDoc: null,
               terminalContexts: [],
             };
             const nextDraftsByThreadKey = { ...state.draftsByThreadKey };
@@ -2873,6 +2900,7 @@ const composerDraftStore = create<ComposerDraftStoreState>()(
             const nextDraft: ComposerThreadDraftState = {
               ...current,
               prompt: "",
+              promptDoc: null,
               images: [],
               nonPersistedImageIds: [],
               persistedAttachments: [],

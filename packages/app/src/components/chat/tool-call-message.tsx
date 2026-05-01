@@ -21,12 +21,14 @@ interface ToolCallMessageProps {
   workEntry: WorkLogEntry;
   workspaceRoot: string | undefined;
   isActiveTurnInProgress: boolean;
+  isLast?: boolean;
 }
 
 export const ToolCallMessage = memo(function ToolCallMessage({
   workEntry,
   workspaceRoot,
   isActiveTurnInProgress,
+  isLast = false,
 }: ToolCallMessageProps) {
   const icon = resolveIcon(workEntry);
   const title = resolveTitle(workEntry);
@@ -35,7 +37,14 @@ export const ToolCallMessage = memo(function ToolCallMessage({
   const status = resolveStatus(workEntry, isActiveTurnInProgress);
 
   return (
-    <ToolCallCard icon={icon} title={title} summary={summary} detail={detail} status={status} />
+    <ToolCallCard
+      icon={icon}
+      title={title}
+      summary={summary}
+      detail={detail}
+      status={status}
+      isLast={isLast}
+    />
   );
 });
 

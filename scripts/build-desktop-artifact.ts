@@ -734,7 +734,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
     private: true,
     description: "Multi desktop build",
     author: "Interfaces Co",
-    main: "packages/desktop/dist-electron/main.js",
+    main: "packages/desktop/dist-electron/main.cjs",
     build: yield* createBuildConfig(
       options.platform,
       options.target,

@@ -41,6 +41,7 @@ import {
   DEFAULT_DESKTOP_SETTINGS,
   readDesktopSettings,
   setDesktopServerExposurePreference,
+  setDesktopThemePreference,
   setDesktopUpdateChannelPreference,
   writeDesktopSettings,
 } from "./desktop-settings";
@@ -54,6 +55,7 @@ import {
   writeSavedEnvironmentSecret,
 } from "./client-persistence";
 import { isBackendReadinessAborted, waitForHttpReady } from "./backend-readiness";
+import { waitForBackendStartupReady } from "./backend-startup-readiness";
 import { showDesktopConfirmDialog } from "./confirm-dialog";
 import { resolveDesktopServerExposure } from "./server-exposure";
 import { syncShellEnvironment } from "./sync-shell-environment";
@@ -120,10 +122,9 @@ const LEGACY_USER_DATA_DIR_NAME = isDevelopment ? "Multi (Dev)" : "Multi (Alpha)
  * (e.g. `~/.config/Multi (Alpha)` on Linux). We override to a clean name when
  * no legacy directory exists so paths stay shell-friendly.
  *
- * Chromium serializes access to a profile via SingletonLock. Only one GUI
- * process may use a given userData directory; secondary instances exit early
- * (see `requestSingleInstanceLock` immediately below). Parallel sessions need
- * distinct identities (e.g. separate `MULTI_HOME` / dev vs prod `userDataDirName`).
+ * Chromium serializes access to a profile via SingletonLock. Parallel sessions
+ * need distinct identities (e.g. separate `MULTI_HOME` / dev vs prod
+ * `userDataDirName`).
  */
 function resolveUserDataPath(): string {
   const appDataBase =
@@ -141,24 +142,9 @@ function resolveUserDataPath(): string {
   });
 }
 
-// Override userData and take the single-instance lock before any other `app` APIs
-// that integrate with Chromium (protocol registration, logging, command-line).
+// Override userData before any other `app` APIs that integrate with Chromium
+// (protocol registration, logging, command-line).
 app.setPath("userData", resolveUserDataPath());
-if (!app.requestSingleInstanceLock()) {
-  app.exit(0);
-}
-
-app.on("second-instance", () => {
-  const window = mainWindow ?? BrowserWindow.getAllWindows()[0];
-  if (!window) {
-    return;
-  }
-
-  if (window.isMinimized()) {
-    window.restore();
-  }
-  window.focus();
-});
 
 const desktopAppBranding: DesktopAppBranding = resolveDesktopAppBranding({
   isDevelopment,
@@ -223,7 +209,6 @@ function resolvePickFolderDefaultPath(rawOptions: unknown): string | undefined {
 }
 const DESKTOP_LOOPBACK_HOST = "127.0.0.1";
 const DESKTOP_REQUIRED_PORT_PROBE_HOSTS = ["0.0.0.0", "::"] as const;
-const BACKEND_READINESS_PATH = "/.well-known/multi/environment";
 const TITLEBAR_HEIGHT = 40;
 const TITLEBAR_COLOR = "#01000000"; // #00000000 does not work correctly on Linux
 const TITLEBAR_LIGHT_SYMBOL_COLOR = "#1f2937";
@@ -251,6 +236,10 @@ let backendAdvertisedHost: string | null = null;
 let backendReadinessAbortController: AbortController | null = null;
 let backendInitialWindowOpenInFlight: Promise<void> | null = null;
 let backendListeningDetector: ServerListeningDetector | null = null;
+let backendWindowReadyState: {
+  readonly source: "listening" | "http";
+  readonly atMs: number;
+} | null = null;
 let restartAttempt = 0;
 let restartTimer: ReturnType<typeof setTimeout> | null = null;
 let isQuitting = false;
@@ -261,6 +250,7 @@ let backendLogSink: RotatingFileSink | null = null;
 let restoreStdIoCapture: (() => void) | null = null;
 let backendObservabilitySettings = readPersistedBackendObservabilitySettings();
 let desktopSettings = readDesktopSettings(DESKTOP_SETTINGS_PATH);
+nativeTheme.themeSource = desktopSettings.themeSource;
 let desktopServerExposureMode: DesktopServerExposureMode = desktopSettings.serverExposureMode;
 
 let destructiveMenuIconCache: Electron.NativeImage | null | undefined;
@@ -427,8 +417,12 @@ function relaunchDesktopApp(reason: string): void {
 }
 
 function writeDesktopLogHeader(message: string): void {
-  if (!desktopLogSink) return;
-  desktopLogSink.write(`[${logTimestamp()}] [${logScope("desktop")}] ${message}\n`);
+  const line = `[${logTimestamp()}] [${logScope("desktop")}] ${message}`;
+  if (desktopLogSink) {
+    desktopLogSink.write(`${line}\n`);
+    return;
+  }
+  console.info(line);
 }
 
 function writeBackendSessionBoundary(phase: "START" | "END", details: string): void {
@@ -444,6 +438,11 @@ function formatErrorMessage(error: unknown): string {
     return error.message;
   }
   return String(error);
+}
+
+function limitLogValue(value: string, maxLength = 600): string {
+  const normalized = sanitizeLogValue(value);
+  return normalized.length <= maxLength ? normalized : `${normalized.slice(0, maxLength)}...`;
 }
 
 function getSafeExternalUrl(rawUrl: unknown): string | null {
@@ -484,7 +483,6 @@ async function waitForBackendHttpReady(
   try {
     await waitForHttpReady(baseUrl, {
       ...options,
-      path: options?.path ?? BACKEND_READINESS_PATH,
       signal: controller.signal,
     });
   } finally {
@@ -499,58 +497,46 @@ function cancelBackendReadinessWait(): void {
   backendReadinessAbortController = null;
 }
 
-async function waitForBackendWindowReady(baseUrl: string): Promise<"listening" | "http"> {
-  const httpReadyPromise = waitForBackendHttpReady(baseUrl, {
-    timeoutMs: 60_000,
-  });
-  const listeningPromise = backendListeningDetector?.promise;
-
-  if (!listeningPromise) {
-    await httpReadyPromise;
-    return "http";
+function formatBackendWindowReadyState(): string {
+  if (!backendWindowReadyState) {
+    return "backendReady=none";
   }
 
-  return await new Promise<"listening" | "http">((resolve, reject) => {
-    let settled = false;
+  return `backendReady=${backendWindowReadyState.source} backendReadyAgeMs=${
+    Date.now() - backendWindowReadyState.atMs
+  }`;
+}
 
-    const settleResolve = (source: "listening" | "http") => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      if (source === "listening") {
-        cancelBackendReadinessWait();
-      }
-      resolve(source);
-    };
+async function waitForBackendWindowReady(baseUrl: string): Promise<"listening" | "http"> {
+  writeDesktopLogHeader(
+    `backend window readiness wait start baseUrl=${baseUrl} hasListeningDetector=${
+      backendListeningDetector !== null
+    }`,
+  );
 
-    const settleReject = (error: unknown) => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      reject(error);
-    };
-
-    listeningPromise.then(
-      () => settleResolve("listening"),
-      (error) => settleReject(error),
-    );
-    httpReadyPromise.then(
-      () => settleResolve("http"),
-      (error) => {
-        if (settled && isBackendReadinessAborted(error)) {
-          return;
-        }
-        settleReject(error);
-      },
-    );
+  const source = await waitForBackendStartupReady({
+    listeningPromise: backendListeningDetector?.promise ?? null,
+    waitForHttpReady: () =>
+      waitForBackendHttpReady(baseUrl, {
+        timeoutMs: 60_000,
+      }),
+    cancelHttpWait: cancelBackendReadinessWait,
   });
+  backendWindowReadyState = { source, atMs: Date.now() };
+  writeDesktopLogHeader(
+    `backend window readiness wait resolved source=${source} baseUrl=${baseUrl}`,
+  );
+  return source;
 }
 
 function ensureInitialBackendWindowOpen(): void {
   const existingWindow = mainWindow ?? BrowserWindow.getAllWindows()[0] ?? null;
   if (isDevelopment || existingWindow !== null || backendInitialWindowOpenInFlight !== null) {
+    writeDesktopLogHeader(
+      `bootstrap initial window open skipped isDevelopment=${isDevelopment} existingWindowId=${
+        existingWindow?.id ?? "none"
+      } inFlight=${backendInitialWindowOpenInFlight !== null}`,
+    );
     return;
   }
 
@@ -1121,6 +1107,7 @@ function revealWindow(window: BrowserWindow): void {
   if (window.isDestroyed()) {
     return;
   }
+  writeWindowLifecycleLog(window, "reveal-requested");
 
   if (window.isMinimized()) {
     window.restore();
@@ -1723,7 +1710,10 @@ function registerIpcHandlers(): void {
       return;
     }
 
+    desktopSettings = setDesktopThemePreference(desktopSettings, theme);
+    writeDesktopSettings(DESKTOP_SETTINGS_PATH, desktopSettings);
     nativeTheme.themeSource = theme;
+    syncAllWindowAppearance();
   });
 
   ipcMain.removeHandler(CONTEXT_MENU_CHANNEL);
@@ -1894,7 +1884,7 @@ function getIconOption(): { icon: string } | Record<string, never> {
 }
 
 function getInitialWindowBackgroundColor(): string {
-  return nativeTheme.shouldUseDarkColors ? "#0a0a0a" : "#ffffff";
+  return nativeTheme.shouldUseDarkColors ? "#161616" : "#ffffff";
 }
 
 function getWindowTitleBarOptions(): WindowTitleBarOptions {
@@ -1938,6 +1928,26 @@ function syncAllWindowAppearance(): void {
 
 nativeTheme.on("updated", syncAllWindowAppearance);
 
+function formatWindowLifecycleState(window: BrowserWindow): string {
+  const webContents = window.webContents;
+  return [
+    `windowId=${window.id}`,
+    `webContentsId=${webContents.id}`,
+    `visible=${window.isVisible()}`,
+    `focused=${window.isFocused()}`,
+    `loading=${webContents.isLoadingMainFrame()}`,
+    `destroyed=${window.isDestroyed()}`,
+    `url=${limitLogValue(webContents.getURL() || "empty")}`,
+    formatBackendWindowReadyState(),
+  ].join(" ");
+}
+
+function writeWindowLifecycleLog(window: BrowserWindow, eventName: string, details?: string): void {
+  writeDesktopLogHeader(
+    `window ${eventName} ${formatWindowLifecycleState(window)}${details ? ` ${details}` : ""}`,
+  );
+}
+
 function createWindow(): BrowserWindow {
   const window = new BrowserWindow({
     width: 1100,
@@ -1951,12 +1961,17 @@ function createWindow(): BrowserWindow {
     title: APP_DISPLAY_NAME,
     ...getWindowTitleBarOptions(),
     webPreferences: {
-      preload: Path.join(__dirname, "preload.js"),
+      preload: Path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
     },
   });
+  writeWindowLifecycleLog(
+    window,
+    "created",
+    `mode=${isDevelopment ? "development" : "packaged"} background=${getInitialWindowBackgroundColor()}`,
+  );
 
   window.webContents.on("context-menu", (event, params) => {
     event.preventDefault();
@@ -2014,55 +2029,135 @@ function createWindow(): BrowserWindow {
     event.preventDefault();
     window.setTitle(APP_DISPLAY_NAME);
   });
+  window.on("show", () => {
+    writeWindowLifecycleLog(window, "show");
+  });
+  window.on("hide", () => {
+    writeWindowLifecycleLog(window, "hide");
+  });
+  window.on("focus", () => {
+    writeWindowLifecycleLog(window, "focus");
+  });
+  window.on("blur", () => {
+    writeWindowLifecycleLog(window, "blur");
+  });
+  window.on("unresponsive", () => {
+    writeWindowLifecycleLog(window, "unresponsive");
+  });
+  window.on("responsive", () => {
+    writeWindowLifecycleLog(window, "responsive");
+  });
+  window.once("ready-to-show", () => {
+    writeWindowLifecycleLog(window, "ready-to-show");
+  });
+  window.webContents.on("before-input-event", (_event, input) => {
+    const isReload =
+      input.type === "keyDown" && input.key.toLowerCase() === "r" && (input.meta || input.control);
+    if (isReload) {
+      writeWindowLifecycleLog(
+        window,
+        "reload-shortcut",
+        `meta=${input.meta} control=${input.control} shift=${input.shift}`,
+      );
+    }
+  });
+  window.webContents.on("did-start-navigation", (_event, url, isInPlace, isMainFrame) => {
+    writeWindowLifecycleLog(
+      window,
+      "did-start-navigation",
+      `isMainFrame=${isMainFrame} isInPlace=${isInPlace} targetUrl=${limitLogValue(url)}`,
+    );
+  });
+  window.webContents.on("did-navigate", (_event, url, httpResponseCode, httpStatusText) => {
+    writeWindowLifecycleLog(
+      window,
+      "did-navigate",
+      `status=${httpResponseCode} statusText=${limitLogValue(httpStatusText)} url=${limitLogValue(
+        url,
+      )}`,
+    );
+  });
+  window.webContents.on("did-navigate-in-page", (_event, url, isMainFrame) => {
+    writeWindowLifecycleLog(
+      window,
+      "did-navigate-in-page",
+      `isMainFrame=${isMainFrame} url=${limitLogValue(url)}`,
+    );
+  });
+  window.webContents.on("did-start-loading", () => {
+    writeWindowLifecycleLog(window, "did-start-loading");
+  });
+  window.webContents.on("did-stop-loading", () => {
+    writeWindowLifecycleLog(window, "did-stop-loading");
+  });
+  window.webContents.on("dom-ready", () => {
+    writeWindowLifecycleLog(window, "dom-ready");
+  });
   window.webContents.on("did-finish-load", () => {
+    writeWindowLifecycleLog(window, "did-finish-load");
     window.setTitle(APP_DISPLAY_NAME);
     emitUpdateState();
   });
   window.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedUrl) => {
-    writeDesktopLogHeader(
-      `window load failed code=${errorCode} message=${errorDescription} url=${validatedUrl}`,
+    writeWindowLifecycleLog(
+      window,
+      "did-fail-load",
+      `code=${errorCode} description=${limitLogValue(errorDescription)} validatedUrl=${limitLogValue(
+        validatedUrl,
+      )}`,
     );
-    console.error("[desktop] window load failed", {
-      errorCode,
-      errorDescription,
-      validatedUrl,
-    });
-    revealInitialWindow();
   });
   window.webContents.on("render-process-gone", (_event, details) => {
-    writeDesktopLogHeader(
-      `renderer process gone reason=${details.reason} exitCode=${details.exitCode}`,
+    writeWindowLifecycleLog(
+      window,
+      "render-process-gone",
+      `reason=${details.reason} exitCode=${details.exitCode}`,
     );
-    console.error("[desktop] renderer process gone", details);
-    revealInitialWindow();
   });
-
-  let initialRevealScheduled = false;
-  const revealInitialWindow = () => {
-    if (initialRevealScheduled) {
+  window.webContents.on("console-message", (_event, level, message, line, sourceId) => {
+    if (level < 2) {
       return;
     }
-    initialRevealScheduled = true;
-    revealWindow(window);
-  };
+    writeWindowLifecycleLog(
+      window,
+      "renderer-console",
+      `level=${level} source=${limitLogValue(sourceId)} line=${line} message=${limitLogValue(
+        message,
+      )}`,
+    );
+  });
 
-  // On Linux/Wayland with `show: false`, Electron's `ready-to-show` can wait
-  // until after `show()`. Keep the first-paint path everywhere else, with
-  // `did-finish-load` only as the Linux deadlock fallback.
+  // On Linux/Wayland with `show: false`, Electron's `ready-to-show` only
+  // fires after `show()` is called, deadlocking the standard "wait for
+  // ready, then show" pattern. Add `did-finish-load` as a Linux-only
+  // fallback so the window still surfaces once the renderer has loaded
+  // the page. Other platforms keep the no-flash `ready-to-show` path,
+  // since `did-finish-load` typically fires before the first paint there.
   const revealSubscribers: RevealSubscription[] = [(fire) => window.once("ready-to-show", fire)];
   if (process.platform === "linux") {
     revealSubscribers.push((fire) => window.webContents.once("did-finish-load", fire));
   }
-  bindFirstRevealTrigger(revealSubscribers, revealInitialWindow);
+  bindFirstRevealTrigger(revealSubscribers, () => {
+    writeWindowLifecycleLog(window, "first-reveal-trigger");
+    revealWindow(window);
+  });
 
+  const windowUrl = isDevelopment ? resolveDesktopDevServerUrl() : backendHttpUrl;
+  writeWindowLifecycleLog(window, "load-url-start", `targetUrl=${limitLogValue(windowUrl)}`);
+  void window.loadURL(windowUrl).then(
+    () => {
+      writeWindowLifecycleLog(window, "load-url-resolved");
+    },
+    (error: unknown) => {
+      writeWindowLifecycleLog(window, "load-url-rejected", `message=${formatErrorMessage(error)}`);
+    },
+  );
   if (isDevelopment) {
-    void window.loadURL(resolveDesktopDevServerUrl());
     window.webContents.openDevTools({ mode: "detach" });
-  } else {
-    void window.loadURL(backendHttpUrl);
   }
 
   window.on("closed", () => {
+    writeDesktopLogHeader(`window closed windowId=${window.id}`);
     if (mainWindow === window) {
       mainWindow = null;
     }
@@ -2121,9 +2216,9 @@ async function bootstrap(): Promise<void> {
   if (isDevelopment) {
     mainWindow = createWindow();
     writeDesktopLogHeader("bootstrap main window created");
-    void waitForBackendHttpReady(backendHttpUrl)
-      .then(() => {
-        writeDesktopLogHeader("bootstrap backend ready");
+    void waitForBackendWindowReady(backendHttpUrl)
+      .then((source) => {
+        writeDesktopLogHeader(`bootstrap backend ready source=${source}`);
       })
       .catch((error) => {
         if (isBackendReadinessAborted(error)) {

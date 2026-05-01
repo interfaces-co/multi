@@ -48,6 +48,26 @@
   --prompt-input-toolbar-padding: 8px 10px;
   --prompt-input-editor-min-height: 36px;
   --prompt-input-editor-max-height: 200px;
+  --composer-mode-chat-background: var(--multi-bg-quaternary);
+  --composer-mode-chat-text: var(--multi-fg-primary);
+  --composer-mode-background-background: var(--multi-bg-tertiary);
+  --composer-mode-background-text: var(--multi-fg-secondary);
+  --composer-mode-plan-background: color-mix(in srgb, var(--primary) 12%, transparent);
+  --composer-mode-plan-text: var(--primary);
+  --composer-mode-plan-icon: var(--primary);
+  --composer-mode-plan-border: color-mix(in srgb, var(--primary) 24%, transparent);
+  --composer-mode-triage-background: var(--vscode-input-background, var(--multi-bg-quaternary));
+  --composer-mode-triage-text: var(--vscode-input-foreground, var(--multi-fg-primary));
+  --composer-mode-triage-icon: var(--vscode-input-foreground, var(--multi-icon-secondary));
+  --composer-mode-triage-border: var(--vscode-focusBorder, var(--multi-stroke-secondary));
+  --composer-mode-spec-background: color-mix(in srgb, var(--success) 10%, transparent);
+  --composer-mode-spec-text: var(--success);
+  --composer-mode-spec-icon: var(--success);
+  --composer-mode-spec-border: color-mix(in srgb, var(--success) 24%, transparent);
+  --composer-mode-debug-background: color-mix(in srgb, var(--destructive) 10%, transparent);
+  --composer-mode-debug-text: var(--destructive);
+  --composer-mode-debug-icon: var(--destructive);
+  --composer-mode-debug-border: color-mix(in srgb, var(--destructive) 24%, transparent);
   /* Typography scale — relative to user preference */
   --multi-text-caption: calc(var(--multi-ui-font-size-user, 13px) - 3px);
   --multi-text-detail: calc(var(--multi-ui-font-size-user, 13px) - 2px);

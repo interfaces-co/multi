@@ -33,10 +33,10 @@ isProject: false
 
 ## Source artefacts (local Cursor.app)
 
-| Asset | ~Size | Role |
-|--------|------|------|
-| [`/Applications/Cursor.app/Contents/Resources/app/out/vs/workbench/workbench.desktop.main.js`](/Applications/Cursor.app/Contents/Resources/app/out/vs/workbench/workbench.desktop.main.js) | ~51 MB | Minified workbench; original paths appear in `Le({"out-build/vs/workbench/..."})` loaders. Composer lives under `contrib/composer/browser/` (constants, services, Solid-style `K`/`It` JSX). |
-| [`/Applications/Cursor.app/Contents/Resources/app/out/vs/workbench/workbench.desktop.main.css`](/Applications/Cursor.app/Contents/Resources/app/out/vs/workbench/workbench.desktop.main.css) | ~2 MB | Mostly **one minified line**; composer/Glass rules are **substring-searchable**, not sectioned by file layout. |
+| Asset                                                                                                                                                                                        | ~Size  | Role                                                                                                                                                                                         |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`/Applications/Cursor.app/Contents/Resources/app/out/vs/workbench/workbench.desktop.main.js`](/Applications/Cursor.app/Contents/Resources/app/out/vs/workbench/workbench.desktop.main.js)   | ~51 MB | Minified workbench; original paths appear in `Le({"out-build/vs/workbench/..."})` loaders. Composer lives under `contrib/composer/browser/` (constants, services, Solid-style `K`/`It` JSX). |
+| [`/Applications/Cursor.app/Contents/Resources/app/out/vs/workbench/workbench.desktop.main.css`](/Applications/Cursor.app/Contents/Resources/app/out/vs/workbench/workbench.desktop.main.css) | ~2 MB  | Mostly **one minified line**; composer/Glass rules are **substring-searchable**, not sectioned by file layout.                                                                               |
 
 **Limitation:** Closed product; hashes and minified identifiers change between releases. Treat this as a **behavioral + DOM/CSS contract spec**, not a copy-paste source drop.
 
@@ -99,30 +99,36 @@ Minified **`Iap`** is the owning component for **`ui-prompt-input`**. Re-impleme
 
 ### Props (preserve names or map 1:1 in adapter)
 
-| Prop | Default / notes |
-|------|----------------|
-| **`variant`** | `"expanded"` — drives compact layout (`data-variant` on root + container). |
-| **`headerContent`**, **`headerContentVisible`** | Optional row **above** field; rendered as **`div.ui-prompt-input__header`** with **`data-visible`**. |
-| **`footerContent`** | **`div.ui-prompt-input__footer`**. |
-| **`onSubmit`**, **`submitOnCmdEnter`** | Submit policy (Cmd/Ctrl+Enter gate in context). |
-| **`isRunning`**, **`onStop`**, **`onEscape`** | Generation / stop lifecycle. |
-| **`isDragging`**, drag handlers (`onDragOver`, `onDragEnter`, `onDragLeave`, `onDrop`) | File / image drag; counter ref for nested enter/leave (`qe.current` pattern). |
-| **`onImageDrop`**, **`hasImages`** | Filter `dataTransfer.files` to `type.startsWith("image/")` then delegate. |
-| **`slashMenuPlacement`**, **`plusMenuPlacement`**, **`modelPickerPlacement`** | Popover anchoring; defaults derived from variant (e.g. compact + not expanded → model picker **`bottom-end`**). |
-| **`slashMenuItemPrefix`** | `"/"` default; **cleared to `""`** when **`slashMenuVariant === "glass"`** (item display prefix only). |
-| **`slashMenuVariant`** | `"default"` \| `"glass"` (affects prefix + styling hook). |
-| **`slashMenuAnchor`** | `"cursor"` (default) vs **`"input-start"`** — changes fixed positioning of anchor vs coords from selection. |
-| **`showMentionSidePreview`**, plugins, ignore-click resolver | Optional side preview for mentions. |
-| **`className`**, **`children`** | `children` = main editor subtree injected **inside** container **before** anchor span. |
+| Prop                                                                                   | Default / notes                                                                                                 |
+| -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| **`variant`**                                                                          | `"expanded"` — drives compact layout (`data-variant` on root + container).                                      |
+| **`headerContent`**, **`headerContentVisible`**                                        | Optional row **above** field; rendered as **`div.ui-prompt-input__header`** with **`data-visible`**.            |
+| **`footerContent`**                                                                    | **`div.ui-prompt-input__footer`**.                                                                              |
+| **`onSubmit`**, **`submitOnCmdEnter`**                                                 | Submit policy (Cmd/Ctrl+Enter gate in context).                                                                 |
+| **`isRunning`**, **`onStop`**, **`onEscape`**                                          | Generation / stop lifecycle.                                                                                    |
+| **`isDragging`**, drag handlers (`onDragOver`, `onDragEnter`, `onDragLeave`, `onDrop`) | File / image drag; counter ref for nested enter/leave (`qe.current` pattern).                                   |
+| **`onImageDrop`**, **`hasImages`**                                                     | Filter `dataTransfer.files` to `type.startsWith("image/")` then delegate.                                       |
+| **`slashMenuPlacement`**, **`plusMenuPlacement`**, **`modelPickerPlacement`**          | Popover anchoring; defaults derived from variant (e.g. compact + not expanded → model picker **`bottom-end`**). |
+| **`slashMenuItemPrefix`**                                                              | `"/"` default; **cleared to `""`** when **`slashMenuVariant === "glass"`** (item display prefix only).          |
+| **`slashMenuVariant`**                                                                 | `"default"` \| `"glass"` (affects prefix + styling hook).                                                       |
+| **`slashMenuAnchor`**                                                                  | `"cursor"` (default) vs **`"input-start"`** — changes fixed positioning of anchor vs coords from selection.     |
+| **`showMentionSidePreview`**, plugins, ignore-click resolver                           | Optional side preview for mentions.                                                                             |
+| **`className`**, **`children`**                                                        | `children` = main editor subtree injected **inside** container **before** anchor span.                          |
 
 ### Root DOM shape (must match for CSS)
 
 ```html
 <div class="ui-prompt-input" data-variant="…">
-  <div class="ui-prompt-input__header" data-visible="true|false">…</div>  <!-- if headerContent -->
-  <div class="ui-prompt-input__container"
-       data-variant="…"
-       data-expanded? data-dragging? data-menu-direction="up"? >
+  <div class="ui-prompt-input__header" data-visible="true|false">…</div>
+  <!-- if headerContent -->
+  <div
+    class="ui-prompt-input__container"
+    data-variant="…"
+    data-expanded?
+    data-dragging?
+    data-menu-direction="up"
+    ?
+  >
     …children (editor)…
     <span class="ui-prompt-input__slash-menu-anchor"></span>
   </div>
@@ -157,14 +163,14 @@ Persist and load a **TipTap/ProseMirror JSON doc** with root **`{ type: "doc", c
 
 ### Node kinds (readonly renderer `uUu`)
 
-| `type` | Rendering |
-|--------|-----------|
-| **`doc`** | Fragment |
-| **`paragraph`** | `<p>` |
-| **`text`** | Text with optional marks → bold/italic/strike/code/link (`ui-prompt-input-link`, safe URL http/https only) |
-| **`hardBreak`** | `<br>` |
+| `type`                            | Rendering                                                                                                                                                                                                     |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`doc`**                         | Fragment                                                                                                                                                                                                      |
+| **`paragraph`**                   | `<p>`                                                                                                                                                                                                         |
+| **`text`**                        | Text with optional marks → bold/italic/strike/code/link (`ui-prompt-input-link`, safe URL http/https only)                                                                                                    |
+| **`hardBreak`**                   | `<br>`                                                                                                                                                                                                        |
 | **`mention`** / **`mentionNode`** | **`Lap`** → pill **`ui-pill ui-prompt-input-mention-chip`** (`data-type="mentionNode"`, `data-read-only-mention`) + leading icon (**Cursor icon component** vs **Seti** file icon) + optional line range span |
-| **`commandNode`** | **`Nap`** → **`ui-prompt-input-command-chip`**; interactive **`button.ui-prompt-input-command-chip__label--clickable`** showing `/${name}` |
+| **`commandNode`**                 | **`Nap`** → **`ui-prompt-input-command-chip`**; interactive **`button.ui-prompt-input-command-chip__label--clickable`** showing `/${name}`                                                                    |
 
 ### Base extensions bundle (`dUu`)
 
@@ -190,10 +196,10 @@ On accept: **delete trigger range**, **`insertCommand({ id, name, content, type 
 
 Two instances of the same popover component with different `aria-label` and plumbing:
 
-| Popover | `aria-label` | `itemPrefix` | `onItemSelect` behavior |
-|---------|--------------|--------------|-------------------------|
-| Slash | `"Slash commands"` | `""` when glass variant else `"/"` | `onSelect` then close + clear query |
-| Mentions | `"Mentions"` | `""` | If `type==="action"` bump debounce counter; always `onSelect`; non-action closes sub-state |
+| Popover  | `aria-label`       | `itemPrefix`                       | `onItemSelect` behavior                                                                    |
+| -------- | ------------------ | ---------------------------------- | ------------------------------------------------------------------------------------------ |
+| Slash    | `"Slash commands"` | `""` when glass variant else `"/"` | `onSelect` then close + clear query                                                        |
+| Mentions | `"Mentions"`       | `""`                               | If `type==="action"` bump debounce counter; always `onSelect`; non-action closes sub-state |
 
 Shared: **`placement`** from `slashMenuPlacement ?? "top-start"`; **`anchorRef`** = anchor span; **`sections`**, **`selectedIndex`**, **`expandedSections`**, **`isSearching`** (slash uses normalized query helper `vPt(wt)`), mentions pass **`isLoading`**, **`emptyStateText: "No results found"`**, optional **`mentionSidePreview`**.
 
@@ -205,15 +211,15 @@ Shared: **`placement`** from `slashMenuPlacement ?? "top-start"`; **`anchorRef`*
 
 ### `Kdf` mode → CSS variable map (replicate in your theme layer)
 
-| Mode key | Maps to |
-|----------|---------|
-| **`agent`** | transparent bg, `var(--vscode-input-foreground)` text, `var(--vscode-button-background)` icon button |
-| **`chat`** | `--composer-mode-chat-background/text` |
-| **`background`** | `--composer-mode-background-background/text` |
-| **`plan`** | plan bg/text/icon/border quad |
-| **`triage`** | triage tokens with fallbacks to input/focus borders |
-| **`spec`** | spec quad |
-| **`debug`** | debug quad |
+| Mode key         | Maps to                                                                                              |
+| ---------------- | ---------------------------------------------------------------------------------------------------- |
+| **`agent`**      | transparent bg, `var(--vscode-input-foreground)` text, `var(--vscode-button-background)` icon button |
+| **`chat`**       | `--composer-mode-chat-background/text`                                                               |
+| **`background`** | `--composer-mode-background-background/text`                                                         |
+| **`plan`**       | plan bg/text/icon/border quad                                                                        |
+| **`triage`**     | triage tokens with fallbacks to input/focus borders                                                  |
+| **`spec`**       | spec quad                                                                                            |
+| **`debug`**      | debug quad                                                                                           |
 
 **Dropdown attr skin:** `.composer-unified-dropdown[data-mode=chat|background|plan|spec|debug]` forces `!important` background/foreground overrides in bundle CSS — mirror with your design tokens.
 
@@ -236,12 +242,12 @@ Shared: **`placement`** from `slashMenuPlacement ?? "top-start"`; **`anchorRef`*
 
 ### Tab / Shift+Tab vs SubComposer vs Chat selection
 
-| Command id | Title (bundle) | `primary` | Weight | `when` |
-|------------|----------------|-----------|--------|--------|
-| `composer.selectPreviousComposer` | Select Previous Chat | 2575 | 410 | `(composerFocused \|\| agentsPaneFocused) && !editorTextFocus` |
-| `composer.selectPreviousSubComposerTab` | Select Previous SubComposer Tab | 2575 | 200 | `composerFocused` |
-| `composer.selectNextComposer` | Select Next Chat | 2577 | 410 | same as first row |
-| `composer.selectNextSubComposerTab` | Select Next SubComposer Tab | 2577 | 200 | `composerFocused` |
+| Command id                              | Title (bundle)                  | `primary` | Weight | `when`                                                         |
+| --------------------------------------- | ------------------------------- | --------- | ------ | -------------------------------------------------------------- |
+| `composer.selectPreviousComposer`       | Select Previous Chat            | 2575      | 410    | `(composerFocused \|\| agentsPaneFocused) && !editorTextFocus` |
+| `composer.selectPreviousSubComposerTab` | Select Previous SubComposer Tab | 2575      | 200    | `composerFocused`                                              |
+| `composer.selectNextComposer`           | Select Next Chat                | 2577      | 410    | same as first row                                              |
+| `composer.selectNextSubComposerTab`     | Select Next SubComposer Tab     | 2577      | 200    | `composerFocused`                                              |
 
 **Net effect:** While the **prompt editor** holds `editorTextFocus`, the **higher-weight chat navigation** is suppressed → **SubComposer tab** commands handle **Tab / Shift+Tab** (same numeric chord, lower weight). When focus is on **non-editor composer chrome**, **Previous/Next Chat** wins.
 

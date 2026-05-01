@@ -1,7 +1,6 @@
 "use client";
 
-import { Tabs } from "@base-ui/react/tabs";
-import { IconSidebarHiddenRightWide } from "central-icons";
+import { TabsList, TabsTab } from "@multi/ui/tabs";
 import { FileTextIcon, GitBranchIcon, PlusIcon, TerminalIcon, XIcon } from "lucide-react";
 import type { ComponentType, ReactNode } from "react";
 
@@ -24,11 +23,11 @@ function ToolIconButton(props: { tab: WorkbenchTab; badge?: string | null }) {
   const Icon = meta.icon;
   const badgeText = props.badge && props.badge !== "0" ? `, ${props.badge}` : "";
   return (
-    <Tabs.Tab
+    <TabsTab
       value={props.tab}
       className={(state) =>
         cn(
-          "no-drag outline-none focus-visible:outline-none ui-tab-system-tab box-border flex h-(--multi-workbench-chrome-row-height) shrink-0 items-center justify-center rounded-[5px] border-0 px-(--multi-workbench-chrome-icon-padding-x) text-multi-icon-secondary shadow-none transition-colors hover:bg-multi-bg-quaternary hover:text-multi-icon-primary",
+          "no-drag outline-none focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 ui-tab-system-tab box-border flex h-(--multi-workbench-chrome-row-height) shrink-0 items-center justify-center rounded-[5px] border-0 px-(--multi-workbench-chrome-icon-padding-x) text-multi-icon-secondary shadow-none transition-colors hover:bg-multi-bg-quaternary hover:text-multi-icon-primary",
           state.active && "bg-multi-bg-tertiary text-multi-icon-primary",
         )
       }
@@ -36,14 +35,14 @@ function ToolIconButton(props: { tab: WorkbenchTab; badge?: string | null }) {
       title={`${meta.label}${badgeText}`}
     >
       <Icon className="size-3.5" aria-hidden />
-    </Tabs.Tab>
+    </TabsTab>
   );
 }
 
 function WorkbenchTabList(props: { activeTab: WorkbenchTab; gitCount?: number | undefined }) {
   const allTabs: WorkbenchTab[] = ["git", "terminal", "files"];
   return (
-    <Tabs.List className="flex shrink-0 items-center gap-(--multi-workbench-chrome-action-gap)">
+    <TabsList className="flex shrink-0 items-center gap-(--multi-workbench-chrome-action-gap)">
       {allTabs.map((tab) => (
         <ToolIconButton
           key={tab}
@@ -54,7 +53,7 @@ function WorkbenchTabList(props: { activeTab: WorkbenchTab; gitCount?: number | 
       <div className="sr-only" aria-live="polite">
         {TOOL_META[props.activeTab].label}
       </div>
-    </Tabs.List>
+    </TabsList>
   );
 }
 
@@ -116,7 +115,6 @@ function TerminalSessionTab(props: {
 
 interface RightWorkbenchHeaderProps {
   activeTab: WorkbenchTab;
-  onToggle: () => void;
   gitCount?: number;
   terminalSessions?: TerminalSessionEntry[];
   activeTerminalId?: string;
@@ -134,17 +132,7 @@ export function RightWorkbenchHeader(props: RightWorkbenchHeaderProps) {
   return (
     <RightWorkbenchToolIsland
       trailing={props.trailing}
-      end={
-        <button
-          type="button"
-          onClick={props.onToggle}
-          className="no-drag flex h-(--multi-workbench-chrome-row-height) shrink-0 items-center justify-center rounded-[5px] border-0 px-(--multi-workbench-chrome-icon-padding-x) text-multi-icon-secondary shadow-none outline-none transition-colors hover:bg-multi-bg-quaternary hover:text-multi-icon-primary focus-visible:outline-none"
-          aria-label="Hide right panel"
-          title="Hide right panel"
-        >
-          <IconSidebarHiddenRightWide className="size-4 shrink-0" />
-        </button>
-      }
+      end={<div className="no-drag size-(--multi-titlebar-control-height) shrink-0" aria-hidden />}
     >
       <>
         <WorkbenchTabList activeTab={props.activeTab} gitCount={props.gitCount} />

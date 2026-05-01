@@ -1,13 +1,6 @@
 import { memo, useState } from "react";
-import {
-  CheckIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
-  CircleAlertIcon,
-  type LucideIcon,
-  LoaderIcon,
-} from "lucide-react";
-import { cn } from "~/lib/utils";
+import { ChevronDownIcon, ChevronRightIcon, type LucideIcon } from "lucide-react";
+import { ThinkingStep, ThinkingStepDetails, type ThinkingStepStatus } from "./thinking-steps";
 
 type ToolCallStatus = "loading" | "completed" | "error";
 
@@ -17,60 +10,57 @@ interface ToolCallCardProps {
   summary: string | null;
   detail: string | null;
   status: ToolCallStatus;
+  isLast?: boolean;
 }
 
 export const ToolCallCard = memo(function ToolCallCard({
-  icon: Icon,
+  icon,
   title,
   summary,
   detail,
   status,
+  isLast = false,
 }: ToolCallCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const hasDetail = detail !== null && detail.length > 0;
 
   return (
-    <div className="multi-tool-call-card" data-status={status}>
-      <div className="multi-tool-call-card__header">
-        <div className="flex min-w-0 flex-1 items-start gap-2">
-          <span className="multi-tool-call-card__icon flex size-4 shrink-0 items-center justify-center">
-            <Icon className="size-3" />
-          </span>
-          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <span className="multi-tool-call-card__title">{title}</span>
-            {summary && <span className="multi-tool-call-card__summary">{summary}</span>}
-          </div>
-        </div>
-        <span className="multi-tool-call-card__status">
-          <StatusIndicator status={status} />
-        </span>
-      </div>
-      {hasDetail && (
-        <button
-          type="button"
-          className="multi-tool-call-card__toggle"
-          onClick={() => setIsExpanded((v) => !v)}
+    <ThinkingStep
+      icon={icon}
+      title={title}
+      summary={summary}
+      status={toThinkingStepStatus(status)}
+      isLast={isLast}
+    >
+      {hasDetail ? (
+        <ThinkingStepDetails
+          open={isExpanded}
+          onOpenChange={setIsExpanded}
+          triggerLabel={isExpanded ? "Hide" : "Show"}
+          triggerIcon={
+            isExpanded ? (
+              <ChevronDownIcon className="size-3" />
+            ) : (
+              <ChevronRightIcon className="size-3" />
+            )
+          }
         >
-          {isExpanded ? (
-            <ChevronDownIcon className="size-3" />
-          ) : (
-            <ChevronRightIcon className="size-3" />
-          )}
-          <span>{isExpanded ? "Hide" : "Show"}</span>
-        </button>
-      )}
-      {isExpanded && hasDetail && <pre className="multi-tool-call-card__args">{detail}</pre>}
-    </div>
+          <pre className="mt-1.5 whitespace-pre-wrap break-words rounded-multi-control bg-multi-surface p-2 font-multi-mono text-detail text-foreground">
+            {detail}
+          </pre>
+        </ThinkingStepDetails>
+      ) : null}
+    </ThinkingStep>
   );
 });
 
-function StatusIndicator({ status }: { status: ToolCallStatus }) {
+function toThinkingStepStatus(status: ToolCallStatus): ThinkingStepStatus {
   switch (status) {
     case "loading":
-      return <LoaderIcon className={cn("size-3 animate-spin")} />;
+      return "active";
     case "completed":
-      return <CheckIcon className="size-3" />;
+      return "complete";
     case "error":
-      return <CircleAlertIcon className="size-3" />;
+      return "error";
   }
 }

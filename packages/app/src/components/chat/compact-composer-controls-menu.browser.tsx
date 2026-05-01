@@ -62,6 +62,7 @@ async function mountMenu(props?: { modelSelection?: ModelSelection; prompt?: str
     draftsByThreadKey: {
       [threadKey]: {
         prompt: props?.prompt ?? "",
+        promptDoc: null,
         images: [],
         nonPersistedImageIds: [],
         persistedAttachments: [],

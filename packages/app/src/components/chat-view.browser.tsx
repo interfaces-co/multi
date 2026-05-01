@@ -2774,7 +2774,7 @@ describe("ChatView timeline estimator parity (full app)", () => {
     }
   });
 
-  it("toggles plan mode with Shift+Tab only while the composer is focused", async () => {
+  it("does not steal Shift+Tab for plan mode while the composer editor is focused", async () => {
     const mounted = await mountChatView({
       viewport: DEFAULT_VIEWPORT,
       snapshot: createSnapshotForTargetUser({
@@ -2810,30 +2810,8 @@ describe("ChatView timeline estimator parity (full app)", () => {
         }),
       );
 
-      await vi.waitFor(
-        async () => {
-          expect((await waitForInteractionModeButton("Plan")).title).toContain(
-            "return to normal build mode",
-          );
-        },
-        { timeout: 8_000, interval: 16 },
-      );
-
-      composerEditor.dispatchEvent(
-        new KeyboardEvent("keydown", {
-          key: "Tab",
-          shiftKey: true,
-          bubbles: true,
-          cancelable: true,
-        }),
-      );
-
-      await vi.waitFor(
-        async () => {
-          expect((await waitForInteractionModeButton("Build")).title).toContain("enter plan mode");
-        },
-        { timeout: 8_000, interval: 16 },
-      );
+      await waitForLayout();
+      expect((await waitForInteractionModeButton("Build")).title).toContain("enter plan mode");
     } finally {
       await mounted.cleanup();
     }

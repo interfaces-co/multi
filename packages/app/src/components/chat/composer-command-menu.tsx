@@ -4,7 +4,13 @@ import {
   type ServerProviderSkill,
   type ServerProviderSlashCommand,
 } from "@multi/contracts";
-import { BotIcon } from "lucide-react";
+import {
+  BotIcon,
+  BoxIcon,
+  ListTodoIcon,
+  SlidersHorizontalIcon,
+  type LucideIcon,
+} from "lucide-react";
 import { memo, useLayoutEffect, useMemo, useRef } from "react";
 
 import { type ComposerSlashCommand, type ComposerTriggerKind } from "../../composer-logic";
@@ -58,6 +64,19 @@ type ComposerCommandGroup = {
   label: string | null;
   items: ComposerCommandItem[];
 };
+type ComposerCommandMenuKind = "slash" | "mentions";
+
+function getSlashCommandIcon(command: ComposerSlashCommand): LucideIcon {
+  if (command === "model") return BoxIcon;
+  if (command === "plan") return ListTodoIcon;
+  return BotIcon;
+}
+
+function getSlashCommandTertiaryText(command: ComposerSlashCommand): string {
+  if (command === "model") return "Select Model";
+  if (command === "plan") return "Plan Mode";
+  return "Build Mode";
+}
 
 function SkillGlyph(props: { className?: string }) {
   return (
@@ -86,19 +105,30 @@ function groupCommandItems(
   if (triggerKind === "skill") {
     return items.length > 0 ? [{ id: "skills", label: "Skills", items }] : [];
   }
+  if (triggerKind === "path") {
+    return items.length > 0 ? [{ id: "files", label: "Files & Folders", items }] : [];
+  }
   if (triggerKind !== "slash-command" || !groupSlashCommandSections) {
     return [{ id: "default", label: null, items }];
   }
 
-  const builtInItems = items.filter((item) => item.type === "slash-command");
+  const modeItems = items.filter(
+    (item) => item.type === "slash-command" && item.command !== "model",
+  );
+  const openItems = items.filter(
+    (item) => item.type === "slash-command" && item.command === "model",
+  );
   const providerItems = items.filter((item) => item.type === "provider-slash-command");
 
   const groups: ComposerCommandGroup[] = [];
-  if (builtInItems.length > 0) {
-    groups.push({ id: "built-in", label: "Built-in", items: builtInItems });
+  if (modeItems.length > 0) {
+    groups.push({ id: "modes", label: "Modes", items: modeItems });
+  }
+  if (openItems.length > 0) {
+    groups.push({ id: "open", label: "Open", items: openItems });
   }
   if (providerItems.length > 0) {
-    groups.push({ id: "provider", label: "Provider", items: providerItems });
+    groups.push({ id: "commands", label: "Commands", items: providerItems });
   }
   return groups;
 }
@@ -107,6 +137,8 @@ export const ComposerCommandMenu = memo(function ComposerCommandMenu(props: {
   items: ComposerCommandItem[];
   resolvedTheme: "light" | "dark";
   isLoading: boolean;
+  ariaLabel: "Slash commands" | "Mentions";
+  menuKind: ComposerCommandMenuKind;
   triggerKind: ComposerTriggerKind | null;
   groupSlashCommandSections?: boolean;
   emptyStateText?: string;
@@ -131,6 +163,7 @@ export const ComposerCommandMenu = memo(function ComposerCommandMenu(props: {
 
   return (
     <Command
+      aria-label={props.ariaLabel}
       autoHighlight={false}
       mode="none"
       onItemHighlighted={(highlightedValue) => {
@@ -141,15 +174,20 @@ export const ComposerCommandMenu = memo(function ComposerCommandMenu(props: {
     >
       <div
         ref={listRef}
-        className="relative overflow-hidden rounded-xl border border-border/80 bg-popover/96 shadow-lg/8 backdrop-blur-xs"
+        className={cn(
+          "multi-composer-token-menu relative overflow-hidden ui-slash-menu__content ui-slash-menu__content--glass",
+          props.menuKind === "slash" ? "ui-slash-menu" : "mentions-menu mentions-menu__content",
+        )}
+        data-menu-kind={props.menuKind}
+        data-variant="glass"
       >
-        <CommandList className="max-h-72">
+        <CommandList className="max-h-[342px]">
           {groups.map((group, groupIndex) => (
             <div key={group.id}>
               {groupIndex > 0 ? <CommandSeparator className="my-0.5" /> : null}
               <CommandGroup>
                 {group.label ? (
-                  <CommandGroupLabel className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/55">
+                  <CommandGroupLabel className="multi-composer-token-menu__group-label">
                     {group.label}
                   </CommandGroupLabel>
                 ) : null}
@@ -168,13 +206,13 @@ export const ComposerCommandMenu = memo(function ComposerCommandMenu(props: {
           ))}
         </CommandList>
         {props.items.length === 0 ? (
-          <div className="px-3 py-2">
+          <div className="multi-composer-token-menu__empty">
             {props.triggerKind === "skill" ? (
               <CommandGroup>
-                <CommandGroupLabel className="px-0 pt-0 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/55">
+                <CommandGroupLabel className="multi-composer-token-menu__group-label px-0! pt-0!">
                   Skills
                 </CommandGroupLabel>
-                <p className="text-muted-foreground/70 text-xs">
+                <p className="multi-composer-token-menu__empty-text">
                   {props.isLoading
                     ? "Searching workspace skills..."
                     : (props.emptyStateText ??
@@ -182,7 +220,7 @@ export const ComposerCommandMenu = memo(function ComposerCommandMenu(props: {
                 </p>
               </CommandGroup>
             ) : (
-              <p className="text-muted-foreground/70 text-xs">
+              <p className="multi-composer-token-menu__empty-text">
                 {props.isLoading
                   ? "Searching workspace files..."
                   : (props.emptyStateText ??
@@ -207,14 +245,24 @@ const ComposerCommandMenuItem = memo(function ComposerCommandMenuItem(props: {
 }) {
   const skillSourceLabel =
     props.item.type === "skill" ? formatProviderSkillInstallSource(props.item.skill) : null;
+  const SlashIcon =
+    props.item.type === "slash-command" ? getSlashCommandIcon(props.item.command) : null;
+  const tertiaryText =
+    props.item.type === "slash-command"
+      ? getSlashCommandTertiaryText(props.item.command)
+      : props.item.type === "provider-slash-command"
+        ? "Command"
+        : skillSourceLabel;
 
   return (
     <CommandItem
       value={props.item.id}
       data-composer-item-id={props.item.id}
+      data-is-selected={props.isActive ? "" : undefined}
+      data-menu-item-type={props.item.type}
       className={cn(
-        "cursor-pointer select-none gap-2 hover:bg-transparent hover:text-inherit data-highlighted:bg-transparent data-highlighted:text-inherit",
-        props.isActive && "bg-accent! text-accent-foreground!",
+        "multi-composer-token-menu__item ui-slash-menu__item cursor-pointer select-none hover:bg-transparent hover:text-inherit data-highlighted:bg-transparent data-highlighted:text-inherit",
+        props.isActive && "multi-composer-token-menu__item--active",
       )}
       onMouseMove={() => {
         if (!props.isActive) props.onHighlight(props.item.id);
@@ -233,27 +281,31 @@ const ComposerCommandMenuItem = memo(function ComposerCommandMenuItem(props: {
           theme={props.resolvedTheme}
         />
       ) : null}
-      {props.item.type === "slash-command" ? (
-        <BotIcon className="size-4 shrink-0 text-muted-foreground/80" />
+      {SlashIcon ? (
+        <SlashIcon className="multi-composer-token-menu__icon ui-slash-menu__item-icon size-4 shrink-0" />
       ) : null}
       {props.item.type === "provider-slash-command" ? (
-        <span className="inline-flex size-4 shrink-0 items-center justify-center text-muted-foreground/80">
-          <SkillGlyph className="size-3.5" />
+        <span className="multi-composer-token-menu__icon ui-slash-menu__item-icon inline-flex size-4 shrink-0 items-center justify-center">
+          <SlidersHorizontalIcon className="size-3.5" />
         </span>
       ) : null}
       {props.item.type === "skill" ? (
-        <span className="inline-flex size-4 shrink-0 items-center justify-center text-muted-foreground/80">
+        <span className="multi-composer-token-menu__icon ui-slash-menu__item-icon inline-flex size-4 shrink-0 items-center justify-center">
           <SkillGlyph className="size-3.5" />
         </span>
       ) : null}
-      <span className="flex min-w-0 flex-1 items-center gap-2">
-        <span className="shrink-0">{props.item.label}</span>
-        <span className="min-w-0 flex-1 truncate text-muted-foreground/70 text-xs">
+      <span className="multi-composer-token-menu__item-text ui-slash-menu__item-title-wrap">
+        <span className="multi-composer-token-menu__primary ui-slash-menu__item-title">
+          {props.item.label}
+        </span>
+        <span className="multi-composer-token-menu__secondary ui-slash-menu__item-description">
           {props.item.description}
         </span>
       </span>
-      {skillSourceLabel ? (
-        <span className="shrink-0 pl-2 text-muted-foreground/70 text-xs">{skillSourceLabel}</span>
+      {tertiaryText ? (
+        <span className="multi-composer-token-menu__meta ui-slash-menu__item-tertiary-text">
+          {tertiaryText}
+        </span>
       ) : null}
     </CommandItem>
   );

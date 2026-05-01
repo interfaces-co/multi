@@ -21,10 +21,18 @@ export const DEFAULT_MULTI_HOME = Effect.map(Effect.service(Path.Path), (path) =
 );
 
 const MODE_ARGS = {
-  dev: ["run", "dev:stack", "--ui=tui", "--filter=usemulti"],
+  dev: [
+    "run",
+    "dev",
+    "--ui=tui",
+    "--filter=@multi/contracts",
+    "--filter=@multi/app",
+    "--filter=usemulti",
+    "--parallel",
+  ],
   "dev:server": ["run", "dev", "--filter=usemulti"],
   "dev:app": ["run", "dev", "--filter=@multi/app"],
-  "dev:desktop": ["run", "dev", "--filter=@multi/desktop"],
+  "dev:desktop": ["run", "dev", "--filter=@multi/desktop", "--filter=@multi/app", "--parallel"],
 } as const satisfies Record<string, ReadonlyArray<string>>;
 
 type DevMode = keyof typeof MODE_ARGS;

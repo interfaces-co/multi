@@ -126,7 +126,7 @@ describe("detectComposerTrigger", () => {
 
   it("detects trigger with true cursor even when regex-based mention detection would false-match", () => {
     // MENTION_TOKEN_REGEX can false-match plain text like "@in" as a mention.
-    // The fix bypasses it by computing the expanded cursor from the Lexical node tree.
+    // The editor computes this from its structured document tree instead.
     const text = "Please inspect @in this sentence";
     const cursorAfterAt = "Please inspect @".length;
 

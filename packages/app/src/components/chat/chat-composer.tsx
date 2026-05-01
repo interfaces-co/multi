@@ -56,13 +56,20 @@ import {
   insertInlineTerminalContextPlaceholder,
   removeInlineTerminalContextPlaceholder,
 } from "../../lib/terminal-context";
+import type { ComposerPromptDoc } from "../../composer-prompt-doc";
 import {
   shouldUseCompactComposerPrimaryActions,
   shouldUseCompactComposerFooter,
 } from "../composer-footer-layout";
-import { type ComposerPromptEditorHandle, ComposerPromptEditor } from "../composer-prompt-editor";
+import { type ComposerPromptEditorHandle, ComposerPromptEditor } from "./composer-prompt-editor";
 import { ProviderModelPicker } from "./provider-model-picker";
 import { type ComposerCommandItem, ComposerCommandMenu } from "./composer-command-menu";
+import {
+  PromptInputRoot,
+  PromptInputToolbar,
+  PromptInputToolbarLeft,
+  PromptInputToolbarRight,
+} from "./prompt-input";
 import { ComposerPendingApprovalActions } from "./composer-pending-approval-actions";
 import { CompactComposerControlsMenu } from "./compact-composer-controls-menu";
 import { ComposerPrimaryActions } from "./composer-primary-actions";
@@ -189,7 +196,8 @@ const ComposerFooterModeControls = memo(function ComposerFooterModeControls(prop
         <>
           <Button
             variant="ghost"
-            className="shrink-0 whitespace-nowrap px-2.5 text-muted-foreground/70 hover:text-foreground/80 sm:px-3"
+            className="composer-unified-dropdown shrink-0 whitespace-nowrap px-2.5 text-muted-foreground/70 hover:text-foreground/80 sm:px-3"
+            data-mode={props.interactionMode === "plan" ? "plan" : "chat"}
             size="sm"
             type="button"
             onClick={props.onToggleInteractionMode}
@@ -345,6 +353,7 @@ export interface ChatComposerHandle {
   /** Get the current prompt/effort/model state for use in send. */
   getSendContext: () => {
     prompt: string;
+    promptDoc: ComposerPromptDoc | null;
     images: ComposerImageAttachment[];
     terminalContexts: TerminalContextDraft[];
     selectedPromptEffort: string | null;
@@ -545,6 +554,7 @@ export const ChatComposer = memo(
     // ------------------------------------------------------------------
     const composerDraft = useComposerThreadDraft(composerDraftTarget);
     const prompt = composerDraft.prompt;
+    const composerPromptDoc = composerDraft.promptDoc;
     const composerImages = composerDraft.images;
     const composerTerminalContexts = composerDraft.terminalContexts;
     const nonPersistedComposerImageIds = composerDraft.nonPersistedImageIds;
@@ -978,10 +988,14 @@ export const ChatComposer = memo(
       if (composerTriggerKind === "skill") {
         return "No skills found. Try / to browse provider commands.";
       }
-      return composerTriggerKind === "path"
-        ? "No matching files or folders."
-        : "No matching command.";
+      if (composerTriggerKind === "path") {
+        return "No results found";
+      }
+      return "No matching command.";
     }, [composerTriggerKind]);
+    const composerMenuAriaLabel =
+      composerTriggerKind === "slash-command" ? "Slash commands" : "Mentions";
+    const composerMenuKind = composerTriggerKind === "slash-command" ? "slash" : "mentions";
 
     // ------------------------------------------------------------------
     // Provider traits UI
@@ -1040,8 +1054,8 @@ export const ChatComposer = memo(
     // Prompt helpers
     // ------------------------------------------------------------------
     const setPrompt = useCallback(
-      (nextPrompt: string) => {
-        setComposerDraftPrompt(composerDraftTarget, nextPrompt);
+      (nextPrompt: string, nextPromptDoc: ComposerPromptDoc | null = null) => {
+        setComposerDraftPrompt(composerDraftTarget, nextPrompt, nextPromptDoc);
       },
       [composerDraftTarget, setComposerDraftPrompt],
     );
@@ -1329,6 +1343,7 @@ export const ChatComposer = memo(
         expandedCursor: number,
         cursorAdjacentToMention: boolean,
         terminalContextIds: string[],
+        nextPromptDoc: ComposerPromptDoc,
       ) => {
         if (activePendingProgress?.activeQuestion && pendingUserInputs.length > 0) {
           setComposerCursor(nextCursor);
@@ -1345,7 +1360,7 @@ export const ChatComposer = memo(
           return;
         }
         promptRef.current = nextPrompt;
-        setPrompt(nextPrompt);
+        setPrompt(nextPrompt, nextPromptDoc);
         if (!terminalContextIdListsEqual(composerTerminalContexts, terminalContextIds)) {
           setComposerDraftTerminalContexts(
             composerDraftTarget,
@@ -1526,12 +1541,17 @@ export const ChatComposer = memo(
             trigger.rangeEnd,
             replacement,
           );
-          const applied = applyPromptReplacement(
-            trigger.rangeStart,
-            replacementRangeEnd,
-            replacement,
-            { expectedText: snapshot.value.slice(trigger.rangeStart, replacementRangeEnd) },
-          );
+          const applied =
+            composerEditorRef.current?.replaceRangeWithCommand(
+              trigger.rangeStart,
+              replacementRangeEnd,
+              {
+                id: `provider-slash-command:${item.provider}:${item.command.name}`,
+                name: item.command.name,
+                content: item.command.description ?? item.command.input?.hint ?? null,
+                type: "provider-slash-command",
+              },
+            ) ?? false;
           if (applied) {
             setComposerHighlightedItemId(null);
           }
@@ -1591,10 +1611,6 @@ export const ChatComposer = memo(
       key: "ArrowDown" | "ArrowUp" | "Enter" | "Tab",
       event: KeyboardEvent,
     ) => {
-      if (key === "Tab" && event.shiftKey) {
-        toggleInteractionMode();
-        return true;
-      }
       const { trigger } = resolveActiveComposerTrigger();
       const menuIsActive = composerMenuOpenRef.current || trigger !== null;
       if (menuIsActive) {
@@ -1608,7 +1624,7 @@ export const ChatComposer = memo(
           nudgeComposerMenuHighlight("ArrowUp");
           return true;
         }
-        if ((key === "Enter" || key === "Tab") && selectedItem) {
+        if ((key === "Enter" || (key === "Tab" && !event.shiftKey)) && selectedItem) {
           onSelectComposerItem(selectedItem);
           return true;
         }
@@ -1802,22 +1818,27 @@ export const ChatComposer = memo(
             composerEditorRef.current?.focusAt(nextCollapsedCursor);
           });
         },
-        getSendContext: () => ({
-          prompt: promptRef.current,
-          images: composerImagesRef.current,
-          terminalContexts: composerTerminalContextsRef.current,
-          selectedPromptEffort,
-          selectedModelOptionsForDispatch,
-          selectedModelSelection,
-          selectedProvider,
-          selectedModel,
-          selectedProviderModels,
-        }),
+        getSendContext: () => {
+          const submitData = composerEditorRef.current?.getSubmitData();
+          return {
+            prompt: submitData?.text ?? promptRef.current,
+            promptDoc: submitData?.doc ?? composerPromptDoc,
+            images: composerImagesRef.current,
+            terminalContexts: composerTerminalContextsRef.current,
+            selectedPromptEffort,
+            selectedModelOptionsForDispatch,
+            selectedModelSelection,
+            selectedProvider,
+            selectedModel,
+            selectedProviderModels,
+          };
+        },
       }),
       [
         activeThread,
         composerDraftTarget,
         composerCursor,
+        composerPromptDoc,
         composerTerminalContexts,
         insertComposerDraftTerminalContext,
         promptRef,
@@ -1834,29 +1855,69 @@ export const ChatComposer = memo(
       ],
     );
 
+    const promptInputHeaderContent = activePendingApproval ? (
+      <ComposerPendingApprovalPanel
+        approval={activePendingApproval}
+        pendingCount={pendingApprovals.length}
+      />
+    ) : pendingUserInputs.length > 0 ? (
+      <ComposerPendingUserInputPanel
+        pendingUserInputs={pendingUserInputs}
+        respondingRequestIds={respondingRequestIds}
+        answers={activePendingDraftAnswers}
+        questionIndex={activePendingQuestionIndex}
+        onToggleOption={onSelectActivePendingUserInputOption}
+        onAdvance={onAdvanceActivePendingUserInput}
+      />
+    ) : showPlanFollowUpPrompt && activeProposedPlan ? (
+      <ComposerPlanFollowUpBanner
+        key={activeProposedPlan.id}
+        planTitle={proposedPlanTitle(activeProposedPlan.planMarkdown) ?? null}
+      />
+    ) : null;
+
     // Render
     // ------------------------------------------------------------------
     return (
       <form
         ref={composerFormRef}
         onSubmit={onSend}
-        className="agent-prompt-input-root mx-auto w-full min-w-0 max-w-[var(--composer-max-width)]"
+        className="mx-auto w-full min-w-0 max-w-[var(--composer-max-width)]"
         data-variant={composerVariant}
         data-chat-composer-form="true"
       >
-        {/* Composer chrome: radius/padding from shell.css (--prompt-input-border-radius-*). */}
-        <div
-          className={cn(
+        <PromptInputRoot
+          className="agent-prompt-input-root w-full min-w-0"
+          containerClassName={cn(
             "group chat-composer-shell transition-[border-color,background-color] duration-200",
             composerProviderState.composerFrameClassName,
           )}
-          data-variant={composerVariant}
-          {...(isDockComposerExpanded ? { "data-expanded": "" } : {})}
-          {...(isDragOverComposer ? { "data-dragging": "" } : {})}
-          onDragEnter={onComposerDragEnter}
-          onDragOver={onComposerDragOver}
-          onDragLeave={onComposerDragLeave}
-          onDrop={onComposerDrop}
+          containerProps={{
+            onDragEnter: onComposerDragEnter,
+            onDragOver: onComposerDragOver,
+            onDragLeave: onComposerDragLeave,
+            onDrop: onComposerDrop,
+          }}
+          hasContent={composerSendState.hasSendableContent}
+          hasImages={composerImages.length > 0}
+          headerClassName="chat-composer-header"
+          headerContent={promptInputHeaderContent}
+          headerContentVisible={hasComposerHeader}
+          isDragging={isDragOverComposer}
+          isExpanded={isDockComposerExpanded}
+          isMenuOpen={composerMenuOpen}
+          isRunning={phase === "running"}
+          modelPickerPlacement="bottom-start"
+          plusMenuPlacement="bottom-start"
+          slashMenuAnchor="cursor"
+          slashMenuPlacement="top-start"
+          slashMenuVariant="glass"
+          submitOnCmdEnter={false}
+          variant={composerVariant}
+          onStop={handleInterruptPrimaryAction}
+          onSubmit={() => {
+            onSend();
+          }}
         >
           <div
             className={cn(
@@ -1865,58 +1926,12 @@ export const ChatComposer = memo(
               composerProviderState.composerSurfaceClassName,
             )}
           >
-            {activePendingApproval ? (
-              <div className="rounded-t-2xl border-b border-border/65 bg-muted/20">
-                <ComposerPendingApprovalPanel
-                  approval={activePendingApproval}
-                  pendingCount={pendingApprovals.length}
-                />
-              </div>
-            ) : pendingUserInputs.length > 0 ? (
-              <div className="rounded-t-2xl border-b border-border/65 bg-muted/20">
-                <ComposerPendingUserInputPanel
-                  pendingUserInputs={pendingUserInputs}
-                  respondingRequestIds={respondingRequestIds}
-                  answers={activePendingDraftAnswers}
-                  questionIndex={activePendingQuestionIndex}
-                  onToggleOption={onSelectActivePendingUserInputOption}
-                  onAdvance={onAdvanceActivePendingUserInput}
-                />
-              </div>
-            ) : showPlanFollowUpPrompt && activeProposedPlan ? (
-              <div className="rounded-t-2xl border-b border-border/65 bg-muted/20">
-                <ComposerPlanFollowUpBanner
-                  key={activeProposedPlan.id}
-                  planTitle={proposedPlanTitle(activeProposedPlan.planMarkdown) ?? null}
-                />
-              </div>
-            ) : null}
-
             <div
               className={cn(
                 "ui-prompt-input-editor relative px-3 pb-2 sm:px-4",
                 hasComposerHeader ? "pt-2.5 sm:pt-3" : "pt-3.5 sm:pt-4",
               )}
             >
-              {composerMenuOpen && !isComposerApprovalState && (
-                <div className="absolute inset-x-0 bottom-full z-20 mb-2 px-1">
-                  <ComposerCommandMenu
-                    items={composerMenuItems}
-                    resolvedTheme={resolvedTheme}
-                    isLoading={isComposerMenuLoading}
-                    triggerKind={composerTriggerKind}
-                    groupSlashCommandSections={
-                      composerTrigger?.kind === "slash-command" &&
-                      composerTrigger.query.trim().length === 0
-                    }
-                    emptyStateText={composerMenuEmptyState}
-                    activeItemId={activeComposerMenuItem?.id ?? null}
-                    onHighlightedItemChange={onComposerMenuItemHighlighted}
-                    onSelect={onSelectComposerItem}
-                  />
-                </div>
-              )}
-
               {!isComposerApprovalState &&
                 pendingUserInputs.length === 0 &&
                 composerImages.length > 0 && (
@@ -1999,6 +2014,7 @@ export const ChatComposer = memo(
                     ? composerTerminalContexts
                     : []
                 }
+                doc={!isComposerApprovalState && !activePendingProgress ? composerPromptDoc : null}
                 skills={selectedProviderStatus?.skills ?? []}
                 onRemoveTerminalContext={removeComposerTerminalContextFromDraft}
                 onChange={onPromptChange}
@@ -2018,26 +2034,47 @@ export const ChatComposer = memo(
                 disabled={isConnecting || isComposerApprovalState}
               />
             </div>
+            {composerMenuOpen && !isComposerApprovalState && (
+              <div className="ui-prompt-input__menu-popover" data-menu-kind={composerMenuKind}>
+                <ComposerCommandMenu
+                  items={composerMenuItems}
+                  resolvedTheme={resolvedTheme}
+                  isLoading={isComposerMenuLoading}
+                  ariaLabel={composerMenuAriaLabel}
+                  menuKind={composerMenuKind}
+                  triggerKind={composerTriggerKind}
+                  groupSlashCommandSections={
+                    composerTrigger?.kind === "slash-command" &&
+                    composerTrigger.query.trim().length === 0
+                  }
+                  emptyStateText={composerMenuEmptyState}
+                  activeItemId={activeComposerMenuItem?.id ?? null}
+                  onHighlightedItemChange={onComposerMenuItemHighlighted}
+                  onSelect={onSelectComposerItem}
+                />
+              </div>
+            )}
+            <span className="ui-prompt-input__slash-menu-anchor" aria-hidden="true" />
 
             {/* Bottom toolbar */}
             {activePendingApproval ? (
-              <div className="flex items-center justify-end gap-2 px-2.5 pb-2.5 sm:px-3 sm:pb-3">
+              <PromptInputToolbar className="flex items-center justify-end gap-2 px-2.5 pb-2.5 sm:px-3 sm:pb-3">
                 <ComposerPendingApprovalActions
                   requestId={activePendingApproval.requestId}
                   isResponding={respondingRequestIds.includes(activePendingApproval.requestId)}
                   onRespondToApproval={onRespondToApproval}
                 />
-              </div>
+              </PromptInputToolbar>
             ) : (
-              <div
+              <PromptInputToolbar
                 data-chat-composer-footer="true"
                 data-chat-composer-footer-compact={isComposerFooterCompact ? "true" : "false"}
                 className={cn(
-                  "ui-prompt-input-toolbar flex min-w-0 flex-nowrap items-center justify-between gap-2 overflow-visible px-2.5 pb-2.5 sm:px-3 sm:pb-3",
+                  "flex min-w-0 flex-nowrap items-center justify-between gap-2 overflow-visible px-2.5 pb-2.5 sm:px-3 sm:pb-3",
                   isComposerFooterCompact ? "gap-1.5" : "gap-2 sm:gap-0",
                 )}
               >
-                <div className="ui-prompt-input-toolbar__left -m-1 flex min-w-0 flex-1 items-center gap-1 overflow-x-auto p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <PromptInputToolbarLeft className="-m-1 flex min-w-0 flex-1 items-center gap-1 overflow-x-auto p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   <span className="glass-model-picker-wrapper" data-compact-visible="">
                     <ProviderModelPicker
                       compact={isComposerFooterCompact}
@@ -2110,15 +2147,15 @@ export const ChatComposer = memo(
                       />
                     </>
                   )}
-                </div>
+                </PromptInputToolbarLeft>
 
                 {/* Right side: send / stop button */}
-                <div
+                <PromptInputToolbarRight
                   data-chat-composer-actions="right"
                   data-chat-composer-primary-actions-compact={
                     isComposerPrimaryActionsCompact ? "true" : "false"
                   }
-                  className="ui-prompt-input-toolbar__right flex shrink-0 flex-nowrap items-center justify-end gap-2"
+                  className="flex shrink-0 flex-nowrap items-center justify-end gap-2"
                 >
                   <ComposerFooterPrimaryActions
                     compact={isComposerPrimaryActionsCompact}
@@ -2137,11 +2174,11 @@ export const ChatComposer = memo(
                     onInterrupt={handleInterruptPrimaryAction}
                     onImplementPlanInNewThread={handleImplementPlanInNewThreadPrimaryAction}
                   />
-                </div>
-              </div>
+                </PromptInputToolbarRight>
+              </PromptInputToolbar>
             )}
           </div>
-        </div>
+        </PromptInputRoot>
       </form>
     );
   }),

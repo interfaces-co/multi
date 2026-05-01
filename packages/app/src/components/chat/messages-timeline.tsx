@@ -18,6 +18,7 @@ import { HumanMessage } from "./human-message";
 import { AssistantMessage } from "./assistant-message";
 import { WorkingStatusRow } from "./working-status-row";
 import { ToolCallMessage } from "./tool-call-message";
+import { ThinkingSteps } from "./thinking-steps";
 
 // ---------------------------------------------------------------------------
 // Context — shared state consumed by every row component via useContext.
@@ -312,7 +313,7 @@ const WorkGroupSection = memo(function WorkGroupSection({
   const hiddenCount = groupedEntries.length - visibleEntries.length;
 
   return (
-    <div className="multi-work-group space-y-0.5 py-0.5">
+    <div className="multi-work-group py-0.5">
       {hasOverflow && !isExpanded && (
         <button
           type="button"
@@ -322,14 +323,17 @@ const WorkGroupSection = memo(function WorkGroupSection({
           +{hiddenCount} more
         </button>
       )}
-      {visibleEntries.map((workEntry) => (
-        <ToolCallMessage
-          key={`work-row:${workEntry.id}`}
-          workEntry={workEntry}
-          workspaceRoot={workspaceRoot}
-          isActiveTurnInProgress={activeTurnInProgress}
-        />
-      ))}
+      <ThinkingSteps>
+        {visibleEntries.map((workEntry, index) => (
+          <ToolCallMessage
+            key={`work-row:${workEntry.id}`}
+            workEntry={workEntry}
+            workspaceRoot={workspaceRoot}
+            isActiveTurnInProgress={activeTurnInProgress}
+            isLast={index === visibleEntries.length - 1}
+          />
+        ))}
+      </ThinkingSteps>
       {hasOverflow && isExpanded && (
         <button
           type="button"

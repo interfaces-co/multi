@@ -8,11 +8,6 @@
     },
     "dev": {
       "dependsOn": ["usemulti#build"],
-      "with": ["@multi/app#dev", "@multi/desktop#dev:bundle"],
-      "persistent": true,
-    },
-    "dev:bundle": {
-      "cache": false,
       "persistent": true,
     },
     "start": {

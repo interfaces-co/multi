@@ -144,6 +144,10 @@
       "types": "./src/switch.tsx",
       "import": "./src/switch.tsx"
     },
+    "./tabs": {
+      "types": "./src/tabs.tsx",
+      "import": "./src/tabs.tsx"
+    },
     "./text": {
       "types": "./src/text.tsx",
       "import": "./src/text.tsx"

@@ -15,8 +15,7 @@ export interface ResolveDesktopUserDataPathOptions {
  * scripts. Prefer a clean directory name when no legacy data exists.
  *
  * Multiple GUI processes must not share the same userData directory: Chromium
- * takes a profile lock (SingletonLock). Production and dev shells use a single
- * GUI instance per profile via `app.requestSingleInstanceLock` in main.
+ * takes a profile lock (SingletonLock).
  *
  * If you deliberately need two Electron windows as **separate Chromium
  * profiles** (e.g. two parallel dev stacks): use isolated state roots so they
