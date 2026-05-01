@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 
-import type { ProviderKind, ProviderRuntimeEvent, ProviderSession } from "@multi/contracts";
+import { ProviderDriverKind, ProviderRuntimeEvent, ProviderSession } from "@multi/contracts";
 import {
   CommandId,
   DEFAULT_PROVIDER_INTERACTION_MODE,
@@ -47,7 +47,7 @@ const asTurnId = (value: string): TurnId => TurnId.make(value);
 type LegacyProviderRuntimeEvent = {
   readonly type: string;
   readonly eventId: EventId;
-  readonly provider: ProviderKind;
+  readonly provider: ProviderDriverKind;
   readonly createdAt: string;
   readonly threadId: ThreadId;
   readonly turnId?: string | undefined;
@@ -76,6 +76,7 @@ function createProviderServiceHarness(
       ? Effect.succeed([
           {
             provider: providerName,
+            providerInstanceId: providerName,
             status: "ready",
             runtimeMode: "full-access",
             threadId: ThreadId.make("thread-1"),
@@ -240,7 +241,7 @@ describe("CheckpointReactor", () => {
     readonly projectWorkspaceRoot?: string;
     readonly threadWorktreePath?: string | null;
     readonly providerSessionCwd?: string;
-    readonly providerName?: ProviderKind;
+    readonly providerName?: ProviderDriverKind;
     readonly gitStatusRefreshCalls?: Array<string>;
   }) {
     const cwd = createGitRepository();
@@ -312,7 +313,7 @@ describe("CheckpointReactor", () => {
         title: "Test Project",
         workspaceRoot: options?.projectWorkspaceRoot ?? cwd,
         defaultModelSelection: {
-          provider: "codex",
+          instanceId: "codex",
           model: "gpt-5-codex",
         },
         createdAt,
@@ -326,7 +327,7 @@ describe("CheckpointReactor", () => {
         projectId: asProjectId("project-1"),
         title: "Thread",
         modelSelection: {
-          provider: "codex",
+          instanceId: "codex",
           model: "gpt-5-codex",
         },
         interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,

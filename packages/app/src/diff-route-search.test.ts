@@ -1,6 +1,33 @@
 import { describe, expect, it } from "vitest";
 
-import { parseDiffRouteSearch } from "./diff-route-search";
+import { parseChatShellSearch, parseDiffRouteSearch } from "./diff-route-search";
+
+describe("parseChatShellSearch", () => {
+  it("merges workbench with diff search", () => {
+    expect(
+      parseChatShellSearch({
+        workbench: "terminal",
+        diff: "1",
+        diffTurnId: "turn-1",
+      }),
+    ).toEqual({
+      workbench: "terminal",
+      diff: "1",
+      diffTurnId: "turn-1",
+    });
+  });
+
+  it("ignores invalid workbench values", () => {
+    expect(
+      parseChatShellSearch({
+        workbench: "nope",
+        diff: "1",
+      }),
+    ).toEqual({
+      diff: "1",
+    });
+  });
+});
 
 describe("parseDiffRouteSearch", () => {
   it("parses valid diff search values", () => {

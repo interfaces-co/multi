@@ -21,8 +21,8 @@ import {
 
 it("uses the canonical Codex default for auto-bootstrapped model selection", () => {
   assert.deepStrictEqual(getAutoBootstrapDefaultModelSelection(), {
-    provider: "codex",
-    model: DEFAULT_MODEL_BY_PROVIDER.codex,
+    instanceId: "codex",
+    model: DEFAULT_MODEL_BY_PROVIDER.codex!,
   });
 });
 

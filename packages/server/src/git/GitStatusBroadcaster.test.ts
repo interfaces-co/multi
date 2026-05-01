@@ -102,6 +102,41 @@ describe("GitStatusBroadcasterLive", () => {
     }).pipe(Effect.provide(makeTestLayer(state)));
   });
 
+  it.effect("does not load remote status when local status is not a repository", () => {
+    const nonRepoLocalStatus: GitStatusLocalResult = {
+      isRepo: false,
+      hasOriginRemote: false,
+      isDefaultBranch: false,
+      branch: null,
+      hasWorkingTreeChanges: false,
+      workingTree: { files: [], insertions: 0, deletions: 0 },
+    };
+    const state = {
+      currentLocalStatus: nonRepoLocalStatus,
+      currentRemoteStatus: baseRemoteStatus,
+      localStatusCalls: 0,
+      remoteStatusCalls: 0,
+      localInvalidationCalls: 0,
+      remoteInvalidationCalls: 0,
+    };
+
+    return Effect.gen(function* () {
+      const broadcaster = yield* GitStatusBroadcaster;
+
+      const status = yield* broadcaster.getStatus({ cwd: "/missing-workspace-root" });
+
+      assert.deepStrictEqual(status, {
+        ...nonRepoLocalStatus,
+        hasUpstream: false,
+        aheadCount: 0,
+        behindCount: 0,
+        pr: null,
+      });
+      assert.equal(state.localStatusCalls, 1);
+      assert.equal(state.remoteStatusCalls, 0);
+    }).pipe(Effect.provide(makeTestLayer(state)));
+  });
+
   it.effect("refreshes the cached snapshot after explicit invalidation", () => {
     const state = {
       currentLocalStatus: baseLocalStatus,

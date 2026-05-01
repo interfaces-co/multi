@@ -1,5 +1,10 @@
 import type { FileDiffMetadata } from "@pierre/diffs";
-import type { EnvironmentId, GitManagerServiceError, GitStatusResult } from "@multi/contracts";
+import {
+  type EnvironmentId,
+  type GitManagerServiceError,
+  type GitStatusResult,
+  type GitWorkingTreeFileStatus,
+} from "@multi/contracts";
 import type { GitFileState } from "~/lib/ui-session-types";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
 import * as Schema from "effect/Schema";
@@ -124,12 +129,32 @@ function hit(paths: string[], cwd: string, root: string | null, files: DiffRow[]
   return null;
 }
 
+function workingTreeStatusToGitFileState(status: GitWorkingTreeFileStatus): GitFileState {
+  switch (status) {
+    case "added":
+      return "added";
+    case "deleted":
+      return "deleted";
+    case "ignored":
+      return "ignored";
+    case "renamed":
+      return "renamed";
+    case "untracked":
+      return "untracked";
+    case "conflict":
+      return "conflict";
+    case "modified":
+    default:
+      return "modified";
+  }
+}
+
 function toRow(file: GitStatusResult["workingTree"]["files"][number]): DiffRow {
   return {
     id: file.path,
     path: file.path,
     prevPath: null,
-    state: "modified",
+    state: workingTreeStatusToGitFileState(file.status),
     staged: false,
     unstaged: true,
     add: file.insertions,
@@ -215,8 +240,12 @@ export function deriveGitPanelViewState(input: {
   return { kind: "changed" };
 }
 
-export function useEnvironmentGitPanel(environmentId?: EnvironmentId | null): GitPanelModel {
-  const { cwd } = useShellState();
+export function useEnvironmentGitPanel(
+  environmentId?: EnvironmentId | null,
+  cwdOverride?: string | null,
+): GitPanelModel {
+  const shell = useShellState();
+  const cwd = cwdOverride ?? shell.cwd;
   const queryClient = useQueryClient();
   const status = useGitStatus({ environmentId: environmentId ?? null, cwd });
   const view = deriveGitPanelViewState({ cwd, status });

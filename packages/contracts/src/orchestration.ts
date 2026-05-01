@@ -15,6 +15,7 @@ import {
   TrimmedNonEmptyString,
   TurnId,
 } from "./base-schemas";
+import { ProviderInstanceId } from "./provider-instance";
 
 export const ORCHESTRATION_WS_METHODS = {
   dispatchCommand: "orchestration.dispatchCommand",
@@ -25,8 +26,6 @@ export const ORCHESTRATION_WS_METHODS = {
   subscribeThread: "orchestration.subscribeThread",
 } as const;
 
-export const ProviderKind = Schema.Literals(["codex", "claudeAgent", "cursor", "opencode"]);
-export type ProviderKind = typeof ProviderKind.Type;
 export const ProviderApprovalPolicy = Schema.Literals([
   "untrusted",
   "on-failure",
@@ -41,41 +40,11 @@ export const ProviderSandboxMode = Schema.Literals([
 ]);
 export type ProviderSandboxMode = typeof ProviderSandboxMode.Type;
 
-export const DEFAULT_PROVIDER_KIND: ProviderKind = "codex";
-
-export const CodexModelSelection = Schema.Struct({
-  provider: Schema.Literal("codex"),
+export const ModelSelection = Schema.Struct({
+  instanceId: ProviderInstanceId,
   model: TrimmedNonEmptyString,
   options: Schema.optionalKey(ProviderOptionSelections),
 });
-export type CodexModelSelection = typeof CodexModelSelection.Type;
-
-export const ClaudeModelSelection = Schema.Struct({
-  provider: Schema.Literal("claudeAgent"),
-  model: TrimmedNonEmptyString,
-  options: Schema.optionalKey(ProviderOptionSelections),
-});
-export type ClaudeModelSelection = typeof ClaudeModelSelection.Type;
-
-export const CursorModelSelection = Schema.Struct({
-  provider: Schema.Literal("cursor"),
-  model: TrimmedNonEmptyString,
-  options: Schema.optionalKey(ProviderOptionSelections),
-});
-export type CursorModelSelection = typeof CursorModelSelection.Type;
-export const OpenCodeModelSelection = Schema.Struct({
-  provider: Schema.Literal("opencode"),
-  model: TrimmedNonEmptyString,
-  options: Schema.optionalKey(ProviderOptionSelections),
-});
-export type OpenCodeModelSelection = typeof OpenCodeModelSelection.Type;
-
-export const ModelSelection = Schema.Union([
-  CodexModelSelection,
-  ClaudeModelSelection,
-  CursorModelSelection,
-  OpenCodeModelSelection,
-]);
 export type ModelSelection = typeof ModelSelection.Type;
 
 export const RuntimeMode = Schema.Literals([
@@ -233,6 +202,7 @@ export const OrchestrationSession = Schema.Struct({
   threadId: ThreadId,
   status: OrchestrationSessionStatus,
   providerName: Schema.NullOr(TrimmedNonEmptyString),
+  providerInstanceId: Schema.optionalKey(Schema.NullOr(ProviderInstanceId)),
   runtimeMode: RuntimeMode.pipe(Schema.withDecodingDefault(Effect.succeed(DEFAULT_RUNTIME_MODE))),
   activeTurnId: Schema.NullOr(TurnId),
   lastError: Schema.NullOr(TrimmedNonEmptyString),

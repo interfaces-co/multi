@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { Effect, FileSystem, Layer, Option, Path, Schema, Scope, Stream } from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 
-import { CodexModelSelection } from "@multi/contracts";
+import { type ModelSelection } from "@multi/contracts";
 import { sanitizeBranchFragment, sanitizeFeatureBranchName } from "@multi/shared/git";
 
 import { resolveAttachmentPath } from "../attachment-store.ts";
@@ -70,7 +70,7 @@ const makeCodexTextGeneration = Effect.gen(function* () {
   ): Effect.Effect<string, TextGenerationError, Scope.Scope> => {
     return fileSystem
       .makeTempFileScoped({
-        prefix: `t3code-${prefix}-${process.pid}-${randomUUID()}.tmp`,
+        prefix: `multi-${prefix}-${process.pid}-${randomUUID()}.tmp`,
       })
       .pipe(
         Effect.tap((filePath) => fileSystem.writeFileString(filePath, content)),
@@ -143,7 +143,7 @@ const makeCodexTextGeneration = Effect.gen(function* () {
     outputSchemaJson: S;
     imagePaths?: ReadonlyArray<string>;
     cleanupPaths?: ReadonlyArray<string>;
-    modelSelection: CodexModelSelection;
+    modelSelection: ModelSelection;
   }): Effect.fn.Return<S["Type"], TextGenerationError, S["DecodingServices"]> {
     const schemaPath = yield* writeTempFile(
       operation,
@@ -288,7 +288,7 @@ const makeCodexTextGeneration = Effect.gen(function* () {
       includeBranch: input.includeBranch === true,
     });
 
-    if (input.modelSelection.provider !== "codex") {
+    if (input.modelSelection.instanceId !== "codex") {
       return yield* new TextGenerationError({
         operation: "generateCommitMessage",
         detail: "Invalid model selection.",
@@ -323,7 +323,7 @@ const makeCodexTextGeneration = Effect.gen(function* () {
       diffPatch: input.diffPatch,
     });
 
-    if (input.modelSelection.provider !== "codex") {
+    if (input.modelSelection.instanceId !== "codex") {
       return yield* new TextGenerationError({
         operation: "generatePrContent",
         detail: "Invalid model selection.",
@@ -356,7 +356,7 @@ const makeCodexTextGeneration = Effect.gen(function* () {
       attachments: input.attachments,
     });
 
-    if (input.modelSelection.provider !== "codex") {
+    if (input.modelSelection.instanceId !== "codex") {
       return yield* new TextGenerationError({
         operation: "generateBranchName",
         detail: "Invalid model selection.",
@@ -389,7 +389,7 @@ const makeCodexTextGeneration = Effect.gen(function* () {
       attachments: input.attachments,
     });
 
-    if (input.modelSelection.provider !== "codex") {
+    if (input.modelSelection.instanceId !== "codex") {
       return yield* new TextGenerationError({
         operation: "generateThreadTitle",
         detail: "Invalid model selection.",

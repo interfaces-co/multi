@@ -1,9 +1,9 @@
-import type { ProviderRuntimeEvent } from "@multi/contracts";
+import { ProviderRuntimeEvent } from "@multi/contracts";
 import { ThreadId } from "@multi/contracts";
 import { DEFAULT_SERVER_SETTINGS } from "@multi/contracts/settings";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { it, assert } from "@effect/vitest";
-import { Effect, FileSystem, Layer, Path, Queue, Stream } from "effect";
+import { Effect, FileSystem, Layer, Path, PubSub, Queue, Stream } from "effect";
 
 import { ProviderUnsupportedError } from "../src/provider/Errors.ts";
 import { ProviderAdapterRegistry } from "../src/provider/ProviderAdapterRegistry.service.ts";
@@ -48,11 +48,26 @@ const makeIntegrationFixture = Effect.gen(function* () {
   const harness = yield* makeTestProviderAdapterHarness();
 
   const registry: typeof ProviderAdapterRegistry.Service = {
+    getByInstance: (instanceId) =>
+      instanceId === "codex"
+        ? Effect.succeed(harness.adapter)
+        : Effect.fail(new ProviderUnsupportedError({ provider: instanceId })),
+    getInstanceInfo: (instanceId) =>
+      instanceId === "codex"
+        ? Effect.succeed({
+            instanceId,
+            driverKind: "codex",
+            enabled: true,
+          })
+        : Effect.fail(new ProviderUnsupportedError({ provider: instanceId })),
+    listInstances: () => Effect.succeed(["codex"]),
     getByProvider: (provider) =>
       provider === "codex"
         ? Effect.succeed(harness.adapter)
         : Effect.fail(new ProviderUnsupportedError({ provider })),
     listProviders: () => Effect.succeed(["codex"]),
+    streamChanges: Stream.empty,
+    subscribeChanges: PubSub.unbounded<void>().pipe(Effect.flatMap(PubSub.subscribe)),
   };
 
   const directoryLayer = ProviderSessionDirectoryLive.pipe(
@@ -125,6 +140,7 @@ it.live("replays typed runtime fixture events", () =>
       const session = yield* provider.startSession(ThreadId.make("thread-integration-typed"), {
         threadId: ThreadId.make("thread-integration-typed"),
         provider: "codex",
+        providerInstanceId: "codex",
         cwd: fixture.cwd,
         runtimeMode: "full-access",
       });
@@ -157,6 +173,7 @@ it.live("replays file-changing fixture turn events", () =>
       const session = yield* provider.startSession(ThreadId.make("thread-integration-tools"), {
         threadId: ThreadId.make("thread-integration-tools"),
         provider: "codex",
+        providerInstanceId: "codex",
         cwd: fixture.cwd,
         runtimeMode: "full-access",
       });
@@ -193,6 +210,7 @@ it.live("runs multi-turn tool/approval flow", () =>
       const session = yield* provider.startSession(ThreadId.make("thread-integration-multi"), {
         threadId: ThreadId.make("thread-integration-multi"),
         provider: "codex",
+        providerInstanceId: "codex",
         cwd: fixture.cwd,
         runtimeMode: "full-access",
       });
@@ -244,6 +262,7 @@ it.live("rolls back provider conversation state only", () =>
       const session = yield* provider.startSession(ThreadId.make("thread-integration-rollback"), {
         threadId: ThreadId.make("thread-integration-rollback"),
         provider: "codex",
+        providerInstanceId: "codex",
         cwd: fixture.cwd,
         runtimeMode: "full-access",
       });

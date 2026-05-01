@@ -23,7 +23,7 @@ import type {
   ServerProviderModel,
   ServerProviderSkill,
 } from "@multi/contracts";
-import { ServerSettingsError } from "@multi/contracts";
+import { ProviderDriverKind, ServerSettingsError } from "@multi/contracts";
 
 import { createModelCapabilities } from "@multi/shared/model";
 
@@ -34,7 +34,7 @@ import { expandHomePath } from "../path-expansion.ts";
 import { ServerSettingsService } from "../server-settings.ts";
 import packageJson from "../../package.json" with { type: "json" };
 
-const PROVIDER = "codex" as const;
+const PROVIDER = ProviderDriverKind.make("codex");
 const PROVIDER_PROBE_TIMEOUT_MS = 8_000;
 const CODEX_PRESENTATION = {
   displayName: "Codex",
@@ -235,8 +235,8 @@ const requestAllCodexModels = Effect.fn("requestAllCodexModels")(function* (
 export function buildCodexInitializeParams(): CodexSchema.V1InitializeParams {
   return {
     clientInfo: {
-      name: "t3code_desktop",
-      title: "T3 Code Desktop",
+      name: "multi_desktop",
+      title: "Multi Desktop",
       version: packageJson.version,
     },
     capabilities: {
@@ -265,8 +265,8 @@ const probeCodexAppServerProvider = Effect.fn("probeCodexAppServerProvider")(fun
 
   const initialize = yield* client.request("initialize", {
     clientInfo: {
-      name: "t3code_desktop",
-      title: "T3 Code Desktop",
+      name: "multi_desktop",
+      title: "Multi Desktop",
       version: "0.1.0",
     },
     capabilities: {
@@ -324,7 +324,7 @@ const makePendingCodexProvider = (codexSettings: CodexSettings): ServerProvider 
 
   if (!codexSettings.enabled) {
     return buildServerProvider({
-      provider: PROVIDER,
+      driver: PROVIDER,
       presentation: CODEX_PRESENTATION,
       enabled: false,
       checkedAt,
@@ -335,13 +335,13 @@ const makePendingCodexProvider = (codexSettings: CodexSettings): ServerProvider 
         version: null,
         status: "warning",
         auth: { status: "unknown" },
-        message: "Codex is disabled in T3 Code settings.",
+        message: "Codex is disabled in Multi settings.",
       },
     });
   }
 
   return buildServerProvider({
-    provider: PROVIDER,
+    driver: PROVIDER,
     presentation: CODEX_PRESENTATION,
     enabled: true,
     checkedAt,
@@ -409,7 +409,7 @@ export const checkCodexProviderStatus = Effect.fn("checkCodexProviderStatus")(fu
 
   if (!codexSettings.enabled) {
     return buildServerProvider({
-      provider: PROVIDER,
+      driver: PROVIDER,
       presentation: CODEX_PRESENTATION,
       enabled: false,
       checkedAt,
@@ -420,7 +420,7 @@ export const checkCodexProviderStatus = Effect.fn("checkCodexProviderStatus")(fu
         version: null,
         status: "warning",
         auth: { status: "unknown" },
-        message: "Codex is disabled in T3 Code settings.",
+        message: "Codex is disabled in Multi settings.",
       },
     });
   }
@@ -436,7 +436,7 @@ export const checkCodexProviderStatus = Effect.fn("checkCodexProviderStatus")(fu
     const error = probeResult.failure;
     const installed = !Schema.is(CodexErrors.CodexAppServerSpawnError)(error);
     return buildServerProvider({
-      provider: PROVIDER,
+      driver: PROVIDER,
       presentation: CODEX_PRESENTATION,
       enabled: codexSettings.enabled,
       checkedAt,
@@ -456,7 +456,7 @@ export const checkCodexProviderStatus = Effect.fn("checkCodexProviderStatus")(fu
 
   if (Option.isNone(probeResult.success)) {
     return buildServerProvider({
-      provider: PROVIDER,
+      driver: PROVIDER,
       presentation: CODEX_PRESENTATION,
       enabled: codexSettings.enabled,
       checkedAt,
@@ -476,7 +476,7 @@ export const checkCodexProviderStatus = Effect.fn("checkCodexProviderStatus")(fu
   const accountStatus = accountProbeStatus(snapshot.account);
 
   return buildServerProvider({
-    provider: PROVIDER,
+    driver: PROVIDER,
     presentation: CODEX_PRESENTATION,
     enabled: codexSettings.enabled,
     checkedAt,

@@ -1,13 +1,33 @@
 import { TurnId } from "@multi/contracts";
 
-export type ChatRightPanel = "browser" | "diff";
+import type { WorkbenchTab } from "~/lib/shell-panels-store";
 
 export interface DiffRouteSearch {
-  splitViewId?: string | undefined;
-  panel?: ChatRightPanel | undefined;
   diff?: "1" | undefined;
   diffTurnId?: TurnId | undefined;
   diffFilePath?: string | undefined;
+}
+
+export type ChatShellSearch = DiffRouteSearch & {
+  workbench?: WorkbenchTab;
+};
+
+function parseWorkbenchSearchParam(search: Record<string, unknown>): { workbench?: WorkbenchTab } {
+  const w = search.workbench;
+  if (w === undefined || w === null || w === "") {
+    return {};
+  }
+  if (w === "files" || w === "git" || w === "terminal") {
+    return { workbench: w };
+  }
+  return {};
+}
+
+export function parseChatShellSearch(search: Record<string, unknown>): ChatShellSearch {
+  return {
+    ...parseDiffRouteSearch(search),
+    ...parseWorkbenchSearchParam(search),
+  };
 }
 
 function isDiffOpenValue(value: unknown): boolean {

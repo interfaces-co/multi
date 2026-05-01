@@ -18,7 +18,7 @@ import {
 } from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 
-import { GitCommandError, type GitBranch } from "@multi/contracts";
+import { GitCommandError, type GitBranch, type GitWorkingTreeFileStatus } from "@multi/contracts";
 import { dedupeRemoteBranchesWithLocalMatches } from "@multi/shared/git";
 import { compactTraceAttributes } from "../observability/Attributes.ts";
 import { gitCommandDuration, gitCommandsTotal, withMetrics } from "../observability/Metrics.ts";
@@ -165,6 +165,59 @@ function chunkPathsForGitCheckIgnore(relativePaths: readonly string[]): string[]
   }
 
   return chunks;
+}
+
+function classifyPorcelainV2_xy(xyToken: string): GitWorkingTreeFileStatus {
+  if (xyToken.length < 2) return "modified";
+  const indexColumn = xyToken[0]!;
+  const workTreeColumn = xyToken[1]!;
+
+  const fromIndex = (): GitWorkingTreeFileStatus | null => {
+    if (indexColumn === ".") return null;
+    if (indexColumn === "D") return "deleted";
+    if (indexColumn === "A") return "added";
+    if (indexColumn === "R" || indexColumn === "C") return "renamed";
+    if (indexColumn === "M") return "modified";
+    return "modified";
+  };
+  const fromWorkTree = (): GitWorkingTreeFileStatus | null => {
+    if (workTreeColumn === ".") return null;
+    if (workTreeColumn === "D") return "deleted";
+    if (workTreeColumn === "A") return "added";
+    if (workTreeColumn === "M") return "modified";
+    return "modified";
+  };
+
+  const wt = fromWorkTree();
+  if (wt) return wt;
+  const ix = fromIndex();
+  if (ix) return ix;
+  return "modified";
+}
+
+function mergeWorkingTreeFileStatus(
+  previous: GitWorkingTreeFileStatus | undefined,
+  incoming: GitWorkingTreeFileStatus,
+): GitWorkingTreeFileStatus {
+  const rank: Record<GitWorkingTreeFileStatus, number> = {
+    conflict: 7,
+    deleted: 6,
+    untracked: 5,
+    added: 4,
+    renamed: 4,
+    modified: 3,
+    ignored: 2,
+  };
+  if (!previous) return incoming;
+  return rank[incoming] >= rank[previous] ? incoming : previous;
+}
+
+function pokeWorkingTreeStatus(
+  map: Map<string, GitWorkingTreeFileStatus>,
+  pathValue: string,
+  incoming: GitWorkingTreeFileStatus,
+) {
+  map.set(pathValue, mergeWorkingTreeFileStatus(map.get(pathValue), incoming));
 }
 
 function parsePorcelainPath(line: string): string | null {
@@ -1252,7 +1305,8 @@ export const makeGitCore = Effect.fn("makeGitCore")(function* (options?: {
     let aheadCount = 0;
     let behindCount = 0;
     let hasWorkingTreeChanges = false;
-    const changedFilesWithoutNumstat = new Set<string>();
+    const pathsWithoutNumstat = new Set<string>();
+    const statusByPath = new Map<string, GitWorkingTreeFileStatus>();
 
     for (const line of statusStdout.split(/\r?\n/g)) {
       if (line.startsWith("# branch.head ")) {
@@ -1274,8 +1328,41 @@ export const makeGitCore = Effect.fn("makeGitCore")(function* (options?: {
       }
       if (line.trim().length > 0 && !line.startsWith("#")) {
         hasWorkingTreeChanges = true;
+
+        if (line.startsWith("? ")) {
+          const pathValue = line.slice(2).trim();
+          if (pathValue.length > 0) {
+            pokeWorkingTreeStatus(statusByPath, pathValue, "untracked");
+            pathsWithoutNumstat.add(pathValue);
+          }
+          continue;
+        }
+
+        if (line.startsWith("! ")) {
+          const pathValue = line.slice(2).trim();
+          if (pathValue.length > 0) {
+            pokeWorkingTreeStatus(statusByPath, pathValue, "ignored");
+            pathsWithoutNumstat.add(pathValue);
+          }
+          continue;
+        }
+
         const pathValue = parsePorcelainPath(line);
-        if (pathValue) changedFilesWithoutNumstat.add(pathValue);
+        if (!pathValue) continue;
+
+        pathsWithoutNumstat.add(pathValue);
+        if (line.startsWith("u ")) {
+          pokeWorkingTreeStatus(statusByPath, pathValue, "conflict");
+          continue;
+        }
+        if (line.startsWith("2 ")) {
+          pokeWorkingTreeStatus(statusByPath, pathValue, "renamed");
+          continue;
+        }
+        if (line.startsWith("1 ")) {
+          const xyToken = line.trim().split(/\s+/)[1] ?? "";
+          pokeWorkingTreeStatus(statusByPath, pathValue, classifyPorcelainV2_xy(xyToken));
+        }
       }
     }
 
@@ -1302,13 +1389,23 @@ export const makeGitCore = Effect.fn("makeGitCore")(function* (options?: {
       .map(([filePath, stat]) => {
         insertions += stat.insertions;
         deletions += stat.deletions;
-        return { path: filePath, insertions: stat.insertions, deletions: stat.deletions };
+        return {
+          path: filePath,
+          insertions: stat.insertions,
+          deletions: stat.deletions,
+          status: statusByPath.get(filePath) ?? "modified",
+        };
       })
       .toSorted((a, b) => a.path.localeCompare(b.path));
 
-    for (const filePath of changedFilesWithoutNumstat) {
+    for (const filePath of pathsWithoutNumstat) {
       if (fileStatMap.has(filePath)) continue;
-      files.push({ path: filePath, insertions: 0, deletions: 0 });
+      files.push({
+        path: filePath,
+        insertions: 0,
+        deletions: 0,
+        status: statusByPath.get(filePath) ?? "modified",
+      });
     }
     files.sort((a, b) => a.path.localeCompare(b.path));
 

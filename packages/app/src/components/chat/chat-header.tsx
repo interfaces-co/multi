@@ -13,7 +13,7 @@ interface ChatHeaderProps {
   activeThreadTitle: string;
   activeProjectName: string | undefined;
   isGitRepo: boolean;
-  openInCwd: string | null;
+  sidebarPersistenceCwd: string | null;
   activeProjectScripts: ProjectScript[] | undefined;
   preferredScriptId: string | null;
   keybindings: ResolvedKeybindingsConfig;
@@ -33,25 +33,25 @@ interface ChatHeaderProps {
 
 export const ChatHeader = memo(function ChatHeader({
   activeThreadTitle,
-  openInCwd,
+  sidebarPersistenceCwd,
 }: ChatHeaderProps) {
   return (
-    <div className="@container/header-actions flex min-w-0 flex-1 items-center gap-2 text-[12px]/[16px]">
-      <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
+    <div className="multi-agent-panel-header @container/header-actions flex min-w-0 flex-1 items-center gap-2 text-[12px]/[16px]">
+      <div className="multi-agent-panel-header__title flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
         <Button
           type="button"
-          variant="cursor-ghost"
-          size="cursor-icon"
+          variant="ghost"
+          size="icon"
           className="size-6 shrink-0 md:hidden"
           aria-label="Toggle sidebar"
-          onClick={() => shellPanelsActions.toggleLeft(openInCwd)}
+          onClick={() => shellPanelsActions.toggleLeft(sidebarPersistenceCwd)}
         >
           <IconSidebar className="size-3.5" />
         </Button>
         <button
           type="button"
           aria-label={`Chat title. Right-click for more actions. ${activeThreadTitle}`}
-          className="no-drag flex min-w-0 shrink items-center rounded-[4px] px-1 py-0.5 text-left text-[12px]/[16px] font-medium text-cursor-text-primary hover:bg-cursor-bg-quaternary"
+          className="no-drag flex min-w-0 shrink items-center rounded-[4px] px-1 py-0.5 text-left text-[12px]/[16px] font-medium text-multi-fg-primary hover:bg-multi-bg-quaternary"
           title={activeThreadTitle}
         >
           <span className="min-w-0 truncate">{activeThreadTitle}</span>

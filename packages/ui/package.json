@@ -84,9 +84,17 @@
       "types": "./src/label.tsx",
       "import": "./src/label.tsx"
     },
+    "./list": {
+      "types": "./src/list.tsx",
+      "import": "./src/list.tsx"
+    },
     "./menu": {
       "types": "./src/menu.tsx",
       "import": "./src/menu.tsx"
+    },
+    "./pill": {
+      "types": "./src/pill.tsx",
+      "import": "./src/pill.tsx"
     },
     "./popover": {
       "types": "./src/popover.tsx",
@@ -128,9 +136,17 @@
       "types": "./src/spinner.tsx",
       "import": "./src/spinner.tsx"
     },
+    "./status-dot": {
+      "types": "./src/status-dot.tsx",
+      "import": "./src/status-dot.tsx"
+    },
     "./switch": {
       "types": "./src/switch.tsx",
       "import": "./src/switch.tsx"
+    },
+    "./text": {
+      "types": "./src/text.tsx",
+      "import": "./src/text.tsx"
     },
     "./textarea": {
       "types": "./src/textarea.tsx",

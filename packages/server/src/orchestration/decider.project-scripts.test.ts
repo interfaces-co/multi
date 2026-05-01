@@ -138,7 +138,7 @@ describe("decider project scripts", () => {
           projectId: asProjectId("project-1"),
           title: "Thread",
           modelSelection: {
-            provider: "codex",
+            instanceId: "codex",
             model: "gpt-5-codex",
           },
           interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
@@ -239,7 +239,7 @@ describe("decider project scripts", () => {
           projectId: asProjectId("project-1"),
           title: "Thread",
           modelSelection: {
-            provider: "codex",
+            instanceId: "codex",
             model: "gpt-5-codex",
           },
           interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
@@ -321,7 +321,7 @@ describe("decider project scripts", () => {
           projectId: asProjectId("project-1"),
           title: "Thread",
           modelSelection: {
-            provider: "codex",
+            instanceId: "codex",
             model: "gpt-5-codex",
           },
           interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,

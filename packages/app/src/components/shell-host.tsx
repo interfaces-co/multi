@@ -6,7 +6,6 @@ import { type ReactNode, useCallback, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import { prefetchDraftNavigation, prefetchThreadNavigation } from "~/app/thread-prefetch";
-import { BrowserPanel } from "~/components/browser-panel";
 import { useCommandPaletteStore } from "~/command-palette-store";
 import { isElectron } from "~/env";
 import { useEnvironmentGitPanel } from "~/hooks/use-environment-git";
@@ -15,16 +14,21 @@ import { useRouteThreadId } from "~/hooks/use-route-thread-id";
 import { useServerAvailableEditors } from "~/rpc/server-state";
 import { useComposerDraftStore } from "~/composer-draft-store";
 import { startNewThreadFromContext } from "~/lib/chat-thread-actions";
-import { shellPanelsActions } from "~/lib/shell-panels-store";
+import {
+  shellPanelsActions,
+  useSecondaryRail,
+  useTerminalSessions,
+} from "~/lib/shell-panels-store";
 import { useThreadUnreadStore } from "~/lib/thread-unread-store";
 import { type SessionListSummary } from "~/lib/ui-session-types";
 import { writeStoredWorkspaceCwd } from "~/lib/workspace-state";
-import { resolveWorkbenchBrowserThreadId } from "~/lib/workbench-browser-scope";
+import { inferLoginShellCaption } from "~/lib/terminal-shell-caption";
 import {
   buildWorkspaceChatSections,
   type SidebarDraftSummary,
 } from "~/lib/sidebar-chat-view-model";
 import { cn } from "~/lib/utils";
+import { resolveShellPanelPersistenceCwd } from "~/lib/shell-panel-persistence-cwd";
 import { resolveSidebarNewThreadEnvMode } from "~/lib/thread-sidebar";
 import { useSettings } from "~/hooks/use-settings";
 import {
@@ -37,6 +41,7 @@ import { resolveThreadRouteTarget } from "~/thread-routes";
 import { GitPanel } from "./shell/git/panel";
 import { WorkspaceFilesPanel } from "./shell/files/workspace-files-panel";
 import { AppShell } from "./shell/shell/app";
+import { RightWorkbenchLayout } from "./shell/shell/right-workbench-layout";
 import { WorkbenchPanel } from "./shell/shell/workbench-panel";
 import { ShellSettingsProvider } from "./shell/settings/context";
 import { SettingsNavRail } from "./shell/settings/nav-rail";
@@ -44,9 +49,10 @@ import { ShellSidebarFooter } from "./shell/sidebar/footer";
 import { ShellSidebarHeader } from "./shell/sidebar/header";
 import { ThreadRail } from "./shell/sidebar/thread-rail";
 import { TerminalPanel } from "./shell/terminal/panel";
-
-function toHarness(provider: Thread["modelSelection"]["provider"]): "codex" | "claudeCode" {
-  return provider === "claudeAgent" ? "claudeCode" : "codex";
+import { TerminalRail } from "./shell/terminal/terminal-rail";
+import { TerminalWorkbenchSubChrome } from "./shell/terminal/workbench-subchrome";
+function toHarness(instanceId: Thread["modelSelection"]["instanceId"]): "codex" | "claudeCode" {
+  return instanceId === "claudeAgent" ? "claudeCode" : "codex";
 }
 
 function toSummary(thread: Thread, project: Project | undefined): SessionListSummary {
@@ -54,7 +60,7 @@ function toSummary(thread: Thread, project: Project | undefined): SessionListSum
   const cwd = thread.worktreePath ?? project?.cwd ?? "";
   return {
     id: thread.id,
-    harness: toHarness(thread.modelSelection.provider),
+    harness: toHarness(thread.modelSelection.instanceId),
     path: cwd,
     cwd,
     name: thread.title,
@@ -97,6 +103,7 @@ function SettingsShellHost(props: { children?: ReactNode }) {
   return (
     <AppShell
       cwd={firstProjectCwd}
+      panelPersistenceCwd={firstProjectCwd}
       changesCount={0}
       onBack={() => void navigate({ to: "/" })}
       left={settingsLeft}
@@ -201,14 +208,33 @@ function ChatShellHost(props: { children?: ReactNode }) {
       )?.cwd ??
       null)
     : null;
+  const defaultProject = defaultProjectRef
+    ? (projectByScopedKey.get(scopedProjectKey(defaultProjectRef)) ?? null)
+    : null;
   const activeCwd =
     activeDraftCwd ??
     (activeThread
       ? (activeThread.worktreePath ?? projectById.get(activeThread.projectId)?.cwd ?? null)
-      : firstProjectCwd);
+      : (defaultProject?.cwd ?? firstProjectCwd));
+  const draftProjectForPanels = activeDraftThread
+    ? (projectByScopedKey.get(
+        scopedProjectKey(
+          scopeProjectRef(activeDraftThread.environmentId, activeDraftThread.projectId),
+        ),
+      )?.cwd ?? null)
+    : null;
+  const shellPanelsCwd = resolveShellPanelPersistenceCwd({
+    activeDraftThread,
+    draftProjectCwd: draftProjectForPanels,
+    activeThread,
+    threadProjectCwd: activeThread ? (projectById.get(activeThread.projectId)?.cwd ?? null) : null,
+    defaultProjectCwd: defaultProject?.cwd ?? null,
+    firstProjectCwd,
+  });
   const activeEnvironmentId =
     activeThread?.environmentId ??
     projects.find((project) => project.cwd === activeCwd)?.environmentId ??
+    defaultProject?.environmentId ??
     projects[0]?.environmentId ??
     null;
 
@@ -289,7 +315,9 @@ function ChatShellHost(props: { children?: ReactNode }) {
         <ShellSidebarHeader
           onNewChat={create}
           onAddProject={openAddProject}
-          {...(isElectron ? {} : { onCollapse: () => shellPanelsActions.toggleLeft(activeCwd) })}
+          {...(isElectron
+            ? {}
+            : { onCollapse: () => shellPanelsActions.toggleLeft(shellPanelsCwd) })}
         />
       </div>
       <ThreadRail
@@ -312,6 +340,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
         center={props.children ?? <Outlet />}
         routeThreadId={routeThreadId}
         cwd={activeCwd}
+        panelPersistenceCwd={shellPanelsCwd}
         environmentId={activeEnvironmentId}
         availableEditors={availableEditors}
       />
@@ -321,6 +350,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
   return (
     <AppShell
       cwd={activeCwd}
+      panelPersistenceCwd={shellPanelsCwd}
       changesCount={0}
       left={chatLeft}
       center={props.children ?? <Outlet />}
@@ -329,20 +359,58 @@ function ChatShellHost(props: { children?: ReactNode }) {
   );
 }
 
+function TerminalWorkbenchPanel(props: {
+  cwd: string | null;
+  environmentId: EnvironmentId | null;
+}) {
+  const terminalState = useTerminalSessions(props.cwd);
+  const { open: terminalRailOpen } = useSecondaryRail(props.cwd, "terminal");
+  return (
+    <WorkbenchPanel className="overflow-hidden">
+      <TerminalWorkbenchSubChrome
+        railOpen={terminalRailOpen}
+        onToggleRail={() => shellPanelsActions.toggleSecondaryRail(props.cwd, "terminal")}
+        shellCaption={inferLoginShellCaption()}
+      />
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <RightWorkbenchLayout
+          cwd={props.cwd}
+          tab="terminal"
+          rail={
+            <TerminalRail
+              sessions={terminalState.sessions}
+              activeId={terminalState.activeId}
+              onActivate={(id) => shellPanelsActions.setActiveTerminal(props.cwd, id)}
+              onClose={(id) => shellPanelsActions.removeTerminalSession(props.cwd, id)}
+            />
+          }
+        >
+          <TerminalPanel
+            cwd={props.cwd}
+            environmentId={props.environmentId}
+            terminalId={terminalState.activeId}
+          />
+        </RightWorkbenchLayout>
+      </div>
+    </WorkbenchPanel>
+  );
+}
+
 function DesktopChatShellHost(props: {
   left: ReactNode;
   center: ReactNode;
   routeThreadId: string | null;
   cwd: string | null;
+  panelPersistenceCwd: string | null;
   environmentId: EnvironmentId | null;
   availableEditors: readonly EditorId[];
 }) {
-  const git = useEnvironmentGitPanel(props.environmentId);
-  const browserThreadId = resolveWorkbenchBrowserThreadId(props.cwd);
+  const git = useEnvironmentGitPanel(props.environmentId, props.cwd);
 
   return (
     <AppShell
       cwd={props.cwd}
+      panelPersistenceCwd={props.panelPersistenceCwd}
       changesCount={git.count}
       routeThreadId={props.routeThreadId}
       gitFocusId={git.focusId}
@@ -363,28 +431,8 @@ function DesktopChatShellHost(props: {
             <GitPanel git={git} />
           </WorkbenchPanel>
         ),
-        terminal: (
-          <WorkbenchPanel>
-            <TerminalPanel cwd={props.cwd} environmentId={props.environmentId} />
-          </WorkbenchPanel>
-        ),
-        browser: (
-          <WorkbenchPanel>
-            <BrowserPanel
-              mode="sidebar"
-              threadId={browserThreadId}
-              onClosePanel={() => {
-                setRightPanelOpen(props.cwd, false);
-              }}
-            />
-          </WorkbenchPanel>
-        ),
+        terminal: <TerminalWorkbenchPanel cwd={props.cwd} environmentId={props.environmentId} />,
       }}
     />
   );
-}
-
-function setRightPanelOpen(cwd: string | null, open: boolean): void {
-  shellPanelsActions.setRightOpen(cwd, open);
-  shellPanelsActions.setMuted(cwd, !open);
 }

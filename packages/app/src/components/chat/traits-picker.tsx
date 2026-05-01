@@ -1,5 +1,5 @@
 import {
-  type ProviderKind,
+  type ProviderDriverKind,
   type ProviderOptionDescriptor,
   type ProviderOptionSelection,
   type ScopedThreadRef,
@@ -76,7 +76,7 @@ function getDescriptorStringValue(
 }
 
 function getSelectedTraits(
-  provider: ProviderKind,
+  provider: ProviderDriverKind,
   models: ReadonlyArray<ServerProviderModel>,
   model: string | null | undefined,
   prompt: string,
@@ -150,7 +150,7 @@ function getSelectedTraits(
 }
 
 function getTraitsSectionVisibility(input: {
-  provider: ProviderKind;
+  provider: ProviderDriverKind;
   models: ReadonlyArray<ServerProviderModel>;
   model: string | null | undefined;
   prompt: string;
@@ -184,7 +184,7 @@ function getTraitsSectionVisibility(input: {
 }
 
 export function shouldRenderTraitsControls(input: {
-  provider: ProviderKind;
+  provider: ProviderDriverKind;
   models: ReadonlyArray<ServerProviderModel>;
   model: string | null | undefined;
   prompt: string;
@@ -195,7 +195,7 @@ export function shouldRenderTraitsControls(input: {
 }
 
 export interface TraitsMenuContentProps {
-  provider: ProviderKind;
+  provider: ProviderDriverKind;
   models: ReadonlyArray<ServerProviderModel>;
   model: string | null | undefined;
   prompt: string;
@@ -409,8 +409,8 @@ export const TraitsPicker = memo(function TraitsPicker({
             variant={triggerVariant ?? "ghost"}
             className={cn(
               isCodexStyle
-                ? "min-w-0 max-w-40 shrink justify-start overflow-hidden whitespace-nowrap px-2 text-muted-foreground/70 hover:text-foreground/80 sm:max-w-48 sm:px-3 [&_svg]:mx-0"
-                : "shrink-0 whitespace-nowrap px-2 text-muted-foreground/70 hover:text-foreground/80 sm:px-3",
+                ? "min-w-0 max-w-40 shrink justify-start overflow-hidden whitespace-nowrap px-2.5 text-muted-foreground/70 hover:text-foreground/80 sm:max-w-48 sm:px-3 [&_svg]:mx-0"
+                : "shrink-0 whitespace-nowrap px-2.5 text-muted-foreground/70 hover:text-foreground/80 sm:px-3",
               triggerClassName,
             )}
           />

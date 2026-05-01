@@ -1,5 +1,5 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import type { ServerProvider } from "@multi/contracts";
+import { ServerProvider } from "@multi/contracts";
 import { createModelCapabilities } from "@multi/shared/model";
 import { assert, it } from "@effect/vitest";
 import { Effect, FileSystem } from "effect";
@@ -14,10 +14,11 @@ import {
 const emptyCapabilities = createModelCapabilities({ optionDescriptors: [] });
 
 const makeProvider = (
-  provider: ServerProvider["provider"],
+  driver: ServerProvider["driver"],
   overrides?: Partial<ServerProvider>,
 ): ServerProvider => ({
-  provider,
+  instanceId: driver,
+  driver,
   enabled: true,
   installed: true,
   version: "1.0.0",
@@ -46,15 +47,15 @@ it.layer(NodeServices.layer)("providerStatusCache", (it) => {
       });
       const codexPath = resolveProviderStatusCachePath({
         cacheDir: tempDir,
-        provider: "codex",
+        instanceId: "codex",
       });
       const claudePath = resolveProviderStatusCachePath({
         cacheDir: tempDir,
-        provider: "claudeAgent",
+        instanceId: "claudeAgent",
       });
       const openCodePath = resolveProviderStatusCachePath({
         cacheDir: tempDir,
-        provider: "opencode",
+        instanceId: "opencode",
       });
 
       yield* writeProviderStatusCache({
@@ -148,7 +149,7 @@ it.layer(NodeServices.layer)("providerStatusCache", (it) => {
       version: null,
       status: "disabled",
       auth: { status: "unknown" },
-      message: "Codex is disabled in T3 Code settings.",
+      message: "Codex is disabled in Multi settings.",
     });
 
     assert.deepStrictEqual(

@@ -13,11 +13,10 @@ import {
 import { finalizePromotedDraftThreadByRef, useComposerDraftStore } from "~/composer-draft-store";
 import { stripDiffSearchParams } from "~/diff-route-search";
 import { useMediaQuery } from "~/hooks/use-media-query";
-import { NoActiveThreadState } from "~/components/no-active-thread-state";
-import { SplashScreen } from "~/components/splash-screen";
 import { selectEnvironmentState, selectThreadExistsByRef, useStore } from "~/store";
 import { createThreadSelectorByRef } from "~/store-selectors";
 import { resolveThreadRouteRef, buildThreadRouteParams } from "~/thread-routes";
+import { traceBrowserEvent } from "~/observability/browserDebug";
 import { Sheet, SheetPopup } from "@multi/ui/sheet";
 import { Sidebar, SidebarProvider, SidebarRail } from "@multi/ui/sidebar";
 
@@ -219,7 +218,7 @@ export function ChatThreadRouteView() {
     void navigate({
       to: "/$environmentId/$threadId",
       params: buildThreadRouteParams(threadRef),
-      search: { diff: undefined },
+      search: (prev) => stripDiffSearchParams(prev),
     });
   }, [navigate, threadRef]);
   const openDiff = useCallback(() => {
@@ -243,6 +242,18 @@ export function ChatThreadRouteView() {
     }
 
     if (!routeThreadExists && environmentHasAnyThreads) {
+      traceBrowserEvent(
+        "route.thread.missing.navigate-home",
+        {
+          environmentId: threadRef.environmentId,
+          threadId: threadRef.threadId,
+          bootstrapComplete,
+          threadExists,
+          draftThreadExists,
+          environmentHasAnyThreads,
+        },
+        "warn",
+      );
       void navigate({ to: "/", replace: true });
     }
   }, [bootstrapComplete, environmentHasAnyThreads, navigate, routeThreadExists, threadRef]);
@@ -255,11 +266,25 @@ export function ChatThreadRouteView() {
   }, [draftThread?.promotedTo, serverThreadStarted, threadRef]);
 
   if (!threadRef || !bootstrapComplete) {
-    return <SplashScreen />;
+    traceBrowserEvent("route.thread.empty.waiting-bootstrap", {
+      hasThreadRef: Boolean(threadRef),
+      bootstrapComplete,
+    });
+    return null;
   }
 
   if (!routeThreadExists) {
-    return <NoActiveThreadState />;
+    traceBrowserEvent(
+      "route.thread.empty.missing-thread",
+      {
+        environmentId: threadRef.environmentId,
+        threadId: threadRef.threadId,
+        threadExists,
+        draftThreadExists,
+      },
+      "warn",
+    );
+    return null;
   }
 
   const shouldRenderDiffContent = diffOpen || hasOpenedDiff;

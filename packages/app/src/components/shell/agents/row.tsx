@@ -35,7 +35,7 @@ function StatusDot(props: { item: SidebarChatItem }) {
 
 function StatusSlot(props: { item: SidebarChatItem }) {
   return (
-    <span className="agent-sidebar-cell-status flex size-3 shrink-0 items-center justify-center">
+    <span className="multi-agent-sidebar-cell-leading agent-sidebar-cell-status flex size-3 shrink-0 items-center justify-center">
       <StatusDot item={props.item} />
     </span>
   );
@@ -147,10 +147,12 @@ export const AgentRow = memo(
           onClick={() => props.onSelectAgent(props.item.id)}
         >
           <StatusSlot item={props.item} />
-          <span className="agent-sidebar-cell-text min-w-0 flex-1 truncate">
-            {props.item.title}
+          <span className="multi-agent-sidebar-cell-content-wrapper min-w-0 flex-1">
+            <span className="multi-agent-sidebar-cell-text agent-sidebar-cell-text min-w-0 flex-1 truncate">
+              {props.item.title}
+            </span>
           </span>
-          <span className="agent-sidebar-cell-subtitle shrink-0 tabular-nums text-detail text-muted-foreground/50">
+          <span className="multi-agent-sidebar-cell-subtitle agent-sidebar-cell-subtitle shrink-0 tabular-nums">
             {props.item.ago}
           </span>
         </RowButton>
@@ -181,7 +183,7 @@ export const AgentRow = memo(
         {renaming ? (
           <div
             className={cn(
-              "agent-sidebar-cell font-multi flex min-h-6 w-full min-w-0 items-center gap-2 rounded-multi-control border border-transparent px-1.5 py-1 text-left text-[12px]/[16px]",
+              "agent-sidebar-cell font-multi flex h-auto w-full min-w-0 items-center gap-3 rounded-[6px] border border-transparent px-[5px] py-[5px] text-left text-[12px]/[16px] font-normal leading-4",
               "border-multi-stroke-strong bg-multi-active",
             )}
             data-agent-sidebar-cell=""
@@ -199,7 +201,7 @@ export const AgentRow = memo(
               className="min-w-0 flex-1 bg-transparent text-[12px]/[16px] text-foreground outline-none ring-0"
               aria-label="Rename thread"
             />
-            <span className="agent-sidebar-cell-subtitle shrink-0 tabular-nums text-detail text-muted-foreground/50">
+            <span className="multi-agent-sidebar-cell-subtitle agent-sidebar-cell-subtitle shrink-0 tabular-nums">
               {props.item.ago}
             </span>
           </div>
@@ -214,10 +216,12 @@ export const AgentRow = memo(
             onClick={() => props.onSelectAgent(props.item.id)}
           >
             <StatusSlot item={props.item} />
-            <span className="agent-sidebar-cell-text min-w-0 flex-1 truncate">
-              {props.item.title}
+            <span className="multi-agent-sidebar-cell-content-wrapper min-w-0 flex-1">
+              <span className="multi-agent-sidebar-cell-text agent-sidebar-cell-text min-w-0 flex-1 truncate">
+                {props.item.title}
+              </span>
             </span>
-            <span className="agent-sidebar-cell-subtitle shrink-0 tabular-nums text-detail text-muted-foreground/50">
+            <span className="multi-agent-sidebar-cell-subtitle agent-sidebar-cell-subtitle shrink-0 tabular-nums">
               {props.item.ago}
             </span>
           </RowButton>

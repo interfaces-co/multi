@@ -1,24 +1,28 @@
-import { type ProviderKind, PROVIDER_DISPLAY_NAMES } from "@multi/contracts";
+import { ProviderDriverKind } from "@multi/contracts";
 import { ClaudeAI, CursorIcon, Icon, OpenAI, OpenCodeIcon } from "../icons";
 import { PROVIDER_OPTIONS } from "../../session-logic";
 
-export const PROVIDER_ICON_BY_PROVIDER: Record<ProviderKind, Icon> = {
-  codex: OpenAI,
-  claudeAgent: ClaudeAI,
-  opencode: OpenCodeIcon,
-  cursor: CursorIcon,
+export const PROVIDER_ICON_BY_PROVIDER: Partial<Record<ProviderDriverKind, Icon>> = {
+  [ProviderDriverKind.make("codex")]: OpenAI,
+  [ProviderDriverKind.make("claudeAgent")]: ClaudeAI,
+  [ProviderDriverKind.make("opencode")]: OpenCodeIcon,
+  [ProviderDriverKind.make("cursor")]: CursorIcon,
 };
 
-function isAvailableProviderOption(option: (typeof PROVIDER_OPTIONS)[number]): option is {
-  value: ProviderKind;
+type AvailableProviderOption = {
+  value: ProviderDriverKind;
   label: string;
   available: true;
   pickerSidebarBadge?: "new" | "soon";
-} {
-  return option.available;
-}
+};
 
-export const AVAILABLE_PROVIDER_OPTIONS = PROVIDER_OPTIONS.filter(isAvailableProviderOption);
+export const AVAILABLE_PROVIDER_OPTIONS: AvailableProviderOption[] = PROVIDER_OPTIONS.filter(
+  (option) => option.available,
+).map((option) => ({
+  ...option,
+  value: ProviderDriverKind.make(option.value),
+  available: true,
+}));
 
 export type ModelEsque = {
   slug: string;
@@ -26,11 +30,6 @@ export type ModelEsque = {
   shortName?: string | undefined;
   subProvider?: string | undefined;
 };
-
-export function getProviderLabel(provider: ProviderKind, model: ModelEsque): string {
-  const providerLabel = PROVIDER_DISPLAY_NAMES[provider];
-  return model.subProvider ? `${providerLabel} · ${model.subProvider}` : providerLabel;
-}
 
 export function getDisplayModelName(
   model: ModelEsque,

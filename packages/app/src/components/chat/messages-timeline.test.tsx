@@ -95,6 +95,7 @@ beforeAll(() => {
     body: createMockElement(),
     documentElement: {
       classList,
+      dataset: {},
       offsetHeight: 0,
       style: {
         backgroundColor: "",

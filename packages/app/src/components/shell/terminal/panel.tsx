@@ -12,6 +12,7 @@ import {
 } from "~/components/shell/terminal/terminal-host-theme";
 import { useTheme } from "~/hooks/use-theme";
 import { readNativeEnvironmentApi } from "~/lib/native-runtime-api";
+import { traceBrowserEvent } from "~/observability/browserDebug";
 
 function workbenchThreadId(cwd: string) {
   return `workbench:${cwd}`;
@@ -29,23 +30,38 @@ function readWorkbenchTerminalApi(
   );
 }
 
-export function TerminalPanel(props: { cwd: string | null; environmentId?: EnvironmentId | null }) {
+export function TerminalPanel(props: {
+  cwd: string | null;
+  environmentId?: EnvironmentId | null;
+  terminalId?: string;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const term = useRef<Terminal | null>(null);
   const fit = useRef<FitAddon | null>(null);
   const size = useRef<{ thread: string; cols: number; rows: number } | null>(null);
+  const openSession = useRef<{ thread: string; terminalId: string } | null>(null);
   const { resolvedTheme } = useTheme();
   const [bootErr, setBootErr] = useState<string | null>(null);
 
   const dev = import.meta.env.DEV;
+  const activeTerminalId = props.terminalId ?? DEFAULT_TERMINAL_ID;
 
   useEffect(() => {
     const el = ref.current;
     const api = readWorkbenchTerminalApi(props.environmentId);
-    if (!el || !api || !props.cwd) return;
+    if (!el || !api || !props.cwd) {
+      traceBrowserEvent("terminal.panel.waiting-for-prerequisite", {
+        hasElement: Boolean(el),
+        hasApi: Boolean(api),
+        hasCwd: Boolean(props.cwd),
+        environmentId: props.environmentId ?? null,
+      });
+      return;
+    }
 
     const cwd = props.cwd;
     const thread = workbenchThreadId(cwd);
+    const termId = activeTerminalId;
     const cfg = readTerminalHostTheme(el, resolvedTheme);
     const family = readTerminalHostFontFamily(el);
     const fontSize = readTerminalHostFontSize(el);
@@ -56,7 +72,14 @@ export function TerminalPanel(props: { cwd: string | null; environmentId?: Envir
     let next: Terminal | null = null;
     let addon: FitAddon | null = null;
 
+    openSession.current = null;
     setBootErr(null);
+    traceBrowserEvent("terminal.panel.mount.start", {
+      cwd,
+      thread,
+      terminalId: termId,
+      environmentId: props.environmentId ?? null,
+    });
 
     try {
       next = new Terminal({
@@ -76,6 +99,7 @@ export function TerminalPanel(props: { cwd: string | null; environmentId?: Envir
       fit.current = addon;
     } catch (err) {
       if (dev) console.warn("[TerminalPanel] xterm init failed", err);
+      traceBrowserEvent("terminal.panel.xterm-init.failed", { error: err }, "error");
       setBootErr("Could not load terminal renderer.");
       return () => {
         live = false;
@@ -114,25 +138,34 @@ export function TerminalPanel(props: { cwd: string | null; environmentId?: Envir
       event.preventDefault();
       event.stopPropagation();
       clear();
-      void api.clear({
-        threadId: thread,
-        terminalId: DEFAULT_TERMINAL_ID,
-      });
+      if (openSession.current?.thread === thread && openSession.current.terminalId === termId) {
+        void api
+          .clear({
+            threadId: thread,
+            terminalId: termId,
+          })
+          .catch(() => undefined);
+      }
       return false;
     });
 
     data = next.onData((chunk) => {
-      void api.write({
-        threadId: thread,
-        terminalId: DEFAULT_TERMINAL_ID,
-        data: chunk,
-      });
+      if (openSession.current?.thread !== thread || openSession.current.terminalId !== termId) {
+        return;
+      }
+      void api
+        .write({
+          threadId: thread,
+          terminalId: termId,
+          data: chunk,
+        })
+        .catch(() => undefined);
     });
 
     const onEvent = (event: TerminalEvent) => {
       if (!live) return;
       if (event.threadId !== thread) return;
-      if (event.terminalId !== DEFAULT_TERMINAL_ID) return;
+      if (event.terminalId !== termId) return;
       if (event.type === "output") {
         next.write(event.data);
         return;
@@ -148,25 +181,58 @@ export function TerminalPanel(props: { cwd: string | null; environmentId?: Envir
 
     off = api.onEvent(onEvent);
 
+    traceBrowserEvent("terminal.panel.open.start", {
+      cwd,
+      threadId: thread,
+      terminalId: termId,
+      cols: next.cols,
+      rows: next.rows,
+    });
     void api
       .open({
         threadId: thread,
-        terminalId: DEFAULT_TERMINAL_ID,
+        terminalId: termId,
         cwd,
         cols: next.cols,
         rows: next.rows,
       })
       .then((snap) => {
         if (!live) return;
+        openSession.current = { thread, terminalId: termId };
+        traceBrowserEvent("terminal.panel.open.done", {
+          threadId: thread,
+          terminalId: termId,
+          historyLength: snap.history.length,
+        });
         hydrate(snap.history);
       })
       .catch((err) => {
         if (dev) console.warn("[TerminalPanel] terminal.open failed", err);
-        if (live) setBootErr("Could not open terminal session.");
+        traceBrowserEvent(
+          "terminal.panel.open.failed",
+          {
+            threadId: thread,
+            terminalId: termId,
+            cwd,
+            error: err,
+          },
+          "error",
+        );
+        if (live) {
+          openSession.current = null;
+          setBootErr("Could not open terminal session.");
+        }
       });
 
     return () => {
       live = false;
+      if (openSession.current?.thread === thread && openSession.current.terminalId === termId) {
+        openSession.current = null;
+      }
+      traceBrowserEvent("terminal.panel.unmount", {
+        threadId: thread,
+        terminalId: termId,
+      });
       off?.();
       data?.dispose();
       next?.dispose();
@@ -175,11 +241,12 @@ export function TerminalPanel(props: { cwd: string | null; environmentId?: Envir
       size.current = null;
       el.replaceChildren();
     };
-  }, [dev, props.cwd, props.environmentId, resolvedTheme]);
+  }, [activeTerminalId, dev, props.cwd, props.environmentId, resolvedTheme]);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    const termId = activeTerminalId;
     const obs = new ResizeObserver(() => {
       const addon = fit.current;
       const next = term.current;
@@ -187,21 +254,26 @@ export function TerminalPanel(props: { cwd: string | null; environmentId?: Envir
       if (!addon || !next || !api || !props.cwd) return;
       addon.fit();
       const thread = workbenchThreadId(props.cwd);
+      if (openSession.current?.thread !== thread || openSession.current.terminalId !== termId) {
+        return;
+      }
       const prev = size.current;
       if (prev && prev.thread === thread && prev.cols === next.cols && prev.rows === next.rows) {
         return;
       }
       size.current = { thread, cols: next.cols, rows: next.rows };
-      void api.resize({
-        threadId: thread,
-        terminalId: DEFAULT_TERMINAL_ID,
-        cols: next.cols,
-        rows: next.rows,
-      });
+      void api
+        .resize({
+          threadId: thread,
+          terminalId: termId,
+          cols: next.cols,
+          rows: next.rows,
+        })
+        .catch(() => undefined);
     });
     obs.observe(el);
     return () => obs.disconnect();
-  }, [props.cwd, props.environmentId]);
+  }, [activeTerminalId, props.cwd, props.environmentId]);
 
   if (!props.cwd) {
     return (

@@ -1,24 +1,16 @@
 import * as nodePath from "node:path";
-import { type ServerProvider, ServerProvider as ServerProviderSchema } from "@multi/contracts";
+import {
+  type ProviderInstanceId,
+  type ServerProvider,
+  ServerProvider as ServerProviderSchema,
+} from "@multi/contracts";
 import { Cause, Effect, FileSystem, Schema } from "effect";
 
 import { writeFileStringAtomically } from "../atomic-write.ts";
 
-export const PROVIDER_CACHE_IDS = [
-  "codex",
-  "claudeAgent",
-  "opencode",
-  "cursor",
-] as const satisfies ReadonlyArray<ServerProvider["provider"]>;
-
 const decodeProviderStatusCache = Schema.decodeUnknownEffect(
   Schema.fromJsonString(ServerProviderSchema),
 );
-
-const providerOrderRank = (provider: ServerProvider["provider"]): number => {
-  const rank = PROVIDER_CACHE_IDS.indexOf(provider);
-  return rank === -1 ? Number.MAX_SAFE_INTEGER : rank;
-};
 
 const mergeProviderModels = (
   fallbackModels: ReadonlyArray<ServerProvider["models"][number]>,
@@ -32,13 +24,27 @@ export const orderProviderSnapshots = (
   providers: ReadonlyArray<ServerProvider>,
 ): ReadonlyArray<ServerProvider> =>
   [...providers].toSorted(
-    (left, right) => providerOrderRank(left.provider) - providerOrderRank(right.provider),
+    (left, right) =>
+      (left.displayName ?? "").localeCompare(right.displayName ?? "") ||
+      left.driver.localeCompare(right.driver) ||
+      left.instanceId.localeCompare(right.instanceId),
   );
+
+export const isCachedProviderCorrelated = (input: {
+  readonly cachedProvider: ServerProvider;
+  readonly fallbackProvider: ServerProvider;
+}): boolean =>
+  input.cachedProvider.instanceId === input.fallbackProvider.instanceId &&
+  input.cachedProvider.driver === input.fallbackProvider.driver;
 
 export const hydrateCachedProvider = (input: {
   readonly cachedProvider: ServerProvider;
   readonly fallbackProvider: ServerProvider;
 }): ServerProvider => {
+  if (!isCachedProviderCorrelated(input)) {
+    return input.fallbackProvider;
+  }
+
   if (
     !input.fallbackProvider.enabled ||
     input.cachedProvider.enabled !== input.fallbackProvider.enabled
@@ -66,8 +72,8 @@ export const hydrateCachedProvider = (input: {
 
 export const resolveProviderStatusCachePath = (input: {
   readonly cacheDir: string;
-  readonly provider: ServerProvider["provider"];
-}) => nodePath.join(input.cacheDir, `${input.provider}.json`);
+  readonly instanceId: ProviderInstanceId;
+}) => nodePath.join(input.cacheDir, `${input.instanceId}.json`);
 
 export const readProviderStatusCache = (filePath: string) =>
   Effect.gen(function* () {

@@ -1,11 +1,13 @@
 import {
   type ApprovalRequestId,
-  DEFAULT_MODEL_BY_PROVIDER,
+  DEFAULT_MODEL,
+  defaultInstanceIdForDriver,
   type EnvironmentId,
   type MessageId,
   type ModelSelection,
   type ProjectScript,
-  type ProviderKind,
+  ProviderDriverKind,
+  ProviderInstanceId,
   type ProjectId,
   type ProviderApprovalDecision,
   type ServerProvider,
@@ -103,7 +105,7 @@ import {
 import { newCommandId, newDraftId, newMessageId, newThreadId } from "~/lib/utils";
 import { getProviderModelCapabilities, resolveSelectableProvider } from "../provider-models";
 import { useSettings } from "../hooks/use-settings";
-import { resolveAppModelSelection } from "../model-selection";
+import { resolveAppModelSelectionForInstance } from "../model-selection";
 import { isTerminalFocused } from "../lib/terminal-focus";
 import { deriveLogicalProjectKey } from "../logical-project";
 import { useSavedEnvironmentRuntimeStore } from "../environments/runtime";
@@ -151,6 +153,7 @@ import {
   revokeBlobPreviewUrl,
   revokeUserMessagePreviewUrls,
   shouldWriteThreadErrorToCurrentServerThread,
+  threadHasStarted,
   waitForStartedServerThread,
 } from "./chat-view.logic";
 import { useLocalStorage } from "~/hooks/use-local-storage";
@@ -162,6 +165,7 @@ import {
 } from "~/rpc/server-state";
 import { sanitizeThreadErrorMessage } from "~/rpc/transport-error";
 import { retainThreadDetailSubscription } from "../environments/runtime/service";
+import { traceBrowserEvent } from "~/observability/browserDebug";
 
 const IMAGE_ONLY_BOOTSTRAP_PROMPT =
   "[User attached one or more images without additional text. Respond using the conversation context and the attached image(s).]";
@@ -286,7 +290,7 @@ function useThreadPlanCatalog(threadIds: readonly ThreadId[]): ThreadPlanCatalog
 }
 
 function formatOutgoingPrompt(params: {
-  provider: ProviderKind;
+  provider: ProviderDriverKind;
   model: string | null;
   models: ReadonlyArray<ServerProvider["models"][number]>;
   effort: string | null;
@@ -762,8 +766,8 @@ export default function ChatView(props: ChatViewProps) {
             threadId,
             draftThread,
             fallbackDraftProject?.defaultModelSelection ?? {
-              provider: "codex",
-              model: DEFAULT_MODEL_BY_PROVIDER.codex,
+              instanceId: defaultInstanceIdForDriver(ProviderDriverKind.make("codex")),
+              model: DEFAULT_MODEL,
             },
             localDraftError,
           )
@@ -942,7 +946,9 @@ export default function ChatView(props: ChatViewProps) {
 
   const selectedProviderByThreadId = composerActiveProvider ?? null;
   const threadProvider =
-    activeThread?.modelSelection.provider ?? activeProject?.defaultModelSelection?.provider ?? null;
+    activeThread?.modelSelection.instanceId ??
+    activeProject?.defaultModelSelection?.instanceId ??
+    null;
   const lockedProvider = deriveLockedProvider({
     thread: activeThread,
     selectedProvider: selectedProviderByThreadId,
@@ -962,9 +968,9 @@ export default function ChatView(props: ChatViewProps) {
   const providerStatuses = serverConfig?.providers ?? EMPTY_PROVIDERS;
   const unlockedSelectedProvider = resolveSelectableProvider(
     providerStatuses,
-    selectedProviderByThreadId ?? threadProvider ?? "codex",
+    selectedProviderByThreadId ?? threadProvider ?? ProviderInstanceId.make("codex"),
   );
-  const selectedProvider: ProviderKind = lockedProvider ?? unlockedSelectedProvider;
+  const selectedProvider: ProviderDriverKind = lockedProvider ?? unlockedSelectedProvider;
   const phase = derivePhase(activeThread?.session ?? null);
   const threadActivities = activeThread?.activities ?? EMPTY_ACTIVITIES;
   const workLogEntries = useMemo(
@@ -1337,7 +1343,7 @@ export default function ChatView(props: ChatViewProps) {
   const keybindings = useServerKeybindings();
   const availableEditors = useServerAvailableEditors();
   const activeProviderStatus = useMemo(
-    () => providerStatuses.find((status) => status.provider === selectedProvider) ?? null,
+    () => providerStatuses.find((status) => status.driver === selectedProvider) ?? null,
     [selectedProvider, providerStatuses],
   );
   const activeProjectCwd = activeProject?.cwd ?? null;
@@ -1835,7 +1841,7 @@ export default function ChatView(props: ChatViewProps) {
       if (
         input.modelSelection !== undefined &&
         (input.modelSelection.model !== serverThread.modelSelection.model ||
-          input.modelSelection.provider !== serverThread.modelSelection.provider ||
+          input.modelSelection.instanceId !== serverThread.modelSelection.instanceId ||
           JSON.stringify(input.modelSelection.options ?? null) !==
             JSON.stringify(serverThread.modelSelection.options ?? null))
       ) {
@@ -2429,11 +2435,8 @@ export default function ChatView(props: ChatViewProps) {
       }
       const title = truncate(titleSeed);
       const threadCreateModelSelection: ModelSelection = {
-        provider: ctxSelectedProvider,
-        model:
-          ctxSelectedModel ||
-          activeProject.defaultModelSelection?.model ||
-          DEFAULT_MODEL_BY_PROVIDER.codex,
+        instanceId: ctxSelectedModelSelection.instanceId,
+        model: ctxSelectedModel || activeProject.defaultModelSelection?.model || DEFAULT_MODEL,
         ...(ctxSelectedModelSelection.options
           ? { options: ctxSelectedModelSelection.options }
           : {}),
@@ -2997,21 +3000,20 @@ export default function ChatView(props: ChatViewProps) {
   ]);
 
   const onProviderModelSelect = useCallback(
-    (provider: ProviderKind, model: string) => {
+    (instanceId: ProviderInstanceId, model: string) => {
       if (!activeThread && routeKind !== "draft") return;
-      if (lockedProvider !== null && provider !== lockedProvider) {
-        scheduleComposerFocus();
-        return;
-      }
-      const resolvedProvider = resolveSelectableProvider(providerStatuses, provider);
-      const resolvedModel = resolveAppModelSelection(
-        resolvedProvider,
+      const resolvedModel = resolveAppModelSelectionForInstance(
+        instanceId,
         settings,
         providerStatuses,
         model,
       );
+      if (resolvedModel === null) {
+        scheduleComposerFocus();
+        return;
+      }
       const nextModelSelection: ModelSelection = {
-        provider: resolvedProvider,
+        instanceId,
         model: resolvedModel,
       };
       setComposerDraftModelSelection(
@@ -3074,9 +3076,30 @@ export default function ChatView(props: ChatViewProps) {
     void onRevertToTurnCountRef.current(targetTurnCount);
   }, []);
 
-  // Empty state: no active thread
   if (!activeThread) {
+    traceBrowserEvent(
+      "chat-view.blank-fallback.no-active-thread",
+      {
+        routeKind,
+        environmentId,
+        threadId,
+        draftId,
+        hasRouteThreadRef: Boolean(routeThreadRef),
+      },
+      "warn",
+    );
     return <NoActiveThreadState />;
+  }
+
+  if (isLocalDraftThread && !threadHasStarted(activeThread)) {
+    traceBrowserEvent("chat-view.render.hero-composer", {
+      routeKind,
+      environmentId,
+      threadId,
+      draftId,
+      activeThreadId: activeThread.id,
+      projectId: activeThread.projectId,
+    });
   }
 
   return (
@@ -3084,21 +3107,21 @@ export default function ChatView(props: ChatViewProps) {
       {/* Top bar */}
       <header
         className={cn(
-          "agent-window-chat-header flex items-center border-b border-cursor-stroke-tertiary px-3",
+          "agent-window-chat-header flex px-3",
           isElectron
             ? cn(
-                "drag-region flex h-(--multi-header-height) items-center",
+                "drag-region box-border h-(--multi-header-height) items-start pt-(--multi-titlebar-control-row-top)",
                 reserveTitleBarControlInset &&
                   "wco:pr-[calc(100vw-env(titlebar-area-width)-env(titlebar-area-x)+1em)]",
               )
-            : "h-(--multi-header-height)",
+            : cn("h-(--multi-header-height) items-center border-b border-multi-stroke-tertiary"),
         )}
       >
         <ChatHeader
           activeThreadTitle={activeThread.title}
           activeProjectName={activeProject?.name}
           isGitRepo={isGitRepo}
-          openInCwd={gitCwd}
+          sidebarPersistenceCwd={activeProjectCwd ?? gitCwd}
           activeProjectScripts={activeProject?.scripts}
           preferredScriptId={
             activeProject ? (lastInvokedScriptByProjectId[activeProject.id] ?? null) : null
@@ -3129,53 +3152,66 @@ export default function ChatView(props: ChatViewProps) {
       <div className="flex min-h-0 min-w-0 flex-1">
         {/* Chat column */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          {/* Messages Wrapper */}
-          <div className="relative flex min-h-0 flex-1 flex-col">
-            {/* Messages — LegendList handles virtualization and scrolling internally */}
-            <MessagesTimeline
-              key={activeThread.id}
-              isWorking={isWorking}
-              activeTurnInProgress={isWorking || !latestTurnSettled}
-              activeTurnId={activeLatestTurn?.turnId ?? null}
-              activeTurnStartedAt={activeWorkStartedAt}
-              listRef={legendListRef}
-              timelineEntries={timelineEntries}
-              completionDividerBeforeEntryId={completionDividerBeforeEntryId}
-              completionSummary={completionSummary}
-              turnDiffSummaryByAssistantMessageId={turnDiffSummaryByAssistantMessageId}
-              activeThreadEnvironmentId={activeThread.environmentId}
-              routeThreadKey={routeThreadKey}
-              onOpenTurnDiff={onOpenTurnDiff}
-              revertTurnCountByUserMessageId={revertTurnCountByUserMessageId}
-              onRevertUserMessage={onRevertUserMessage}
-              isRevertingCheckpoint={isRevertingCheckpoint}
-              onImageExpand={onExpandTimelineImage}
-              markdownCwd={gitCwd ?? undefined}
-              resolvedTheme={resolvedTheme}
-              timestampFormat={timestampFormat}
-              workspaceRoot={activeWorkspaceRoot}
-              onIsAtEndChange={onIsAtEndChange}
-            />
+          {/* Messages Wrapper — hidden in hero mode */}
+          {!(isLocalDraftThread && !threadHasStarted(activeThread)) && (
+            <div className="relative flex min-h-0 flex-1 flex-col">
+              <MessagesTimeline
+                key={activeThread.id}
+                isWorking={isWorking}
+                activeTurnInProgress={isWorking || !latestTurnSettled}
+                activeTurnId={activeLatestTurn?.turnId ?? null}
+                activeTurnStartedAt={activeWorkStartedAt}
+                listRef={legendListRef}
+                timelineEntries={timelineEntries}
+                completionDividerBeforeEntryId={completionDividerBeforeEntryId}
+                completionSummary={completionSummary}
+                turnDiffSummaryByAssistantMessageId={turnDiffSummaryByAssistantMessageId}
+                activeThreadEnvironmentId={activeThread.environmentId}
+                routeThreadKey={routeThreadKey}
+                onOpenTurnDiff={onOpenTurnDiff}
+                revertTurnCountByUserMessageId={revertTurnCountByUserMessageId}
+                onRevertUserMessage={onRevertUserMessage}
+                isRevertingCheckpoint={isRevertingCheckpoint}
+                onImageExpand={onExpandTimelineImage}
+                markdownCwd={gitCwd ?? undefined}
+                resolvedTheme={resolvedTheme}
+                timestampFormat={timestampFormat}
+                workspaceRoot={activeWorkspaceRoot}
+                onIsAtEndChange={onIsAtEndChange}
+              />
 
-            {/* scroll to bottom pill — shown when user has scrolled away from the bottom */}
-            {showScrollToBottom && (
-              <div className="pointer-events-none absolute bottom-1 left-1/2 z-30 flex -translate-x-1/2 justify-center py-1.5">
-                <button
-                  type="button"
-                  onClick={() => scrollToEnd(true)}
-                  className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-border/60 bg-card px-3 py-1 text-muted-foreground text-xs shadow-sm transition-colors hover:border-border hover:text-foreground hover:cursor-pointer"
-                >
-                  <ChevronDownIcon className="size-3.5" />
-                  Scroll to bottom
-                </button>
-              </div>
+              {showScrollToBottom && (
+                <div className="pointer-events-none absolute bottom-1 left-1/2 z-30 flex -translate-x-1/2 justify-center py-1.5">
+                  <button
+                    type="button"
+                    onClick={() => scrollToEnd(true)}
+                    className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-border/60 bg-card px-3 py-1 text-muted-foreground text-xs shadow-sm transition-colors hover:border-border hover:text-foreground hover:cursor-pointer"
+                  >
+                    <ChevronDownIcon className="size-3.5" />
+                    Scroll to bottom
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Input bar — centered when hero, docked when active thread */}
+          <div
+            className={cn(
+              isLocalDraftThread && !threadHasStarted(activeThread)
+                ? "agent-panel-empty-state-shell"
+                : "px-3 pt-1.5 sm:px-5 sm:pt-2",
+              isLocalDraftThread && !threadHasStarted(activeThread)
+                ? undefined
+                : isGitRepo
+                  ? "pb-1"
+                  : "pb-3 sm:pb-4",
             )}
-          </div>
-
-          {/* Input bar */}
-          <div className={cn("px-3 pt-1.5 sm:px-5 sm:pt-2", isGitRepo ? "pb-1" : "pb-3 sm:pb-4")}>
+            data-layout={isLocalDraftThread && !threadHasStarted(activeThread) ? "wide" : undefined}
+          >
             <ChatComposer
               ref={composerRef}
+              variant={isLocalDraftThread && !threadHasStarted(activeThread) ? "hero" : "dock"}
               composerDraftTarget={composerDraftTarget}
               environmentId={environmentId}
               routeKind={routeKind}
@@ -3214,6 +3250,8 @@ export default function ChatView(props: ChatViewProps) {
               activeThreadActivities={activeThread?.activities}
               resolvedTheme={resolvedTheme}
               settings={settings}
+              keybindings={keybindings}
+              terminalOpen={terminalState.terminalOpen}
               gitCwd={gitCwd}
               promptRef={promptRef}
               composerImagesRef={composerImagesRef}

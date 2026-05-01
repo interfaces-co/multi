@@ -7,10 +7,12 @@ import {
   useLocation,
   useNavigate,
 } from "@tanstack/react-router";
-import { useEffect, useEffectEvent, useRef } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useShallow } from "zustand/react/shallow";
 
 import { APP_DISPLAY_NAME } from "~/branding";
+import { type DraftId, useComposerDraftStore } from "~/composer-draft-store";
 import { CommandPalette } from "~/components/command-palette";
 import { TaskCompletionNotifications } from "~/notifications/taskCompletion";
 import {
@@ -26,11 +28,17 @@ import {
   getServerConfigUpdatedNotification,
   ServerConfigUpdatedNotification,
   startServerStateSync,
+  useServerConfig,
   useServerEnvironment,
   useServerConfigUpdatedSubscription,
   useServerWelcomeSubscription,
 } from "~/rpc/server-state";
-import { useStore } from "~/store";
+import { selectProjectByRef, useStore } from "~/store";
+import {
+  selectBootstrapCompleteForActiveEnvironment,
+  selectProjectsForEnvironment,
+  selectThreadsForEnvironment,
+} from "~/store";
 import { useUiStateStore } from "~/ui-state-store";
 import { syncBrowserChromeTheme } from "~/hooks/use-theme";
 import {
@@ -39,12 +47,25 @@ import {
   startEnvironmentConnectionService,
 } from "~/environments/runtime";
 import { configureClientTracing } from "~/observability/clientTracing";
+import { traceBrowserEvent } from "~/observability/browserDebug";
 import { updatePrimaryEnvironmentDescriptor } from "~/environments/primary";
+import { RouterDevtoolsPanel } from "~/dev/router-devtools";
+import { deriveLogicalProjectKey, derivePhysicalProjectKeyFromPath } from "~/logical-project";
+import { readStoredWorkspaceCwd } from "~/lib/workspace-state";
+import { buildDraftThreadRouteParams, buildThreadRouteParams } from "~/thread-routes";
+
+import { resolveInitialChatTarget } from "./chat-index-route.logic";
 
 const routeApi = getRouteApi("__root__");
 
 export function RootRouteView() {
   const { authGateState } = routeApi.useRouteContext();
+
+  useEffect(() => {
+    traceBrowserEvent("root.auth-gate-state", {
+      status: authGateState.status,
+    });
+  }, [authGateState.status]);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -56,7 +77,12 @@ export function RootRouteView() {
   }, [authGateState.status]);
 
   if (authGateState.status !== "authenticated") {
-    return <Outlet />;
+    return (
+      <>
+        <Outlet />
+        <RouterDevtoolsPanel />
+      </>
+    );
   }
   return (
     <ToastProvider>
@@ -73,6 +99,7 @@ export function RootRouteView() {
             <Outlet />
           </CommandPalette>
         </WebSocketConnectionSurface>
+        <RouterDevtoolsPanel />
       </AnchoredToastProvider>
     </ToastProvider>
   );
@@ -173,14 +200,24 @@ function errorDetails(error: unknown): string {
 }
 
 function ServerStateBootstrap() {
-  useEffect(() => startServerStateSync(getPrimaryEnvironmentConnection().client.server), []);
+  useEffect(() => {
+    traceBrowserEvent("root.server-state-bootstrap.start");
+    return startServerStateSync(getPrimaryEnvironmentConnection().client.server);
+  }, []);
 
   return null;
 }
 
 function AuthenticatedTracingBootstrap() {
   useEffect(() => {
-    void configureClientTracing();
+    traceBrowserEvent("root.client-tracing.configure.start");
+    void configureClientTracing()
+      .then(() => {
+        traceBrowserEvent("root.client-tracing.configure.done");
+      })
+      .catch((error) => {
+        traceBrowserEvent("root.client-tracing.configure.failed", { error }, "warn");
+      });
   }, []);
 
   return null;
@@ -190,6 +227,7 @@ function EnvironmentConnectionManagerBootstrap() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
+    traceBrowserEvent("root.environment-connection-service.start");
     return startEnvironmentConnectionService(queryClient);
   }, [queryClient]);
 
@@ -205,29 +243,63 @@ function EventRouter() {
   const seenServerConfigUpdateIdRef = useRef(getServerConfigUpdatedNotification()?.id ?? 0);
   const disposedRef = useRef(false);
   const serverEnvironment = useServerEnvironment();
+  const serverConfig = useServerConfig();
+  const activeEnvironmentId = useStore((state) => state.activeEnvironmentId);
+  const bootstrapComplete = useStore(selectBootstrapCompleteForActiveEnvironment);
+  const projects = useStore(
+    useShallow((state) => selectProjectsForEnvironment(state, activeEnvironmentId)),
+  );
+  const threads = useStore(
+    useShallow((state) => selectThreadsForEnvironment(state, activeEnvironmentId)),
+  );
+  const draftThreadsByThreadKey = useComposerDraftStore((state) => state.draftThreadsByThreadKey);
+  const drafts = useMemo(
+    () =>
+      Object.entries(draftThreadsByThreadKey).map(([draftId, draft]) => ({
+        draftId: draftId as DraftId,
+        ...draft,
+      })),
+    [draftThreadsByThreadKey],
+  );
+  const lastIndexRedirectTargetKeyRef = useRef<string | null>(null);
 
   const handleWelcome = useEffectEvent((payload: ServerLifecycleWelcomePayload | null) => {
     if (!payload) return;
 
+    traceBrowserEvent("root.lifecycle.welcome", {
+      environmentId: payload.environment.environmentId,
+      bootstrapProjectId: payload.bootstrapProjectId ?? null,
+      bootstrapThreadId: payload.bootstrapThreadId ?? null,
+    });
+
     updatePrimaryEnvironmentDescriptor(payload.environment);
     setActiveEnvironmentId(payload.environment.environmentId);
     void (async () => {
+      traceBrowserEvent("root.lifecycle.ensure-environment-bootstrap.start", {
+        environmentId: payload.environment.environmentId,
+      });
       await ensureEnvironmentConnectionBootstrapped(payload.environment.environmentId);
       if (disposedRef.current) {
         return;
       }
+      traceBrowserEvent("root.lifecycle.ensure-environment-bootstrap.done", {
+        environmentId: payload.environment.environmentId,
+      });
 
       if (!payload.bootstrapProjectId || !payload.bootstrapThreadId) {
         return;
       }
-      useUiStateStore
-        .getState()
-        .setProjectExpanded(
-          scopedProjectKey(
-            scopeProjectRef(payload.environment.environmentId, payload.bootstrapProjectId),
-          ),
-          true,
-        );
+      const bootstrapProjectRef = scopeProjectRef(
+        payload.environment.environmentId,
+        payload.bootstrapProjectId,
+      );
+      const bootstrapProject = selectProjectByRef(useStore.getState(), bootstrapProjectRef);
+      const bootstrapProjectKey =
+        (bootstrapProject ? deriveLogicalProjectKey(bootstrapProject) : null) ??
+        (serverConfig?.cwd
+          ? derivePhysicalProjectKeyFromPath(payload.environment.environmentId, serverConfig.cwd)
+          : scopedProjectKey(bootstrapProjectRef));
+      useUiStateStore.getState().setProjectExpanded(bootstrapProjectKey, true);
 
       if (readPathname() !== "/") {
         return;
@@ -244,7 +316,9 @@ function EventRouter() {
         replace: true,
       });
       handledBootstrapThreadIdRef.current = payload.bootstrapThreadId;
-    })().catch(() => undefined);
+    })().catch((error) => {
+      traceBrowserEvent("root.lifecycle.welcome-handler.failed", { error }, "error");
+    });
   });
 
   const handleServerConfigUpdated = useEffectEvent(
@@ -320,6 +394,63 @@ function EventRouter() {
       disposedRef.current = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (pathname !== "/") {
+      lastIndexRedirectTargetKeyRef.current = null;
+      return;
+    }
+    const target = resolveInitialChatTarget({
+      activeEnvironmentId,
+      bootstrapComplete,
+      storedWorkspaceCwd: readStoredWorkspaceCwd(),
+      projects: projects.map((project) => ({
+        id: project.id,
+        environmentId: project.environmentId,
+        cwd: project.cwd,
+      })),
+      threads: threads.map((thread) => ({
+        id: thread.id,
+        environmentId: thread.environmentId,
+        projectId: thread.projectId,
+        worktreePath: thread.worktreePath,
+        updatedAt: thread.updatedAt,
+        createdAt: thread.createdAt,
+        archivedAt: thread.archivedAt,
+      })),
+      drafts,
+    });
+    if (!target) {
+      return;
+    }
+
+    const targetKey =
+      target.kind === "server"
+        ? `server:${target.environmentId}:${target.threadId}`
+        : `draft:${target.draftId}`;
+    if (lastIndexRedirectTargetKeyRef.current === targetKey) {
+      return;
+    }
+    lastIndexRedirectTargetKeyRef.current = targetKey;
+
+    if (target.kind === "server") {
+      void navigate({
+        to: "/$environmentId/$threadId",
+        params: buildThreadRouteParams({
+          environmentId: target.environmentId,
+          threadId: target.threadId,
+        }),
+        replace: true,
+      });
+      return;
+    }
+
+    void navigate({
+      to: "/draft/$draftId",
+      params: buildDraftThreadRouteParams(target.draftId as DraftId),
+      replace: true,
+    });
+  }, [activeEnvironmentId, bootstrapComplete, drafts, navigate, pathname, projects, threads]);
 
   useServerWelcomeSubscription(handleWelcome);
   useServerConfigUpdatedSubscription(handleServerConfigUpdated);

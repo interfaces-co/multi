@@ -1,4 +1,8 @@
-import { type ProviderApprovalDecision, type ProviderKind, type ThreadId } from "@multi/contracts";
+import {
+  type ProviderApprovalDecision,
+  type ProviderDriverKind,
+  type ThreadId,
+} from "@multi/contracts";
 import { Schema } from "effect";
 import * as EffectAcpErrors from "effect-acp/errors";
 
@@ -9,7 +13,7 @@ import {
 } from "../Errors.ts";
 
 export function mapAcpToAdapterError(
-  provider: ProviderKind,
+  provider: ProviderDriverKind,
   threadId: ThreadId,
   method: string,
   error: EffectAcpErrors.AcpError,

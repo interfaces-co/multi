@@ -14,12 +14,15 @@ import {
   CheckpointDiffQuery,
   type CheckpointDiffQueryShape,
 } from "./CheckpointDiffQuery.service.ts";
+import { ServerConfig } from "../config.ts";
+import { coerceAccessibleWorkspaceCwd } from "../workspace/AccessibleWorkspaceCwd.ts";
 
 const isTurnDiffResult = Schema.is(OrchestrationGetTurnDiffResult);
 
 const make = Effect.gen(function* () {
   const projectionSnapshotQuery = yield* ProjectionSnapshotQuery;
   const checkpointStore = yield* CheckpointStore;
+  const serverConfig = yield* ServerConfig;
 
   const getTurnDiff: CheckpointDiffQueryShape["getTurnDiff"] = Effect.fn("getTurnDiff")(
     function* (input) {
@@ -63,7 +66,19 @@ const make = Effect.gen(function* () {
         });
       }
 
-      const workspaceCwd = threadContext.value.worktreePath ?? threadContext.value.workspaceRoot;
+      const workspaceCwd = yield* coerceAccessibleWorkspaceCwd({
+        operation: "CheckpointDiffQuery.getTurnDiff",
+        candidates: [
+          { label: "thread.worktreePath", cwd: threadContext.value.worktreePath },
+          { label: "project.workspaceRoot", cwd: threadContext.value.workspaceRoot },
+        ],
+        fallbackCwds: [
+          { label: "server.cwd", cwd: serverConfig.cwd },
+          { label: "process.cwd", cwd: process.cwd() },
+        ],
+        threadId: input.threadId,
+        projectId: threadContext.value.projectId,
+      });
       if (!workspaceCwd) {
         return yield* new CheckpointInvariantError({
           operation,

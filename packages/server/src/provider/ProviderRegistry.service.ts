@@ -6,7 +6,7 @@
  *
  * @module ProviderRegistry
  */
-import type { ProviderKind, ServerProvider } from "@multi/contracts";
+import type { ProviderDriverKind, ServerProvider } from "@multi/contracts";
 import { Context } from "effect";
 import type { Effect, Stream } from "effect";
 
@@ -19,7 +19,7 @@ export interface ProviderRegistryShape {
   /**
    * Refresh all providers, or a single provider when specified.
    */
-  readonly refresh: (provider?: ProviderKind) => Effect.Effect<ReadonlyArray<ServerProvider>>;
+  readonly refresh: (provider?: ProviderDriverKind) => Effect.Effect<ReadonlyArray<ServerProvider>>;
 
   /**
    * Stream of provider snapshot updates.

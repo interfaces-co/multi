@@ -54,6 +54,7 @@ const clientSettings: ClientSettings = {
   confirmThreadDelete: false,
   diffWordWrap: true,
   favorites: [],
+  providerModelPreferences: {},
   sidebarProjectGroupingMode: "repository",
   sidebarProjectGroupingOverrides: {},
   sidebarProjectSortOrder: "manual",

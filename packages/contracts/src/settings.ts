@@ -2,8 +2,9 @@ import { Effect } from "effect";
 import * as Schema from "effect/Schema";
 import * as SchemaTransformation from "effect/SchemaTransformation";
 import { TrimmedNonEmptyString, TrimmedString } from "./base-schemas";
-import { DEFAULT_GIT_TEXT_GENERATION_MODEL_BY_PROVIDER, ProviderOptionSelections } from "./model";
-import { ModelSelection, ProviderKind } from "./orchestration";
+import { DEFAULT_GIT_TEXT_GENERATION_MODEL, ProviderOptionSelections } from "./model";
+import { ModelSelection } from "./orchestration";
+import { ProviderInstanceConfig, ProviderInstanceId } from "./provider-instance";
 
 // ── Client Settings (local-only) ───────────────────────────────
 
@@ -34,10 +35,19 @@ export const ClientSettingsSchema = Schema.Struct({
   diffWordWrap: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
   favorites: Schema.Array(
     Schema.Struct({
-      provider: ProviderKind,
+      provider: ProviderInstanceId,
       model: TrimmedNonEmptyString,
     }),
   ).pipe(Schema.withDecodingDefault(Effect.succeed([]))),
+  providerModelPreferences: Schema.Record(
+    ProviderInstanceId,
+    Schema.Struct({
+      hiddenModels: Schema.Array(Schema.String).pipe(
+        Schema.withDecodingDefault(Effect.succeed([])),
+      ),
+      modelOrder: Schema.Array(Schema.String).pipe(Schema.withDecodingDefault(Effect.succeed([]))),
+    }),
+  ).pipe(Schema.withDecodingDefault(Effect.succeed({}))),
   sidebarProjectGroupingMode: SidebarProjectGroupingMode.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_SIDEBAR_PROJECT_GROUPING_MODE)),
   ),
@@ -80,6 +90,7 @@ export const CodexSettings = Schema.Struct({
   enabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
   binaryPath: makeBinaryPathSetting("codex"),
   homePath: TrimmedString.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
+  shadowHomePath: TrimmedString.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
   customModels: Schema.Array(Schema.String).pipe(Schema.withDecodingDefault(Effect.succeed([]))),
 });
 export type CodexSettings = typeof CodexSettings.Type;
@@ -123,8 +134,8 @@ export const ServerSettings = Schema.Struct({
   textGenerationModelSelection: ModelSelection.pipe(
     Schema.withDecodingDefault(
       Effect.succeed({
-        provider: "codex" as const,
-        model: DEFAULT_GIT_TEXT_GENERATION_MODEL_BY_PROVIDER.codex,
+        instanceId: ProviderInstanceId.make("codex"),
+        model: DEFAULT_GIT_TEXT_GENERATION_MODEL,
       }),
     ),
   ),
@@ -136,6 +147,9 @@ export const ServerSettings = Schema.Struct({
     cursor: CursorSettings.pipe(Schema.withDecodingDefault(Effect.succeed({}))),
     opencode: OpenCodeSettings.pipe(Schema.withDecodingDefault(Effect.succeed({}))),
   }).pipe(Schema.withDecodingDefault(Effect.succeed({}))),
+  providerInstances: Schema.Record(ProviderInstanceId, ProviderInstanceConfig).pipe(
+    Schema.withDecodingDefault(Effect.succeed({})),
+  ),
   observability: ObservabilitySettings.pipe(Schema.withDecodingDefault(Effect.succeed({}))),
 });
 export type ServerSettings = typeof ServerSettings.Type;
@@ -165,33 +179,17 @@ export const DEFAULT_UNIFIED_SETTINGS: UnifiedSettings = {
 
 // ── Server Settings Patch (replace with a Schema.deepPartial if available) ──────────────────────────────────────────
 
-const ModelSelectionPatch = Schema.Union([
-  Schema.Struct({
-    provider: Schema.optionalKey(Schema.Literal("codex")),
-    model: Schema.optionalKey(TrimmedNonEmptyString),
-    options: Schema.optionalKey(ProviderOptionSelections),
-  }),
-  Schema.Struct({
-    provider: Schema.optionalKey(Schema.Literal("claudeAgent")),
-    model: Schema.optionalKey(TrimmedNonEmptyString),
-    options: Schema.optionalKey(ProviderOptionSelections),
-  }),
-  Schema.Struct({
-    provider: Schema.optionalKey(Schema.Literal("cursor")),
-    model: Schema.optionalKey(TrimmedNonEmptyString),
-    options: Schema.optionalKey(ProviderOptionSelections),
-  }),
-  Schema.Struct({
-    provider: Schema.optionalKey(Schema.Literal("opencode")),
-    model: Schema.optionalKey(TrimmedNonEmptyString),
-    options: Schema.optionalKey(ProviderOptionSelections),
-  }),
-]);
+const ModelSelectionPatch = Schema.Struct({
+  instanceId: Schema.optionalKey(ProviderInstanceId),
+  model: Schema.optionalKey(TrimmedNonEmptyString),
+  options: Schema.optionalKey(ProviderOptionSelections),
+});
 
 const CodexSettingsPatch = Schema.Struct({
   enabled: Schema.optionalKey(Schema.Boolean),
   binaryPath: Schema.optionalKey(Schema.String),
   homePath: Schema.optionalKey(Schema.String),
+  shadowHomePath: Schema.optionalKey(Schema.String),
   customModels: Schema.optionalKey(Schema.Array(Schema.String)),
 });
 
@@ -237,6 +235,7 @@ export const ServerSettingsPatch = Schema.Struct({
       opencode: Schema.optionalKey(OpenCodeSettingsPatch),
     }),
   ),
+  providerInstances: Schema.optionalKey(Schema.Record(ProviderInstanceId, ProviderInstanceConfig)),
 });
 export type ServerSettingsPatch = typeof ServerSettingsPatch.Type;
 
@@ -248,8 +247,21 @@ export const ClientSettingsPatch = Schema.Struct({
   favorites: Schema.optionalKey(
     Schema.Array(
       Schema.Struct({
-        provider: ProviderKind,
+        provider: ProviderInstanceId,
         model: TrimmedNonEmptyString,
+      }),
+    ),
+  ),
+  providerModelPreferences: Schema.optionalKey(
+    Schema.Record(
+      ProviderInstanceId,
+      Schema.Struct({
+        hiddenModels: Schema.Array(Schema.String).pipe(
+          Schema.withDecodingDefault(Effect.succeed([])),
+        ),
+        modelOrder: Schema.Array(Schema.String).pipe(
+          Schema.withDecodingDefault(Effect.succeed([])),
+        ),
       }),
     ),
   ),

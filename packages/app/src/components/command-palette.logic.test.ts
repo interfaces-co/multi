@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { EnvironmentId, ProjectId, ThreadId } from "@multi/contracts";
-import type { Thread } from "../types";
+import { EnvironmentId, ProjectId, ProviderInstanceId, ThreadId } from "@multi/contracts";
+import { Thread } from "../types";
 import {
   buildThreadActionItems,
   filterCommandPaletteGroups,
@@ -17,7 +17,7 @@ function makeThread(overrides: Partial<Thread> = {}): Thread {
     codexThreadId: null,
     projectId: PROJECT_ID,
     title: "Thread",
-    modelSelection: { provider: "codex", model: "gpt-5" },
+    modelSelection: { instanceId: "codex", model: "gpt-5" },
     runtimeMode: "full-access",
     interactionMode: "default",
     session: null,

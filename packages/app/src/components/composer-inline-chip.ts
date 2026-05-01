@@ -1,5 +1,5 @@
 export const COMPOSER_INLINE_CHIP_CLASS_NAME =
-  "inline-flex max-w-full select-none items-center gap-1 rounded-sm border border-cursor-stroke-tertiary bg-cursor-bg-quaternary px-1.5 py-px font-multi text-[12px]/[16px] font-medium text-cursor-text-primary align-middle";
+  "inline-flex max-w-full select-none items-center gap-1 rounded-sm border border-multi-stroke-tertiary bg-multi-bg-quaternary px-1.5 py-px font-multi text-[12px]/[16px] font-medium text-multi-fg-primary align-middle";
 
 export const COMPOSER_INLINE_CHIP_ICON_CLASS_NAME = "size-3.5 shrink-0 opacity-85";
 

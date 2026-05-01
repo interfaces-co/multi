@@ -6,14 +6,16 @@
  * @module ProviderSessionRuntimeRepository
  */
 import { IsoDateTime, ProviderSessionRuntimeStatus, RuntimeMode, ThreadId } from "@multi/contracts";
-import { Option, Schema, Context } from "effect";
-import type { Effect } from "effect";
+import { Option, Schema, Context, Effect } from "effect";
 
 import type { ProviderSessionRuntimeRepositoryError } from "./Errors.ts";
 
 export const ProviderSessionRuntime = Schema.Struct({
   threadId: ThreadId,
   providerName: Schema.String,
+  providerInstanceId: Schema.optionalKey(
+    Schema.NullOr(Schema.String).pipe(Schema.withDecodingDefault(Effect.succeed(null))),
+  ),
   adapterKey: Schema.String,
   runtimeMode: RuntimeMode,
   status: ProviderSessionRuntimeStatus,

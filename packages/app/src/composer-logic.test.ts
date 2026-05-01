@@ -36,6 +36,18 @@ describe("detectComposerTrigger", () => {
     });
   });
 
+  it("detects slash-model for bare /model", () => {
+    const text = "/model";
+    const trigger = detectComposerTrigger(text, text.length);
+
+    expect(trigger).toEqual({
+      kind: "slash-model",
+      query: "",
+      rangeStart: 0,
+      rangeEnd: text.length,
+    });
+  });
+
   it("detects slash model query after /model", () => {
     const text = "/model spark";
     const trigger = detectComposerTrigger(text, text.length);

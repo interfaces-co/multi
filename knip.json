@@ -1,0 +1,25 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignoreFiles": [
+    "packages/app/public/mockServiceWorker.js",
+    "packages/**/test/**",
+    "packages/**/integration/**",
+    "packages/**/*.test.{ts,tsx}",
+    "packages/**/*.browser.{ts,tsx}"
+  ],
+  "workspaces": {
+    "packages/server": {
+      "entry": ["scripts/**/*.ts"],
+      "project": ["src/**/*.ts", "scripts/**/*.ts"],
+      "ignoreDependencies": ["@multi/app"]
+    },
+    "packages/app": {
+      "entry": ["src/**/*.test.{ts,tsx}", "src/components/**/*.browser.tsx", "test/**/*.ts"],
+      "project": ["src/**/*.{ts,tsx}", "test/**/*.ts", "*.config.ts"]
+    },
+    "scripts": {
+      "entry": ["*.ts", "**/*.ts"],
+      "project": ["**/*.ts"]
+    }
+  }
+}

@@ -1,22 +1,18 @@
 "use client";
 
-import type { GitFileState } from "~/lib/ui-session-types";
 import {
-  IconArrowRotateCounterClockwise,
   IconBarsThree,
+  IconBranch,
   IconChevronBottom,
   IconChevronRight,
-  IconClipboard,
   IconDotGrid1x3Horizontal,
-  IconBranch,
   IconSplit,
 } from "central-icons";
-import { memo, type MouseEvent, useCallback, useState } from "react";
+import { Virtualizer } from "@pierre/diffs/react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { Badge } from "@multi/ui/badge";
 import { Button } from "@multi/ui/button";
-import { Collapsible } from "@multi/ui/collapsible";
 import {
   Dialog,
   DialogDescription,
@@ -25,6 +21,8 @@ import {
   DialogPopup,
   DialogTitle,
 } from "@multi/ui/dialog";
+import { List } from "lucide-react";
+
 import { isElectron } from "~/env";
 import {
   type DiffRow,
@@ -32,48 +30,16 @@ import {
   useDiffStylePreference,
 } from "~/hooks/use-environment-git";
 import { useGitViewed } from "~/hooks/use-git-viewed-state";
+import { shellPanelsActions, useSecondaryRail } from "~/lib/shell-panels-store";
 import { cn } from "~/lib/utils";
-import { VsFileIcon } from "~/lib/vscode-file-icon";
 import { BranchCommitDialog, CommitDialog } from "./commit-dialog";
-import { DiffViewer } from "./diff-viewer";
+import { GitChangesFileTree } from "./git-changes-file-tree";
+import { GitDiffCard } from "./git-diff-card";
+import { WorkbenchChromeRow } from "../shell/workbench-chrome-row";
+import { RightWorkbenchLayout } from "../shell/right-workbench-layout";
 
-const kindVariant: Partial<
-  Record<GitFileState, "warning" | "success" | "destructive" | "secondary" | "outline">
-> = {
-  untracked: "warning",
-  added: "success",
-  deleted: "destructive",
-  renamed: "secondary",
-  copied: "secondary",
-  ignored: "outline",
-  conflict: "destructive",
-};
-
-const kindLabel: Partial<Record<GitFileState, string>> = {
-  untracked: "untracked",
-  added: "new",
-  deleted: "deleted",
-  renamed: "renamed",
-  copied: "copied",
-  ignored: "ignored",
-  conflict: "conflict",
-};
-
-function KindBadge(props: { state: GitFileState }) {
-  const variant = kindVariant[props.state];
-  if (!variant) return null;
-  return (
-    <Badge variant={variant} className="px-1 py-0 text-[11px] leading-4 font-medium">
-      {kindLabel[props.state] ?? props.state}
-    </Badge>
-  );
-}
-
-function splitPath(path: string) {
-  const idx = path.lastIndexOf("/");
-  if (idx < 0) return { prefix: "", name: path };
-  return { prefix: path.slice(0, idx + 1), name: path.slice(idx + 1) };
-}
+/** Beyond this, expand-all prefetches every patch (expensive on large repos). */
+const GIT_EXPAND_ALL_CONFIRM_THRESHOLD = 120;
 
 export function GitPanel(props: { git: GitPanelModel }) {
   const git = props.git;
@@ -150,12 +116,62 @@ function GitPanelInner(props: { git: GitPanelModel }) {
   const git = props.git;
   const files = git.rows;
   const viewed = useGitViewed(git.cwd);
+  const { open: gitRailOpen } = useSecondaryRail(git.cwd, "git");
   const [diffStyle, setDiffStyle] = useDiffStylePreference();
   const [pending, setPending] = useState<DiffRow | null>(null);
   const [discardAllPending, setDiscardAllPending] = useState(false);
   const [commitOpen, setCommitOpen] = useState(false);
   const [branchOpen, setBranchOpen] = useState(false);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
+  const filesKey = useMemo(() => files.map((row) => row.id).join("\n"), [files]);
+  const [selectedId, setSelectedId] = useState<string | null>(() => files[0]?.id ?? null);
+  const [expandAllDialogOpen, setExpandAllDialogOpen] = useState(false);
+  const gitRef = useRef(git);
+  gitRef.current = git;
+
+  const deckRootRef = useRef<HTMLDivElement>(null);
+  const prefetchRef = useRef<(id: string) => void>((id) => {
+    void id;
+  });
+  prefetchRef.current = (id: string) => {
+    git.toggleExpand(id, true);
+  };
+
+  useEffect(() => {
+    if (files.length === 0) {
+      setSelectedId(null);
+      return;
+    }
+
+    setSelectedId((previous) => {
+      if (git.focusId && files.some((row) => row.id === git.focusId)) {
+        return git.focusId;
+      }
+
+      return previous !== null && files.some((row) => row.id === previous)
+        ? previous
+        : files[0]!.id;
+    });
+  }, [filesKey, git.focusId, files]);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    gitRef.current.toggleExpand(selectedId, true);
+  }, [selectedId]);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    const root = deckRootRef.current;
+    if (!root) return;
+
+    requestAnimationFrame(() => {
+      const escaped = CSS.escape(selectedId);
+      root.querySelector(`[data-diff-card-id="${escaped}"]`)?.scrollIntoView({
+        block: "nearest",
+        behavior: "smooth",
+      });
+    });
+  }, [selectedId]);
 
   const confirmDiscard = useCallback(() => {
     if (!pending) return;
@@ -181,45 +197,96 @@ function GitPanelInner(props: { git: GitPanelModel }) {
     setCommitOpen(true);
   }, []);
 
+  const handleSelectFile = useCallback((file: DiffRow) => {
+    setSelectedId(file.id);
+  }, []);
+
+  const requestExpandAll = useCallback(() => {
+    git.expandAll();
+    setExpandAllDialogOpen(false);
+  }, [git]);
+
+  const onExpandAllClick = useCallback(() => {
+    if (files.length > GIT_EXPAND_ALL_CONFIRM_THRESHOLD) {
+      setExpandAllDialogOpen(true);
+      return;
+    }
+    git.expandAll();
+  }, [files.length, git]);
+
   return (
-    <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
-      <LocalBranchBar
-        branch={git.branch}
-        onCommitAndPush={handleCommitAndPush}
-        onBranchCommit={() => setBranchOpen(true)}
-        menuOpen={headerMenuOpen}
-        onMenuOpen={setHeaderMenuOpen}
-      />
-      <ChangesHeader
-        count={files.length}
-        add={git.totalAdd}
-        del={git.totalDel}
-        onExpandAll={git.expandAll}
-        onCollapseAll={git.collapseAll}
-        diffStyle={diffStyle}
-        onDiffStyle={setDiffStyle}
-        onDiscardAll={() => setDiscardAllPending(true)}
-        onRefresh={() => void git.refresh()}
-      />
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-2 pb-3 pt-1 [scrollbar-gutter:stable]">
-        <div className="flex flex-col gap-1">
-          {files.map((file) => (
-            <GitFileCard
-              key={file.id}
-              file={file}
-              expanded={git.expandedIds.has(file.id)}
-              onToggle={(open) => git.toggleExpand(file.id, open)}
-              diff={git.diffsByPath.get(file.path) ?? null}
-              patch={git.patchesByPath.get(file.path) ?? null}
-              loading={git.diffLoadingByPath.has(file.path)}
-              error={git.diffErrorByPath.get(file.path) ?? null}
-              diffStyle={diffStyle}
-              viewed={viewed.isViewed(file.path)}
-              onToggleViewed={() => viewed.toggleViewed(file.path)}
-              onRevert={() => setPending(file)}
+    <>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <LocalBranchBar
+          branch={git.branch}
+          onCommitAndPush={handleCommitAndPush}
+          onBranchCommit={() => setBranchOpen(true)}
+          menuOpen={headerMenuOpen}
+          onMenuOpen={setHeaderMenuOpen}
+        />
+        <ChangesHeader
+          railOpen={gitRailOpen}
+          onToggleRail={() => shellPanelsActions.toggleSecondaryRail(git.cwd, "git")}
+          count={files.length}
+          add={git.totalAdd}
+          del={git.totalDel}
+          onExpandAll={onExpandAllClick}
+          onCollapseAll={git.collapseAll}
+          diffStyle={diffStyle}
+          onDiffStyle={setDiffStyle}
+          onDiscardAll={() => setDiscardAllPending(true)}
+          onRefresh={() => void git.refresh()}
+        />
+        <RightWorkbenchLayout
+          cwd={git.cwd}
+          tab="git"
+          railHostClassName="multi-shell-git-rail"
+          rail={
+            <GitChangesFileTree
+              rows={files}
+              selectedId={selectedId}
+              onSelect={handleSelectFile}
+              className="no-drag min-h-0 min-h-36 flex-1 border-b-0 bg-transparent"
             />
-          ))}
-        </div>
+          }
+        >
+          <div
+            ref={deckRootRef}
+            className="editor-panel-inner flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--glass-editor-surface-background,color-mix(in_srgb,var(--multi-bg-elevated)_76%,transparent))]"
+          >
+            {files.length === 0 ? (
+              <div className="flex flex-1 items-center justify-center text-detail text-muted-foreground/60">
+                No files to compare.
+              </div>
+            ) : (
+              <Virtualizer
+                className="git-stack-virtualizer h-full min-h-0 px-2 pb-3 pt-1"
+                config={{
+                  overscrollSize: 640,
+                  intersectionObserverMargin: 900,
+                }}
+              >
+                {files.map((file) => (
+                  <GitDiffCard
+                    key={file.id}
+                    file={file}
+                    selected={selectedId === file.id}
+                    onSelect={() => setSelectedId(file.id)}
+                    diff={git.diffsByPath.get(file.path) ?? null}
+                    patch={git.patchesByPath.get(file.path) ?? null}
+                    loading={git.diffLoadingByPath.has(file.path)}
+                    error={git.diffErrorByPath.get(file.path) ?? null}
+                    diffStyle={diffStyle}
+                    viewed={viewed.isViewed(file.path)}
+                    onToggleViewed={() => viewed.toggleViewed(file.path)}
+                    onRevert={() => setPending(file)}
+                    requestPrefetchForIdRef={prefetchRef}
+                  />
+                ))}
+              </Virtualizer>
+            )}
+          </div>
+        </RightWorkbenchLayout>
       </div>
       <DiscardDialog
         open={pending !== null}
@@ -235,13 +302,50 @@ function GitPanelInner(props: { git: GitPanelModel }) {
         onConfirm={confirmDiscardAll}
         onOpenChange={setDiscardAllPending}
       />
+      <ExpandAllChangedFilesDialog
+        open={expandAllDialogOpen}
+        fileCount={files.length}
+        threshold={GIT_EXPAND_ALL_CONFIRM_THRESHOLD}
+        onConfirm={requestExpandAll}
+        onOpenChange={setExpandAllDialogOpen}
+      />
       <CommitDialog open={commitOpen} onOpenChange={setCommitOpen} onCommit={git.runCommit} />
       <BranchCommitDialog
         open={branchOpen}
         onOpenChange={setBranchOpen}
         onCommit={git.runBranchCommit}
       />
-    </div>
+    </>
+  );
+}
+
+function ExpandAllChangedFilesDialog(props: {
+  open: boolean;
+  fileCount: number;
+  threshold: number;
+  onConfirm: () => void;
+  onOpenChange: (open: boolean) => void;
+}) {
+  return (
+    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
+      <DialogPopup className="max-w-md" showCloseButton>
+        <DialogHeader>
+          <DialogTitle>Expand all files?</DialogTitle>
+          <DialogDescription>
+            This loads patches for all {props.fileCount} changed files immediately. Above{" "}
+            {props.threshold} files this can take noticeable time or memory on large repositories.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button type="button" variant="ghost" onClick={() => props.onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button type="button" onClick={props.onConfirm}>
+            Expand All
+          </Button>
+        </DialogFooter>
+      </DialogPopup>
+    </Dialog>
   );
 }
 
@@ -259,50 +363,58 @@ function LocalBranchBar(props: {
   };
 
   return (
-    <div className="flex h-9 shrink-0 items-center gap-1 border-b border-multi-stroke-tertiary px-3">
-      <span className="text-detail font-medium text-muted-foreground/70">Local</span>
+    <WorkbenchChromeRow
+      variant="panel"
+      gap="loose"
+      trailing={
+        <div className="flex shrink-0 items-center gap-1">
+          <Button type="button" size="sm" onClick={props.onCommitAndPush}>
+            Commit & Push
+          </Button>
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => props.onMenuOpen(!props.menuOpen)}
+              className="flex size-6 items-center justify-center rounded-multi-control text-muted-foreground/70 hover:bg-multi-hover hover:text-foreground"
+              aria-label="More options"
+            >
+              <IconDotGrid1x3Horizontal className="size-3.5" />
+            </button>
+            {props.menuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => props.onMenuOpen(false)} />
+                <div className="absolute top-full right-0 z-50 mt-1 min-w-[160px] rounded-multi-card border border-multi-stroke bg-multi-bubble p-1 text-detail shadow-multi-popup backdrop-blur-xl">
+                  <MenuItem
+                    label="Create Branch & Commit..."
+                    onClick={() => {
+                      props.onBranchCommit();
+                      props.onMenuOpen(false);
+                    }}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      }
+    >
+      <span className="shrink-0 text-detail font-medium text-muted-foreground/70">Local</span>
       <button
         type="button"
         onClick={copyBranch}
-        className="flex min-w-0 items-center gap-1 rounded px-1.5 py-0.5 text-detail font-medium text-foreground/90 transition-colors hover:bg-multi-hover hover:text-foreground"
+        className="flex min-w-0 items-center gap-1 overflow-hidden rounded px-1.5 py-0.5 text-detail font-medium text-foreground/90 transition-colors hover:bg-multi-hover hover:text-foreground"
         title="Copy branch name"
       >
         <IconBranch className="size-3 shrink-0 text-muted-foreground/60" />
         <span className="truncate font-mono">{props.branch ?? "detached"}</span>
       </button>
-      <div className="flex-1" />
-      <Button type="button" size="sm" onClick={props.onCommitAndPush}>
-        Commit & Push
-      </Button>
-      <div className="relative">
-        <button
-          type="button"
-          onClick={() => props.onMenuOpen(!props.menuOpen)}
-          className="flex size-6 items-center justify-center rounded-multi-control text-muted-foreground/70 hover:bg-multi-hover hover:text-foreground"
-          aria-label="More options"
-        >
-          <IconDotGrid1x3Horizontal className="size-3.5" />
-        </button>
-        {props.menuOpen && (
-          <>
-            <div className="fixed inset-0 z-40" onClick={() => props.onMenuOpen(false)} />
-            <div className="absolute top-full right-0 z-50 mt-1 min-w-[160px] rounded-multi-card border border-multi-stroke bg-multi-bubble p-1 text-detail shadow-multi-popup backdrop-blur-xl">
-              <MenuItem
-                label="Create Branch & Commit..."
-                onClick={() => {
-                  props.onBranchCommit();
-                  props.onMenuOpen(false);
-                }}
-              />
-            </div>
-          </>
-        )}
-      </div>
-    </div>
+    </WorkbenchChromeRow>
   );
 }
 
 function ChangesHeader(props: {
+  railOpen: boolean;
+  onToggleRail: () => void;
   count: number;
   add: number;
   del: number;
@@ -314,44 +426,64 @@ function ChangesHeader(props: {
   onRefresh: () => void;
 }) {
   return (
-    <div className="flex h-9 shrink-0 items-center gap-2 border-b border-multi-stroke-tertiary px-3.5">
-      <span className="text-detail tabular-nums text-foreground/80">
+    <WorkbenchChromeRow
+      variant="panel"
+      gap="relaxed"
+      trailing={
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            onClick={props.onDiscardAll}
+            className="min-w-0 max-w-[8.5rem] truncate whitespace-nowrap text-detail text-muted-foreground/60 transition-colors hover:text-foreground"
+            title="Discard All Changes"
+          >
+            Discard All Changes
+          </button>
+          <DiffStyleToggle style={props.diffStyle} onChange={props.onDiffStyle} />
+          <button
+            type="button"
+            onClick={props.onExpandAll}
+            className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground/60 hover:bg-multi-hover hover:text-foreground"
+            aria-label="Expand all"
+            title="Expand all"
+          >
+            <IconChevronBottom className="size-3" />
+          </button>
+          <button
+            type="button"
+            onClick={props.onCollapseAll}
+            className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground/60 hover:bg-multi-hover hover:text-foreground"
+            aria-label="Collapse all"
+            title="Collapse all"
+          >
+            <IconChevronRight className="size-3" />
+          </button>
+        </div>
+      }
+    >
+      <button
+        type="button"
+        onClick={props.onToggleRail}
+        className={cn(
+          "flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground/60 hover:bg-multi-hover hover:text-foreground",
+          props.railOpen ? "bg-multi-hover text-foreground" : null,
+        )}
+        aria-label={props.railOpen ? "Hide changes list" : "Show changes list"}
+        aria-pressed={props.railOpen}
+        title={props.railOpen ? "Hide changes list" : "Show changes list"}
+      >
+        <List className="size-3.5 shrink-0" aria-hidden />
+      </button>
+      <span className="min-w-0 truncate text-detail tabular-nums text-foreground/80">
         {props.count} Uncommitted Change{props.count === 1 ? "" : "s"}
       </span>
-      <div className="flex items-center gap-1 text-detail tabular-nums">
+      <div className="flex shrink-0 items-center gap-1 text-detail tabular-nums">
         {props.add > 0 && <span className="font-medium text-success-foreground">+{props.add}</span>}
         {props.del > 0 && (
           <span className="font-medium text-destructive-foreground">-{props.del}</span>
         )}
       </div>
-      <div className="flex-1" />
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={props.onDiscardAll}
-          className="text-detail text-muted-foreground/60 transition-colors hover:text-foreground"
-        >
-          Discard All Changes
-        </button>
-        <DiffStyleToggle style={props.diffStyle} onChange={props.onDiffStyle} />
-        <button
-          type="button"
-          onClick={props.onExpandAll}
-          className="flex size-5 items-center justify-center rounded text-muted-foreground/60 hover:bg-multi-hover hover:text-foreground"
-          title="Expand all"
-        >
-          <IconChevronBottom className="size-3" />
-        </button>
-        <button
-          type="button"
-          onClick={props.onCollapseAll}
-          className="flex size-5 items-center justify-center rounded text-muted-foreground/60 hover:bg-multi-hover hover:text-foreground"
-          title="Collapse all"
-        >
-          <IconChevronRight className="size-3" />
-        </button>
-      </div>
-    </div>
+    </WorkbenchChromeRow>
   );
 }
 
@@ -440,119 +572,6 @@ function DiscardAllDialog(props: {
     </Dialog>
   );
 }
-
-interface CardProps {
-  file: DiffRow;
-  expanded: boolean;
-  onToggle: (open: boolean) => void;
-  diff: import("@pierre/diffs").FileDiffMetadata | null;
-  patch: string | null;
-  loading: boolean;
-  error: string | null;
-  diffStyle: "unified" | "split";
-  viewed: boolean;
-  onToggleViewed: () => void;
-  onRevert: () => void;
-}
-
-const GitFileCard = memo(function GitFileCard(props: CardProps) {
-  const { prefix, name } = splitPath(props.file.path);
-
-  const copyPath = (e: MouseEvent) => {
-    e.stopPropagation();
-    void navigator.clipboard.writeText(props.file.path);
-    toast.success("Path copied");
-  };
-
-  return (
-    <Collapsible.Root open={props.expanded} onOpenChange={props.onToggle}>
-      <div className="overflow-hidden rounded-lg border border-multi-stroke bg-multi-editor">
-        <Collapsible.Trigger className="flex h-7 w-full items-center gap-1.5 px-2 text-detail text-left transition-colors hover:bg-multi-hover/50">
-          <span className="inline-flex size-4 shrink-0 items-center justify-center text-muted-foreground/60">
-            {props.expanded ? (
-              <IconChevronBottom className="size-3" />
-            ) : (
-              <IconChevronRight className="size-3" />
-            )}
-          </span>
-          <VsFileIcon path={props.file.path} className="size-3.5 shrink-0" />
-          <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
-            <span className="shrink-0 font-medium text-foreground/90">{name}</span>
-            {prefix && (
-              <span className="min-w-0 truncate text-caption text-muted-foreground/45">
-                {prefix}
-              </span>
-            )}
-          </span>
-          <button
-            type="button"
-            onClick={copyPath}
-            className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground/50 opacity-0 transition-opacity hover:text-foreground [div:hover>&]:opacity-100"
-            aria-label="Copy path"
-          >
-            <IconClipboard className="size-3" />
-          </button>
-          <div className="flex shrink-0 items-center gap-1 tabular-nums">
-            {props.file.add > 0 && (
-              <span className="font-medium text-success-foreground">+{props.file.add}</span>
-            )}
-            {props.file.del > 0 && (
-              <span className="font-medium text-destructive-foreground">-{props.file.del}</span>
-            )}
-          </div>
-          <KindBadge state={props.file.state} />
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              props.onRevert();
-            }}
-            className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground/50 hover:bg-multi-hover hover:text-foreground"
-            aria-label="Discard changes"
-            title="Discard changes"
-          >
-            <IconArrowRotateCounterClockwise className="size-3" />
-          </button>
-          <input
-            type="checkbox"
-            checked={props.viewed}
-            onChange={(e) => {
-              e.stopPropagation();
-              props.onToggleViewed();
-            }}
-            onClick={(e) => e.stopPropagation()}
-            className="size-3.5 shrink-0 rounded border-multi-border/60 accent-primary"
-            aria-label="Mark as viewed"
-            title="Mark as viewed"
-          />
-        </Collapsible.Trigger>
-        <Collapsible.Panel keepMounted className="overflow-hidden">
-          <div className="border-t border-multi-stroke/60">
-            {props.loading ? (
-              <div className="flex flex-col gap-2 px-3 py-3">
-                <div className="h-3 w-full max-w-[14rem] animate-pulse rounded bg-muted/35" />
-                <div className="h-3 w-full animate-pulse rounded bg-muted/28" />
-                <div className="h-3 w-[92%] animate-pulse rounded bg-muted/28" />
-              </div>
-            ) : props.error ? (
-              <div className="px-3 py-3 text-detail text-destructive/90">{props.error}</div>
-            ) : (
-              <DiffViewer
-                fileDiff={props.diff}
-                filePatch={props.patch}
-                path={props.file.path}
-                state={props.file.state}
-                prevPath={props.file.prevPath}
-                diffStyle={props.diffStyle}
-                className="max-h-[min(60vh,32rem)] overflow-auto"
-              />
-            )}
-          </div>
-        </Collapsible.Panel>
-      </div>
-    </Collapsible.Root>
-  );
-});
 
 function DiscardDialog(props: {
   open: boolean;

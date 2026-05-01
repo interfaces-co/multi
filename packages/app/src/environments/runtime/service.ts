@@ -13,9 +13,7 @@ import { Throttler } from "@tanstack/react-pacer";
 import {
   createKnownEnvironment,
   getKnownEnvironmentWsBaseUrl,
-  scopedProjectKey,
   scopedThreadKey,
-  scopeProjectRef,
   scopeThreadRef,
 } from "@multi/client-runtime";
 
@@ -62,6 +60,8 @@ import { useTerminalStateStore } from "~/terminal-state-store";
 import { useUiStateStore } from "~/ui-state-store";
 import { WsTransport } from "../../rpc/ws-transport";
 import { createWsRpcClient, type WsRpcClient } from "../../rpc/ws-rpc-client";
+import { traceBrowserEvent } from "~/observability/browserDebug";
+import { deriveLogicalProjectKey, getProjectOrderKey } from "~/logical-project";
 
 type EnvironmentServiceState = {
   readonly queryClient: QueryClient;
@@ -569,7 +569,8 @@ function syncProjectUiFromStore() {
   const projects = selectProjectsAcrossEnvironments(useStore.getState());
   useUiStateStore.getState().syncProjects(
     projects.map((project) => ({
-      key: scopedProjectKey(scopeProjectRef(project.environmentId, project.id)),
+      key: getProjectOrderKey(project),
+      logicalKey: deriveLogicalProjectKey(project),
       cwd: project.cwd,
     })),
   );
@@ -642,7 +643,8 @@ function applyRecoveredEventBatch(
     const projects = selectProjectsAcrossEnvironments(useStore.getState());
     useUiStateStore.getState().syncProjects(
       projects.map((project) => ({
-        key: scopedProjectKey(scopeProjectRef(project.environmentId, project.id)),
+        key: getProjectOrderKey(project),
+        logicalKey: deriveLogicalProjectKey(project),
         cwd: project.cwd,
       })),
     );
@@ -785,7 +787,22 @@ function createPrimaryEnvironmentClient(
     );
   }
 
-  return createWsRpcClient(new WsTransport(wsBaseUrl));
+  return createWsRpcClient(
+    new WsTransport(wsBaseUrl, {
+      onAttempt: (socketUrl) => {
+        traceBrowserEvent("ws.primary.attempt", { socketUrl });
+      },
+      onOpen: () => {
+        traceBrowserEvent("ws.primary.open");
+      },
+      onError: (message) => {
+        traceBrowserEvent("ws.primary.error", { message }, "error");
+      },
+      onClose: (details) => {
+        traceBrowserEvent("ws.primary.close", details, "warn");
+      },
+    }),
+  );
 }
 
 function createSavedEnvironmentClient(
@@ -804,12 +821,19 @@ function createSavedEnvironmentClient(
         }),
       {
         onAttempt: () => {
+          traceBrowserEvent("ws.saved.attempt", { environmentId: record.environmentId });
           setRuntimeConnecting(record.environmentId);
         },
         onOpen: () => {
+          traceBrowserEvent("ws.saved.open", { environmentId: record.environmentId });
           setRuntimeConnected(record.environmentId);
         },
         onError: (message: string) => {
+          traceBrowserEvent(
+            "ws.saved.error",
+            { environmentId: record.environmentId, message },
+            "error",
+          );
           useSavedEnvironmentRuntimeStore.getState().patch(record.environmentId, {
             connectionState: "error",
             lastError: message,
@@ -817,6 +841,11 @@ function createSavedEnvironmentClient(
           });
         },
         onClose: (details: { readonly code: number; readonly reason: string }) => {
+          traceBrowserEvent(
+            "ws.saved.close",
+            { environmentId: record.environmentId, ...details },
+            "warn",
+          );
           setRuntimeDisconnected(record.environmentId, details.reason);
         },
       },
@@ -879,9 +908,16 @@ function createPrimaryEnvironmentConnection(): EnvironmentConnection {
 
   const existing = environmentConnections.get(knownEnvironment.environmentId);
   if (existing) {
+    traceBrowserEvent("environment.primary.reuse", {
+      environmentId: knownEnvironment.environmentId,
+    });
     return existing;
   }
 
+  traceBrowserEvent("environment.primary.create", {
+    environmentId: knownEnvironment.environmentId,
+    label: knownEnvironment.label,
+  });
   return registerConnection(
     createEnvironmentConnection({
       kind: "primary",
@@ -1122,7 +1158,9 @@ export async function addSavedEnvironment(input: {
 export async function ensureEnvironmentConnectionBootstrapped(
   environmentId: EnvironmentId,
 ): Promise<void> {
+  traceBrowserEvent("environment.ensure-bootstrapped.start", { environmentId });
   await environmentConnections.get(environmentId)?.ensureBootstrapped();
+  traceBrowserEvent("environment.ensure-bootstrapped.done", { environmentId });
 }
 
 export function startEnvironmentConnectionService(queryClient: QueryClient): () => void {
@@ -1157,6 +1195,7 @@ export function startEnvironmentConnectionService(queryClient: QueryClient): () 
     },
   );
 
+  traceBrowserEvent("environment.service.start");
   createPrimaryEnvironmentConnection();
 
   const unsubscribeSavedEnvironments = useSavedEnvironmentRegistryStore.subscribe(() => {

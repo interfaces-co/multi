@@ -1,11 +1,11 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { it, describe, expect } from "@effect/vitest";
-import { Effect, FileSystem, Layer, Path } from "effect";
+import { Effect, FileSystem, Layer, Path, Schema } from "effect";
 
 import { ServerConfig } from "../config.ts";
 import { GitCoreLive } from "../git/GitCore.ts";
 import { WorkspaceEntries } from "./WorkspaceEntries.service.ts";
-import { WorkspaceFileSystem } from "./WorkspaceFileSystem.service.ts";
+import { WorkspaceFileSystem, WorkspaceFileSystemError } from "./WorkspaceFileSystem.service.ts";
 import { WorkspaceEntriesLive } from "./WorkspaceEntries.ts";
 import { WorkspaceFileSystemLive } from "./WorkspaceFileSystem.ts";
 import { WorkspacePathsLive } from "./WorkspacePaths.ts";
@@ -91,6 +91,29 @@ it.layer(TestLayer)("WorkspaceFileSystemLive", (it) => {
         );
       }),
     );
+
+    it.effect("fails explicitly when the workspace root is missing", () =>
+      Effect.gen(function* () {
+        const workspaceFileSystem = yield* WorkspaceFileSystem;
+        const cwd = yield* makeTempDir;
+        const path = yield* Path.Path;
+        const missingRoot = path.join(cwd, "missing-root");
+
+        const error = yield* workspaceFileSystem
+          .readFile({
+            cwd: missingRoot,
+            relativePath: "README.md",
+          })
+          .pipe(Effect.flip);
+
+        expect(error).toBeInstanceOf(WorkspaceFileSystemError);
+        if (!Schema.is(WorkspaceFileSystemError)(error)) {
+          return;
+        }
+        expect(error.detail).toContain("Workspace root does not exist:");
+        expect(error.cwd).toBe(missingRoot);
+      }),
+    );
   });
 
   describe("writeFile", () => {
@@ -173,6 +196,31 @@ it.layer(TestLayer)("WorkspaceFileSystemLive", (it) => {
           .stat(escapedPath)
           .pipe(Effect.catch(() => Effect.succeed(null)));
         expect(escapedStat).toBeNull();
+      }),
+    );
+
+    it.effect("does not create a missing workspace root on write", () =>
+      Effect.gen(function* () {
+        const workspaceFileSystem = yield* WorkspaceFileSystem;
+        const cwd = yield* makeTempDir;
+        const path = yield* Path.Path;
+        const fileSystem = yield* FileSystem.FileSystem;
+        const missingRoot = path.join(cwd, "missing-root");
+
+        const error = yield* workspaceFileSystem
+          .writeFile({
+            cwd: missingRoot,
+            relativePath: "README.md",
+            contents: "# nope\n",
+          })
+          .pipe(Effect.flip);
+
+        expect(error).toBeInstanceOf(WorkspaceFileSystemError);
+        if (!Schema.is(WorkspaceFileSystemError)(error)) {
+          return;
+        }
+        expect(error.detail).toContain("Workspace root does not exist:");
+        expect(yield* fileSystem.exists(missingRoot)).toBe(false);
       }),
     );
   });

@@ -7,6 +7,8 @@ import {
   type GitStatusResult,
   ProjectId,
   type OrchestrationShellStreamItem,
+  ProviderDriverKind,
+  ProviderInstanceId,
   type ServerConfig,
   type ServerProvider,
   type TerminalEvent,
@@ -14,7 +16,7 @@ import {
 } from "@multi/contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ContextMenuItem } from "@multi/contracts";
+import { ContextMenuItem } from "@multi/contracts";
 
 const showContextMenuFallbackMock =
   vi.fn<
@@ -99,11 +101,11 @@ const rpcClientMock = {
 
 vi.mock("./environments/runtime", () => ({
   getPrimaryEnvironmentConnection: () => ({
-    kind: "primary" as const,
+    kind: "primary",
     knownEnvironment: {
       id: "environment-local",
       label: "Primary",
-      source: "manual" as const,
+      source: "manual",
       target: {
         httpBaseUrl: "http://localhost:3000",
         wsBaseUrl: "ws://localhost:3000",
@@ -212,7 +214,8 @@ function makeDesktopBridge(overrides: Partial<DesktopBridge> = {}): DesktopBridg
 
 const defaultProviders: ReadonlyArray<ServerProvider> = [
   {
-    provider: "codex",
+    instanceId: "codex",
+    driver: "codex",
     enabled: true,
     installed: true,
     version: "0.116.0",
@@ -229,14 +232,14 @@ const baseEnvironment = {
   environmentId: EnvironmentId.make("environment-local"),
   label: "Local environment",
   platform: {
-    os: "darwin" as const,
-    arch: "arm64" as const,
+    os: "darwin",
+    arch: "arm64",
   },
   serverVersion: "0.0.0-test",
   capabilities: {
     repositoryIdentity: true,
   },
-};
+} as const;
 
 const baseServerConfig: ServerConfig = {
   environment: baseEnvironment,
@@ -326,14 +329,14 @@ describe("wsApi", () => {
     emitEvent(terminalEventListeners, terminalEvent);
 
     const shellEvent = {
-      kind: "project-upserted" as const,
+      kind: "project-upserted",
       sequence: 1,
       project: {
         id: ProjectId.make("project-1"),
         title: "Project",
         workspaceRoot: "/tmp/workspace",
         defaultModelSelection: {
-          provider: "codex",
+          instanceId: "codex",
           model: "gpt-5-codex",
         },
         scripts: [],
@@ -399,7 +402,7 @@ describe("wsApi", () => {
       title: "Project",
       workspaceRoot: "/tmp/project",
       defaultModelSelection: {
-        provider: "codex",
+        instanceId: "codex",
         model: "gpt-5-codex",
       },
       createdAt: "2026-02-24T00:00:00.000Z",

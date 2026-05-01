@@ -7,9 +7,9 @@
  *
  * @module ProviderAdapterRegistry
  */
-import type { ProviderKind } from "@multi/contracts";
+import type { ProviderDriverKind, ProviderInstanceId } from "@multi/contracts";
 import { Context } from "effect";
-import type { Effect } from "effect";
+import type { Effect, PubSub, Scope, Stream } from "effect";
 
 import type { ProviderAdapterError, ProviderUnsupportedError } from "./Errors.ts";
 import type { ProviderAdapterShape } from "./ProviderAdapter.service.ts";
@@ -18,17 +18,42 @@ import type { ProviderAdapterShape } from "./ProviderAdapter.service.ts";
  * ProviderAdapterRegistryShape - Service API for adapter lookup by provider kind.
  */
 export interface ProviderAdapterRegistryShape {
+  readonly getByInstance: (
+    instanceId: ProviderInstanceId,
+  ) => Effect.Effect<ProviderAdapterShape<ProviderAdapterError>, ProviderUnsupportedError>;
+
+  readonly getInstanceInfo: (instanceId: ProviderInstanceId) => Effect.Effect<
+    {
+      readonly instanceId: ProviderInstanceId;
+      readonly driverKind: ProviderDriverKind;
+      readonly displayName?: string | undefined;
+      readonly accentColor?: string | undefined;
+      readonly enabled: boolean;
+    },
+    ProviderUnsupportedError
+  >;
+
+  readonly listInstances: () => Effect.Effect<ReadonlyArray<ProviderInstanceId>>;
+
   /**
    * Resolve the adapter for a provider kind.
+   *
+   * @deprecated Prefer `getByInstance`.
    */
   readonly getByProvider: (
-    provider: ProviderKind,
+    provider: ProviderDriverKind,
   ) => Effect.Effect<ProviderAdapterShape<ProviderAdapterError>, ProviderUnsupportedError>;
 
   /**
    * List provider kinds currently registered.
+   *
+   * @deprecated Prefer `listInstances`.
    */
-  readonly listProviders: () => Effect.Effect<ReadonlyArray<ProviderKind>>;
+  readonly listProviders: () => Effect.Effect<ReadonlyArray<ProviderDriverKind>>;
+
+  readonly streamChanges: Stream.Stream<void>;
+
+  readonly subscribeChanges: Effect.Effect<PubSub.Subscription<void>, never, Scope.Scope>;
 }
 
 /**

@@ -9,14 +9,14 @@ import {
   EventId,
   MessageId,
   ProjectId,
-  ProviderKind,
+  ProviderDriverKind,
   ThreadId,
   ModelSelection,
 } from "@multi/contracts";
 import { assert, it } from "@effect/vitest";
 import { Effect, Option, Schema } from "effect";
 
-import type { TestTurnResponse } from "./TestProviderAdapter.integration.ts";
+import { TestTurnResponse } from "./TestProviderAdapter.integration.ts";
 import {
   gitRefExists,
   gitShowFileAtRef,
@@ -24,7 +24,7 @@ import {
   type OrchestrationIntegrationHarness,
 } from "./OrchestrationEngineHarness.integration.ts";
 import { checkpointRefForThreadTurn } from "../src/checkpointing/Utils.ts";
-import type {
+import {
   CheckpointDiffFinalizedReceipt,
   TurnProcessingQuiescedReceipt,
 } from "../src/orchestration/RuntimeReceiptBus.service.ts";
@@ -39,7 +39,7 @@ const PROJECT_ID = asProjectId("project-1");
 const THREAD_ID = ThreadId.make("thread-1");
 const FIXTURE_TURN_ID = "fixture-turn";
 const APPROVAL_REQUEST_ID = asApprovalRequestId("req-approval-1");
-type IntegrationProvider = ProviderKind;
+type IntegrationProvider = ProviderDriverKind;
 
 function nowIso() {
   return new Date().toISOString();
@@ -97,7 +97,10 @@ function withRealCodexHarness<A, E>(
   use: (harness: OrchestrationIntegrationHarness) => Effect.Effect<A, E>,
 ) {
   return Effect.acquireUseRelease(
-    makeOrchestrationIntegrationHarness({ provider: "codex", realCodex: true }),
+    makeOrchestrationIntegrationHarness({
+      provider: "codex",
+      realCodex: true,
+    }),
     use,
     (harness) => harness.dispose,
   ).pipe(Effect.provide(NodeServices.layer));
@@ -107,7 +110,7 @@ const seedProjectAndThread = (harness: OrchestrationIntegrationHarness) =>
   Effect.gen(function* () {
     const createdAt = nowIso();
     const provider = harness.adapterHarness?.provider ?? "codex";
-    const defaultModel = DEFAULT_MODEL_BY_PROVIDER[provider];
+    const defaultModel = DEFAULT_MODEL_BY_PROVIDER[provider] ?? DEFAULT_MODEL_BY_PROVIDER.codex!;
 
     yield* harness.engine.dispatch({
       type: "project.create",
@@ -116,7 +119,7 @@ const seedProjectAndThread = (harness: OrchestrationIntegrationHarness) =>
       title: "Integration Project",
       workspaceRoot: harness.workspaceDir,
       defaultModelSelection: {
-        provider,
+        instanceId: provider,
         model: defaultModel,
       },
       createdAt,
@@ -129,7 +132,7 @@ const seedProjectAndThread = (harness: OrchestrationIntegrationHarness) =>
       projectId: PROJECT_ID,
       title: "Integration Thread",
       modelSelection: {
-        provider,
+        instanceId: provider,
         model: defaultModel,
       },
       interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
@@ -265,7 +268,7 @@ it.live.skipIf(!process.env.CODEX_BINARY_PATH)(
           title: "Integration Project",
           workspaceRoot: harness.workspaceDir,
           defaultModelSelection: {
-            provider: "codex",
+            instanceId: "codex",
             model: "gpt-5.3-codex",
           },
           createdAt,
@@ -278,7 +281,7 @@ it.live.skipIf(!process.env.CODEX_BINARY_PATH)(
           projectId: PROJECT_ID,
           title: "Integration Thread",
           modelSelection: {
-            provider: "codex",
+            instanceId: "codex",
             model: "gpt-5.3-codex",
           },
           interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
@@ -939,7 +942,7 @@ it.live("starts a claudeAgent session on first turn when provider is requested",
           messageId: "msg-user-claude-initial",
           text: "Use Claude",
           modelSelection: {
-            provider: "claudeAgent",
+            instanceId: "claudeAgent",
             model: "claude-sonnet-4-6",
           },
         });
@@ -996,7 +999,7 @@ it.live("recovers claudeAgent sessions after provider stopAll using persisted re
           messageId: "msg-user-claude-recover-1",
           text: "Before restart",
           modelSelection: {
-            provider: "claudeAgent",
+            instanceId: "claudeAgent",
             model: "claude-sonnet-4-6",
           },
         });
@@ -1106,7 +1109,7 @@ it.live("forwards claudeAgent approval responses to the provider session", () =>
           messageId: "msg-user-claude-approval",
           text: "Need approval",
           modelSelection: {
-            provider: "claudeAgent",
+            instanceId: "claudeAgent",
             model: "claude-sonnet-4-6",
           },
         });
@@ -1178,7 +1181,7 @@ it.live("forwards thread.turn.interrupt to claudeAgent provider sessions", () =>
           messageId: "msg-user-claude-interrupt",
           text: "Start long turn",
           modelSelection: {
-            provider: "claudeAgent",
+            instanceId: "claudeAgent",
             model: "claude-sonnet-4-6",
           },
         });
@@ -1251,7 +1254,7 @@ it.live("reverts claudeAgent turns and rolls back provider conversation state", 
           messageId: "msg-user-claude-revert-1",
           text: "First Claude edit",
           modelSelection: {
-            provider: "claudeAgent",
+            instanceId: "claudeAgent",
             model: "claude-sonnet-4-6",
           },
         });

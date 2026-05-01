@@ -92,7 +92,7 @@ it("classifies known, known-unsupported, and unknown server requests", () => {
     params: {},
   });
   assert.strictEqual(elicitation.category, "user-input");
-  assert.strictEqual(elicitation.requestKind, "mcp-elicitation");
+  assert.strictEqual("requestKind" in elicitation, false);
 
   const dynamicTool = classifyServerRequest({ id: 3, method: "item/tool/call", params: {} });
   assert.strictEqual(dynamicTool.category, "known-unsupported");

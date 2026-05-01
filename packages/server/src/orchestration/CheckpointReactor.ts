@@ -12,7 +12,7 @@ import { Cause, Effect, Layer, Option, Stream } from "effect";
 import { makeDrainableWorker } from "@multi/shared/DrainableWorker";
 
 import { parseTurnDiffFilesFromUnifiedDiff } from "../checkpointing/Diffs.ts";
-import { checkpointRefForThreadTurn, resolveThreadWorkspaceCwd } from "../checkpointing/Utils.ts";
+import { checkpointRefForThreadTurn } from "../checkpointing/Utils.ts";
 import { CheckpointStore } from "../checkpointing/CheckpointStore.service.ts";
 import { ProviderService } from "../provider/ProviderService.service.ts";
 import { CheckpointReactor, type CheckpointReactorShape } from "./CheckpointReactor.service.ts";
@@ -23,6 +23,8 @@ import { OrchestrationDispatchError } from "./Errors.ts";
 import { isGitRepository } from "../git/Utils.ts";
 import { GitStatusBroadcaster } from "../git/GitStatusBroadcaster.service.ts";
 import { WorkspaceEntries } from "../workspace/WorkspaceEntries.service.ts";
+import { ServerConfig } from "../config.ts";
+import { coerceAccessibleWorkspaceCwd } from "../workspace/AccessibleWorkspaceCwd.ts";
 
 type ReactorInput =
   | {
@@ -68,6 +70,7 @@ const make = Effect.gen(function* () {
   const receiptBus = yield* RuntimeReceiptBus;
   const workspaceEntries = yield* WorkspaceEntries;
   const gitStatusBroadcaster = yield* GitStatusBroadcaster;
+  const serverConfig = yield* ServerConfig;
 
   const appendRevertFailureActivity = (input: {
     readonly threadId: ThreadId;
@@ -159,22 +162,30 @@ const make = Effect.gen(function* () {
     readonly preferSessionRuntime: boolean;
   }): Effect.fn.Return<string | undefined> {
     const fromSession = yield* resolveSessionRuntimeForThread(input.threadId);
-    const fromThread = resolveThreadWorkspaceCwd({
-      thread: input.thread,
-      projects: input.projects,
+    const project = input.projects.find((entry) => entry.id === input.thread.projectId);
+    const sessionCwd = Option.match(fromSession, {
+      onNone: () => undefined,
+      onSome: (runtime) => runtime.cwd,
     });
+    const threadCandidates = [
+      { label: "thread.worktreePath", cwd: input.thread.worktreePath },
+      { label: "project.workspaceRoot", cwd: project?.workspaceRoot },
+    ] as const;
+    const sessionCandidate = { label: "provider.session.cwd", cwd: sessionCwd } as const;
+    const candidates = input.preferSessionRuntime
+      ? [sessionCandidate, ...threadCandidates]
+      : [...threadCandidates, sessionCandidate];
 
-    const cwd = input.preferSessionRuntime
-      ? (Option.match(fromSession, {
-          onNone: () => undefined,
-          onSome: (runtime) => runtime.cwd,
-        }) ?? fromThread)
-      : (fromThread ??
-        Option.match(fromSession, {
-          onNone: () => undefined,
-          onSome: (runtime) => runtime.cwd,
-        }));
-
+    const cwd = yield* coerceAccessibleWorkspaceCwd({
+      operation: "CheckpointReactor.resolveCheckpointCwd",
+      candidates,
+      fallbackCwds: [
+        { label: "server.cwd", cwd: serverConfig.cwd },
+        { label: "process.cwd", cwd: process.cwd() },
+      ],
+      threadId: input.threadId,
+      projectId: input.thread.projectId,
+    });
     if (!cwd) {
       return undefined;
     }

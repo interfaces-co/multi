@@ -1,11 +1,16 @@
 "use client";
 
 import { FileTree as PierreFileTree, useFileTree } from "@pierre/trees/react";
-import type { GitStatusEntry } from "@pierre/trees";
-import type { EditorId, EnvironmentId, ProjectEntry } from "@multi/contracts";
+import type { GitStatus, GitStatusEntry } from "@pierre/trees";
+import type {
+  EditorId,
+  EnvironmentId,
+  GitWorkingTreeFileStatus,
+  ProjectEntry,
+} from "@multi/contracts";
 import { useQuery } from "@tanstack/react-query";
 import { IconArrowRotateClockwise } from "central-icons";
-import { useCallback, useEffect, useMemo, useRef, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 
 import { resolveAndPersistPreferredEditor } from "~/editor-preferences";
@@ -13,65 +18,26 @@ import { useGitStatus } from "~/lib/git-status-state";
 import { ensureNativeApi } from "~/lib/native-runtime-api";
 import { projectListEntriesQueryOptions } from "~/lib/project-react-query";
 import { cn } from "~/lib/utils";
+import { useTheme } from "~/hooks/use-theme";
 
-type TreeHostStyle = CSSProperties & Record<`--${string}`, string | number>;
+import { TREE_UNSAFE_CSS, useWorkbenchTreeHostStyle } from "./pierre-workbench-tree";
 
 const EMPTY_PROJECT_ENTRIES: readonly ProjectEntry[] = [];
 
-const TREE_HOST_STYLE: TreeHostStyle = {
-  colorScheme: "light",
-  "--trees-font-family-override": "var(--multi-font-ui)",
-  "--trees-font-size-override": "12px",
-  "--trees-font-weight-regular-override": 400,
-  "--trees-font-weight-semibold-override": 500,
-  "--trees-fg-override": "#18181b",
-  "--trees-fg-muted-override": "#71717a",
-  "--trees-bg-override": "transparent",
-  "--trees-bg-muted-override": "#f4f4f5",
-  "--trees-input-bg-override": "#ffffff",
-  "--trees-search-bg-override": "#ffffff",
-  "--trees-search-fg-override": "#18181b",
-  "--trees-selected-bg-override": "#e4e4e7",
-  "--trees-selected-fg-override": "#18181b",
-  "--trees-border-color-override": "transparent",
-  "--trees-border-radius-override": "4px",
-  "--trees-focus-ring-color-override": "#a1a1aa",
-  "--trees-focus-ring-width-override": "1px",
-  "--trees-focus-ring-offset-override": "-1px",
-  "--trees-indent-guide-bg-override": "#e4e4e7",
-  "--trees-scrollbar-thumb-override": "#d4d4d8",
-  "--trees-item-margin-x-override": "8px",
-  "--trees-item-padding-x-override": "4px",
-  "--trees-level-gap-override": "12px",
-  "--trees-gap-override": "4px",
-  "--trees-icon-width-override": "14px",
-  "--trees-git-modified-color-override": "var(--vscode-terminal-ansiBlue)",
-  "--trees-git-added-color-override": "var(--cursor-green)",
-  "--trees-git-deleted-color-override": "var(--cursor-red)",
-  "--trees-git-untracked-color-override": "var(--cursor-orange)",
-  "--trees-git-renamed-color-override": "var(--cursor-purple)",
-};
-
-const TREE_UNSAFE_CSS = `
-  button[data-type='item'] {
-    letter-spacing: 0;
-  }
-
-  [data-type='search-input'] {
-    height: 24px;
-    line-height: 16px;
-  }
-`;
+function normalizeTreePath(path: string): string {
+  return path.replace(/\\/g, "/");
+}
 
 function basename(path: string | null): string {
-  if (!path) return "Workspace";
+  if (!path) return "Files";
   const clean = path.replace(/[\\/]+$/, "");
   const index = Math.max(clean.lastIndexOf("/"), clean.lastIndexOf("\\"));
   return index === -1 ? clean : clean.slice(index + 1);
 }
 
-function toTreePath(entry: ProjectEntry): string {
-  return entry.kind === "directory" ? `${entry.path}/` : entry.path;
+function projectEntryToTreePath(entry: ProjectEntry): string {
+  const p = normalizeTreePath(entry.path);
+  return entry.kind === "directory" ? `${p}/` : p;
 }
 
 function joinWorkspacePath(cwd: string, relativePath: string): string {
@@ -88,14 +54,33 @@ function formatEntryCount(count: number, truncated: boolean): string {
   return `${count}${truncated ? "+" : ""}`;
 }
 
+function workingTreeFileStatusToTreesStatus(status: GitWorkingTreeFileStatus): GitStatus {
+  switch (status) {
+    case "added":
+      return "added";
+    case "deleted":
+      return "deleted";
+    case "ignored":
+      return "ignored";
+    case "renamed":
+      return "renamed";
+    case "untracked":
+      return "untracked";
+    case "conflict":
+    case "modified":
+    default:
+      return "modified";
+  }
+}
+
 function toGitStatusEntries(status: ReturnType<typeof useGitStatus>["data"]): GitStatusEntry[] {
   if (!status?.workingTree.files.length) {
     return [];
   }
 
   return status.workingTree.files.map((file) => ({
-    path: file.path,
-    status: "modified",
+    path: normalizeTreePath(file.path),
+    status: workingTreeFileStatusToTreesStatus(file.status),
   }));
 }
 
@@ -115,6 +100,9 @@ export function WorkspaceFileTree(props: {
   const onOpenFileRef = useRef(props.onOpenFile);
   const lastOpenedPathRef = useRef<string | null>(null);
   const suppressSelectionOpenRef = useRef<string | null>(null);
+  const { resolvedTheme } = useTheme();
+
+  const treeHostStyle = useWorkbenchTreeHostStyle(resolvedTheme);
 
   availableEditorsRef.current = props.availableEditors;
   cwdRef.current = props.cwd;
@@ -144,8 +132,7 @@ export function WorkspaceFileTree(props: {
 
   const { model } = useFileTree({
     paths: [],
-    density: 0.78,
-    itemHeight: 22,
+    density: "compact",
     flattenEmptyDirectories: true,
     fileTreeSearchMode: "collapse-non-matches",
     initialExpansion: 1,
@@ -154,7 +141,8 @@ export function WorkspaceFileTree(props: {
     searchBlurBehavior: "retain",
     unsafeCSS: TREE_UNSAFE_CSS,
     onSelectionChange: (selectedPaths) => {
-      const selectedPath = selectedPaths[0] ?? null;
+      const raw = selectedPaths[0] ?? null;
+      const selectedPath = raw ? normalizeTreePath(raw) : null;
       if (
         !selectedPath ||
         selectedPath === lastOpenedPathRef.current ||
@@ -188,30 +176,37 @@ export function WorkspaceFileTree(props: {
 
   const entries = entriesQuery.data?.entries ?? EMPTY_PROJECT_ENTRIES;
   const truncated = entriesQuery.data?.truncated ?? false;
-  const treePaths = useMemo(() => entries.map(toTreePath), [entries]);
+  const treePaths = useMemo(() => entries.map(projectEntryToTreePath), [entries]);
   const topLevelExpandedPaths = useMemo(
     () =>
       entries
-        .filter((entry) => entry.kind === "directory" && !entry.path.includes("/"))
-        .map((entry) => entry.path),
+        .filter((entry) => {
+          if (entry.kind !== "directory") return false;
+          return !normalizeTreePath(entry.path).includes("/");
+        })
+        .map((entry) => normalizeTreePath(entry.path)),
     [entries],
   );
   const filePathSet = useMemo(
-    () => new Set(entries.filter((entry) => entry.kind === "file").map((entry) => entry.path)),
+    () =>
+      new Set(
+        entries
+          .filter((entry) => entry.kind === "file")
+          .map((entry) => normalizeTreePath(entry.path)),
+      ),
     [entries],
   );
   const gitStatusEntries = useMemo(() => toGitStatusEntries(gitStatus.data), [gitStatus.data]);
 
-  useEffect(() => {
-    filePathSetRef.current = filePathSet;
-  }, [filePathSet]);
+  filePathSetRef.current = filePathSet;
 
   useEffect(() => {
     model.resetPaths(treePaths, { initialExpandedPaths: topLevelExpandedPaths });
   }, [model, topLevelExpandedPaths, treePaths]);
 
   useEffect(() => {
-    if (!props.selectedPath) {
+    const externalSelected = props.selectedPath ? normalizeTreePath(props.selectedPath) : null;
+    if (!externalSelected) {
       for (const selectedPath of model.getSelectedPaths()) {
         model.getItem(selectedPath)?.deselect();
       }
@@ -219,21 +214,21 @@ export function WorkspaceFileTree(props: {
       return;
     }
     if (
-      !filePathSet.has(props.selectedPath) ||
-      model.getSelectedPaths()[0] === props.selectedPath
+      !filePathSet.has(externalSelected) ||
+      normalizeTreePath(model.getSelectedPaths()[0] ?? "") === externalSelected
     ) {
       return;
     }
-    const selectedItem = model.getItem(props.selectedPath);
+    const selectedItem = model.getItem(externalSelected);
     if (!selectedItem) {
       return;
     }
-    suppressSelectionOpenRef.current = props.selectedPath;
+    suppressSelectionOpenRef.current = externalSelected;
     for (const selectedPath of model.getSelectedPaths()) {
       model.getItem(selectedPath)?.deselect();
     }
     selectedItem.select();
-    model.focusPath(props.selectedPath);
+    model.focusPath(externalSelected);
   }, [filePathSet, model, props.selectedPath]);
 
   useEffect(() => {
@@ -251,21 +246,23 @@ export function WorkspaceFileTree(props: {
   return (
     <section
       className={cn(
-        "workspace-file-tree flex min-h-36 shrink-0 flex-col border-b border-black/10 bg-[#f8f8f8] text-zinc-900",
+        "workspace-file-tree flex min-h-0 min-h-36 shrink-0 flex-col overflow-hidden bg-multi-bg-quinary text-multi-fg-primary",
         props.className,
       )}
     >
-      <div className="flex h-8 shrink-0 items-center gap-2 px-3">
-        <span className="min-w-0 shrink-0 truncate text-[13px]/[18px] font-medium text-foreground/85">
+      <div className="multi-workbench-panel-title-row gap-2">
+        <span className="min-w-0 shrink-0 truncate text-[12px]/[16px] font-medium text-foreground/85">
           {props.title ?? basename(props.cwd)}
         </span>
         <span className="min-w-0 flex-1" />
-        <span className="shrink-0 tabular-nums text-muted-foreground/45">
+        <span className="tabular-nums shrink-0 text-muted-foreground/45 text-[11px]/[13px]">
           {formatEntryCount(entries.length, truncated)}
         </span>
         <button
           type="button"
-          className="flex size-5 shrink-0 items-center justify-center rounded-multi-control text-muted-foreground/55 hover:bg-multi-hover hover:text-foreground"
+          className={cn(
+            "flex shrink-0 items-center justify-center rounded-multi-control px-(--multi-workbench-chrome-icon-padding-x) transition-colors text-muted-foreground/55 hover:bg-multi-hover hover:text-foreground min-h-[calc(var(--multi-workbench-panel-title-row-height,29px)-6px)] max-h-[calc(var(--multi-workbench-panel-title-row-height,29px)-4px)]",
+          )}
           aria-label="Refresh files"
           onClick={() => {
             void entriesQuery.refetch();
@@ -277,12 +274,12 @@ export function WorkspaceFileTree(props: {
         </button>
       </div>
 
-      <div className="min-h-0 flex-1">
+      <div className="min-h-0 flex-1 overflow-hidden">
         {props.cwd && props.environmentId ? (
           <PierreFileTree
             model={model}
             className="block h-full w-full"
-            style={TREE_HOST_STYLE}
+            style={treeHostStyle}
             renderContextMenu={(item, context) => (
               <div
                 className="min-w-32 rounded-multi-control border border-multi-border/70 bg-multi-bubble-opaque p-1 font-multi text-[12px]/[16px] text-foreground shadow-multi-popup"
@@ -303,7 +300,7 @@ export function WorkspaceFileTree(props: {
           />
         ) : (
           <div className="px-3 py-2 text-[11px]/[14px] text-muted-foreground/55">
-            Open a workspace to browse files.
+            Add a project workspace to browse files.
           </div>
         )}
 

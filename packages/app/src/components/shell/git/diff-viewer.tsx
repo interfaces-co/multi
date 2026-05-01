@@ -1,6 +1,9 @@
 import type { GitFileState } from "~/lib/ui-session-types";
 import { FileDiff, type FileDiffMetadata } from "@pierre/diffs/react";
 import { memo } from "react";
+
+import { resolveDiffThemeName } from "~/lib/diff-rendering";
+import { PIERRE_WORKBENCH_CODE_UNSAFE_CSS } from "~/lib/pierre-workbench-code-css";
 import { cn } from "~/lib/utils";
 import { useTheme } from "~/hooks/use-theme";
 
@@ -17,7 +20,7 @@ interface Props {
 
 export const DiffViewer = memo(function DiffViewer(props: Props) {
   const { resolvedTheme } = useTheme();
-  const theme = resolvedTheme === "dark" ? "pierre-dark" : "pierre-light";
+  const theme = resolveDiffThemeName(resolvedTheme);
   const patch = props.filePatch?.trim() ?? "";
 
   if (props.fileDiff) {
@@ -28,6 +31,8 @@ export const DiffViewer = memo(function DiffViewer(props: Props) {
             fileDiff={props.fileDiff}
             options={{
               theme,
+              themeType: resolvedTheme,
+              unsafeCSS: PIERRE_WORKBENCH_CODE_UNSAFE_CSS,
               diffStyle: props.diffStyle ?? "unified",
               overflow: "wrap",
               disableFileHeader: true,
@@ -37,6 +42,7 @@ export const DiffViewer = memo(function DiffViewer(props: Props) {
               lineDiffType: "none",
               expandUnchanged: false,
               hunkSeparators: "simple",
+              preferredHighlighter: "shiki-js",
               ...(props.collapsed !== undefined ? { collapsed: props.collapsed } : {}),
             }}
           />

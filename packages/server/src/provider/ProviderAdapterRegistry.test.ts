@@ -1,4 +1,4 @@
-import type { ProviderKind } from "@multi/contracts";
+import { ProviderDriverKind } from "@multi/contracts";
 import { it, assert, vi } from "@effect/vitest";
 import { assertFailure } from "@effect/vitest/utils";
 
@@ -15,6 +15,7 @@ import type { OpenCodeAdapterShape } from "./OpenCodeAdapter.service.ts";
 import { ProviderAdapterRegistry } from "./ProviderAdapterRegistry.service.ts";
 import { ProviderAdapterRegistryLive } from "./ProviderAdapterRegistry.ts";
 import { ProviderUnsupportedError } from "./Errors.ts";
+import { ServerSettingsService } from "../server-settings.ts";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 
 const fakeCodexAdapter: CodexAdapterShape = {
@@ -94,6 +95,7 @@ const layer = it.layer(
         Layer.succeed(ClaudeAdapter, fakeClaudeAdapter),
         Layer.succeed(OpenCodeAdapter, fakeOpenCodeAdapter),
         Layer.succeed(CursorAdapter, fakeCursorAdapter),
+        ServerSettingsService.layerTest(),
       ),
     ),
     NodeServices.layer,
@@ -121,7 +123,9 @@ layer("ProviderAdapterRegistryLive", (it) => {
   it.effect("fails with ProviderUnsupportedError for unknown providers", () =>
     Effect.gen(function* () {
       const registry = yield* ProviderAdapterRegistry;
-      const adapter = yield* registry.getByProvider("unknown" as ProviderKind).pipe(Effect.result);
+      const adapter = yield* registry
+        .getByProvider("unknown" as ProviderDriverKind)
+        .pipe(Effect.result);
       assertFailure(adapter, new ProviderUnsupportedError({ provider: "unknown" }));
     }),
   );

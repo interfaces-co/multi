@@ -6,6 +6,8 @@ import readline from "node:readline";
 import {
   ApprovalRequestId,
   EventId,
+  ProviderDriverKind,
+  ProviderInstanceId,
   ProviderItemId,
   ProviderRequestKind,
   type ProviderUserInputAnswers,
@@ -111,6 +113,7 @@ export interface CodexAppServerSendTurnInput {
 export interface CodexAppServerStartSessionInput {
   readonly threadId: ThreadId;
   readonly provider?: "codex";
+  readonly providerInstanceId?: ProviderInstanceId;
   readonly cwd?: string;
   readonly model?: string;
   readonly serviceTier?: string;
@@ -131,6 +134,8 @@ export interface CodexThreadSnapshot {
 }
 
 const CODEX_VERSION_CHECK_TIMEOUT_MS = 4_000;
+const CODEX_DRIVER = ProviderDriverKind.make("codex");
+const DEFAULT_CODEX_INSTANCE_ID = ProviderInstanceId.make("codex");
 
 const ANSI_ESCAPE_CHAR = String.fromCharCode(27);
 const ANSI_ESCAPE_REGEX = new RegExp(`${ANSI_ESCAPE_CHAR}\\[[0-9;]*m`, "g");
@@ -446,7 +451,8 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
       const resolvedCwd = input.cwd ?? process.cwd();
 
       const session: ProviderSession = {
-        provider: "codex",
+        provider: CODEX_DRIVER,
+        providerInstanceId: input.providerInstanceId ?? DEFAULT_CODEX_INSTANCE_ID,
         status: "connecting",
         runtimeMode: input.runtimeMode,
         model: normalizeCodexModelSlug(input.model),
@@ -639,7 +645,8 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
         this.emitEvent({
           id: EventId.make(randomUUID()),
           kind: "error",
-          provider: "codex",
+          provider: CODEX_DRIVER,
+          providerInstanceId: DEFAULT_CODEX_INSTANCE_ID,
           threadId,
           createdAt: new Date().toISOString(),
           method: "session/startFailed",
@@ -852,7 +859,8 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
     this.emitEvent({
       id: EventId.make(randomUUID()),
       kind: "notification",
-      provider: "codex",
+      provider: CODEX_DRIVER,
+      providerInstanceId: context.session.providerInstanceId,
       threadId: context.session.threadId,
       createdAt: new Date().toISOString(),
       method: "item/requestApproval/decision",
@@ -891,7 +899,8 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
     this.emitEvent({
       id: EventId.make(randomUUID()),
       kind: "notification",
-      provider: "codex",
+      provider: CODEX_DRIVER,
+      providerInstanceId: context.session.providerInstanceId,
       threadId: context.session.threadId,
       createdAt: new Date().toISOString(),
       method: "item/tool/requestUserInput/answered",
@@ -1055,7 +1064,8 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
     this.emitEvent({
       id: EventId.make(randomUUID()),
       kind: "notification",
-      provider: "codex",
+      provider: CODEX_DRIVER,
+      providerInstanceId: context.session.providerInstanceId,
       threadId: context.session.threadId,
       createdAt: new Date().toISOString(),
       method: notification.method,
@@ -1160,7 +1170,8 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
     this.emitEvent({
       id: EventId.make(randomUUID()),
       kind: "request",
-      provider: "codex",
+      provider: CODEX_DRIVER,
+      providerInstanceId: context.session.providerInstanceId,
       threadId: context.session.threadId,
       createdAt: new Date().toISOString(),
       method: request.method,
@@ -1263,7 +1274,8 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
     this.emitEvent({
       id: EventId.make(randomUUID()),
       kind: "session",
-      provider: "codex",
+      provider: CODEX_DRIVER,
+      providerInstanceId: context.session.providerInstanceId,
       threadId: context.session.threadId,
       createdAt: new Date().toISOString(),
       method,
@@ -1275,7 +1287,8 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
     this.emitEvent({
       id: EventId.make(randomUUID()),
       kind: "error",
-      provider: "codex",
+      provider: CODEX_DRIVER,
+      providerInstanceId: context.session.providerInstanceId,
       threadId: context.session.threadId,
       createdAt: new Date().toISOString(),
       method,
@@ -1291,7 +1304,8 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
     this.emitEvent({
       id: EventId.make(randomUUID()),
       kind: "notification",
-      provider: "codex",
+      provider: CODEX_DRIVER,
+      providerInstanceId: context.session.providerInstanceId,
       threadId: context.session.threadId,
       createdAt: new Date().toISOString(),
       method,

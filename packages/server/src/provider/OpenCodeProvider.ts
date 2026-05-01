@@ -4,6 +4,7 @@ import type {
   ServerProvider,
   ServerProviderModel,
 } from "@multi/contracts";
+import { ProviderDriverKind } from "@multi/contracts";
 import { Cause, Data, Effect, Equal, Layer, Stream } from "effect";
 
 import { createModelCapabilities } from "@multi/shared/model";
@@ -26,7 +27,7 @@ import {
 } from "./opencodeRuntime.ts";
 import type { Agent, ProviderListResponse } from "@opencode-ai/sdk/v2";
 
-const PROVIDER = "opencode" as const;
+const PROVIDER = ProviderDriverKind.make("opencode");
 const OPENCODE_PRESENTATION = {
   displayName: "OpenCode",
   showInteractionModeToggle: false,
@@ -262,7 +263,7 @@ const makePendingOpenCodeProvider = (openCodeSettings: OpenCodeSettings): Server
 
   if (!openCodeSettings.enabled) {
     return buildServerProvider({
-      provider: PROVIDER,
+      driver: PROVIDER,
       presentation: OPENCODE_PRESENTATION,
       enabled: false,
       checkedAt,
@@ -274,14 +275,14 @@ const makePendingOpenCodeProvider = (openCodeSettings: OpenCodeSettings): Server
         auth: { status: "unknown" },
         message:
           openCodeSettings.serverUrl.trim().length > 0
-            ? "OpenCode is disabled in T3 Code settings. A server URL is configured."
-            : "OpenCode is disabled in T3 Code settings.",
+            ? "OpenCode is disabled in Multi settings. A server URL is configured."
+            : "OpenCode is disabled in Multi settings.",
       },
     });
   }
 
   return buildServerProvider({
-    provider: PROVIDER,
+    driver: PROVIDER,
     presentation: OPENCODE_PRESENTATION,
     enabled: true,
     checkedAt,
@@ -318,7 +319,7 @@ export const OpenCodeProviderLive = Layer.effect(
           serverUrl: input.settings.serverUrl,
         });
         return buildServerProvider({
-          provider: PROVIDER,
+          driver: PROVIDER,
           presentation: OPENCODE_PRESENTATION,
           enabled: input.settings.enabled,
           checkedAt,
@@ -340,7 +341,7 @@ export const OpenCodeProviderLive = Layer.effect(
 
       if (!input.settings.enabled) {
         return buildServerProvider({
-          provider: PROVIDER,
+          driver: PROVIDER,
           presentation: OPENCODE_PRESENTATION,
           enabled: false,
           checkedAt,
@@ -356,8 +357,8 @@ export const OpenCodeProviderLive = Layer.effect(
             status: "warning",
             auth: { status: "unknown" },
             message: isExternalServer
-              ? "OpenCode is disabled in T3 Code settings. A server URL is configured."
-              : "OpenCode is disabled in T3 Code settings.",
+              ? "OpenCode is disabled in Multi settings. A server URL is configured."
+              : "OpenCode is disabled in Multi settings.",
           },
         });
       }
@@ -385,14 +386,14 @@ export const OpenCodeProviderLive = Layer.effect(
         if (!version) {
           return fallback(
             new Error(
-              `Unable to determine OpenCode version from \`opencode --version\` output. T3 Code requires OpenCode v${MINIMUM_OPENCODE_VERSION} or newer.`,
+              `Unable to determine OpenCode version from \`opencode --version\` output. Multi requires OpenCode v${MINIMUM_OPENCODE_VERSION} or newer.`,
             ),
             null,
           );
         }
         if (compareCliVersions(version, MINIMUM_OPENCODE_VERSION) < 0) {
           return buildServerProvider({
-            provider: PROVIDER,
+            driver: PROVIDER,
             presentation: OPENCODE_PRESENTATION,
             enabled: input.settings.enabled,
             checkedAt,
@@ -458,7 +459,7 @@ export const OpenCodeProviderLive = Layer.effect(
       );
       const connectedCount = inventoryExit.value.providerList.connected.length;
       return buildServerProvider({
-        provider: PROVIDER,
+        driver: PROVIDER,
         presentation: OPENCODE_PRESENTATION,
         enabled: true,
         checkedAt,

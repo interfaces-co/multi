@@ -2,7 +2,10 @@
 
 import { scopeProjectRef, scopeThreadRef } from "@multi/client-runtime";
 import {
+  DEFAULT_MODEL,
   DEFAULT_MODEL_BY_PROVIDER,
+  ProviderDriverKind,
+  defaultInstanceIdForDriver,
   type EnvironmentId,
   type FilesystemBrowseResult,
   type ProjectId,
@@ -860,8 +863,8 @@ function OpenCommandPaletteDialog() {
           workspaceRoot: cwd,
           createWorkspaceRootIfMissing: true,
           defaultModelSelection: {
-            provider: "codex",
-            model: DEFAULT_MODEL_BY_PROVIDER.codex,
+            instanceId: defaultInstanceIdForDriver(ProviderDriverKind.make("codex")),
+            model: DEFAULT_MODEL_BY_PROVIDER[ProviderDriverKind.make("codex")] ?? DEFAULT_MODEL,
           },
           createdAt: new Date().toISOString(),
         });

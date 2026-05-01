@@ -1,5 +1,10 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { DEFAULT_SERVER_SETTINGS, ServerSettings, ServerSettingsPatch } from "@multi/contracts";
+import {
+  DEFAULT_SERVER_SETTINGS,
+  ProviderInstanceId,
+  ServerSettings,
+  ServerSettingsPatch,
+} from "@multi/contracts";
 import { createModelSelection } from "@multi/shared/model";
 import { assert, it } from "@effect/vitest";
 import { Effect, FileSystem, Layer, Schema } from "effect";
@@ -11,7 +16,7 @@ const makeServerSettingsLayer = () =>
     Layer.provideMerge(
       Layer.fresh(
         ServerConfig.layerTest(process.cwd(), {
-          prefix: "t3code-server-settings-test-",
+          prefix: "multi-server-settings-test-",
         }),
       ),
     ),
@@ -49,14 +54,14 @@ it.layer(NodeServices.layer)("server settings", (it) => {
 
         const decoded = decode({
           textGenerationModelSelection: {
-            provider: "codex",
+            instanceId: "codex",
             model: "gpt-5.4-mini",
             options: { reasoningEffort: "low" },
           },
         });
 
         assert.deepEqual(decoded.textGenerationModelSelection, {
-          provider: "codex",
+          instanceId: "codex",
           model: "gpt-5.4-mini",
           options: [{ id: "reasoningEffort", value: "low" }],
         });
@@ -79,7 +84,7 @@ it.layer(NodeServices.layer)("server settings", (it) => {
           },
         },
         textGenerationModelSelection: {
-          provider: "codex",
+          instanceId: "codex",
           model: DEFAULT_SERVER_SETTINGS.textGenerationModelSelection.model,
           options: createModelSelection(
             "codex",
@@ -107,6 +112,7 @@ it.layer(NodeServices.layer)("server settings", (it) => {
         enabled: true,
         binaryPath: "/opt/homebrew/bin/codex",
         homePath: "/Users/julius/.codex",
+        shadowHomePath: "",
         customModels: [],
       });
       assert.deepEqual(next.providers.claudeAgent, {
@@ -132,7 +138,7 @@ it.layer(NodeServices.layer)("server settings", (it) => {
       // Start with Claude text generation selection
       yield* serverSettings.updateSettings({
         textGenerationModelSelection: {
-          provider: "claudeAgent",
+          instanceId: "claudeAgent",
           model: "claude-sonnet-4-6",
           options: createModelSelection("claudeAgent", "claude-sonnet-4-6", [
             { id: "effort", value: "high" },
@@ -144,7 +150,7 @@ it.layer(NodeServices.layer)("server settings", (it) => {
       // cause the update to lose the selected model.
       const next = yield* serverSettings.updateSettings({
         textGenerationModelSelection: {
-          provider: "codex",
+          instanceId: "codex",
           model: "gpt-5.4",
           options: createModelSelection("codex", "gpt-5.4", [
             { id: "reasoningEffort", value: "high" },
@@ -165,7 +171,7 @@ it.layer(NodeServices.layer)("server settings", (it) => {
 
       yield* serverSettings.updateSettings({
         textGenerationModelSelection: {
-          provider: "codex",
+          instanceId: "codex",
           model: DEFAULT_SERVER_SETTINGS.textGenerationModelSelection.model,
           options: createModelSelection(
             "codex",
@@ -180,13 +186,13 @@ it.layer(NodeServices.layer)("server settings", (it) => {
 
       const next = yield* serverSettings.updateSettings({
         textGenerationModelSelection: {
-          provider: DEFAULT_SERVER_SETTINGS.textGenerationModelSelection.provider,
+          instanceId: DEFAULT_SERVER_SETTINGS.textGenerationModelSelection.instanceId,
           model: DEFAULT_SERVER_SETTINGS.textGenerationModelSelection.model,
         },
       });
 
       assert.deepEqual(next.textGenerationModelSelection, {
-        provider: DEFAULT_SERVER_SETTINGS.textGenerationModelSelection.provider,
+        instanceId: DEFAULT_SERVER_SETTINGS.textGenerationModelSelection.instanceId,
         model: DEFAULT_SERVER_SETTINGS.textGenerationModelSelection.model,
       });
     }).pipe(Effect.provide(makeServerSettingsLayer())),
@@ -217,6 +223,7 @@ it.layer(NodeServices.layer)("server settings", (it) => {
         enabled: true,
         binaryPath: "/opt/homebrew/bin/codex",
         homePath: "",
+        shadowHomePath: "",
         customModels: [],
       });
       assert.deepEqual(next.providers.claudeAgent, {

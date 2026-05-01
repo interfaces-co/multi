@@ -9,6 +9,7 @@ import {
   setThreadChangedFilesExpanded,
   syncProjects,
   syncThreads,
+  type SyncProjectInput,
   type UiState,
 } from "./ui-state-store";
 
@@ -20,6 +21,10 @@ function makeUiState(overrides: Partial<UiState> = {}): UiState {
     threadChangedFilesExpandedById: {},
     ...overrides,
   };
+}
+
+function makeSyncProject(key: string, cwd: string, logicalKey: string = key): SyncProjectInput {
+  return { key, logicalKey, cwd };
 }
 
 describe("uiStateStore pure functions", () => {
@@ -183,9 +188,9 @@ describe("uiStateStore pure functions", () => {
     });
 
     const next = syncProjects(initialState, [
-      { key: project1, cwd: "/tmp/project-1" },
-      { key: project2, cwd: "/tmp/project-2" },
-      { key: project3, cwd: "/tmp/project-3" },
+      makeSyncProject(project1, "/tmp/project-1"),
+      makeSyncProject(project2, "/tmp/project-2"),
+      makeSyncProject(project3, "/tmp/project-3"),
     ]);
 
     expect(next.projectOrder).toEqual([project2, project1, project3]);
@@ -205,14 +210,14 @@ describe("uiStateStore pure functions", () => {
         projectOrder: [oldProject2, oldProject1],
       }),
       [
-        { key: oldProject1, cwd: "/tmp/project-1" },
-        { key: oldProject2, cwd: "/tmp/project-2" },
+        makeSyncProject(oldProject1, "/tmp/project-1"),
+        makeSyncProject(oldProject2, "/tmp/project-2"),
       ],
     );
 
     const next = syncProjects(initialState, [
-      { key: oldProject1, cwd: "/tmp/project-1" },
-      { key: recreatedProject2, cwd: "/tmp/project-2" },
+      makeSyncProject(oldProject1, "/tmp/project-1"),
+      makeSyncProject(recreatedProject2, "/tmp/project-2"),
     ]);
 
     expect(next.projectOrder).toEqual([recreatedProject2, oldProject1]);
@@ -228,10 +233,10 @@ describe("uiStateStore pure functions", () => {
         },
         projectOrder: [project1],
       }),
-      [{ key: project1, cwd: "/tmp/project-1" }],
+      [makeSyncProject(project1, "/tmp/project-1")],
     );
 
-    const next = syncProjects(initialState, [{ key: project1, cwd: "/tmp/project-1-renamed" }]);
+    const next = syncProjects(initialState, [makeSyncProject(project1, "/tmp/project-1-renamed")]);
 
     expect(next).not.toBe(initialState);
     expect(next.projectOrder).toEqual([project1]);

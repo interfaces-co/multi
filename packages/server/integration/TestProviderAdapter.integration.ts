@@ -10,7 +10,7 @@ import {
   ProviderTurnStartResult,
   ThreadId,
   TurnId,
-  ProviderKind,
+  ProviderDriverKind,
 } from "@multi/contracts";
 import { Effect, Queue, Stream } from "effect";
 
@@ -19,7 +19,7 @@ import {
   ProviderAdapterValidationError,
   type ProviderAdapterError,
 } from "../src/provider/Errors.ts";
-import type {
+import {
   ProviderAdapterShape,
   ProviderThreadSnapshot,
   ProviderThreadTurnSnapshot,
@@ -36,7 +36,7 @@ export interface TestTurnResponse {
 export type FixtureProviderRuntimeEvent = {
   readonly type: string;
   readonly eventId: EventId;
-  readonly provider: ProviderKind;
+  readonly provider: ProviderDriverKind;
   readonly createdAt: string;
   readonly threadId: string;
   readonly turnId?: string | undefined;
@@ -178,7 +178,7 @@ function normalizeFixtureEvent(rawEvent: Record<string, unknown>): ProviderRunti
 
 export interface TestProviderAdapterHarness {
   readonly adapter: ProviderAdapterShape<ProviderAdapterError>;
-  readonly provider: ProviderKind;
+  readonly provider: ProviderDriverKind;
   readonly queueTurnResponse: (
     threadId: ThreadId,
     response: TestTurnResponse,
@@ -198,7 +198,7 @@ export interface TestProviderAdapterHarness {
 }
 
 interface MakeTestProviderAdapterHarnessOptions {
-  readonly provider?: ProviderKind;
+  readonly provider?: ProviderDriverKind;
 }
 
 function nowIso(): string {
@@ -206,7 +206,7 @@ function nowIso(): string {
 }
 
 function sessionNotFound(
-  provider: ProviderKind,
+  provider: ProviderDriverKind,
   threadId: ThreadId,
 ): ProviderAdapterSessionNotFoundError {
   return new ProviderAdapterSessionNotFoundError({
@@ -216,7 +216,7 @@ function sessionNotFound(
 }
 
 function missingSessionEffect(
-  provider: ProviderKind,
+  provider: ProviderDriverKind,
   threadId: ThreadId,
 ): Effect.Effect<never, ProviderAdapterError> {
   return Effect.fail(sessionNotFound(provider, threadId));
@@ -257,6 +257,7 @@ export const makeTestProviderAdapterHarness = (options?: MakeTestProviderAdapter
 
         const session: ProviderSession = {
           provider,
+          providerInstanceId: input.providerInstanceId,
           status: "ready",
           runtimeMode: input.runtimeMode,
           threadId,
@@ -307,6 +308,7 @@ export const makeTestProviderAdapterHarness = (options?: MakeTestProviderAdapter
             ...(fixtureEvent as Record<string, unknown>),
             eventId: randomUUID(),
             provider,
+            providerInstanceId: state.session.providerInstanceId,
             sessionId: RuntimeSessionId.make(String(input.threadId)),
             createdAt: nowIso(),
           };
@@ -365,6 +367,7 @@ export const makeTestProviderAdapterHarness = (options?: MakeTestProviderAdapter
             type: "turn.completed",
             eventId: EventId.make(randomUUID()),
             provider,
+            providerInstanceId: state.session.providerInstanceId,
             createdAt: nowIso(),
             threadId: state.snapshot.threadId,
             turnId,

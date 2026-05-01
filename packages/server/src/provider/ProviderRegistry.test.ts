@@ -24,7 +24,7 @@ import { ServerConfig } from "../config.ts";
 import { ServerSettingsService, type ServerSettingsShape } from "../server-settings.ts";
 import { ProviderRegistry } from "./ProviderRegistry.service.ts";
 
-process.env.T3CODE_CURSOR_ENABLED = "1";
+process.env.MULTI_CURSOR_ENABLED = "1";
 
 // ── Test helpers ────────────────────────────────────────────────────
 
@@ -38,20 +38,20 @@ function selectDescriptor(
   return {
     id,
     label,
-    type: "select" as const,
+    type: "select",
     options: [...options],
     ...(options.find((option) => option.isDefault)?.id
       ? { currentValue: options.find((option) => option.isDefault)?.id }
       : {}),
-  };
+  } as const;
 }
 
 function booleanDescriptor(id: string, label: string) {
   return {
     id,
     label,
-    type: "boolean" as const,
-  };
+    type: "boolean",
+  } as const;
 }
 
 function mockHandle(result: { stdout: string; stderr: string; code: number }) {
@@ -197,7 +197,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsService.layerTest()))(
             ),
           );
 
-          assert.strictEqual(status.provider, "codex");
+          assert.strictEqual(status.driver, "codex");
           assert.strictEqual(status.status, "ready");
           assert.strictEqual(status.installed, true);
           assert.strictEqual(status.version, "1.0.0");
@@ -296,7 +296,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsService.layerTest()))(
               }),
             ),
           );
-          assert.strictEqual(status.provider, "codex");
+          assert.strictEqual(status.driver, "codex");
           assert.strictEqual(status.status, "error");
           assert.strictEqual(status.installed, false);
           assert.strictEqual(status.auth.status, "unknown");
@@ -312,7 +312,8 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsService.layerTest()))(
       it("treats equal provider snapshots as unchanged", () => {
         const providers = [
           {
-            provider: "codex",
+            instanceId: "codex",
+            driver: "codex",
             status: "ready",
             enabled: true,
             installed: true,
@@ -324,7 +325,8 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsService.layerTest()))(
             skills: [],
           },
           {
-            provider: "claudeAgent",
+            instanceId: "claudeAgent",
+            driver: "claudeAgent",
             status: "warning",
             enabled: true,
             installed: true,
@@ -342,7 +344,8 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsService.layerTest()))(
 
       it("preserves previously discovered provider models when a refresh returns none", () => {
         const previousProvider = {
-          provider: "cursor",
+          instanceId: "cursor",
+          driver: "cursor",
           status: "ready",
           enabled: true,
           installed: true,
@@ -381,7 +384,8 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsService.layerTest()))(
 
       it("fills missing capabilities from the previous provider snapshot", () => {
         const previousProvider = {
-          provider: "cursor",
+          instanceId: "cursor",
+          driver: "cursor",
           status: "ready",
           enabled: true,
           installed: true,
@@ -474,7 +478,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsService.layerTest()))(
               for (let remainingAttempts = 50; remainingAttempts > 0; remainingAttempts -= 1) {
                 const providers = yield* registry.getProviders;
                 const claudeProvider = providers.find(
-                  (provider) => provider.provider === "claudeAgent",
+                  (provider) => provider.driver === "claudeAgent",
                 );
                 if (claudeProvider?.status === "ready") {
                   return providers;
@@ -484,7 +488,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsService.layerTest()))(
               return yield* registry.getProviders;
             });
             assert.strictEqual(
-              refreshed.find((provider) => provider.provider === "claudeAgent")?.status,
+              refreshed.find((provider) => provider.driver === "claudeAgent")?.status,
               "ready",
             );
           }).pipe(Effect.provide(runtimeServices));
@@ -545,18 +549,15 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsService.layerTest()))(
             yield* Effect.gen(function* () {
               const registry = yield* ProviderRegistry;
               const providers = yield* registry.getProviders;
-              const cursorProvider = providers.find((provider) => provider.provider === "cursor");
+              const cursorProvider = providers.find((provider) => provider.driver === "cursor");
 
               assert.deepStrictEqual(
-                providers.map((provider) => provider.provider),
-                ["codex", "claudeAgent", "opencode", "cursor"],
+                providers.map((provider) => provider.driver),
+                ["claudeAgent", "codex", "cursor", "opencode"],
               );
               assert.strictEqual(cursorProvider?.enabled, false);
               assert.strictEqual(cursorProvider?.status, "disabled");
-              assert.strictEqual(
-                cursorProvider?.message,
-                "Cursor is disabled in T3 Code settings.",
-              );
+              assert.strictEqual(cursorProvider?.message, "Cursor is disabled in Multi settings.");
               assert.strictEqual(cursorSpawned, false);
             }).pipe(Effect.provide(runtimeServices));
           }),
@@ -577,11 +578,11 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsService.layerTest()))(
               Layer.mergeAll(serverSettingsLayer, failingSpawnerLayer("spawn codex ENOENT")),
             ),
           );
-          assert.strictEqual(status.provider, "codex");
+          assert.strictEqual(status.driver, "codex");
           assert.strictEqual(status.enabled, false);
           assert.strictEqual(status.status, "disabled");
           assert.strictEqual(status.installed, false);
-          assert.strictEqual(status.message, "Codex is disabled in T3 Code settings.");
+          assert.strictEqual(status.message, "Codex is disabled in Multi settings.");
         }),
       );
     });
@@ -592,7 +593,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsService.layerTest()))(
       it.effect("returns ready when claude is installed and authenticated", () =>
         Effect.gen(function* () {
           const status = yield* checkClaudeProviderStatus();
-          assert.strictEqual(status.provider, "claudeAgent");
+          assert.strictEqual(status.driver, "claudeAgent");
           assert.strictEqual(status.status, "ready");
           assert.strictEqual(status.installed, true);
           assert.strictEqual(status.auth.status, "authenticated");
@@ -684,7 +685,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsService.layerTest()))(
       it.effect("returns a display label for claude subscription types", () =>
         Effect.gen(function* () {
           const status = yield* checkClaudeProviderStatus(() => Effect.succeed("maxplan"));
-          assert.strictEqual(status.provider, "claudeAgent");
+          assert.strictEqual(status.driver, "claudeAgent");
           assert.strictEqual(status.status, "ready");
           assert.strictEqual(status.auth.status, "authenticated");
           assert.strictEqual(status.auth.type, "maxplan");
@@ -788,7 +789,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsService.layerTest()))(
       it.effect("returns an api key label for claude api key auth", () =>
         Effect.gen(function* () {
           const status = yield* checkClaudeProviderStatus();
-          assert.strictEqual(status.provider, "claudeAgent");
+          assert.strictEqual(status.driver, "claudeAgent");
           assert.strictEqual(status.status, "ready");
           assert.strictEqual(status.auth.status, "authenticated");
           assert.strictEqual(status.auth.type, "apiKey");
@@ -813,7 +814,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsService.layerTest()))(
       it.effect("returns unavailable when claude is missing", () =>
         Effect.gen(function* () {
           const status = yield* checkClaudeProviderStatus();
-          assert.strictEqual(status.provider, "claudeAgent");
+          assert.strictEqual(status.driver, "claudeAgent");
           assert.strictEqual(status.status, "error");
           assert.strictEqual(status.installed, false);
           assert.strictEqual(status.auth.status, "unknown");
@@ -827,7 +828,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsService.layerTest()))(
       it.effect("returns error when version check fails with non-zero exit code", () =>
         Effect.gen(function* () {
           const status = yield* checkClaudeProviderStatus();
-          assert.strictEqual(status.provider, "claudeAgent");
+          assert.strictEqual(status.driver, "claudeAgent");
           assert.strictEqual(status.status, "error");
           assert.strictEqual(status.installed, true);
         }).pipe(
@@ -845,7 +846,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsService.layerTest()))(
       it.effect("returns unauthenticated when auth status reports not logged in", () =>
         Effect.gen(function* () {
           const status = yield* checkClaudeProviderStatus();
-          assert.strictEqual(status.provider, "claudeAgent");
+          assert.strictEqual(status.driver, "claudeAgent");
           assert.strictEqual(status.status, "error");
           assert.strictEqual(status.installed, true);
           assert.strictEqual(status.auth.status, "unauthenticated");
@@ -873,7 +874,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsService.layerTest()))(
       it.effect("returns unauthenticated when output includes 'not logged in'", () =>
         Effect.gen(function* () {
           const status = yield* checkClaudeProviderStatus();
-          assert.strictEqual(status.provider, "claudeAgent");
+          assert.strictEqual(status.driver, "claudeAgent");
           assert.strictEqual(status.status, "error");
           assert.strictEqual(status.installed, true);
           assert.strictEqual(status.auth.status, "unauthenticated");
@@ -893,7 +894,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsService.layerTest()))(
       it.effect("returns warning when auth status command is unsupported", () =>
         Effect.gen(function* () {
           const status = yield* checkClaudeProviderStatus();
-          assert.strictEqual(status.provider, "claudeAgent");
+          assert.strictEqual(status.driver, "claudeAgent");
           assert.strictEqual(status.status, "warning");
           assert.strictEqual(status.installed, true);
           assert.strictEqual(status.auth.status, "unknown");

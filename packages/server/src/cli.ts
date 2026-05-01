@@ -595,11 +595,17 @@ const findActiveProjectTarget = Effect.fn("findActiveProjectTarget")(function* (
   const normalizedWorkspaceRoot = Exit.isSuccess(normalizedWorkspaceRootResult)
     ? normalizedWorkspaceRootResult.value
     : null;
+  const path = yield* Path.Path;
+  const resolvedIdentifier = path.resolve(yield* expandHomePath(trimmedIdentifier));
 
   const exactWorkspaceMatch =
     normalizedWorkspaceRoot === null
-      ? undefined
-      : activeProjects.find((project) => project.workspaceRoot === normalizedWorkspaceRoot);
+      ? activeProjects.find((project) => project.workspaceRoot === resolvedIdentifier)
+      : activeProjects.find(
+          (project) =>
+            project.workspaceRoot === normalizedWorkspaceRoot ||
+            project.workspaceRoot === resolvedIdentifier,
+        );
 
   const resolved = exactWorkspaceMatch;
   if (!resolved) {
@@ -749,9 +755,7 @@ const sharedServerLocationFlags = {
   devUrl: devUrlFlag,
 } as const;
 
-const projectLocationFlags = {
-  baseDir: baseDirFlag,
-} as const;
+const projectLocationFlags = sharedServerLocationFlags;
 
 const sharedServerCommandFlags = {
   mode: modeFlag,
@@ -1094,9 +1098,59 @@ const projectRenameCommand = Command.make("rename", {
   ),
 );
 
+const projectRelocateCommand = Command.make("relocate", {
+  ...projectLocationFlags,
+  project: Argument.string("project").pipe(
+    Argument.withDescription("Project id or current workspace root to relocate."),
+  ),
+  workspaceRoot: Argument.string("path").pipe(
+    Argument.withDescription("New workspace root for the project."),
+  ),
+}).pipe(
+  Command.withDescription("Relocate a project to a new workspace root."),
+  Command.withHandler((flags) =>
+    runProjectMutation(
+      flags,
+      Effect.fn("projectRelocateMutation")(function* ({
+        snapshot,
+        dispatch,
+      }: {
+        readonly snapshot: OrchestrationReadModel;
+        readonly dispatch: (
+          command: ProjectCliDispatchCommand,
+        ) => Effect.Effect<void, Error, FileSystem.FileSystem | HttpClient.HttpClient | Path.Path>;
+      }) {
+        const project = yield* findActiveProjectTarget({
+          snapshot,
+          identifier: flags.project,
+        });
+        const nextWorkspaceRoot = yield* normalizeWorkspaceRootForProjectCommand(
+          flags.workspaceRoot,
+        );
+        if (nextWorkspaceRoot === project.workspaceRoot) {
+          return `Project ${project.id} is already located at ${nextWorkspaceRoot}.`;
+        }
+
+        yield* dispatch({
+          type: "project.meta.update",
+          commandId: CommandId.make(crypto.randomUUID()),
+          projectId: project.id,
+          workspaceRoot: nextWorkspaceRoot,
+        });
+        return `Relocated project ${project.id} (${project.title}) from ${project.workspaceRoot} to ${nextWorkspaceRoot}.`;
+      }),
+    ),
+  ),
+);
+
 const projectCommand = Command.make("project").pipe(
   Command.withDescription("Manage projects."),
-  Command.withSubcommands([projectAddCommand, projectRemoveCommand, projectRenameCommand]),
+  Command.withSubcommands([
+    projectAddCommand,
+    projectRemoveCommand,
+    projectRenameCommand,
+    projectRelocateCommand,
+  ]),
 );
 
 const runServerCommand = (

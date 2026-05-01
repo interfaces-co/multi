@@ -189,6 +189,7 @@ function multiTerminalHistoryLogPath(
 }
 
 interface CreateManagerOptions {
+  fallbackCwds?: ReadonlyArray<{ label: string; cwd: string | null | undefined }>;
   shellResolver?: () => string | undefined;
   userLoginShellResolver?: () => string | undefined;
   subprocessChecker?: (terminalPid: number) => Effect.Effect<boolean>;
@@ -224,6 +225,7 @@ const createManager = (
         logsDir,
         historyLineLimit,
         ptyAdapter,
+        ...(options.fallbackCwds !== undefined ? { fallbackCwds: options.fallbackCwds } : {}),
         ...(options.shellResolver !== undefined ? { shellResolver: options.shellResolver } : {}),
         ...(options.userLoginShellResolver !== undefined
           ? { userLoginShellResolver: options.userLoginShellResolver }
@@ -312,6 +314,22 @@ it.layer(NodeServices.layer, { excludeTestServices: true })("TerminalManager", (
         cwd: blockedCwd,
         reason: "statFailed",
       });
+    }),
+  );
+
+  it.effect("falls back to a configured cwd when the requested cwd is missing", () =>
+    Effect.gen(function* () {
+      const fallbackCwd = process.cwd();
+      const expectedResolvedCwd = path.resolve(fallbackCwd, "../..");
+      const { manager, baseDir, ptyAdapter } = yield* createManager(5, {
+        fallbackCwds: [{ label: "server.cwd", cwd: fallbackCwd }],
+      });
+      const missingCwd = path.join(baseDir, "missing");
+
+      const opened = yield* manager.open(openInput({ cwd: missingCwd }));
+
+      assert.equal(opened.cwd, expectedResolvedCwd);
+      assert.equal(ptyAdapter.spawnInputs[0]?.cwd, expectedResolvedCwd);
     }),
   );
 

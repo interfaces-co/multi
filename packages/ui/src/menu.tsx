@@ -12,26 +12,31 @@ const Menu = MenuPrimitive.Root;
 
 const MenuPortal = MenuPrimitive.Portal;
 
-const cursorMenuPopupClassName =
-  "multi-slash-menu-popup flex max-h-[min(var(--available-height),20rem)] min-w-48 flex-col overflow-hidden rounded-[12px] border border-cursor-stroke-tertiary bg-cursor-bg-elevated font-multi text-[12px]/[16px] text-cursor-text-primary shadow-multi-popup outline-none backdrop-blur-xl focus:outline-none focus-visible:outline-none";
+const workbenchMenuPopupClassName =
+  "multi-slash-menu-popup flex max-h-[min(var(--available-height),20rem)] min-w-48 flex-col overflow-hidden rounded-[12px] border border-multi-stroke-tertiary bg-multi-bg-elevated font-multi text-[12px]/[16px] text-multi-fg-primary shadow-multi-popup outline-none backdrop-blur-xl focus:outline-none focus-visible:outline-none";
 
-const cursorMenuViewportClassName = "max-h-(--available-height) w-full overflow-y-auto p-1";
+const workbenchMenuViewportClassName = "max-h-(--available-height) w-full overflow-y-auto p-1";
 
-const cursorMenuItemClassName =
-  "flex min-h-6 cursor-pointer select-none items-center gap-1.5 rounded-[4px] px-1 py-[3px] text-[12px]/[16px] text-cursor-text-secondary outline-none transition-colors hover:bg-cursor-bg-quaternary hover:text-cursor-text-primary data-disabled:pointer-events-none data-highlighted:bg-cursor-bg-tertiary data-highlighted:text-cursor-text-primary data-disabled:opacity-40 [&>svg:not([class*='size-'])]:size-3 [&>svg]:pointer-events-none [&>svg]:shrink-0";
+const workbenchMenuItemClassName =
+  "flex min-h-6 cursor-pointer select-none items-center gap-1.5 rounded-[4px] px-1 py-[3px] text-[12px]/[16px] text-multi-fg-secondary outline-none transition-colors hover:bg-multi-bg-quaternary hover:text-multi-fg-primary data-disabled:pointer-events-none data-highlighted:bg-multi-bg-tertiary data-highlighted:text-multi-fg-primary data-disabled:opacity-40 [&>svg:not([class*='size-'])]:size-3 [&>svg]:pointer-events-none [&>svg]:shrink-0";
 
-const cursorMenuIconSlotClassName =
-  "inline-flex h-4 w-4 shrink-0 items-center justify-center text-cursor-text-tertiary [&>svg]:size-3 [&>svg]:shrink-0";
+const workbenchMenuIconSlotClassName =
+  "inline-flex h-4 w-4 shrink-0 items-center justify-center text-multi-fg-tertiary [&>svg]:size-3 [&>svg]:shrink-0";
 
-const cursorMenuPrimaryTextClassName = "truncate text-[12px]/[16px] text-cursor-text-primary";
+const workbenchMenuPrimaryTextClassName = "truncate text-[12px]/[16px] text-multi-fg-primary";
 
-const cursorMenuMetaTextClassName = "truncate text-[11px]/[14px] text-cursor-text-tertiary";
+const workbenchMenuMetaTextClassName = "truncate text-[11px]/[14px] text-multi-fg-tertiary";
 
-const cursorMenuLabelClassName =
-  "px-1 pt-1.5 pb-0.5 font-normal text-[11px]/[14px] text-cursor-text-tertiary first:pt-0.5";
+const workbenchMenuLabelClassName =
+  "px-1 pt-1.5 pb-0.5 font-normal text-[11px]/[14px] text-multi-fg-tertiary first:pt-0.5";
 
-const cursorMenuSeparatorClassName = "mx-0 my-1 h-px shrink-0 bg-cursor-stroke-tertiary";
+const workbenchMenuSeparatorClassName = "mx-0 my-1 h-px shrink-0 bg-multi-stroke-tertiary";
 
+/**
+ * For custom triggers (e.g. `Button`), pass `render={<Button … />}` and put the
+ * visible label in `children` so props/ref merge correctly. See Base UI composition:
+ * https://base-ui.com/react/handbook/composition
+ */
 function MenuTrigger({ className, children, ...props }: MenuPrimitive.Trigger.Props) {
   return (
     <MenuPrimitive.Trigger className={className} data-slot="menu-trigger" {...props}>
@@ -51,7 +56,8 @@ function MenuPopup({
   anchor,
   ...props
 }: MenuPrimitive.Popup.Props & {
-  variant?: "default" | "cursor";
+  /** `workbench` = elevated multi-token menu shell (Slash-menu style geometry). */
+  variant?: "default" | "workbench";
   align?: MenuPrimitive.Positioner.Props["align"];
   sideOffset?: MenuPrimitive.Positioner.Props["sideOffset"];
   alignOffset?: MenuPrimitive.Positioner.Props["alignOffset"];
@@ -71,8 +77,8 @@ function MenuPopup({
       >
         <MenuPrimitive.Popup
           className={cn(
-            variant === "cursor"
-              ? cursorMenuPopupClassName
+            variant === "workbench"
+              ? workbenchMenuPopupClassName
               : "relative flex not-[class*='w-']:min-w-32 origin-(--transform-origin) rounded-lg border bg-popover not-dark:bg-clip-padding shadow-lg/5 outline-none before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-lg)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] focus:outline-none dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
             className,
           )}
@@ -81,8 +87,8 @@ function MenuPopup({
         >
           <div
             className={
-              variant === "cursor"
-                ? cursorMenuViewportClassName
+              variant === "workbench"
+                ? workbenchMenuViewportClassName
                 : "max-h-(--available-height) w-full overflow-y-auto p-1"
             }
           >
@@ -105,13 +111,13 @@ function MenuItem({
   ...props
 }: MenuPrimitive.Item.Props & {
   inset?: boolean;
-  variant?: "default" | "destructive" | "cursor";
+  variant?: "default" | "destructive" | "workbench";
 }) {
   return (
     <MenuPrimitive.Item
       className={cn(
-        variant === "cursor"
-          ? cursorMenuItemClassName
+        variant === "workbench"
+          ? workbenchMenuItemClassName
           : "[&>svg]:-mx-0.5 flex min-h-8 cursor-default select-none items-center gap-2 rounded-sm px-2 py-1 text-base text-foreground outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-inset:ps-8 data-[variant=destructive]:text-destructive-foreground data-highlighted:text-accent-foreground data-disabled:opacity-64 sm:min-h-7 sm:text-sm [&>svg:not([class*='opacity-'])]:opacity-80 [&>svg:not([class*='size-'])]:size-4.5 sm:[&>svg:not([class*='size-'])]:size-4 [&>svg]:pointer-events-none [&>svg]:shrink-0",
         className,
       )}
@@ -218,13 +224,13 @@ function MenuGroupLabel({
   ...props
 }: MenuPrimitive.GroupLabel.Props & {
   inset?: boolean;
-  variant?: "default" | "cursor";
+  variant?: "default" | "workbench";
 }) {
   return (
     <MenuPrimitive.GroupLabel
       className={cn(
-        variant === "cursor"
-          ? cursorMenuLabelClassName
+        variant === "workbench"
+          ? workbenchMenuLabelClassName
           : "px-2 py-1.5 font-medium text-muted-foreground text-xs data-inset:ps-9 sm:data-inset:ps-8",
         className,
       )}
@@ -239,11 +245,11 @@ function MenuSeparator({
   className,
   variant = "default",
   ...props
-}: MenuPrimitive.Separator.Props & { variant?: "default" | "cursor" }) {
+}: MenuPrimitive.Separator.Props & { variant?: "default" | "workbench" }) {
   return (
     <MenuPrimitive.Separator
       className={cn(
-        variant === "cursor" ? cursorMenuSeparatorClassName : "mx-2 my-1 h-px bg-border",
+        variant === "workbench" ? workbenchMenuSeparatorClassName : "mx-2 my-1 h-px bg-border",
         className,
       )}
       data-slot="menu-separator"
@@ -352,12 +358,12 @@ export {
   MenuSubTrigger as DropdownMenuSubTrigger,
   MenuSubPopup,
   MenuSubPopup as DropdownMenuSubContent,
-  cursorMenuItemClassName,
-  cursorMenuIconSlotClassName,
-  cursorMenuLabelClassName,
-  cursorMenuMetaTextClassName,
-  cursorMenuPrimaryTextClassName,
-  cursorMenuPopupClassName,
-  cursorMenuSeparatorClassName,
-  cursorMenuViewportClassName,
+  workbenchMenuItemClassName,
+  workbenchMenuIconSlotClassName,
+  workbenchMenuLabelClassName,
+  workbenchMenuMetaTextClassName,
+  workbenchMenuPrimaryTextClassName,
+  workbenchMenuPopupClassName,
+  workbenchMenuSeparatorClassName,
+  workbenchMenuViewportClassName,
 };

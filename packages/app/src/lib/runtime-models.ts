@@ -1,11 +1,14 @@
 import {
   CommandId,
+  DEFAULT_MODEL,
   DEFAULT_MODEL_BY_PROVIDER,
   PROVIDER_DISPLAY_NAMES,
+  defaultInstanceIdForDriver,
   type ModelSelection,
   type ProviderOptionDescriptor,
   type ProviderOptionSelection,
-  type ProviderKind,
+  ProviderDriverKind,
+  ProviderInstanceId,
   type ServerProvider,
 } from "@multi/contracts";
 import type { HarnessModelRef, ThinkingLevel } from "~/lib/ui-session-types";
@@ -22,7 +25,6 @@ import { getServerConfig } from "../rpc/server-state";
 import {
   getDefaultServerModel,
   getProviderModelCapabilities,
-  getProviderModels,
   resolveSelectableProvider,
 } from "../provider-models";
 import { selectProjectsForEnvironment, useStore } from "../store";
@@ -71,9 +73,8 @@ export function displayModelName(raw: string) {
 }
 
 export function displayProviderName(provider: string) {
-  return provider === "codex" || provider === "claudeAgent"
-    ? PROVIDER_DISPLAY_NAMES[provider]
-    : provider;
+  const driverKind = ProviderDriverKind.make(provider);
+  return PROVIDER_DISPLAY_NAMES[driverKind] ?? provider;
 }
 
 function supportsXhigh(caps: ServerProvider["models"][number]["capabilities"]) {
@@ -135,19 +136,19 @@ function withOptions(
   options: ReadonlyArray<ProviderOptionSelection> | undefined,
 ): ModelSelection {
   return {
-    provider: selection.provider,
+    instanceId: selection.instanceId,
     model: selection.model,
     ...(options && options.length > 0 ? { options } : {}),
-  } as ModelSelection;
+  };
 }
 
 export function toModelItem(
-  provider: ProviderKind,
+  provider: ServerProvider,
   item: ServerProvider["models"][number],
 ): RuntimeModelItem {
   return {
-    key: key(provider, item.slug),
-    provider,
+    key: key(provider.instanceId, item.slug),
+    provider: provider.instanceId,
     id: item.slug,
     name: item.name,
     reasoning:
@@ -160,7 +161,7 @@ export function toModelItem(
 
 function fallbackModel(selection: ModelSelection): HarnessModelRef {
   return {
-    provider: selection.provider,
+    provider: selection.instanceId,
     id: selection.model,
     name: selection.model,
     reasoning:
@@ -171,41 +172,69 @@ function fallbackModel(selection: ModelSelection): HarnessModelRef {
 
 function selectableOptions(
   providers: readonly ServerProvider[],
-  provider: ProviderKind,
+  provider: ServerProvider,
 ): ReadonlyArray<{ slug: string; name: string }> {
-  return getProviderModels(providers, provider).map((item) => ({
+  return provider.models.map((item) => ({
     slug: item.slug,
     name: item.name,
   }));
 }
 
+function resolveRuntimeProviderSnapshot(
+  providers: readonly ServerProvider[],
+  requested?: ProviderInstanceId | ProviderDriverKind | string | null,
+): ServerProvider | undefined {
+  const requestedText = requested ?? null;
+  if (requestedText) {
+    const byInstance = providers.find(
+      (provider) =>
+        provider.instanceId === (requestedText as ProviderInstanceId) && provider.enabled,
+    );
+    if (byInstance) return byInstance;
+    const byDriver = providers.find(
+      (provider) => provider.driver === (requestedText as ProviderDriverKind) && provider.enabled,
+    );
+    if (byDriver) return byDriver;
+  }
+  return providers.find((provider) => provider.enabled);
+}
+
 export function resolveRuntimeSelection(
   providers: readonly ServerProvider[],
   selection: ModelSelection | null | undefined,
-  requested?: ProviderKind | null,
+  requested?: ProviderInstanceId | ProviderDriverKind | string | null,
 ): ModelSelection {
-  const provider = resolveSelectableProvider(
-    providers,
-    requested ?? selection?.provider ?? "codex",
-  );
-  const prev = selection?.provider === provider ? selection : null;
+  const provider =
+    resolveRuntimeProviderSnapshot(providers, requested ?? selection?.instanceId) ??
+    resolveRuntimeProviderSnapshot(
+      providers,
+      defaultInstanceIdForDriver(resolveSelectableProvider(providers, null)),
+    );
+  if (!provider) {
+    return {
+      instanceId: defaultInstanceIdForDriver(ProviderDriverKind.make("codex")),
+      model: DEFAULT_MODEL,
+    };
+  }
+  const prev = selection?.instanceId === provider.instanceId ? selection : null;
   const model =
-    resolveSelectableModel(provider, prev?.model ?? null, selectableOptions(providers, provider)) ??
-    getDefaultServerModel(providers, provider) ??
-    DEFAULT_MODEL_BY_PROVIDER[provider];
-  const caps = getProviderModelCapabilities(
-    getProviderModels(providers, provider),
-    model,
-    provider,
-  );
+    resolveSelectableModel(
+      provider.driver,
+      prev?.model ?? null,
+      selectableOptions(providers, provider),
+    ) ??
+    getDefaultServerModel(providers, provider.driver) ??
+    DEFAULT_MODEL_BY_PROVIDER[provider.driver] ??
+    DEFAULT_MODEL;
+  const caps = getProviderModelCapabilities(provider.models, model, provider.driver);
   const descriptors = getProviderOptionDescriptors({
     caps,
-    selections: prev?.provider === provider ? prev.options : undefined,
+    selections: prev ? prev.options : undefined,
   });
   const options = buildProviderOptionSelectionsFromDescriptors(descriptors);
 
   return {
-    provider,
+    instanceId: provider.instanceId,
     model,
     ...(options ? { options } : {}),
   };
@@ -256,11 +285,13 @@ export function selectionSupportsFastMode(
   selection: ModelSelection | null | undefined,
 ) {
   if (!selection) return false;
+  const provider = providers.find((candidate) => candidate.instanceId === selection.instanceId);
+  if (!provider) return false;
   return (
     getProviderModelCapabilities(
-      getProviderModels(providers, selection.provider),
+      provider.models,
       selection.model,
-      selection.provider,
+      provider.driver,
     ).optionDescriptors?.some((descriptor) => descriptor.id === "fastMode") ?? false
   );
 }
@@ -277,9 +308,9 @@ export function applyThinking(selection: ModelSelection, level: ThinkingLevel): 
             ? "max"
             : "high";
   const id =
-    selection.provider === "codex"
+    selection.instanceId === "codex"
       ? "reasoningEffort"
-      : selection.provider === "cursor"
+      : selection.instanceId === "cursor"
         ? "reasoning"
         : "effort";
   let options = setOptionSelection(selection.options, id, reasoningValue);
@@ -299,7 +330,7 @@ export function listRuntimeModelsFromProviders(
 ) {
   const items = providers
     .filter((provider) => provider.enabled)
-    .flatMap((provider) => provider.models.map((item) => toModelItem(provider.provider, item)));
+    .flatMap((provider) => provider.models.map((item) => toModelItem(provider, item)));
   const keys = new Set(items.map((item) => item.key));
   if (cur && !keys.has(key(cur.provider, cur.id))) {
     items.push({
@@ -326,7 +357,7 @@ export function resolveRuntimeModel(
 ) {
   const items = listRuntimeModelsFromProviders(providers, cur);
   return (
-    items.find((item) => item.provider === selection.provider && item.id === selection.model) ??
+    items.find((item) => item.provider === selection.instanceId && item.id === selection.model) ??
     cur ??
     fallbackModel(selection)
   );
@@ -366,9 +397,9 @@ export async function writeRuntimeDefaultModel(model: HarnessModelRef) {
   const providers = getServerConfig()?.providers ?? [];
   const current = project.defaultModelSelection;
   const next = resolveRuntimeSelection(providers, {
-    provider: model.provider as ProviderKind,
+    instanceId: ProviderInstanceId.make(model.provider),
     model: model.id,
-    ...(current?.provider === model.provider && current.options
+    ...(current?.instanceId === model.provider && current.options
       ? { options: current.options }
       : {}),
   });

@@ -1,9 +1,9 @@
 /**
  * RoutingTextGeneration – Dispatches text generation requests to either the
- * Codex CLI or Claude CLI implementation based on the provider in each
+ * Codex CLI or Claude CLI implementation based on the provider instance in each
  * request input.
  *
- * When `modelSelection.provider` is `"claudeAgent"` the request is forwarded to
+ * When `modelSelection.instanceId` is `"claudeAgent"` the request is forwarded to
  * the Claude layer; for any other value (including the default `undefined`) it
  * falls through to the Codex layer.
  *
@@ -42,22 +42,23 @@ class OpenCodeTextGen extends Context.Service<OpenCodeTextGen, TextGenerationSha
 // ---------------------------------------------------------------------------
 
 const makeRoutingTextGeneration = Effect.gen(function* () {
-  const byProvider = {
+  const byInstanceId = {
     codex: yield* CodexTextGen,
     claudeAgent: yield* ClaudeTextGen,
     cursor: yield* CursorTextGen,
     opencode: yield* OpenCodeTextGen,
   };
+  const resolve = (instanceId: string): TextGenerationShape =>
+    byInstanceId[instanceId as keyof typeof byInstanceId] ?? byInstanceId.codex;
 
   return {
     generateCommitMessage: (input) =>
-      byProvider[input.modelSelection.provider].generateCommitMessage(input),
-    generatePrContent: (input) =>
-      byProvider[input.modelSelection.provider].generatePrContent(input),
+      resolve(input.modelSelection.instanceId).generateCommitMessage(input),
+    generatePrContent: (input) => resolve(input.modelSelection.instanceId).generatePrContent(input),
     generateBranchName: (input) =>
-      byProvider[input.modelSelection.provider].generateBranchName(input),
+      resolve(input.modelSelection.instanceId).generateBranchName(input),
     generateThreadTitle: (input) =>
-      byProvider[input.modelSelection.provider].generateThreadTitle(input),
+      resolve(input.modelSelection.instanceId).generateThreadTitle(input),
   } satisfies TextGenerationShape;
 });
 

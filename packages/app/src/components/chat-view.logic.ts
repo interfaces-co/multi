@@ -2,7 +2,8 @@ import {
   type EnvironmentId,
   ProjectId,
   type ModelSelection,
-  type ProviderKind,
+  isProviderDriverKind,
+  type ProviderDriverKind,
   type ScopedThreadRef,
   type ThreadId,
   type TurnId,
@@ -228,13 +229,25 @@ export function threadHasStarted(thread: Thread | null | undefined): boolean {
 
 export function deriveLockedProvider(input: {
   thread: Thread | null | undefined;
-  selectedProvider: ProviderKind | null;
-  threadProvider: ProviderKind | null;
-}): ProviderKind | null {
+  selectedProvider: string | null;
+  threadProvider: string | null;
+}): ProviderDriverKind | null {
   if (!threadHasStarted(input.thread)) {
     return null;
   }
-  return input.thread?.session?.provider ?? input.threadProvider ?? input.selectedProvider ?? null;
+  const sessionProvider = input.thread?.session?.provider ?? null;
+  if (sessionProvider) {
+    return sessionProvider;
+  }
+  const narrowedThreadProvider =
+    input.threadProvider && isProviderDriverKind(input.threadProvider)
+      ? input.threadProvider
+      : null;
+  const narrowedSelectedProvider =
+    input.selectedProvider && isProviderDriverKind(input.selectedProvider)
+      ? input.selectedProvider
+      : null;
+  return narrowedThreadProvider ?? narrowedSelectedProvider ?? null;
 }
 
 export async function waitForStartedServerThread(

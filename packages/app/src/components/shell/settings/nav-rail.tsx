@@ -37,7 +37,7 @@ export function SettingsNavRail() {
   const { changedSettingLabels, restoreDefaults } = useSettingsRestoreState();
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-1 px-2 pt-1.5 pb-2">
+    <div className="flex min-h-0 flex-1 flex-col gap-1 px-2.5 pt-1.5 pb-2">
       <nav className="flex min-h-0 flex-1 flex-col gap-px" aria-label="Settings">
         {items.map((item) => {
           const Icon = item.icon;
@@ -68,9 +68,9 @@ export function SettingsNavRail() {
       <div className="shrink-0 border-t border-multi-border/40 pt-2">
         <Button
           type="button"
-          size="xs"
+          size="sm"
           variant="outline"
-          className="w-full px-2"
+          className="w-full"
           disabled={changedSettingLabels.length === 0}
           onClick={() => void restoreDefaults()}
         >

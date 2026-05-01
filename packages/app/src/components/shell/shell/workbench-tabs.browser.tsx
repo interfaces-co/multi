@@ -1,6 +1,6 @@
-import "../../../styles/tailwind.css";
-import "../../../styles/app.css";
-import "../../../styles/multi-tokens.css";
+import "../../../index.css";
+import "../../../styles/tokens.css";
+import "../../../styles/shell.css";
 
 import { createRoot } from "react-dom/client";
 import { page } from "vitest/browser";
@@ -43,14 +43,14 @@ describe("WorkbenchTabBar", () => {
       expect(page.getByPlaceholder("Open any file, URL, ...").element()).toBeTruthy();
     });
 
-    await page.getByPlaceholder("Open any file, URL, ...").fill("browser");
+    await page.getByPlaceholder("Open any file, URL, ...").fill("file");
 
     await vi.waitFor(() => {
-      expect(document.body.textContent ?? "").toContain("Browser");
+      expect(document.body.textContent ?? "").toContain("File");
       expect(document.body.textContent ?? "").not.toContain("Terminal");
     });
 
-    await page.getByText("Browser").click();
-    expect(harness.onTab).toHaveBeenCalledWith("browser");
+    await page.getByText("File").click();
+    expect(harness.onTab).toHaveBeenCalledWith("files");
   });
 });

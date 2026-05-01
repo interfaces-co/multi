@@ -11,9 +11,12 @@ import {
   KeybindingRule,
   MessageId,
   OpenError,
+  ProviderDriverKind,
+  ProviderInstanceId,
   TerminalNotRunningError,
   type OrchestrationCommand,
   type OrchestrationEvent,
+  type OrchestrationReadModel,
   ORCHESTRATION_WS_METHODS,
   ProjectId,
   ResolvedKeybindingRule,
@@ -47,7 +50,7 @@ import { RpcClient, RpcSerialization } from "effect/unstable/rpc";
 import * as Socket from "effect/unstable/socket/Socket";
 import { vi } from "vitest";
 
-import type { ServerConfigShape } from "./config.ts";
+import { ServerConfigShape } from "./config.ts";
 import { deriveServerPaths, ServerConfig } from "./config.ts";
 import { makeRoutesLayer } from "./server.ts";
 import { resolveAttachmentRelativePath } from "./attachment-paths.ts";
@@ -112,22 +115,22 @@ const defaultProjectId = ProjectId.make("project-default");
 const defaultThreadId = ThreadId.make("thread-default");
 const defaultDesktopBootstrapToken = "test-desktop-bootstrap-token";
 const defaultModelSelection = {
-  provider: "codex",
+  instanceId: "codex",
   model: "gpt-5-codex",
 } as const;
 const testEnvironmentDescriptor = {
   environmentId: EnvironmentId.make("environment-test"),
   label: "Test environment",
   platform: {
-    os: "darwin" as const,
-    arch: "arm64" as const,
+    os: "darwin",
+    arch: "arm64",
   },
   serverVersion: "0.0.0-test",
   capabilities: {
     repositoryIdentity: true,
   },
-};
-const makeDefaultOrchestrationReadModel = () => {
+} as const;
+const makeDefaultOrchestrationReadModel = (): OrchestrationReadModel => {
   const now = new Date().toISOString();
   return {
     snapshotSequence: 0,
@@ -150,8 +153,8 @@ const makeDefaultOrchestrationReadModel = () => {
         projectId: defaultProjectId,
         title: "Default Thread",
         modelSelection: defaultModelSelection,
-        interactionMode: "default" as const,
-        runtimeMode: "full-access" as const,
+        interactionMode: "default",
+        runtimeMode: "full-access",
         branch: null,
         worktreePath: null,
         createdAt: now,
@@ -166,7 +169,7 @@ const makeDefaultOrchestrationReadModel = () => {
         deletedAt: null,
       },
     ],
-  };
+  } as const satisfies OrchestrationReadModel;
 };
 
 const workspaceAndProjectServicesLayer = Layer.mergeAll(
@@ -1795,11 +1798,12 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
     Effect.gen(function* () {
       const providers = [
         {
-          provider: "codex" as const,
+          instanceId: "codex",
+          driver: "codex",
           enabled: true,
           installed: true,
           version: "1.0.0",
-          status: "ready" as const,
+          status: "ready",
           auth: { status: "authenticated" as const },
           checkedAt: "2026-04-11T00:00:00.000Z",
           models: [],
@@ -1865,11 +1869,12 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
     Effect.gen(function* () {
       const nextProviders = [
         {
-          provider: "codex" as const,
+          instanceId: "codex",
+          driver: "codex",
           enabled: true,
           installed: true,
           version: "1.0.0",
-          status: "ready" as const,
+          status: "ready",
           auth: { status: "authenticated" as const },
           checkedAt: "2026-04-11T00:00:00.000Z",
           models: [],
@@ -1920,9 +1925,9 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       Effect.gen(function* () {
         const lifecycleEvents = [
           {
-            version: 1 as const,
+            version: 1,
             sequence: 1,
-            type: "welcome" as const,
+            type: "welcome",
             payload: {
               environment: testEnvironmentDescriptor,
               cwd: "/tmp/project",
@@ -1931,9 +1936,9 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
           },
         ] as const;
         const liveEvents = Stream.make({
-          version: 1 as const,
+          version: 1,
           sequence: 2,
-          type: "ready" as const,
+          type: "ready",
           payload: { at: new Date().toISOString(), environment: testEnvironmentDescriptor },
         });
 
@@ -2112,7 +2117,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
             workspaceRoot: missingWorkspaceRoot,
             createWorkspaceRootIfMissing: true,
             defaultModelSelection: {
-              provider: "codex",
+              instanceId: "codex",
               model: "gpt-5-codex",
             },
             createdAt: new Date().toISOString(),
@@ -2246,7 +2251,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
             runStackedAction: (input, options) =>
               Effect.gen(function* () {
                 const result = {
-                  action: "commit" as const,
+                  action: "commit",
                   branch: { status: "skipped_not_requested" as const },
                   commit: {
                     status: "created" as const,
@@ -2259,14 +2264,14 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
                     title: "Committed abc123",
                     description: "feat: demo",
                     cta: {
-                      kind: "run_action" as const,
+                      kind: "run_action",
                       label: "Push",
                       action: {
-                        kind: "push" as const,
+                        kind: "push",
                       },
                     },
                   },
-                };
+                } as const;
 
                 yield* (
                   options?.progressReporter?.publish({
@@ -2627,7 +2632,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
           gitCore: {
             pullCurrentBranch: () =>
               Effect.succeed({
-                status: "pulled" as const,
+                status: "pulled",
                 branch: "main",
                 upstreamBranch: "origin/main",
               }),
@@ -2698,10 +2703,10 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
                 ),
               runStackedAction: () =>
                 Effect.succeed({
-                  action: "commit" as const,
+                  action: "commit",
                   branch: { status: "skipped_not_requested" as const },
                   commit: {
-                    status: "created" as const,
+                    status: "created",
                     commitSha: "abc123",
                     subject: "feat: demo",
                   },
@@ -2711,10 +2716,10 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
                     title: "Committed abc123",
                     description: "feat: demo",
                     cta: {
-                      kind: "run_action" as const,
+                      kind: "run_action",
                       label: "Push",
                       action: {
-                        kind: "push" as const,
+                        kind: "push",
                       },
                     },
                   },
@@ -2776,10 +2781,10 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
                 ),
               runStackedAction: () =>
                 Effect.succeed({
-                  action: "commit" as const,
+                  action: "commit",
                   branch: { status: "skipped_not_requested" as const },
                   commit: {
-                    status: "created" as const,
+                    status: "created",
                     commitSha: "abc123",
                     subject: "feat: demo",
                   },
@@ -2789,10 +2794,10 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
                     title: "Committed abc123",
                     description: "feat: demo",
                     cta: {
-                      kind: "run_action" as const,
+                      kind: "run_action",
                       label: "Push",
                       action: {
-                        kind: "push" as const,
+                        kind: "push",
                       },
                     },
                   },
@@ -2840,8 +2845,8 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
             projectId: ProjectId.make("project-a"),
             title: "Thread A",
             modelSelection: defaultModelSelection,
-            interactionMode: "default" as const,
-            runtimeMode: "full-access" as const,
+            interactionMode: "default",
+            runtimeMode: "full-access",
             branch: null,
             worktreePath: null,
             createdAt: now,
@@ -2856,7 +2861,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
             deletedAt: null,
           },
         ],
-      };
+      } as const satisfies OrchestrationReadModel;
 
       yield* buildAppUnderTest({
         layers: {
@@ -2990,7 +2995,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       const repositoryIdentity = {
         canonicalKey: "github.com/interfaces-co/multi",
         locator: {
-          source: "git-remote" as const,
+          source: "git-remote",
           remoteName: "origin",
           remoteUrl: "git@github.com:interfaces-co/Multi.git",
         },
@@ -2998,7 +3003,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         provider: "github",
         owner: "interfaces-co",
         name: "multi",
-      };
+      } as const;
 
       yield* buildAppUnderTest({
         layers: {
@@ -3529,7 +3534,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         exitCode: null,
         exitSignal: null,
         updatedAt: new Date().toISOString(),
-      };
+      } as const;
 
       yield* buildAppUnderTest({
         layers: {

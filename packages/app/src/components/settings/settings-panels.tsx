@@ -1,4 +1,5 @@
 import { ArchiveIcon, ArchiveX, LoaderIcon, RefreshCwIcon, XIcon } from "lucide-react";
+import { type VariantProps } from "class-variance-authority";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   type ReactNode,
@@ -11,7 +12,8 @@ import {
 import {
   type DesktopUpdateChannel,
   type ScopedThreadRef,
-  type ProviderKind,
+  ProviderDriverKind,
+  ProviderInstanceId,
   type ServerProvider,
   type ServerProviderModel,
 } from "@multi/contracts";
@@ -53,7 +55,7 @@ import {
 } from "../../lib/desktop-update-react-query";
 import {
   MAX_CUSTOM_MODEL_LENGTH,
-  getCustomModelOptionsByProvider,
+  getCustomModelOptionsByInstance,
   resolveAppModelSelectionState,
 } from "../../model-selection";
 import { ensureLocalApi, readLocalApi } from "../../local-api";
@@ -64,13 +66,19 @@ import {
   useStore,
 } from "../../store";
 import { formatRelativeTimeLabel } from "../../timestamp-format";
-import { cn } from "../../lib/utils";
 import { Button } from "@multi/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@multi/ui/empty";
 import { Input } from "@multi/ui/input";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "@multi/ui/select";
 import { Switch } from "@multi/ui/switch";
+import { List } from "@multi/ui/list";
+import { StatusDot, statusDotVariants } from "@multi/ui/status-dot";
+import { Text } from "@multi/ui/text";
 import { toastManager } from "~/app/toast";
+import {
+  deriveProviderInstanceEntries,
+  sortProviderInstanceEntries,
+} from "../../provider-instances";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@multi/ui/tooltip";
 import {
   SettingResetButton,
@@ -108,7 +116,7 @@ const TIMESTAMP_FORMAT_LABELS = {
 } as const;
 
 type InstallProviderSettings = {
-  provider: ProviderKind;
+  provider: typeof ProviderDriverKind.Type;
   title: string;
   binaryPlaceholder: string;
   binaryDescription: ReactNode;
@@ -119,7 +127,7 @@ type InstallProviderSettings = {
 
 const PROVIDER_SETTINGS: readonly InstallProviderSettings[] = [
   {
-    provider: "codex",
+    provider: ProviderDriverKind.make("codex"),
     title: "Codex",
     binaryPlaceholder: "Codex binary path",
     binaryDescription: "Path to the Codex binary",
@@ -154,20 +162,22 @@ function useAppearanceSettingsSnapshot() {
   );
 }
 
-const PROVIDER_STATUS_STYLES = {
-  disabled: {
-    dot: "bg-amber-400",
-  },
-  error: {
-    dot: "bg-destructive",
-  },
-  ready: {
-    dot: "bg-success",
-  },
-  warning: {
-    dot: "bg-warning",
-  },
-} as const;
+function codexProviderHealthDotState(
+  status: string | undefined,
+): NonNullable<VariantProps<typeof statusDotVariants>["state"]> {
+  switch (status) {
+    case "disabled":
+      return "inactive";
+    case "error":
+      return "critical";
+    case "ready":
+      return "success";
+    case "warning":
+      return "needsAttention";
+    default:
+      return "inactive";
+  }
+}
 
 function getProviderSummary(provider: ServerProvider | undefined) {
   if (!provider) {
@@ -229,10 +239,24 @@ function getProviderVersionLabel(version: string | null | undefined) {
 
 function AboutVersionTitle() {
   return (
-    <span className="inline-flex items-center gap-2">
+    <Text
+      render={<span />}
+      className="inline-flex items-center gap-2"
+      size="sm"
+      tone="primary"
+      weight="medium"
+    >
       <span>Version</span>
-      <code className="text-[11px] font-medium text-muted-foreground">{APP_VERSION}</code>
-    </span>
+      <Text
+        render={<code />}
+        size="xs"
+        tone="secondary"
+        weight="medium"
+        className="font-multi-mono"
+      >
+        {APP_VERSION}
+      </Text>
+    </Text>
   );
 }
 
@@ -373,7 +397,7 @@ function AboutVersionSection() {
             <TooltipTrigger
               render={
                 <Button
-                  size="xs"
+                  size="sm"
                   variant={action === "install" ? "default" : "outline"}
                   disabled={buttonDisabled}
                   onClick={handleButtonClick}
@@ -397,6 +421,7 @@ function AboutVersionSection() {
             }}
           >
             <SelectTrigger
+              size="xs"
               className="w-full sm:w-40"
               aria-label="Update track"
               disabled={!hasDesktopBridge || isChangingUpdateChannel}
@@ -432,8 +457,9 @@ export function useSettingsRestore(onRestored?: () => void) {
   );
   const isAppearanceDirty = !Equal.equals(appearance, DEFAULT_APPEARANCE_SNAPSHOT);
   const areProviderSettingsDirty = PROVIDER_SETTINGS.some((providerSettings) => {
-    const currentSettings = settings.providers[providerSettings.provider];
-    const defaultSettings = DEFAULT_UNIFIED_SETTINGS.providers[providerSettings.provider];
+    const provider = providerSettings.provider as keyof typeof DEFAULT_UNIFIED_SETTINGS.providers;
+    const currentSettings = settings.providers[provider];
+    const defaultSettings = DEFAULT_UNIFIED_SETTINGS.providers[provider];
     return !Equal.equals(currentSettings, defaultSettings);
   });
 
@@ -515,7 +541,7 @@ function SettingsSlider(props: {
     <div className="flex w-full items-center justify-end gap-2 sm:w-34">
       <input
         aria-label={props.label}
-        className="h-4 w-full accent-[var(--cursor-blue)]"
+        className="h-4 w-full accent-[var(--multi-hue-blue)]"
         max={props.max}
         min={props.min}
         type="range"
@@ -531,10 +557,10 @@ function SettingsSlider(props: {
           }}
         />
       ) : (
-        <span className="w-8 shrink-0 text-right text-[11px]/[14px] tabular-nums text-[var(--cursor-text-tertiary)]">
+        <Text size="xs" tone="tertiary" className="w-8 shrink-0 text-right tabular-nums">
           {props.value}
           {props.suffix ?? ""}
-        </span>
+        </Text>
       )}
     </div>
   );
@@ -550,32 +576,34 @@ function NumberStepper(props: {
   const set = (next: number) => props.onChange(Math.min(props.max, Math.max(props.min, next)));
 
   return (
-    <div className="inline-flex h-6 items-center overflow-hidden rounded-md bg-[var(--cursor-bg-tertiary)] text-[12px]/[16px]">
-      <button
+    <div className="inline-flex h-8 min-h-8 items-stretch overflow-hidden rounded-multi-control border border-multi-stroke-tertiary bg-multi-bg-quinary text-[12px]/[16px] shadow-none">
+      <Button
         type="button"
-        className="h-6 w-7 text-[var(--cursor-text-tertiary)] hover:bg-[var(--cursor-bg-quaternary)] hover:text-[var(--cursor-text-primary)]"
+        variant="ghost"
+        className="h-8 min-h-8 w-8 shrink-0 rounded-none border-transparent px-0 text-multi-fg-tertiary shadow-none hover:bg-multi-bg-quaternary hover:text-multi-fg-primary"
         aria-label={`Decrease ${props.label}`}
         onClick={() => set(props.value - 1)}
       >
         -
-      </button>
+      </Button>
       <input
         aria-label={props.label}
-        className="h-6 w-9 bg-transparent text-center tabular-nums outline-none"
+        className="-mx-px h-full min-h-8 w-10 shrink-0 border-x border-multi-stroke-tertiary bg-transparent py-1 text-center tabular-nums outline-none focus-visible:relative focus-visible:z-[1] focus-visible:border-multi-stroke-secondary"
         max={props.max}
         min={props.min}
         type="number"
         value={props.value}
         onChange={(event) => set(Number(event.target.value))}
       />
-      <button
+      <Button
         type="button"
-        className="h-6 w-7 text-[var(--cursor-text-tertiary)] hover:bg-[var(--cursor-bg-quaternary)] hover:text-[var(--cursor-text-primary)]"
+        variant="ghost"
+        className="h-8 min-h-8 w-8 shrink-0 rounded-none border-transparent px-0 text-multi-fg-tertiary shadow-none hover:bg-multi-bg-quaternary hover:text-multi-fg-primary"
         aria-label={`Increase ${props.label}`}
         onClick={() => set(props.value + 1)}
       >
         +
-      </button>
+      </Button>
     </div>
   );
 }
@@ -708,19 +736,24 @@ export function GeneralSettingsPanel() {
           description="Open the persisted keybindings file to edit advanced bindings directly."
           status={
             <>
-              <span className="block break-all font-mono text-[11px] text-[var(--cursor-text-secondary)]">
+              <Text
+                render={<span />}
+                size="xs"
+                tone="secondary"
+                className="block break-all font-multi-mono"
+              >
                 {keybindingsConfigPath ?? "Resolving keybindings path..."}
-              </span>
+              </Text>
               {openPathErrorByTarget.keybindings ? (
-                <span className="mt-1 block text-destructive">
+                <Text render={<span />} size="xs" className="mt-1 block text-destructive">
                   {openPathErrorByTarget.keybindings}
-                </span>
+                </Text>
               ) : null}
             </>
           }
           control={
             <Button
-              size="xs"
+              size="sm"
               variant="outline"
               disabled={!keybindingsConfigPath || openingPathByTarget.keybindings}
               onClick={() =>
@@ -751,19 +784,24 @@ export function GeneralSettingsPanel() {
           description={diagnosticsDescription}
           status={
             <>
-              <span className="block break-all font-mono text-[11px] text-[var(--cursor-text-secondary)]">
+              <Text
+                render={<span />}
+                size="xs"
+                tone="secondary"
+                className="block break-all font-multi-mono"
+              >
                 {logsDirectoryPath ?? "Resolving logs directory..."}
-              </span>
+              </Text>
               {openPathErrorByTarget.logsDirectory ? (
-                <span className="mt-1 block text-destructive">
+                <Text render={<span />} size="xs" className="mt-1 block text-destructive">
                   {openPathErrorByTarget.logsDirectory}
-                </span>
+                </Text>
               ) : null}
             </>
           }
           control={
             <Button
-              size="xs"
+              size="sm"
               variant="outline"
               disabled={!logsDirectoryPath || openingPathByTarget.logsDirectory}
               onClick={() =>
@@ -881,7 +919,7 @@ export function AppearanceSettingsPanel() {
       <SettingsSection
         title="Typography"
         headerAction={
-          <Button size="xs" variant="ghost" onClick={resetAppearanceSettings}>
+          <Button size="sm" variant="ghost" onClick={resetAppearanceSettings}>
             Reset
           </Button>
         }
@@ -1120,7 +1158,12 @@ export function ModelsSettingsPanel() {
   const [customModelError, setCustomModelError] = useState<string | null>(null);
   const [isRefreshingProviders, setIsRefreshingProviders] = useState(false);
   const refreshingRef = useRef(false);
-  const codexProvider = serverProviders.find((provider) => provider.provider === "codex");
+  const codexDriver = ProviderDriverKind.make("codex");
+  const codexInstanceId = ProviderInstanceId.make("codex");
+  const instanceEntries = sortProviderInstanceEntries(
+    deriveProviderInstanceEntries(serverProviders),
+  );
+  const codexProvider = serverProviders.find((provider) => provider.instanceId === codexInstanceId);
   const providerConfig = settings.providers.codex;
   const summary = getProviderSummary(codexProvider);
   const versionLabel = getProviderVersionLabel(codexProvider?.version);
@@ -1137,17 +1180,17 @@ export function ModelsSettingsPanel() {
     {
       ...settings,
       textGenerationModelSelection:
-        settings.textGenerationModelSelection?.provider === "codex"
+        settings.textGenerationModelSelection?.instanceId === codexInstanceId
           ? settings.textGenerationModelSelection
           : DEFAULT_UNIFIED_SETTINGS.textGenerationModelSelection,
     },
     serverProviders,
   );
   const textGenModelOptions = textGenerationModelSelection.options;
-  const modelOptionsByProvider = getCustomModelOptionsByProvider(
+  const modelOptionsByInstance = getCustomModelOptionsByInstance(
     settings,
     serverProviders,
-    "codex",
+    codexInstanceId,
     textGenerationModelSelection.model,
   );
   const isCodexDirty = !Equal.equals(providerConfig, DEFAULT_UNIFIED_SETTINGS.providers.codex);
@@ -1169,7 +1212,7 @@ export function ModelsSettingsPanel() {
   }, []);
 
   const addCustomModel = useCallback(() => {
-    const normalized = normalizeModelSlug(customModelInput, "codex");
+    const normalized = normalizeModelSlug(customModelInput, codexDriver);
     if (!normalized) {
       setCustomModelError("Enter a model slug.");
       return;
@@ -1218,17 +1261,17 @@ export function ModelsSettingsPanel() {
         title="Models"
         headerAction={
           <Button
-            size="icon-xs"
+            size="icon"
             variant="ghost"
-            className="size-5 rounded-sm p-0 text-muted-foreground hover:text-foreground"
+            className="size-7 shrink-0 text-multi-fg-tertiary hover:text-multi-fg-primary"
             disabled={isRefreshingProviders}
             onClick={() => void refreshProviders()}
             aria-label="Refresh provider status"
           >
             {isRefreshingProviders ? (
-              <LoaderIcon className="size-3 animate-spin" />
+              <LoaderIcon className="size-3.5 animate-spin" />
             ) : (
-              <RefreshCwIcon className="size-3" />
+              <RefreshCwIcon className="size-3.5" />
             )}
           </Button>
         }
@@ -1252,19 +1295,19 @@ export function ModelsSettingsPanel() {
           control={
             <div className="flex flex-wrap items-center justify-end gap-1.5">
               <ProviderModelPicker
-                provider="codex"
+                activeInstanceId={codexInstanceId}
                 model={textGenerationModelSelection.model}
-                lockedProvider="codex"
-                providers={serverProviders}
-                modelOptionsByProvider={modelOptionsByProvider}
+                lockedProvider={codexDriver}
+                instanceEntries={instanceEntries}
+                modelOptionsByInstance={modelOptionsByInstance}
                 triggerVariant="outline"
                 triggerClassName="h-6 min-w-0 max-w-none shrink-0 text-[12px] text-foreground/90 hover:text-foreground"
-                onProviderModelChange={(_, model) => {
+                onInstanceModelChange={(_, model: string) => {
                   updateSettings({
                     textGenerationModelSelection: resolveAppModelSelectionState(
                       {
                         ...settings,
-                        textGenerationModelSelection: { provider: "codex", model },
+                        textGenerationModelSelection: { instanceId: codexInstanceId, model },
                       },
                       serverProviders,
                     ),
@@ -1272,7 +1315,7 @@ export function ModelsSettingsPanel() {
                 }}
               />
               <TraitsPicker
-                provider="codex"
+                provider={codexDriver}
                 models={codexProvider?.models ?? []}
                 model={textGenerationModelSelection.model}
                 prompt=""
@@ -1287,7 +1330,7 @@ export function ModelsSettingsPanel() {
                       {
                         ...settings,
                         textGenerationModelSelection: {
-                          provider: "codex",
+                          instanceId: codexInstanceId,
                           model: textGenerationModelSelection.model,
                           ...(nextOptions ? { options: nextOptions } : {}),
                         },
@@ -1307,9 +1350,9 @@ export function ModelsSettingsPanel() {
           }
           status={
             versionLabel ? (
-              <code className="text-[11px] text-[var(--cursor-text-secondary)]">
+              <Text render={<code />} size="xs" tone="secondary" className="font-multi-mono">
                 {versionLabel}
-              </code>
+              </Text>
             ) : null
           }
           resetAction={
@@ -1329,10 +1372,9 @@ export function ModelsSettingsPanel() {
           }
           control={
             <div className="flex items-center gap-2">
-              <span
-                className={cn("size-2 rounded-full", PROVIDER_STATUS_STYLES[statusKey].dot)}
-                aria-hidden
-              />
+              <span className="inline-flex shrink-0" aria-hidden>
+                <StatusDot state={codexProviderHealthDotState(statusKey)} />
+              </span>
               <Switch
                 checked={providerConfig.enabled}
                 aria-label="Enable Codex"
@@ -1394,28 +1436,30 @@ export function ModelsSettingsPanel() {
           title="Available models"
           description={`${models.length} Codex models available.`}
         >
-          <div className="mt-2 max-h-48 overflow-y-auto pb-1">
+          <List gap="none" className="mt-2 max-h-48 overflow-y-auto pb-1">
             {models.map((model) => (
-              <div
+              <li
                 key={`codex:${model.slug}`}
-                className="flex min-h-7 items-center gap-2 border-t border-[var(--cursor-stroke-quaternary)] first:border-t-0"
+                className="flex min-h-7 items-center gap-2 border-t border-[var(--multi-stroke-quaternary)] first:border-t-0"
               >
-                <span className="min-w-0 flex-1 truncate text-[12px]/[16px] text-[var(--cursor-text-primary)]">
+                <Text size="sm" tone="primary" truncate className="min-w-0 flex-1">
                   {model.name}
-                </span>
+                </Text>
                 {model.isCustom ? (
-                  <button
+                  <Button
                     type="button"
-                    className="text-[var(--cursor-text-tertiary)] hover:text-[var(--cursor-text-primary)]"
+                    size="icon"
+                    variant="ghost"
+                    className="size-7 shrink-0 text-multi-fg-tertiary hover:text-multi-fg-primary"
                     aria-label={`Remove ${model.slug}`}
                     onClick={() => removeCustomModel(model.slug)}
                   >
-                    <XIcon className="size-3" />
-                  </button>
+                    <XIcon className="size-3.5" />
+                  </Button>
                 ) : null}
-              </div>
+              </li>
             ))}
-          </div>
+          </List>
           <div className="mt-2 flex flex-col gap-2 sm:flex-row">
             <Input
               size="sm"
@@ -1432,12 +1476,14 @@ export function ModelsSettingsPanel() {
               placeholder="gpt-6.7-codex-ultra-preview"
               spellCheck={false}
             />
-            <Button size="xs" variant="outline" className="shrink-0" onClick={addCustomModel}>
+            <Button size="sm" variant="outline" className="shrink-0" onClick={addCustomModel}>
               Add
             </Button>
           </div>
           {customModelError ? (
-            <p className="mt-2 text-[11px] text-destructive">{customModelError}</p>
+            <Text render={<p />} size="xs" className="mt-2 text-destructive">
+              {customModelError}
+            </Text>
           ) : null}
         </SettingsRow>
       </SettingsSection>
@@ -1520,7 +1566,7 @@ export function ArchivedThreadsPanel() {
             {projectThreads.map((thread) => (
               <div
                 key={thread.id}
-                className="flex items-center justify-between gap-3 border-t border-border px-4 py-3 first:border-t-0 sm:px-5"
+                className="flex items-center justify-between gap-3 border-t border-[var(--multi-stroke-quaternary)] px-4 py-3 first:border-t-0 sm:px-5"
                 onContextMenu={(event) => {
                   event.preventDefault();
                   void handleArchivedThreadContextMenu(
@@ -1533,18 +1579,20 @@ export function ArchivedThreadsPanel() {
                 }}
               >
                 <div className="min-w-0 flex-1">
-                  <h3 className="truncate text-sm font-medium text-foreground">{thread.title}</h3>
-                  <p className="text-xs text-muted-foreground">
+                  <Text render={<h3 />} size="base" tone="primary" weight="medium" truncate>
+                    {thread.title}
+                  </Text>
+                  <Text render={<p />} size="xs" tone="secondary" className="mt-0.5 block">
                     Archived {formatRelativeTimeLabel(thread.archivedAt ?? thread.createdAt)}
                     {" \u00b7 Created "}
                     {formatRelativeTimeLabel(thread.createdAt)}
-                  </p>
+                  </Text>
                 </div>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-7 shrink-0 cursor-pointer gap-1.5 px-2.5"
+                  className="shrink-0 gap-1.5 px-2.5"
                   onClick={() =>
                     void unarchiveThread(scopeThreadRef(thread.environmentId, thread.id)).catch(
                       (error) => {

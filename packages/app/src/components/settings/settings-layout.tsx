@@ -3,6 +3,7 @@ import { type ReactNode, useEffect, useState } from "react";
 
 import { cn } from "../../lib/utils";
 import { Button } from "@multi/ui/button";
+import { Text } from "@multi/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@multi/ui/tooltip";
 
 /** Re-render every `intervalMs`; return a stable timestamp snapshot for render-time relative labels. */
@@ -29,13 +30,19 @@ export function SettingsSection({
   return (
     <section className="space-y-2">
       <div className="flex min-h-5 items-center justify-between px-1.5">
-        <h2 className="flex items-center gap-1.5 text-[11px]/[14px] font-medium text-[var(--cursor-text-tertiary)]">
+        <Text
+          render={<h2 />}
+          className="flex items-center gap-1.5"
+          size="xs"
+          tone="tertiary"
+          weight="medium"
+        >
           {icon}
           {title}
-        </h2>
+        </Text>
         {headerAction}
       </div>
-      <div className="relative overflow-hidden rounded-lg bg-[var(--cursor-bg-quinary)] text-card-foreground">
+      <div className="relative overflow-hidden rounded-lg bg-multi-bg-quinary text-card-foreground">
         {children}
       </div>
     </section>
@@ -60,25 +67,27 @@ export function SettingsRow({
   return (
     <div
       className={cn(
-        "border-t border-[var(--cursor-stroke-quaternary)] px-2.5 first:border-t-0 sm:px-3",
+        "border-t border-[var(--multi-stroke-quaternary)] px-2.5 first:border-t-0 sm:px-3",
         children ? "pt-3 pb-0" : "py-2.5",
       )}
     >
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex min-h-4 items-center gap-1.5">
-            <h3 className="text-[12px]/[16px] font-medium text-[var(--cursor-text-primary)]">
+            <Text render={<h3 />} size="sm" tone="primary" weight="medium">
               {title}
-            </h3>
+            </Text>
             <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center">
               {resetAction}
             </span>
           </div>
-          <p className="text-[11px]/[14px] text-[var(--cursor-text-tertiary)]">{description}</p>
+          <Text render={<p />} size="xs" tone="tertiary" className="block">
+            {description}
+          </Text>
           {status ? (
-            <div className="pt-1 text-[11px]/[14px] text-[var(--cursor-text-tertiary)]">
+            <Text render={<div />} size="xs" tone="tertiary" className="block pt-1">
               {status}
-            </div>
+            </Text>
           ) : null}
         </div>
         {control ? (
@@ -101,7 +110,7 @@ export function SettingResetButton({ label, onClick }: { label: string; onClick:
             size="icon-xs"
             variant="ghost"
             aria-label={`Reset ${label} to default`}
-            className="size-5 rounded-sm p-0 text-muted-foreground hover:text-foreground"
+            className="size-5 rounded-sm p-0 text-multi-fg-tertiary hover:text-multi-fg-primary"
             onClick={(event) => {
               event.stopPropagation();
               onClick();

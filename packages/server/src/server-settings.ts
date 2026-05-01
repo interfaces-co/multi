@@ -13,8 +13,12 @@
 import {
   DEFAULT_GIT_TEXT_GENERATION_MODEL_BY_PROVIDER,
   DEFAULT_SERVER_SETTINGS,
+  DEFAULT_GIT_TEXT_GENERATION_MODEL,
+  isProviderDriverKind,
   type ModelSelection,
-  type ProviderKind,
+  type ProviderInstanceConfig,
+  ProviderDriverKind,
+  ProviderInstanceId,
   ServerSettings,
   ServerSettingsError,
   type ServerSettingsPatch,
@@ -106,7 +110,13 @@ export class ServerSettingsService extends Context.Service<
 
 const ServerSettingsJson = fromLenientJson(ServerSettings);
 
-const PROVIDER_ORDER: readonly ProviderKind[] = ["codex", "claudeAgent", "opencode", "cursor"];
+type LegacyProviderSettings = ServerSettings["providers"][keyof ServerSettings["providers"]];
+
+const getLegacyProviderSettings = (
+  settings: ServerSettings,
+  provider: ProviderDriverKind,
+): LegacyProviderSettings | undefined =>
+  (settings.providers as Record<string, LegacyProviderSettings | undefined>)[provider];
 
 /**
  * Ensure the `textGenerationModelSelection` points to an enabled provider.
@@ -116,22 +126,37 @@ const PROVIDER_ORDER: readonly ProviderKind[] = ["codex", "claudeAgent", "openco
  */
 function resolveTextGenerationProvider(settings: ServerSettings): ServerSettings {
   const selection = settings.textGenerationModelSelection;
-  if (settings.providers[selection.provider].enabled) {
+  const instanceConfig: ProviderInstanceConfig | undefined =
+    settings.providerInstances[selection.instanceId];
+  if (instanceConfig !== undefined) {
+    return (instanceConfig.enabled ?? true) ? settings : fallbackTextGenerationProvider(settings);
+  }
+
+  if (
+    isProviderDriverKind(selection.instanceId) &&
+    getLegacyProviderSettings(settings, selection.instanceId)?.enabled
+  ) {
     return settings;
   }
 
-  const fallback = PROVIDER_ORDER.find((p) => settings.providers[p].enabled);
+  return fallbackTextGenerationProvider(settings);
+}
+
+function fallbackTextGenerationProvider(settings: ServerSettings): ServerSettings {
+  const fallbackEntry = Object.entries(settings.providers).find(([, provider]) => provider.enabled);
+  const fallback = fallbackEntry ? ProviderDriverKind.make(fallbackEntry[0]) : undefined;
   if (!fallback) {
-    // No providers enabled — return as-is; callers will report the error.
     return settings;
   }
 
   return {
     ...settings,
     textGenerationModelSelection: {
-      provider: fallback,
-      model: DEFAULT_GIT_TEXT_GENERATION_MODEL_BY_PROVIDER[fallback],
-    } as ModelSelection,
+      instanceId: ProviderInstanceId.make(fallback),
+      model:
+        DEFAULT_GIT_TEXT_GENERATION_MODEL_BY_PROVIDER[fallback] ??
+        DEFAULT_GIT_TEXT_GENERATION_MODEL,
+    } satisfies ModelSelection,
   };
 }
 

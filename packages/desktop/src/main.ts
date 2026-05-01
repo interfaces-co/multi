@@ -59,6 +59,7 @@ import { resolveDesktopServerExposure } from "./server-exposure";
 import { syncShellEnvironment } from "./sync-shell-environment";
 import { getAutoUpdateDisabledReason, shouldBroadcastDownloadProgress } from "./update-state";
 import { ServerListeningDetector } from "./server-listening-detector";
+import { resolveDesktopUserDataPath } from "./app-user-data";
 import {
   createInitialDesktopUpdateState,
   reduceDesktopUpdateStateOnCheckFailure,
@@ -73,6 +74,7 @@ import {
 } from "./update-machine";
 import { isArm64HostRunningIntelBuild, resolveDesktopRuntimeInfo } from "./runtime-arch";
 import { resolveDesktopAppBranding } from "./app-branding";
+import { bindFirstRevealTrigger, type RevealSubscription } from "./window-reveal";
 
 syncShellEnvironment();
 
@@ -107,6 +109,57 @@ const SAVED_ENVIRONMENT_REGISTRY_PATH = Path.join(STATE_DIR, "saved-environments
 const DESKTOP_SCHEME = "multi";
 const ROOT_DIR = Path.resolve(__dirname, "../../..");
 const isDevelopment = Boolean(process.env.VITE_DEV_SERVER_URL);
+const USER_DATA_DIR_NAME = isDevelopment ? "multi-dev" : "multi";
+const LEGACY_USER_DATA_DIR_NAME = isDevelopment ? "Multi (Dev)" : "Multi (Alpha)";
+
+/**
+ * Resolve the Electron userData directory path.
+ *
+ * Electron derives the default userData path from `productName` in
+ * package.json, which can produce directories with spaces and parentheses
+ * (e.g. `~/.config/Multi (Alpha)` on Linux). We override to a clean name when
+ * no legacy directory exists so paths stay shell-friendly.
+ *
+ * Chromium serializes access to a profile via SingletonLock. Only one GUI
+ * process may use a given userData directory; secondary instances exit early
+ * (see `requestSingleInstanceLock` immediately below). Parallel sessions need
+ * distinct identities (e.g. separate `MULTI_HOME` / dev vs prod `userDataDirName`).
+ */
+function resolveUserDataPath(): string {
+  const appDataBase =
+    process.platform === "win32"
+      ? process.env.APPDATA || Path.join(OS.homedir(), "AppData", "Roaming")
+      : process.platform === "darwin"
+        ? Path.join(OS.homedir(), "Library", "Application Support")
+        : process.env.XDG_CONFIG_HOME || Path.join(OS.homedir(), ".config");
+
+  return resolveDesktopUserDataPath({
+    appDataBase,
+    userDataDirName: USER_DATA_DIR_NAME,
+    legacyUserDataDirName: LEGACY_USER_DATA_DIR_NAME,
+    existsSync: FS.existsSync,
+  });
+}
+
+// Override userData and take the single-instance lock before any other `app` APIs
+// that integrate with Chromium (protocol registration, logging, command-line).
+app.setPath("userData", resolveUserDataPath());
+if (!app.requestSingleInstanceLock()) {
+  app.exit(0);
+}
+
+app.on("second-instance", () => {
+  const window = mainWindow ?? BrowserWindow.getAllWindows()[0];
+  if (!window) {
+    return;
+  }
+
+  if (window.isMinimized()) {
+    window.restore();
+  }
+  window.focus();
+});
+
 const desktopAppBranding: DesktopAppBranding = resolveDesktopAppBranding({
   isDevelopment,
   appVersion: app.getVersion(),
@@ -115,8 +168,6 @@ const APP_DISPLAY_NAME = desktopAppBranding.displayName;
 const APP_USER_MODEL_ID = isDevelopment ? "com.interfacesco.multi.dev" : "com.interfacesco.multi";
 const LINUX_DESKTOP_ENTRY_NAME = isDevelopment ? "multi-dev.desktop" : "multi.desktop";
 const LINUX_WM_CLASS = isDevelopment ? "multi-dev" : "multi";
-const USER_DATA_DIR_NAME = isDevelopment ? "multi-dev" : "multi";
-const LEGACY_USER_DATA_DIR_NAME = isDevelopment ? "Multi (Dev)" : "Multi (Alpha)";
 const COMMIT_HASH_PATTERN = /^[0-9a-f]{7,40}$/i;
 const COMMIT_HASH_DISPLAY_LENGTH = 12;
 const LOG_DIR = Path.join(STATE_DIR, "logs");
@@ -126,6 +177,24 @@ const APP_RUN_ID = Crypto.randomBytes(6).toString("hex");
 const SERVER_SETTINGS_PATH = Path.join(STATE_DIR, "settings.json");
 const AUTO_UPDATE_STARTUP_DELAY_MS = 15_000;
 const AUTO_UPDATE_POLL_INTERVAL_MS = 4 * 60 * 60 * 1000;
+
+initializePackagedLogging();
+
+if (process.platform === "linux") {
+  app.commandLine.appendSwitch("class", LINUX_WM_CLASS);
+}
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: DESKTOP_SCHEME,
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+    },
+  },
+]);
 
 function resolvePickFolderDefaultPath(rawOptions: unknown): string | undefined {
   if (typeof rawOptions !== "object" || rawOptions === null) {
@@ -601,12 +670,6 @@ function captureBackendOutput(child: ChildProcess.ChildProcess): void {
   attachStream(child.stderr);
 }
 
-initializePackagedLogging();
-
-if (process.platform === "linux") {
-  app.commandLine.appendSwitch("class", LINUX_WM_CLASS);
-}
-
 function getDestructiveMenuIcon(): Electron.NativeImage | undefined {
   if (process.platform !== "darwin") return undefined;
   if (destructiveMenuIconCache !== undefined) {
@@ -643,18 +706,6 @@ function resolveUpdaterErrorContext(): DesktopUpdateErrorContext {
   if (updateCheckInFlight) return "check";
   return updateState.errorContext;
 }
-
-protocol.registerSchemesAsPrivileged([
-  {
-    scheme: DESKTOP_SCHEME,
-    privileges: {
-      standard: true,
-      secure: true,
-      supportFetchAPI: true,
-      corsEnabled: true,
-    },
-  },
-]);
 
 function resolveAppRoot(): string {
   if (!app.isPackaged) {
@@ -1028,34 +1079,6 @@ function resolveIconPath(ext: "ico" | "icns" | "png"): string | null {
   }
 
   return resolveResourcePath(`icon.${ext}`);
-}
-
-/**
- * Resolve the Electron userData directory path.
- *
- * Electron derives the default userData path from `productName` in
- * package.json, which currently produces directories with spaces and
- * parentheses (e.g. `~/.config/Multi (Alpha)` on Linux). This is
- * unfriendly for shell usage and violates Linux naming conventions.
- *
- * We override it to a clean lowercase name (`multi`). If the legacy
- * directory already exists we keep using it so existing users don't
- * lose their Chromium profile data (localStorage, cookies, sessions).
- */
-function resolveUserDataPath(): string {
-  const appDataBase =
-    process.platform === "win32"
-      ? process.env.APPDATA || Path.join(OS.homedir(), "AppData", "Roaming")
-      : process.platform === "darwin"
-        ? Path.join(OS.homedir(), "Library", "Application Support")
-        : process.env.XDG_CONFIG_HOME || Path.join(OS.homedir(), ".config");
-
-  const legacyPath = Path.join(appDataBase, LEGACY_USER_DATA_DIR_NAME);
-  if (FS.existsSync(legacyPath)) {
-    return legacyPath;
-  }
-
-  return Path.join(appDataBase, USER_DATA_DIR_NAME);
 }
 
 function configureAppIdentity(): void {
@@ -1994,7 +2017,6 @@ function createWindow(): BrowserWindow {
   window.webContents.on("did-finish-load", () => {
     window.setTitle(APP_DISPLAY_NAME);
     emitUpdateState();
-    revealInitialWindow();
   });
   window.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedUrl) => {
     writeDesktopLogHeader(
@@ -2024,7 +2046,14 @@ function createWindow(): BrowserWindow {
     revealWindow(window);
   };
 
-  window.once("ready-to-show", revealInitialWindow);
+  // On Linux/Wayland with `show: false`, Electron's `ready-to-show` can wait
+  // until after `show()`. Keep the first-paint path everywhere else, with
+  // `did-finish-load` only as the Linux deadlock fallback.
+  const revealSubscribers: RevealSubscription[] = [(fire) => window.once("ready-to-show", fire)];
+  if (process.platform === "linux") {
+    revealSubscribers.push((fire) => window.webContents.once("did-finish-load", fire));
+  }
+  bindFirstRevealTrigger(revealSubscribers, revealInitialWindow);
 
   if (isDevelopment) {
     void window.loadURL(resolveDesktopDevServerUrl());
@@ -2041,33 +2070,6 @@ function createWindow(): BrowserWindow {
 
   return window;
 }
-
-// Override Electron's userData path before the `ready` event so that
-// Chromium session data uses a filesystem-friendly directory name.
-// Must be called synchronously at the top level — before `app.whenReady()`.
-app.setPath("userData", resolveUserDataPath());
-
-configureAppIdentity();
-
-const singleInstanceLock = app.requestSingleInstanceLock({
-  devRoot: isDevelopment ? ROOT_DIR : undefined,
-});
-
-if (!singleInstanceLock) {
-  app.exit(0);
-}
-
-app.on("second-instance", () => {
-  const window = mainWindow ?? BrowserWindow.getAllWindows()[0];
-  if (!window) {
-    return;
-  }
-
-  if (window.isMinimized()) {
-    window.restore();
-  }
-  window.focus();
-});
 
 async function bootstrap(): Promise<void> {
   writeDesktopLogHeader("bootstrap start");

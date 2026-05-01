@@ -2,7 +2,7 @@ import { assert, it } from "@effect/vitest";
 import { Effect } from "effect";
 import { afterEach, expect, vi } from "vitest";
 
-vi.mock("../../process-runner", () => ({
+vi.mock("../process-runner", () => ({
   runProcess: vi.fn(),
 }));
 

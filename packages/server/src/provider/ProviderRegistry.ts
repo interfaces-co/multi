@@ -3,7 +3,7 @@
  *
  * @module ProviderRegistryLive
  */
-import type { ProviderKind, ServerProvider } from "@multi/contracts";
+import type { ProviderDriverKind, ServerProvider } from "@multi/contracts";
 import { Effect, Equal, FileSystem, Layer, Path, PubSub, Ref, Stream } from "effect";
 
 import { ServerConfig } from "../config.ts";
@@ -19,7 +19,6 @@ import { ProviderRegistry, type ProviderRegistryShape } from "./ProviderRegistry
 import { OpenCodeRuntimeLive } from "./opencodeRuntime.ts";
 import {
   hydrateCachedProvider,
-  PROVIDER_CACHE_IDS,
   orderProviderSnapshots,
   readProviderStatusCache,
   resolveProviderStatusCachePath,
@@ -95,33 +94,32 @@ const ProviderRegistryLiveBase = Layer.effect(
       opencode: openCodeProvider,
       cursor: cursorProvider,
     }) satisfies ReadonlyArray<ProviderSnapshotSource>;
-    const activeProviders = PROVIDER_CACHE_IDS;
     const changesPubSub = yield* Effect.acquireRelease(
       PubSub.unbounded<ReadonlyArray<ServerProvider>>(),
       PubSub.shutdown,
     );
     const fallbackProviders = yield* loadProviders(providerSources);
     const cachePathByProvider = new Map(
-      activeProviders.map(
+      fallbackProviders.map(
         (provider) =>
           [
-            provider,
+            provider.instanceId,
             resolveProviderStatusCachePath({
               cacheDir: config.providerStatusCacheDir,
-              provider,
+              instanceId: provider.instanceId,
             }),
           ] as const,
       ),
     );
     const fallbackByProvider = new Map(
-      fallbackProviders.map((provider) => [provider.provider, provider] as const),
+      fallbackProviders.map((provider) => [provider.instanceId, provider] as const),
     );
 
     const cachedProviders = yield* Effect.forEach(
-      activeProviders,
-      (provider) => {
-        const filePath = cachePathByProvider.get(provider)!;
-        const fallbackProvider = fallbackByProvider.get(provider)!;
+      fallbackProviders.map((provider) => provider.instanceId),
+      (instanceId) => {
+        const filePath = cachePathByProvider.get(instanceId)!;
+        const fallbackProvider = fallbackByProvider.get(instanceId)!;
         return readProviderStatusCache(filePath).pipe(
           Effect.provideService(FileSystem.FileSystem, fileSystem),
           Effect.map((cachedProvider) =>
@@ -146,7 +144,7 @@ const ProviderRegistryLiveBase = Layer.effect(
 
     const persistProvider = (provider: ServerProvider) =>
       writeProviderStatusCache({
-        filePath: cachePathByProvider.get(provider.provider)!,
+        filePath: cachePathByProvider.get(provider.instanceId)!,
         provider,
       }).pipe(
         Effect.provideService(FileSystem.FileSystem, fileSystem),
@@ -165,13 +163,13 @@ const ProviderRegistryLiveBase = Layer.effect(
         providersRef,
         (previousProviders) => {
           const mergedProviders = new Map(
-            previousProviders.map((provider) => [provider.provider, provider] as const),
+            previousProviders.map((provider) => [provider.instanceId, provider] as const),
           );
 
           for (const provider of nextProviders) {
             mergedProviders.set(
-              provider.provider,
-              mergeProviderSnapshot(mergedProviders.get(provider.provider), provider),
+              provider.instanceId,
+              mergeProviderSnapshot(mergedProviders.get(provider.instanceId), provider),
             );
           }
 
@@ -202,7 +200,7 @@ const ProviderRegistryLiveBase = Layer.effect(
       return yield* upsertProviders([provider], options);
     });
 
-    const refresh = Effect.fn("refresh")(function* (provider?: ProviderKind) {
+    const refresh = Effect.fn("refresh")(function* (provider?: ProviderDriverKind) {
       if (provider) {
         const providerSource = providerSources.find((candidate) => candidate.provider === provider);
         if (!providerSource) {
@@ -240,7 +238,7 @@ const ProviderRegistryLiveBase = Layer.effect(
 
     return {
       getProviders: Ref.get(providersRef),
-      refresh: (provider?: ProviderKind) =>
+      refresh: (provider?: ProviderDriverKind) =>
         refresh(provider).pipe(
           Effect.tapError(Effect.logError),
           Effect.orElseSucceed(() => [] as ReadonlyArray<ServerProvider>),

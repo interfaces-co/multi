@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import type {
+import {
   ProviderApprovalDecision,
   ProviderRuntimeEvent,
   ProviderSendTurnInput,
@@ -12,7 +12,7 @@ import type {
 import {
   ApprovalRequestId,
   EventId,
-  type ProviderKind,
+  type ProviderDriverKind,
   ProviderSessionStartInput,
   ThreadId,
   TurnId,
@@ -29,7 +29,7 @@ import {
   ProviderValidationError,
   type ProviderAdapterError,
 } from "./Errors.ts";
-import type { ProviderAdapterShape } from "./ProviderAdapter.service.ts";
+import { ProviderAdapterShape } from "./ProviderAdapter.service.ts";
 import { ProviderAdapterRegistry } from "./ProviderAdapterRegistry.service.ts";
 import { ProviderService } from "./ProviderService.service.ts";
 import { ProviderSessionDirectory } from "./ProviderSessionDirectory.service.ts";
@@ -49,10 +49,29 @@ const asEventId = (value: string): EventId => EventId.make(value);
 const asThreadId = (value: string): ThreadId => ThreadId.make(value);
 const asTurnId = (value: string): TurnId => TurnId.make(value);
 
+const ensureExistingDirectory = (cwd: string): string => {
+  fs.mkdirSync(cwd, { recursive: true });
+  return cwd;
+};
+
+for (const cwd of [
+  "/tmp/project",
+  "/tmp/project-reap-preserve",
+  "/tmp/project-claude",
+  "/tmp/project-provider-replacement",
+  "/tmp/project-send-turn",
+  "/tmp/project-claude-send-turn",
+  "/tmp/project-claude-start",
+  "/tmp/project-claude-cwd",
+  "/tmp/project-send-metrics",
+]) {
+  ensureExistingDirectory(cwd);
+}
+
 type LegacyProviderRuntimeEvent = {
   readonly type: string;
   readonly eventId: EventId;
-  readonly provider: ProviderKind;
+  readonly provider: ProviderDriverKind;
   readonly createdAt: string;
   readonly threadId: ThreadId;
   readonly turnId?: string | undefined;
@@ -62,7 +81,46 @@ type LegacyProviderRuntimeEvent = {
   readonly [key: string]: unknown;
 };
 
-function makeFakeCodexAdapter(provider: ProviderKind = "codex") {
+function makeRegistry(
+  adapters: Partial<Record<ProviderDriverKind, ProviderAdapterShape<ProviderAdapterError>>>,
+  disabledInstances: ReadonlyArray<string> = [],
+): typeof ProviderAdapterRegistry.Service {
+  const changes = Effect.runSync(PubSub.unbounded<void>());
+  const providers = Object.keys(adapters) as ProviderDriverKind[];
+  const disabledSet = new Set(disabledInstances);
+
+  return {
+    getByInstance: (instanceId) => {
+      const adapter = adapters[instanceId as ProviderDriverKind];
+      return adapter
+        ? Effect.succeed(adapter)
+        : Effect.fail(new ProviderUnsupportedError({ provider: instanceId }));
+    },
+    getInstanceInfo: (instanceId) => {
+      const driverKind = instanceId as ProviderDriverKind;
+      const adapter = adapters[driverKind];
+      return adapter
+        ? Effect.succeed({
+            instanceId,
+            driverKind,
+            enabled: !disabledSet.has(instanceId),
+          })
+        : Effect.fail(new ProviderUnsupportedError({ provider: instanceId }));
+    },
+    listInstances: () => Effect.succeed(providers),
+    getByProvider: (provider) => {
+      const adapter = adapters[provider];
+      return adapter
+        ? Effect.succeed(adapter)
+        : Effect.fail(new ProviderUnsupportedError({ provider }));
+    },
+    listProviders: () => Effect.succeed(providers),
+    streamChanges: Stream.fromPubSub(changes),
+    subscribeChanges: PubSub.subscribe(changes),
+  };
+}
+
+function makeFakeCodexAdapter(provider: ProviderDriverKind = "codex") {
   const sessions = new Map<ThreadId, ProviderSession>();
   const runtimeEventPubSub = Effect.runSync(PubSub.unbounded<ProviderRuntimeEvent>());
 
@@ -71,6 +129,7 @@ function makeFakeCodexAdapter(provider: ProviderKind = "codex") {
       const now = new Date().toISOString();
       const session: ProviderSession = {
         provider,
+        providerInstanceId: input.providerInstanceId,
         status: "ready",
         runtimeMode: input.runtimeMode,
         threadId: input.threadId,
@@ -244,17 +303,11 @@ function makeProviderServiceLayer() {
   const codex = makeFakeCodexAdapter();
   const claude = makeFakeCodexAdapter("claudeAgent");
   const cursor = makeFakeCodexAdapter("cursor");
-  const registry: typeof ProviderAdapterRegistry.Service = {
-    getByProvider: (provider) =>
-      provider === "codex"
-        ? Effect.succeed(codex.adapter)
-        : provider === "claudeAgent"
-          ? Effect.succeed(claude.adapter)
-          : provider === "cursor"
-            ? Effect.succeed(cursor.adapter)
-            : Effect.fail(new ProviderUnsupportedError({ provider })),
-    listProviders: () => Effect.succeed(["codex", "claudeAgent", "cursor"]),
-  };
+  const registry = makeRegistry({
+    codex: codex.adapter,
+    claudeAgent: claude.adapter,
+    cursor: cursor.adapter,
+  });
 
   const providerAdapterLayer = Layer.succeed(ProviderAdapterRegistry, registry);
   const runtimeRepositoryLayer = ProviderSessionRuntimeRepositoryLive.pipe(
@@ -289,15 +342,13 @@ it.effect("ProviderServiceLive rejects new sessions for disabled providers", () 
   Effect.gen(function* () {
     const codex = makeFakeCodexAdapter();
     const claude = makeFakeCodexAdapter("claudeAgent");
-    const registry: typeof ProviderAdapterRegistry.Service = {
-      getByProvider: (provider) =>
-        provider === "codex"
-          ? Effect.succeed(codex.adapter)
-          : provider === "claudeAgent"
-            ? Effect.succeed(claude.adapter)
-            : Effect.fail(new ProviderUnsupportedError({ provider })),
-      listProviders: () => Effect.succeed(["codex", "claudeAgent"]),
-    };
+    const registry = makeRegistry(
+      {
+        codex: codex.adapter,
+        claudeAgent: claude.adapter,
+      },
+      ["claudeAgent"],
+    );
     const providerAdapterLayer = Layer.succeed(ProviderAdapterRegistry, registry);
     const serverSettingsLayer = ServerSettingsService.layerTest({
       providers: {
@@ -322,6 +373,7 @@ it.effect("ProviderServiceLive rejects new sessions for disabled providers", () 
         const provider = yield* ProviderService;
         return yield* provider.startSession(asThreadId("thread-disabled"), {
           provider: "claudeAgent",
+          providerInstanceId: "claudeAgent",
           threadId: asThreadId("thread-disabled"),
           runtimeMode: "full-access",
         });
@@ -329,7 +381,7 @@ it.effect("ProviderServiceLive rejects new sessions for disabled providers", () 
     );
 
     assert.instanceOf(failure, ProviderValidationError);
-    assert.include(failure.issue, "Provider 'claudeAgent' is disabled in T3 Code settings.");
+    assert.include(failure.issue, "Provider instance 'claudeAgent' is disabled in Multi settings.");
     assert.equal(claude.startSession.mock.calls.length, 0);
   }).pipe(Effect.provide(NodeServices.layer)),
 );
@@ -341,13 +393,9 @@ it.effect("ProviderServiceLive writes canonical events to the emitting thread se
     const codex = makeFakeCodexAdapter();
     const canonicalEvents: ProviderRuntimeEvent[] = [];
     const canonicalThreadIds: Array<string | null> = [];
-    const registry: typeof ProviderAdapterRegistry.Service = {
-      getByProvider: (provider) =>
-        provider === "codex"
-          ? Effect.succeed(codex.adapter)
-          : Effect.fail(new ProviderUnsupportedError({ provider })),
-      listProviders: () => Effect.succeed(["codex"]),
-    };
+    const registry = makeRegistry({
+      codex: codex.adapter,
+    });
     const runtimeRepositoryLayer = ProviderSessionRuntimeRepositoryLive.pipe(
       Layer.provide(SqlitePersistenceMemory),
     );
@@ -375,6 +423,7 @@ it.effect("ProviderServiceLive writes canonical events to the emitting thread se
       codex.emit({
         eventId: asEventId("evt-canonical-thread-segment"),
         provider: "codex",
+        providerInstanceId: "codex",
         threadId: asThreadId("thread-canonical-thread-segment"),
         createdAt: new Date().toISOString(),
         type: "turn.completed",
@@ -397,13 +446,9 @@ it.effect("ProviderServiceLive keeps persisted resumable sessions on startup", (
     const dbPath = path.join(tempDir, "orchestration.sqlite");
 
     const codex = makeFakeCodexAdapter();
-    const registry: typeof ProviderAdapterRegistry.Service = {
-      getByProvider: (provider) =>
-        provider === "codex"
-          ? Effect.succeed(codex.adapter)
-          : Effect.fail(new ProviderUnsupportedError({ provider })),
-      listProviders: () => Effect.succeed(["codex"]),
-    };
+    const registry = makeRegistry({
+      codex: codex.adapter,
+    });
 
     const persistenceLayer = makeSqlitePersistenceLive(dbPath);
     const runtimeRepositoryLayer = ProviderSessionRuntimeRepositoryLive.pipe(
@@ -415,6 +460,7 @@ it.effect("ProviderServiceLive keeps persisted resumable sessions on startup", (
       const directory = yield* ProviderSessionDirectory;
       yield* directory.upsert({
         provider: "codex",
+        providerInstanceId: "codex",
         threadId: ThreadId.make("thread-stale"),
       });
     }).pipe(Effect.provide(directoryLayer));
@@ -468,13 +514,9 @@ it.effect(
       );
 
       const firstCodex = makeFakeCodexAdapter();
-      const firstRegistry: typeof ProviderAdapterRegistry.Service = {
-        getByProvider: (provider) =>
-          provider === "codex"
-            ? Effect.succeed(firstCodex.adapter)
-            : Effect.fail(new ProviderUnsupportedError({ provider })),
-        listProviders: () => Effect.succeed(["codex"]),
-      };
+      const firstRegistry = makeRegistry({
+        codex: firstCodex.adapter,
+      });
 
       const firstDirectoryLayer = ProviderSessionDirectoryLive.pipe(
         Layer.provide(runtimeRepositoryLayer),
@@ -497,6 +539,7 @@ it.effect(
         const threadId = asThreadId("thread-1");
         const session = yield* provider.startSession(threadId, {
           provider: "codex",
+          providerInstanceId: "codex",
           cwd: "/tmp/project",
           runtimeMode: "full-access",
           threadId,
@@ -521,13 +564,9 @@ it.effect(
       }
 
       const secondCodex = makeFakeCodexAdapter();
-      const secondRegistry: typeof ProviderAdapterRegistry.Service = {
-        getByProvider: (provider) =>
-          provider === "codex"
-            ? Effect.succeed(secondCodex.adapter)
-            : Effect.fail(new ProviderUnsupportedError({ provider })),
-        listProviders: () => Effect.succeed(["codex"]),
-      };
+      const secondRegistry = makeRegistry({
+        codex: secondCodex.adapter,
+      });
       const secondDirectoryLayer = ProviderSessionDirectoryLive.pipe(
         Layer.provide(runtimeRepositoryLayer),
       );
@@ -580,6 +619,7 @@ routing.layer("ProviderServiceLive routing", (it) => {
 
       const session = yield* provider.startSession(asThreadId("thread-1"), {
         provider: "codex",
+        providerInstanceId: "codex",
         threadId: asThreadId("thread-1"),
         cwd: "/tmp/project",
         runtimeMode: "full-access",
@@ -665,6 +705,7 @@ routing.layer("ProviderServiceLive routing", (it) => {
 
       const initial = yield* provider.startSession(asThreadId("thread-1"), {
         provider: "codex",
+        providerInstanceId: "codex",
         threadId: asThreadId("thread-1"),
         cwd: "/tmp/project",
         runtimeMode: "full-access",
@@ -706,6 +747,7 @@ routing.layer("ProviderServiceLive routing", (it) => {
 
       const initial = yield* provider.startSession(asThreadId("thread-reap-preserve"), {
         provider: "codex",
+        providerInstanceId: "codex",
         threadId: asThreadId("thread-reap-preserve"),
         cwd: "/tmp/project-reap-preserve",
         runtimeMode: "full-access",
@@ -756,6 +798,7 @@ routing.layer("ProviderServiceLive routing", (it) => {
 
       const session = yield* provider.startSession(asThreadId("thread-claude"), {
         provider: "claudeAgent",
+        providerInstanceId: "claudeAgent",
         threadId: asThreadId("thread-claude"),
         cwd: "/tmp/project-claude",
         runtimeMode: "full-access",
@@ -780,6 +823,7 @@ routing.layer("ProviderServiceLive routing", (it) => {
 
       const codexSession = yield* provider.startSession(threadId, {
         provider: "codex",
+        providerInstanceId: "codex",
         threadId,
         cwd: "/tmp/project-provider-replacement",
         runtimeMode: "full-access",
@@ -790,6 +834,7 @@ routing.layer("ProviderServiceLive routing", (it) => {
 
       const claudeSession = yield* provider.startSession(threadId, {
         provider: "claudeAgent",
+        providerInstanceId: "claudeAgent",
         threadId,
         cwd: "/tmp/project-provider-replacement",
         runtimeMode: "full-access",
@@ -816,6 +861,7 @@ routing.layer("ProviderServiceLive routing", (it) => {
 
       const initial = yield* provider.startSession(asThreadId("thread-1"), {
         provider: "codex",
+        providerInstanceId: "codex",
         threadId: asThreadId("thread-1"),
         cwd: "/tmp/project-send-turn",
         runtimeMode: "full-access",
@@ -856,6 +902,7 @@ routing.layer("ProviderServiceLive routing", (it) => {
 
       const initial = yield* provider.startSession(asThreadId("thread-claude-send-turn"), {
         provider: "claudeAgent",
+        providerInstanceId: "claudeAgent",
         threadId: asThreadId("thread-claude-send-turn"),
         cwd: "/tmp/project-claude-send-turn",
         modelSelection: createModelSelection("claudeAgent", "claude-opus-4-6", [
@@ -904,11 +951,13 @@ routing.layer("ProviderServiceLive routing", (it) => {
 
       yield* provider.startSession(asThreadId("thread-1"), {
         provider: "codex",
+        providerInstanceId: "codex",
         threadId: asThreadId("thread-1"),
         runtimeMode: "full-access",
       });
       yield* provider.startSession(asThreadId("thread-2"), {
         provider: "codex",
+        providerInstanceId: "codex",
         threadId: asThreadId("thread-2"),
         runtimeMode: "full-access",
       });
@@ -929,6 +978,7 @@ routing.layer("ProviderServiceLive routing", (it) => {
       const threadId = asThreadId("thread-runtime-status");
       const session = yield* provider.startSession(threadId, {
         provider: "codex",
+        providerInstanceId: "codex",
         threadId,
         runtimeMode: "full-access",
       });
@@ -975,13 +1025,9 @@ routing.layer("ProviderServiceLive routing", (it) => {
       );
 
       const firstClaude = makeFakeCodexAdapter("claudeAgent");
-      const firstRegistry: typeof ProviderAdapterRegistry.Service = {
-        getByProvider: (provider) =>
-          provider === "claudeAgent"
-            ? Effect.succeed(firstClaude.adapter)
-            : Effect.fail(new ProviderUnsupportedError({ provider })),
-        listProviders: () => Effect.succeed(["claudeAgent"]),
-      };
+      const firstRegistry = makeRegistry({
+        claudeAgent: firstClaude.adapter,
+      });
       const firstDirectoryLayer = ProviderSessionDirectoryLive.pipe(
         Layer.provide(runtimeRepositoryLayer),
       );
@@ -996,6 +1042,7 @@ routing.layer("ProviderServiceLive routing", (it) => {
         const provider = yield* ProviderService;
         return yield* provider.startSession(asThreadId("thread-claude-start"), {
           provider: "claudeAgent",
+          providerInstanceId: "claudeAgent",
           threadId: asThreadId("thread-claude-start"),
           cwd: "/tmp/project-claude-start",
           runtimeMode: "full-access",
@@ -1008,13 +1055,9 @@ routing.layer("ProviderServiceLive routing", (it) => {
       }).pipe(Effect.provide(firstProviderLayer));
 
       const secondClaude = makeFakeCodexAdapter("claudeAgent");
-      const secondRegistry: typeof ProviderAdapterRegistry.Service = {
-        getByProvider: (provider) =>
-          provider === "claudeAgent"
-            ? Effect.succeed(secondClaude.adapter)
-            : Effect.fail(new ProviderUnsupportedError({ provider })),
-        listProviders: () => Effect.succeed(["claudeAgent"]),
-      };
+      const secondRegistry = makeRegistry({
+        claudeAgent: secondClaude.adapter,
+      });
       const secondDirectoryLayer = ProviderSessionDirectoryLive.pipe(
         Layer.provide(runtimeRepositoryLayer),
       );
@@ -1031,6 +1074,7 @@ routing.layer("ProviderServiceLive routing", (it) => {
         const provider = yield* ProviderService;
         yield* provider.startSession(initial.threadId, {
           provider: "claudeAgent",
+          providerInstanceId: "claudeAgent",
           threadId: initial.threadId,
           cwd: "/tmp/project-claude-start",
           runtimeMode: "full-access",
@@ -1069,13 +1113,9 @@ routing.layer("ProviderServiceLive routing", (it) => {
         );
 
         const firstClaude = makeFakeCodexAdapter("claudeAgent");
-        const firstRegistry: typeof ProviderAdapterRegistry.Service = {
-          getByProvider: (provider) =>
-            provider === "claudeAgent"
-              ? Effect.succeed(firstClaude.adapter)
-              : Effect.fail(new ProviderUnsupportedError({ provider })),
-          listProviders: () => Effect.succeed(["claudeAgent"]),
-        };
+        const firstRegistry = makeRegistry({
+          claudeAgent: firstClaude.adapter,
+        });
         const firstDirectoryLayer = ProviderSessionDirectoryLive.pipe(
           Layer.provide(runtimeRepositoryLayer),
         );
@@ -1090,6 +1130,7 @@ routing.layer("ProviderServiceLive routing", (it) => {
           const provider = yield* ProviderService;
           return yield* provider.startSession(asThreadId("thread-claude-cwd"), {
             provider: "claudeAgent",
+            providerInstanceId: "claudeAgent",
             threadId: asThreadId("thread-claude-cwd"),
             cwd: "/tmp/project-claude-cwd",
             runtimeMode: "full-access",
@@ -1097,13 +1138,9 @@ routing.layer("ProviderServiceLive routing", (it) => {
         }).pipe(Effect.provide(firstProviderLayer));
 
         const secondClaude = makeFakeCodexAdapter("claudeAgent");
-        const secondRegistry: typeof ProviderAdapterRegistry.Service = {
-          getByProvider: (provider) =>
-            provider === "claudeAgent"
-              ? Effect.succeed(secondClaude.adapter)
-              : Effect.fail(new ProviderUnsupportedError({ provider })),
-          listProviders: () => Effect.succeed(["claudeAgent"]),
-        };
+        const secondRegistry = makeRegistry({
+          claudeAgent: secondClaude.adapter,
+        });
         const secondDirectoryLayer = ProviderSessionDirectoryLive.pipe(
           Layer.provide(runtimeRepositoryLayer),
         );
@@ -1120,6 +1157,7 @@ routing.layer("ProviderServiceLive routing", (it) => {
           const provider = yield* ProviderService;
           yield* provider.startSession(initial.threadId, {
             provider: "claudeAgent",
+            providerInstanceId: "claudeAgent",
             threadId: initial.threadId,
             runtimeMode: "full-access",
           });
@@ -1153,6 +1191,7 @@ fanout.layer("ProviderServiceLive fanout", (it) => {
       const provider = yield* ProviderService;
       const session = yield* provider.startSession(asThreadId("thread-1"), {
         provider: "codex",
+        providerInstanceId: "codex",
         threadId: asThreadId("thread-1"),
         runtimeMode: "full-access",
       });
@@ -1167,6 +1206,7 @@ fanout.layer("ProviderServiceLive fanout", (it) => {
         type: "turn.completed",
         eventId: asEventId("evt-1"),
         provider: "codex",
+        providerInstanceId: "codex",
         createdAt: new Date().toISOString(),
         threadId: session.threadId,
         turnId: asTurnId("turn-1"),
@@ -1191,6 +1231,7 @@ fanout.layer("ProviderServiceLive fanout", (it) => {
       const provider = yield* ProviderService;
       const session = yield* provider.startSession(asThreadId("thread-seq"), {
         provider: "codex",
+        providerInstanceId: "codex",
         threadId: asThreadId("thread-seq"),
         runtimeMode: "full-access",
       });
@@ -1206,6 +1247,7 @@ fanout.layer("ProviderServiceLive fanout", (it) => {
         type: "tool.started",
         eventId: asEventId("evt-seq-1"),
         provider: "codex",
+        providerInstanceId: "codex",
         createdAt: new Date().toISOString(),
         threadId: session.threadId,
         turnId: asTurnId("turn-1"),
@@ -1216,6 +1258,7 @@ fanout.layer("ProviderServiceLive fanout", (it) => {
         type: "tool.completed",
         eventId: asEventId("evt-seq-2"),
         provider: "codex",
+        providerInstanceId: "codex",
         createdAt: new Date().toISOString(),
         threadId: session.threadId,
         turnId: asTurnId("turn-1"),
@@ -1226,6 +1269,7 @@ fanout.layer("ProviderServiceLive fanout", (it) => {
         type: "turn.completed",
         eventId: asEventId("evt-seq-3"),
         provider: "codex",
+        providerInstanceId: "codex",
         createdAt: new Date().toISOString(),
         threadId: session.threadId,
         turnId: asTurnId("turn-1"),
@@ -1246,6 +1290,7 @@ fanout.layer("ProviderServiceLive fanout", (it) => {
       const provider = yield* ProviderService;
       const session = yield* provider.startSession(asThreadId("thread-1"), {
         provider: "codex",
+        providerInstanceId: "codex",
         threadId: asThreadId("thread-1"),
         runtimeMode: "full-access",
       });
@@ -1271,6 +1316,7 @@ fanout.layer("ProviderServiceLive fanout", (it) => {
           type: "tool.completed",
           eventId: asEventId("evt-ordered-1"),
           provider: "codex",
+          providerInstanceId: "codex",
           createdAt: new Date().toISOString(),
           threadId: session.threadId,
           turnId: asTurnId("turn-1"),
@@ -1282,6 +1328,7 @@ fanout.layer("ProviderServiceLive fanout", (it) => {
           type: "message.delta",
           eventId: asEventId("evt-ordered-2"),
           provider: "codex",
+          providerInstanceId: "codex",
           createdAt: new Date().toISOString(),
           threadId: session.threadId,
           turnId: asTurnId("turn-1"),
@@ -1291,6 +1338,7 @@ fanout.layer("ProviderServiceLive fanout", (it) => {
           type: "turn.completed",
           eventId: asEventId("evt-ordered-3"),
           provider: "codex",
+          providerInstanceId: "codex",
           createdAt: new Date().toISOString(),
           threadId: session.threadId,
           turnId: asTurnId("turn-1"),
@@ -1318,6 +1366,7 @@ fanout.layer("ProviderServiceLive fanout", (it) => {
 
       const session = yield* provider.startSession(asThreadId("thread-metrics"), {
         provider: "claudeAgent",
+        providerInstanceId: "claudeAgent",
         threadId: asThreadId("thread-metrics"),
         cwd: "/tmp/project",
         runtimeMode: "full-access",
@@ -1395,6 +1444,7 @@ fanout.layer("ProviderServiceLive fanout", (it) => {
 
         const session = yield* provider.startSession(asThreadId("thread-send-metrics"), {
           provider: "claudeAgent",
+          providerInstanceId: "claudeAgent",
           threadId: asThreadId("thread-send-metrics"),
           cwd: "/tmp/project-send-metrics",
           runtimeMode: "full-access",
@@ -1450,7 +1500,7 @@ validation.layer("ProviderServiceLive validation", (it) => {
         return;
       }
       assert.equal(failure.failure.operation, "ProviderService.startSession");
-      assert.equal(failure.failure.issue.includes("invalid-provider"), true);
+      assert.equal(failure.failure.issue.includes("providerInstanceId"), true);
     }),
   );
 
@@ -1464,6 +1514,7 @@ validation.layer("ProviderServiceLive validation", (it) => {
           const now = new Date().toISOString();
           return {
             provider: "codex",
+            providerInstanceId: input.providerInstanceId,
             status: "ready",
             threadId: input.threadId,
             runtimeMode: input.runtimeMode,
@@ -1476,6 +1527,7 @@ validation.layer("ProviderServiceLive validation", (it) => {
 
       const session = yield* provider.startSession(asThreadId("thread-missing"), {
         provider: "codex",
+        providerInstanceId: "codex",
         threadId: asThreadId("thread-missing"),
         cwd: "/tmp/project",
         runtimeMode: "full-access",

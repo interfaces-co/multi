@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "@effect/vitest";
 import { Effect, FileSystem } from "effect";
 import { vi } from "vitest";
 
-vi.mock("../../process-runner.ts", () => ({
+vi.mock("../process-runner.ts", () => ({
   runProcess: vi.fn(),
 }));
 

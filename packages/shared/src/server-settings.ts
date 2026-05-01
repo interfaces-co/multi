@@ -44,7 +44,7 @@ export function parsePersistedServerObservabilitySettings(
 function shouldReplaceTextGenerationModelSelection(
   patch: ServerSettingsPatch["textGenerationModelSelection"] | undefined,
 ): boolean {
-  return Boolean(patch && (patch.provider !== undefined || patch.model !== undefined));
+  return Boolean(patch && (patch.instanceId !== undefined || patch.model !== undefined));
 }
 
 function mergeModelSelectionOptionsById(input: {
@@ -67,7 +67,7 @@ function mergeModelSelectionOptionsById(input: {
 
 /**
  * Applies a server settings patch while treating textGenerationModelSelection as
- * replace-on-provider/model updates. This prevents stale nested options from
+ * replace-on-instance/model updates. This prevents stale nested options from
  * surviving a reset patch that intentionally omits options.
  */
 export function applyServerSettingsPatch(
@@ -75,12 +75,19 @@ export function applyServerSettingsPatch(
   patch: ServerSettingsPatch,
 ): ServerSettings {
   const selectionPatch = patch.textGenerationModelSelection;
-  const next = deepMerge(current, patch);
+  const { providerInstances, ...patchWithoutProviderInstances } = patch;
+  const next =
+    providerInstances !== undefined
+      ? {
+          ...deepMerge(current, patchWithoutProviderInstances),
+          providerInstances,
+        }
+      : deepMerge(current, patch);
   if (!selectionPatch) {
     return next;
   }
 
-  const provider = selectionPatch.provider ?? current.textGenerationModelSelection.provider;
+  const instanceId = selectionPatch.instanceId ?? current.textGenerationModelSelection.instanceId;
   const model = selectionPatch.model ?? current.textGenerationModelSelection.model;
   const options = shouldReplaceTextGenerationModelSelection(selectionPatch)
     ? selectionPatch.options
@@ -91,6 +98,6 @@ export function applyServerSettingsPatch(
 
   return {
     ...next,
-    textGenerationModelSelection: createModelSelection(provider, model, options),
+    textGenerationModelSelection: createModelSelection(instanceId, model, options),
   };
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { ProviderDriverKind } from "@multi/contracts";
 
-import type { ComposerCommandItem } from "./composer-command-menu";
+import { ComposerCommandItem } from "./composer-command-menu";
 import { searchSlashCommandItems } from "./composer-slash-command-search";
 
 describe("searchSlashCommandItems", () => {

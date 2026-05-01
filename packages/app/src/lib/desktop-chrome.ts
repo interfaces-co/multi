@@ -17,6 +17,8 @@ const INSET = "--multi-electron-traffic-inset";
 const TOP = "--multi-electron-traffic-padding-top";
 const CONTROL_HEIGHT = "--multi-titlebar-control-height";
 const ROW_TOP = "--multi-titlebar-control-row-top";
+/** Match Cursor/VS Code `.part.titlebar` (`height: 34px` in workbench.desktop.main.css). */
+const TITLEBAR_HEIGHT = "--multi-header-height";
 
 export function applyDesktopChromeMetrics() {
   if (typeof document === "undefined") return;
@@ -26,10 +28,12 @@ export function applyDesktopChromeMetrics() {
     root.style.removeProperty(TOP);
     root.style.removeProperty(CONTROL_HEIGHT);
     root.style.removeProperty(ROW_TOP);
+    root.style.removeProperty(TITLEBAR_HEIGHT);
     return;
   }
   root.style.setProperty(INSET, `${MACOS_TRAFFIC_LIGHTS.spacerWidth}px`);
   root.style.setProperty(TOP, `${MACOS_TRAFFIC_LIGHTS.paddingTop}px`);
   root.style.setProperty(CONTROL_HEIGHT, `${TITLEBAR_CONTROL_HEIGHT_PX}px`);
   root.style.setProperty(ROW_TOP, `${TITLEBAR_CONTROL_OFFSET_TOP_PX}px`);
+  root.style.setProperty(TITLEBAR_HEIGHT, "34px");
 }

@@ -20,20 +20,22 @@ const selectTriggerVariants = cva(
     },
     variants: {
       variant: {
-        cursor:
-          "border-cursor-stroke-tertiary bg-cursor-bg-quinary text-cursor-text-secondary shadow-none hover:border-cursor-stroke-secondary hover:bg-cursor-bg-quaternary hover:text-cursor-text-primary data-pressed:bg-cursor-bg-tertiary focus-visible:ring-1 focus-visible:ring-cursor-stroke-focused",
+        /** Matches `Button` `outline` / workbench secondary control tokens. */
+        outline:
+          "border-multi-stroke-tertiary bg-multi-bg-quinary text-multi-fg-secondary shadow-none hover:border-multi-stroke-secondary hover:bg-multi-bg-quaternary hover:text-multi-fg-primary data-pressed:bg-multi-bg-tertiary focus-visible:ring-1 focus-visible:ring-multi-stroke-focused",
         default:
           "w-full min-w-36 border-input bg-background not-dark:bg-clip-padding text-foreground shadow-xs/5 ring-ring/24 before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-lg)-1px)] not-data-disabled:not-focus-visible:not-aria-invalid:not-data-pressed:before:shadow-[0_1px_--theme(--color-black/4%)] pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 focus-visible:border-ring focus-visible:ring-[3px] aria-invalid:border-destructive/36 focus-visible:aria-invalid:border-destructive/64 focus-visible:aria-invalid:ring-destructive/16 dark:bg-input/32 dark:aria-invalid:ring-destructive/24 dark:not-data-disabled:not-focus-visible:not-aria-invalid:not-data-pressed:before:shadow-[0_-1px_--theme(--color-white/6%)] [&_svg:not([class*='opacity-'])]:opacity-80 [[data-disabled],:focus-visible,[aria-invalid],[data-pressed]]:shadow-none",
         ghost:
           "border-transparent text-muted-foreground/70 focus-visible:ring-2 focus-visible:ring-ring data-pressed:bg-accent [:hover,[data-pressed]]:bg-accent [:hover,[data-pressed]]:text-foreground/80",
       },
       size: {
-        cursor:
-          "h-7 gap-1.5 rounded-multi-control px-[calc(--spacing(2)-1px)] text-[12px]/[16px] [&_svg:not([class*='size-'])]:size-3.5",
-        default: "min-h-9 px-[calc(--spacing(3)-1px)] sm:min-h-8",
-        lg: "min-h-10 px-[calc(--spacing(3)-1px)] sm:min-h-9",
-        sm: "min-h-8 gap-1.5 px-[calc(--spacing(2.5)-1px)] sm:min-h-7",
-        xs: "h-7 gap-1 rounded-md px-[calc(--spacing(2)-1px)] text-sm before:rounded-[calc(var(--radius-md)-1px)] sm:h-6 sm:text-xs [&_svg:not([class*='size-'])]:size-4 sm:[&_svg:not([class*='size-'])]:size-3.5",
+        /** Dense `rounded-multi-control` trigger (composer / toolbar height). */
+        control:
+          "h-7 gap-1.5 rounded-multi-control px-2 text-[12px]/[16px] [&_svg:not([class*='size-'])]:size-3.5",
+        default: "min-h-9 px-3 sm:min-h-8",
+        lg: "min-h-10 px-3 sm:min-h-9",
+        sm: "min-h-8 gap-1.5 px-2.5 sm:min-h-7",
+        xs: "h-7 min-h-7 gap-1 rounded-multi-control px-2.5 font-multi text-[12px]/[16px] before:rounded-[calc(var(--multi-radius-control)-1px)] [&_svg:not([class*='size-'])]:size-4 sm:[&_svg:not([class*='size-'])]:size-3.5",
       },
     },
   },

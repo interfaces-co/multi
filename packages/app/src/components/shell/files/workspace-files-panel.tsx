@@ -8,17 +8,20 @@ import {
   IconArrowRight,
   IconBarsThree,
   IconFileBend,
-  IconLinebreak,
   IconMagnifyingGlass,
 } from "central-icons";
-import { XIcon } from "lucide-react";
+import { List } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 
+import { PIERRE_WORKBENCH_CODE_UNSAFE_CSS } from "~/lib/pierre-workbench-code-css";
 import { projectReadFileQueryOptions } from "~/lib/project-react-query";
+import { shellPanelsActions, useSecondaryRail } from "~/lib/shell-panels-store";
+import { resolveDiffThemeName } from "~/lib/diff-rendering";
 import { cn } from "~/lib/utils";
-import { VsFileIcon } from "~/lib/vscode-file-icon";
+import { useTheme } from "~/hooks/use-theme";
 import { WorkspaceFileTree } from "./workspace-file-tree";
+import { RightWorkbenchLayout } from "../shell/right-workbench-layout";
 
 type FilePaneMode = "browse" | "search";
 type PreviewHistory = {
@@ -31,22 +34,6 @@ const EMPTY_PREVIEW_HISTORY: PreviewHistory = {
   paths: [],
 };
 const MAX_PREVIEW_HISTORY = 50;
-const PIERRE_FILE_UNSAFE_CSS = `
-  [data-file-wrapper] {
-    --diffs-code-background: #ffffff;
-    --diffs-code-font-size: 12px;
-    --diffs-code-line-height: 18px;
-  }
-
-  [data-line] {
-    min-height: 18px;
-  }
-
-  [data-line]:hover {
-    background: rgb(0 0 0 / 0.035);
-  }
-`;
-
 function pushPreviewHistory(current: PreviewHistory, relativePath: string): PreviewHistory {
   if (current.paths[current.index] === relativePath) {
     return current;
@@ -59,41 +46,14 @@ function pushPreviewHistory(current: PreviewHistory, relativePath: string): Prev
   };
 }
 
-function removePreviewHistoryPath(
-  current: PreviewHistory,
-  relativePath: string,
-  fallbackPath: string | null,
-): PreviewHistory {
-  const nextHistoryPaths = current.paths.filter((path) => path !== relativePath);
-  if (fallbackPath === null && nextHistoryPaths.length === 0) {
-    return EMPTY_PREVIEW_HISTORY;
-  }
-  if (fallbackPath !== null) {
-    return pushPreviewHistory(
-      {
-        index: nextHistoryPaths.length - 1,
-        paths: nextHistoryPaths,
-      },
-      fallbackPath,
-    );
-  }
-  if (nextHistoryPaths.length === current.paths.length) {
-    return current;
-  }
-  const activePath = current.paths[current.index];
-  const activeIndex = activePath ? nextHistoryPaths.indexOf(activePath) : -1;
-  return {
-    index: activeIndex >= 0 ? activeIndex : Math.min(current.index, nextHistoryPaths.length - 1),
-    paths: nextHistoryPaths,
-  };
-}
-
 function ModeButton(props: {
   active?: boolean;
   label: string;
   onClick?: () => void;
   children: ReactNode;
+  chrome?: "tool" | "sub" | "panel";
 }) {
+  const tier = props.chrome ?? "tool";
   return (
     <button
       type="button"
@@ -102,8 +62,14 @@ function ModeButton(props: {
       title={props.label}
       onClick={props.onClick}
       className={cn(
-        "ui-icon-button flex size-6 items-center justify-center rounded-[5px] text-cursor-text-secondary transition-colors hover:bg-cursor-bg-quaternary hover:text-cursor-text-primary [&_svg]:block",
-        props.active && "bg-cursor-bg-tertiary text-cursor-text-primary",
+        "outline-none focus-visible:outline-none ui-icon-button box-border shrink-0 items-center justify-center rounded-[5px] border-0 px-(--multi-workbench-chrome-icon-padding-x) shadow-none transition-colors [&_svg]:block",
+        tier === "sub" &&
+          "flex min-h-[var(--multi-workbench-sub-chrome-row-height)] max-h-[var(--multi-workbench-sub-chrome-row-height)] text-multi-fg-secondary hover:bg-multi-bg-quaternary hover:text-multi-fg-primary",
+        tier === "panel" &&
+          "flex min-h-[calc(var(--multi-workbench-panel-title-row-height,29px)-6px)] max-h-[calc(var(--multi-workbench-panel-title-row-height,29px)-4px)] text-multi-fg-secondary hover:bg-multi-bg-quaternary hover:text-multi-fg-primary",
+        tier === "tool" &&
+          "flex h-(--multi-workbench-chrome-row-height) text-multi-fg-secondary hover:bg-multi-bg-quaternary hover:text-multi-fg-primary",
+        props.active && "bg-multi-bg-tertiary text-multi-fg-primary",
       )}
     >
       {props.children}
@@ -116,7 +82,9 @@ function NavButton(props: {
   label: string;
   onClick: () => void;
   children: ReactNode;
+  chrome?: "tool" | "sub" | "panel";
 }) {
+  const tier = props.chrome ?? "tool";
   return (
     <button
       type="button"
@@ -124,16 +92,19 @@ function NavButton(props: {
       title={props.label}
       disabled={props.disabled}
       onClick={props.onClick}
-      className="ui-icon-button flex size-6 items-center justify-center rounded-[5px] text-cursor-text-secondary transition-colors hover:bg-cursor-bg-quaternary hover:text-cursor-text-primary disabled:text-cursor-text-quaternary/45 disabled:hover:bg-transparent disabled:hover:text-cursor-text-quaternary/45 [&_svg]:block"
+      className={cn(
+        "outline-none focus-visible:outline-none ui-icon-button box-border shrink-0 items-center justify-center rounded-[5px] border-0 px-(--multi-workbench-chrome-icon-padding-x) shadow-none transition-colors disabled:text-multi-fg-quaternary/45 disabled:hover:bg-transparent disabled:hover:text-multi-fg-quaternary/45 [&_svg]:block",
+        tier === "sub" &&
+          "flex min-h-[var(--multi-workbench-sub-chrome-row-height)] max-h-[var(--multi-workbench-sub-chrome-row-height)] text-multi-fg-secondary hover:bg-multi-bg-quaternary hover:text-multi-fg-primary",
+        tier === "panel" &&
+          "flex min-h-[calc(var(--multi-workbench-panel-title-row-height,29px)-6px)] max-h-[calc(var(--multi-workbench-panel-title-row-height,29px)-4px)] text-multi-fg-secondary hover:bg-multi-bg-quaternary hover:text-multi-fg-primary",
+        tier === "tool" &&
+          "flex h-(--multi-workbench-chrome-row-height) text-multi-fg-secondary hover:bg-multi-bg-quaternary hover:text-multi-fg-primary",
+      )}
     >
       {props.children}
     </button>
   );
-}
-
-function basename(path: string): string {
-  const slashIndex = path.lastIndexOf("/");
-  return slashIndex < 0 ? path : path.slice(slashIndex + 1);
 }
 
 function EmptyFilePreview(props: { onOpenFile: () => void }) {
@@ -142,80 +113,11 @@ function EmptyFilePreview(props: { onOpenFile: () => void }) {
       <button
         type="button"
         onClick={props.onOpenFile}
-        className="flex h-7 items-center gap-1.5 rounded-[5px] border border-cursor-stroke-tertiary bg-cursor-bg-quinary px-2.5 text-[12px]/[16px] font-medium text-cursor-text-primary hover:bg-cursor-bg-quaternary"
+        className="flex h-7 items-center gap-1.5 rounded-[5px] border border-multi-stroke-tertiary bg-multi-bg-quinary px-2.5 text-[12px]/[16px] font-medium text-multi-fg-primary hover:bg-multi-bg-quaternary"
       >
         <IconFileBend className="size-3.5" />
         Open File
       </button>
-    </div>
-  );
-}
-
-function PreviewTabs(props: {
-  activePath: string | null;
-  openPaths: readonly string[];
-  onActivate: (path: string) => void;
-  onClose: (path: string) => void;
-}) {
-  if (props.openPaths.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="editor-panel-tab-root editor-panel-tab-root--simple-tabs group/tabbar flex h-8 shrink-0 items-stretch gap-1 border-b border-cursor-stroke-tertiary bg-[color-mix(in_srgb,var(--cursor-bg-elevated)_88%,transparent)] px-1.5 backdrop-blur-xl">
-      <div className="editor-panel-tab-bar-tab-cluster no-scrollbar flex min-w-0 flex-1 items-stretch gap-px overflow-x-auto">
-        {props.openPaths.map((path) => {
-          const isActive = path === props.activePath;
-          return (
-            <div
-              key={path}
-              className={cn(
-                "ui-tab-system-tab group relative isolate my-1 flex h-6 max-w-[200px] items-center overflow-hidden rounded-[5px] text-[12px]/[16px] font-medium transition-colors",
-                isActive
-                  ? "bg-cursor-bg-tertiary text-cursor-text-primary"
-                  : "bg-transparent text-cursor-text-secondary hover:bg-cursor-bg-quaternary hover:text-cursor-text-primary",
-              )}
-            >
-              <button
-                type="button"
-                aria-current={isActive ? "page" : undefined}
-                title={path}
-                onClick={() => props.onActivate(path)}
-                className="flex min-w-0 flex-1 items-center gap-1.5 px-2 py-1 text-left"
-              >
-                <VsFileIcon path={path} className="size-3.5" />
-                <span className="min-w-0 truncate">{basename(path)}</span>
-              </button>
-              <span
-                aria-hidden="true"
-                className={cn(
-                  "pointer-events-none absolute inset-y-0 right-0 w-10 bg-linear-to-l to-transparent opacity-0 transition-opacity group-hover:opacity-100",
-                  isActive
-                    ? "from-[var(--cursor-bg-tertiary)] via-[var(--cursor-bg-tertiary)]"
-                    : "from-[var(--cursor-bg-quaternary)] via-[var(--cursor-bg-quaternary)]",
-                )}
-              />
-              <button
-                type="button"
-                aria-label={`Close ${basename(path)}`}
-                title={`Close ${basename(path)}`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  props.onClose(path);
-                }}
-                className={cn(
-                  "absolute right-1 z-10 flex size-4 items-center justify-center rounded-sm opacity-0 transition-opacity group-hover:opacity-100",
-                  isActive
-                    ? "bg-cursor-bg-secondary text-cursor-text-tertiary hover:text-cursor-text-primary"
-                    : "bg-cursor-bg-tertiary text-cursor-text-tertiary hover:text-cursor-text-primary",
-                )}
-              >
-                <XIcon className="size-3" />
-              </button>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }
@@ -226,6 +128,7 @@ function SourcePreview(props: {
   selectedPath: string | null;
   wordWrap: boolean;
 }) {
+  const { resolvedTheme } = useTheme();
   const fileQuery = useQuery(
     projectReadFileQueryOptions({
       cwd: props.cwd,
@@ -240,11 +143,11 @@ function SourcePreview(props: {
       enableLineSelection: true,
       overflow: props.wordWrap ? "wrap" : "scroll",
       preferredHighlighter: "shiki-js",
-      theme: "pierre-light",
-      themeType: "light",
-      unsafeCSS: PIERRE_FILE_UNSAFE_CSS,
+      theme: resolveDiffThemeName(resolvedTheme),
+      themeType: resolvedTheme,
+      unsafeCSS: PIERRE_WORKBENCH_CODE_UNSAFE_CSS,
     }),
-    [props.wordWrap],
+    [props.wordWrap, resolvedTheme],
   );
   const fileContents = useMemo<FileContents | undefined>(() => {
     if (!fileQuery.data) {
@@ -265,7 +168,7 @@ function SourcePreview(props: {
   if (fileQuery.isPending) {
     return (
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <div className="space-y-2 bg-white p-3">
+        <div className="space-y-2 bg-background p-3">
           <div className="h-3 w-11/12 animate-pulse rounded bg-muted-foreground/10" />
           <div className="h-3 w-7/12 animate-pulse rounded bg-muted-foreground/10" />
           <div className="h-3 w-10/12 animate-pulse rounded bg-muted-foreground/10" />
@@ -297,9 +200,9 @@ function SourcePreview(props: {
         </div>
       ) : null}
       {fileContents ? (
-        <div className="workspace-file-preview min-h-0 flex-1 overflow-hidden bg-white text-[12px]/[18px] text-zinc-900">
+        <div className="workspace-file-preview min-h-0 flex-1 overflow-hidden bg-background text-[12px]/[18px] text-foreground">
           <File
-            key={`${fileQuery.data.relativePath}:${props.wordWrap ? "wrap" : "scroll"}`}
+            key={`${fileQuery.data.relativePath}:${props.wordWrap ? "wrap" : "scroll"}:${resolvedTheme}`}
             file={fileContents}
             options={fileOptions}
             className="workspace-file-preview-code min-h-0 h-full overflow-auto"
@@ -316,49 +219,15 @@ export function WorkspaceFilesPanel(props: {
   availableEditors: readonly EditorId[];
 }) {
   const [mode, setMode] = useState<FilePaneMode>("browse");
-  const [wordWrap, setWordWrap] = useState(true);
-  const [openPaths, setOpenPaths] = useState<readonly string[]>([]);
   const [history, setHistory] = useState<PreviewHistory>(EMPTY_PREVIEW_HISTORY);
+  const { open: filesRailOpen } = useSecondaryRail(props.cwd, "files");
   const selectedPath = history.index >= 0 ? (history.paths[history.index] ?? null) : null;
   const canGoBack = history.index > 0;
   const canGoForward = history.index >= 0 && history.index < history.paths.length - 1;
 
-  const activatePreviewPath = useCallback((relativePath: string) => {
+  const openPreviewPath = useCallback((relativePath: string) => {
     setHistory((current) => pushPreviewHistory(current, relativePath));
   }, []);
-
-  const openPreviewPath = useCallback(
-    (relativePath: string) => {
-      setOpenPaths((current) => {
-        if (current.includes(relativePath)) {
-          return current;
-        }
-        return [...current, relativePath];
-      });
-      activatePreviewPath(relativePath);
-    },
-    [activatePreviewPath],
-  );
-
-  const closePreviewPath = useCallback(
-    (relativePath: string) => {
-      setOpenPaths((current) => {
-        const closedIndex = current.indexOf(relativePath);
-        if (closedIndex < 0) {
-          return current;
-        }
-        const nextPaths = current.filter((path) => path !== relativePath);
-        if (selectedPath === relativePath) {
-          const nextActivePath = nextPaths[Math.max(0, closedIndex - 1)] ?? nextPaths[0] ?? null;
-          setHistory((current) => removePreviewHistoryPath(current, relativePath, nextActivePath));
-        } else {
-          setHistory((current) => removePreviewHistoryPath(current, relativePath, null));
-        }
-        return nextPaths;
-      });
-    },
-    [selectedPath],
-  );
 
   const navigatePreviewHistory = useCallback((delta: -1 | 1) => {
     setHistory((current) => {
@@ -375,14 +244,42 @@ export function WorkspaceFilesPanel(props: {
 
   useEffect(() => {
     setHistory(EMPTY_PREVIEW_HISTORY);
-    setOpenPaths([]);
   }, [props.cwd, props.environmentId]);
 
+  const tree = (
+    <WorkspaceFileTree
+      cwd={props.cwd}
+      environmentId={props.environmentId}
+      availableEditors={props.availableEditors}
+      onOpenFile={openPreviewPath}
+      searchOpen={mode === "search"}
+      selectedPath={selectedPath}
+      className="min-h-0 min-h-36 flex-1 border-b-0 bg-[color-mix(in_srgb,var(--multi-bg-elevated)_78%,transparent)]"
+    />
+  );
+
   return (
-    <div className="editor-panel-inner flex min-h-0 flex-1 flex-col bg-[var(--glass-editor-surface-background,color-mix(in_srgb,var(--cursor-bg-elevated)_76%,transparent))]">
-      <div className="flex h-8 shrink-0 items-center gap-0.5 border-b border-cursor-stroke-tertiary px-2">
+    <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
+      <div className="multi-workbench-panel-title-row gap-[var(--multi-workbench-chrome-action-gap)]">
+        <button
+          type="button"
+          className={cn(
+            "no-drag flex shrink-0 items-center justify-center rounded-[5px] border-0 px-(--multi-workbench-chrome-icon-padding-x) transition-colors focus-visible:outline-none",
+            "min-h-[calc(var(--multi-workbench-panel-title-row-height,29px)-4px)]",
+            filesRailOpen
+              ? "bg-multi-bg-tertiary text-multi-icon-primary"
+              : "bg-transparent text-multi-icon-secondary hover:bg-multi-bg-quaternary hover:text-multi-icon-primary",
+          )}
+          aria-label={filesRailOpen ? "Hide file tree" : "Show file tree"}
+          aria-pressed={filesRailOpen}
+          title={filesRailOpen ? "Hide file tree" : "Show file tree"}
+          onClick={() => shellPanelsActions.toggleSecondaryRail(props.cwd, "files")}
+        >
+          <List className="size-[15px]" aria-hidden />
+        </button>
         <ModeButton
           active={mode === "browse"}
+          chrome="panel"
           label="Browse Files"
           onClick={() => setMode("browse")}
         >
@@ -390,15 +287,22 @@ export function WorkspaceFilesPanel(props: {
         </ModeButton>
         <ModeButton
           active={mode === "search"}
+          chrome="panel"
           label="Search Files"
           onClick={() => setMode("search")}
         >
           <IconMagnifyingGlass className="size-3.5" />
         </ModeButton>
-        <NavButton disabled={!canGoBack} label="Back" onClick={() => navigatePreviewHistory(-1)}>
+        <NavButton
+          disabled={!canGoBack}
+          chrome="panel"
+          label="Back"
+          onClick={() => navigatePreviewHistory(-1)}
+        >
           <IconArrowLeft className="size-3.5" />
         </NavButton>
         <NavButton
+          chrome="panel"
           disabled={!canGoForward}
           label="Forward"
           onClick={() => navigatePreviewHistory(1)}
@@ -406,44 +310,24 @@ export function WorkspaceFilesPanel(props: {
           <IconArrowRight className="size-3.5" />
         </NavButton>
         <div className="min-w-0 flex-1" />
-        <ModeButton
-          active={wordWrap}
-          label={wordWrap ? "Disable Word Wrap" : "Enable Word Wrap"}
-          onClick={() => setWordWrap((current) => !current)}
-        >
-          <IconLinebreak className="size-3.5" />
-        </ModeButton>
       </div>
 
-      <div className="flex min-h-0 flex-1">
-        <WorkspaceFileTree
-          cwd={props.cwd}
-          environmentId={props.environmentId}
-          availableEditors={props.availableEditors}
-          onOpenFile={openPreviewPath}
-          searchOpen={mode === "search"}
-          selectedPath={selectedPath}
-          className="min-h-0 w-[220px] shrink-0 border-r border-b-0 border-cursor-stroke-tertiary bg-[color-mix(in_srgb,var(--cursor-bg-elevated)_78%,transparent)]"
-        />
-        {selectedPath ? (
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-white">
-            <PreviewTabs
-              activePath={selectedPath}
-              openPaths={openPaths}
-              onActivate={activatePreviewPath}
-              onClose={closePreviewPath}
-            />
-            <SourcePreview
-              cwd={props.cwd}
-              environmentId={props.environmentId}
-              selectedPath={selectedPath}
-              wordWrap={wordWrap}
-            />
+      <RightWorkbenchLayout cwd={props.cwd} tab="files" rail={tree}>
+        <div className="editor-panel-inner flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--glass-editor-surface-background,color-mix(in_srgb,var(--multi-bg-elevated)_76%,transparent))]">
+          <div className="flex min-h-0 flex-1 flex-col">
+            {selectedPath ? (
+              <SourcePreview
+                cwd={props.cwd}
+                environmentId={props.environmentId}
+                selectedPath={selectedPath}
+                wordWrap
+              />
+            ) : (
+              <EmptyFilePreview onOpenFile={() => setMode("search")} />
+            )}
           </div>
-        ) : (
-          <EmptyFilePreview onOpenFile={() => setMode("search")} />
-        )}
-      </div>
+        </div>
+      </RightWorkbenchLayout>
     </div>
   );
 }

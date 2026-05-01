@@ -1,4 +1,4 @@
-import { EnvironmentId, ProjectId, ThreadId } from "@multi/contracts";
+import { EnvironmentId, ProjectId, ProviderInstanceId, ThreadId } from "@multi/contracts";
 import { scopeProjectRef } from "@multi/client-runtime";
 import { describe, expect, it } from "vitest";
 
@@ -10,8 +10,8 @@ import {
   type AppState,
   type EnvironmentState,
 } from "./store";
-import { deriveLogicalProjectKey } from "./logical-project";
-import type { Project, SidebarThreadSummary } from "./types";
+import { deriveLogicalProjectKey, derivePhysicalProjectKey } from "./logical-project";
+import { Project, SidebarThreadSummary } from "./types";
 import { DEFAULT_INTERACTION_MODE } from "./types";
 
 // ── Fixture Identifiers ──────────────────────────────────────────────
@@ -39,7 +39,7 @@ function makeProject(
 ): Project {
   return {
     cwd: `/tmp/${overrides.name}`,
-    defaultModelSelection: { provider: "codex" as const, model: "gpt-5-codex" },
+    defaultModelSelection: { instanceId: "codex", model: "gpt-5-codex" },
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
     scripts: [],
@@ -232,15 +232,14 @@ describe("environment grouping", () => {
       expect(deriveLogicalProjectKey(project)).toBe(SHARED_REPO_CANONICAL_KEY);
     });
 
-    it("falls back to scoped project key when no repositoryIdentity", () => {
+    it("falls back to physical project key when no repositoryIdentity", () => {
       const project = makeProject({
         id: localOnlyProjectId,
         environmentId: primaryEnvId,
         name: "local-only",
       });
       const key = deriveLogicalProjectKey(project);
-      expect(key).toContain(primaryEnvId);
-      expect(key).toContain(localOnlyProjectId);
+      expect(key).toBe(derivePhysicalProjectKey(project));
     });
 
     it("groups projects from different environments that share the same canonical key", () => {

@@ -38,7 +38,7 @@ export function ShellSidebarHeader(props: {
         <button
           type="button"
           onClick={props.onAddProject}
-          className="agent-window-open-workspace flex min-h-6 w-full min-w-0 items-center gap-1.5 rounded-multi-control px-2 py-1 text-left font-multi text-[11px]/[14px] text-muted-foreground/72 transition-colors hover:bg-multi-hover hover:text-foreground"
+          className="agent-window-open-workspace flex min-h-6 w-full min-w-0 items-center gap-1.5 rounded-multi-control px-2 py-1 text-left font-multi text-[12px]/[16px] font-normal text-muted-foreground/72 transition-colors hover:bg-multi-hover hover:text-foreground"
           aria-label="Open workspace"
           data-testid="sidebar-add-project-trigger"
         >

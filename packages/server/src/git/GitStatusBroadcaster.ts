@@ -172,10 +172,9 @@ export const GitStatusBroadcasterLive = Layer.effect(
       input: GitStatusInput,
     ) {
       const normalizedCwd = normalizeCwd(input.cwd);
-      const [local, remote] = yield* Effect.all([
-        getOrLoadLocalStatus(normalizedCwd),
-        getOrLoadRemoteStatus(normalizedCwd),
-      ]);
+      const local = yield* getOrLoadLocalStatus(normalizedCwd);
+      const remote =
+        local.isRepo && local.hasOriginRemote ? yield* getOrLoadRemoteStatus(normalizedCwd) : null;
       return mergeGitStatusParts(local, remote);
     });
 
@@ -197,10 +196,9 @@ export const GitStatusBroadcasterLive = Layer.effect(
     const refreshStatus: GitStatusBroadcasterShape["refreshStatus"] = Effect.fn("refreshStatus")(
       function* (cwd) {
         const normalizedCwd = normalizeCwd(cwd);
-        const [local, remote] = yield* Effect.all([
-          refreshLocalStatus(normalizedCwd),
-          refreshRemoteStatus(normalizedCwd),
-        ]);
+        const local = yield* refreshLocalStatus(normalizedCwd);
+        const remote =
+          local.isRepo && local.hasOriginRemote ? yield* refreshRemoteStatus(normalizedCwd) : null;
         return mergeGitStatusParts(local, remote);
       },
     );
@@ -283,9 +281,14 @@ export const GitStatusBroadcasterLive = Layer.effect(
           const subscription = yield* PubSub.subscribe(changesPubSub);
           const initialLocal = yield* getOrLoadLocalStatus(normalizedCwd);
           const initialRemote = (yield* getCachedStatus(normalizedCwd))?.remote?.value ?? null;
-          yield* retainRemotePoller(normalizedCwd);
+          const shouldPollRemote = initialLocal.isRepo && initialLocal.hasOriginRemote;
+          if (shouldPollRemote) {
+            yield* retainRemotePoller(normalizedCwd);
+          }
 
-          const release = releaseRemotePoller(normalizedCwd).pipe(Effect.ignore, Effect.asVoid);
+          const release = shouldPollRemote
+            ? releaseRemotePoller(normalizedCwd).pipe(Effect.ignore, Effect.asVoid)
+            : Effect.void;
 
           return Stream.concat(
             Stream.make({

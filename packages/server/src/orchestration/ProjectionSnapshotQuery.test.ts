@@ -48,7 +48,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
           'project-1',
           'Project 1',
           '/tmp/project-1',
-          '{"provider":"codex","model":"gpt-5-codex"}',
+          '{"instanceId":"codex","model":"gpt-5-codex"}',
           '[{"id":"script-1","name":"Build","command":"bun run build","icon":"build","runOnWorktreeCreate":false}]',
           '2026-02-24T00:00:00.000Z',
           '2026-02-24T00:00:01.000Z',
@@ -79,7 +79,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
           'thread-1',
           'project-1',
           'Thread 1',
-          '{"provider":"codex","model":"gpt-5-codex"}',
+          '{"instanceId":"codex","model":"gpt-5-codex"}',
           'full-access',
           'default',
           NULL,
@@ -252,7 +252,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
           workspaceRoot: "/tmp/project-1",
           repositoryIdentity: null,
           defaultModelSelection: {
-            provider: "codex",
+            instanceId: "codex",
             model: "gpt-5-codex",
           },
           scripts: [
@@ -275,7 +275,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
           projectId: asProjectId("project-1"),
           title: "Thread 1",
           modelSelection: {
-            provider: "codex",
+            instanceId: "codex",
             model: "gpt-5-codex",
           },
           interactionMode: "default",
@@ -363,7 +363,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
           workspaceRoot: "/tmp/project-1",
           repositoryIdentity: null,
           defaultModelSelection: {
-            provider: "codex",
+            instanceId: "codex",
             model: "gpt-5-codex",
           },
           scripts: [
@@ -385,7 +385,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
           projectId: asProjectId("project-1"),
           title: "Thread 1",
           modelSelection: {
-            provider: "codex",
+            instanceId: "codex",
             model: "gpt-5-codex",
           },
           interactionMode: "default",
@@ -431,6 +431,60 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
     }),
   );
 
+  it.effect("returns a shell snapshot when an active project workspace root is missing", () =>
+    Effect.gen(function* () {
+      const snapshotQuery = yield* ProjectionSnapshotQuery;
+      const sql = yield* SqlClient.SqlClient;
+
+      yield* sql`DELETE FROM projection_projects`;
+      yield* sql`DELETE FROM projection_state`;
+      yield* sql`DELETE FROM projection_threads`;
+      yield* sql`DELETE FROM projection_turns`;
+
+      yield* sql`
+        INSERT INTO projection_projects (
+          project_id,
+          title,
+          workspace_root,
+          default_model_selection_json,
+          scripts_json,
+          created_at,
+          updated_at,
+          deleted_at
+        )
+        VALUES (
+          'project-missing-root',
+          'Missing Root',
+          '/tmp/multi-missing-workspace-root-for-shell-snapshot',
+          '{"instanceId":"codex","model":"gpt-5-codex"}',
+          '[]',
+          '2026-02-24T00:00:00.000Z',
+          '2026-02-24T00:00:01.000Z',
+          NULL
+        )
+      `;
+
+      const shellSnapshot = yield* snapshotQuery.getShellSnapshot();
+
+      assert.deepEqual(shellSnapshot.projects, [
+        {
+          id: asProjectId("project-missing-root"),
+          title: "Missing Root",
+          workspaceRoot: "/tmp/multi-missing-workspace-root-for-shell-snapshot",
+          repositoryIdentity: null,
+          defaultModelSelection: {
+            instanceId: "codex",
+            model: "gpt-5-codex",
+          },
+          scripts: [],
+          createdAt: "2026-02-24T00:00:00.000Z",
+          updatedAt: "2026-02-24T00:00:01.000Z",
+        },
+      ]);
+      assert.deepEqual(shellSnapshot.threads, []);
+    }),
+  );
+
   it.effect(
     "reads targeted project, thread, and count queries without hydrating the full snapshot",
     () =>
@@ -458,7 +512,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
             'project-active',
             'Active Project',
             '/tmp/workspace',
-            '{"provider":"codex","model":"gpt-5-codex"}',
+            '{"instanceId":"codex","model":"gpt-5-codex"}',
             '[]',
             '2026-03-01T00:00:00.000Z',
             '2026-03-01T00:00:01.000Z',
@@ -497,7 +551,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
             'thread-first',
             'project-active',
             'First Thread',
-            '{"provider":"codex","model":"gpt-5-codex"}',
+            '{"instanceId":"codex","model":"gpt-5-codex"}',
             'full-access',
             'default',
             NULL,
@@ -512,7 +566,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
             'thread-second',
             'project-active',
             'Second Thread',
-            '{"provider":"codex","model":"gpt-5-codex"}',
+            '{"instanceId":"codex","model":"gpt-5-codex"}',
             'full-access',
             'default',
             NULL,
@@ -527,7 +581,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
             'thread-deleted',
             'project-active',
             'Deleted Thread',
-            '{"provider":"codex","model":"gpt-5-codex"}',
+            '{"instanceId":"codex","model":"gpt-5-codex"}',
             'full-access',
             'default',
             NULL,
@@ -617,7 +671,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
           'thread-context',
           'project-context',
           'Context Thread',
-          '{"provider":"codex","model":"gpt-5-codex"}',
+          '{"instanceId":"codex","model":"gpt-5-codex"}',
           'full-access',
           'default',
           'feature/perf',
@@ -742,7 +796,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
           'project-1',
           'Project 1',
           '/tmp/project-1',
-          '{"provider":"codex","model":"gpt-5-codex"}',
+          '{"instanceId":"codex","model":"gpt-5-codex"}',
           '[]',
           '2026-04-01T00:00:00.000Z',
           '2026-04-01T00:00:01.000Z',
@@ -773,7 +827,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
           'thread-1',
           'project-1',
           'Thread 1',
-          '{"provider":"codex","model":"gpt-5-codex"}',
+          '{"instanceId":"codex","model":"gpt-5-codex"}',
           'full-access',
           'default',
           NULL,
@@ -903,7 +957,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
           'project-1',
           'Project 1',
           '/tmp/project-1',
-          '{"provider":"codex","model":"gpt-5-codex"}',
+          '{"instanceId":"codex","model":"gpt-5-codex"}',
           '[]',
           '2026-04-02T00:00:00.000Z',
           '2026-04-02T00:00:01.000Z',
@@ -935,7 +989,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
           'thread-1',
           'project-1',
           'Thread 1',
-          '{"provider":"codex","model":"gpt-5-codex"}',
+          '{"instanceId":"codex","model":"gpt-5-codex"}',
           'full-access',
           'default',
           NULL,

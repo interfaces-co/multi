@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 
 import {
+  defaultInstanceIdForDriver,
   EventId,
+  ProviderDriverKind,
   type ProviderRuntimeEvent,
   type ProviderSession,
   RuntimeItemId,
@@ -41,7 +43,8 @@ import {
   type OpenCodeServerConnection,
 } from "./opencodeRuntime.ts";
 
-const PROVIDER = "opencode" as const;
+const PROVIDER = ProviderDriverKind.make("opencode");
+const PROVIDER_INSTANCE_ID = defaultInstanceIdForDriver(PROVIDER);
 
 interface OpenCodeTurnSnapshot {
   readonly id: TurnId;
@@ -134,11 +137,20 @@ function buildEventBase(input: {
   readonly raw?: unknown;
 }): Pick<
   ProviderRuntimeEvent,
-  "eventId" | "provider" | "threadId" | "createdAt" | "turnId" | "itemId" | "requestId" | "raw"
+  | "eventId"
+  | "provider"
+  | "providerInstanceId"
+  | "threadId"
+  | "createdAt"
+  | "turnId"
+  | "itemId"
+  | "requestId"
+  | "raw"
 > {
   return {
     eventId: EventId.make(randomUUID()),
     provider: PROVIDER,
+    providerInstanceId: PROVIDER_INSTANCE_ID,
     threadId: input.threadId,
     createdAt: input.createdAt ?? nowIso(),
     ...(input.turnId ? { turnId: input.turnId } : {}),
@@ -1028,7 +1040,7 @@ export function makeOpenCodeAdapterLive(options?: OpenCodeAdapterLiveOptions) {
                 });
                 const openCodeSession = yield* runOpenCodeSdk("session.create", () =>
                   client.session.create({
-                    title: `T3 Code ${input.threadId}`,
+                    title: `Multi ${input.threadId}`,
                     permission: buildOpenCodePermissionRules(input.runtimeMode),
                   }),
                 );
@@ -1064,6 +1076,7 @@ export function makeOpenCodeAdapterLive(options?: OpenCodeAdapterLiveOptions) {
           const createdAt = nowIso();
           const session: ProviderSession = {
             provider: PROVIDER,
+            providerInstanceId: input.providerInstanceId,
             status: "ready",
             runtimeMode: input.runtimeMode,
             cwd: directory,
@@ -1120,7 +1133,7 @@ export function makeOpenCodeAdapterLive(options?: OpenCodeAdapterLiveOptions) {
         const modelSelection =
           input.modelSelection ??
           (context.session.model
-            ? { provider: PROVIDER, model: context.session.model }
+            ? { instanceId: context.session.providerInstanceId, model: context.session.model }
             : undefined);
         const parsedModel = parseOpenCodeModelSlug(modelSelection?.model);
         if (!parsedModel) {
@@ -1145,14 +1158,8 @@ export function makeOpenCodeAdapterLive(options?: OpenCodeAdapterLiveOptions) {
           });
         }
 
-        const agent =
-          input.modelSelection?.provider === PROVIDER
-            ? getModelSelectionStringOptionValue(input.modelSelection, "agent")
-            : undefined;
-        const variant =
-          input.modelSelection?.provider === PROVIDER
-            ? getModelSelectionStringOptionValue(input.modelSelection, "variant")
-            : undefined;
+        const agent = getModelSelectionStringOptionValue(input.modelSelection, "agent");
+        const variant = getModelSelectionStringOptionValue(input.modelSelection, "variant");
 
         context.activeTurnId = turnId;
         context.activeAgent = agent ?? (input.interactionMode === "plan" ? "plan" : undefined);

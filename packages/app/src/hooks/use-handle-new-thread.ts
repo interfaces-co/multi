@@ -10,11 +10,14 @@ import {
 } from "../composer-draft-store";
 import { newDraftId, newThreadId } from "../lib/utils";
 import { orderItemsByPreferredIds } from "../lib/thread-sidebar";
-import { deriveLogicalProjectKey } from "../logical-project";
+import { findProjectByPath } from "../lib/project-paths";
+import { deriveLogicalProjectKey, getProjectOrderKey } from "../logical-project";
+import { useServerConfig } from "../rpc/server-state";
 import { selectProjectsAcrossEnvironments, useStore } from "../store";
 import { createThreadSelectorByRef } from "../store-selectors";
 import { resolveThreadRouteTarget } from "../thread-routes";
 import { useUiStateStore } from "../ui-state-store";
+import { traceBrowserEvent } from "~/observability/browserDebug";
 
 function useNewThreadState() {
   const projects = useStore(useShallow((store) => selectProjectsAcrossEnvironments(store)));
@@ -61,6 +64,11 @@ function useNewThreadState() {
         : null;
       if (storedDraftThread) {
         return (async () => {
+          traceBrowserEvent("thread.new.reuse-stored-draft", {
+            draftId: storedDraftThread.draftId,
+            threadId: storedDraftThread.threadId,
+            logicalProjectKey,
+          });
           if (hasBranchOption || hasWorktreePathOption || hasEnvModeOption) {
             setDraftThreadContext(storedDraftThread.draftId, {
               ...(hasBranchOption ? { branch: options?.branch ?? null } : {}),
@@ -90,6 +98,11 @@ function useNewThreadState() {
         latestActiveDraftThread.logicalProjectKey === logicalProjectKey &&
         latestActiveDraftThread.promotedTo == null
       ) {
+        traceBrowserEvent("thread.new.reuse-active-draft", {
+          draftId: currentRouteTarget.draftId,
+          threadId: latestActiveDraftThread.threadId,
+          logicalProjectKey,
+        });
         if (hasBranchOption || hasWorktreePathOption || hasEnvModeOption) {
           setDraftThreadContext(currentRouteTarget.draftId, {
             ...(hasBranchOption ? { branch: options?.branch ?? null } : {}),
@@ -113,6 +126,14 @@ function useNewThreadState() {
       const threadId = newThreadId();
       const createdAt = new Date().toISOString();
       return (async () => {
+        traceBrowserEvent("thread.new.create-draft", {
+          draftId,
+          threadId,
+          environmentId: projectRef.environmentId,
+          projectId: projectRef.projectId,
+          logicalProjectKey,
+          envMode: options?.envMode ?? "local",
+        });
         setLogicalProjectDraftThreadId(logicalProjectKey, projectRef, draftId, {
           threadId,
           createdAt,
@@ -127,6 +148,7 @@ function useNewThreadState() {
           to: "/draft/$draftId",
           params: { draftId },
         });
+        traceBrowserEvent("thread.new.navigate-draft.done", { draftId, threadId });
       })();
     },
     [getCurrentRouteTarget, router, projects],
@@ -160,20 +182,28 @@ export function useHandleNewThread() {
       : null,
   );
   const projects = useStore(useShallow((store) => selectProjectsAcrossEnvironments(store)));
+  const serverConfig = useServerConfig();
   const orderedProjects = useMemo(() => {
     return orderItemsByPreferredIds({
       items: projects,
       preferredIds: projectOrder,
-      getId: (project) => scopedProjectKey(scopeProjectRef(project.environmentId, project.id)),
+      getId: getProjectOrderKey,
     });
   }, [projectOrder, projects]);
+  const defaultProject = useMemo(() => {
+    return (
+      (serverConfig?.cwd ? findProjectByPath(orderedProjects, serverConfig.cwd) : undefined) ??
+      orderedProjects[0] ??
+      null
+    );
+  }, [orderedProjects, serverConfig?.cwd]);
   const handleNewThread = useNewThreadState();
 
   return {
     activeDraftThread,
     activeThread,
-    defaultProjectRef: orderedProjects[0]
-      ? scopeProjectRef(orderedProjects[0].environmentId, orderedProjects[0].id)
+    defaultProjectRef: defaultProject
+      ? scopeProjectRef(defaultProject.environmentId, defaultProject.id)
       : null,
     handleNewThread,
     routeThreadRef,

@@ -1,12 +1,14 @@
 import { createFileRoute, retainSearchParams } from "@tanstack/react-router";
 
 import { ChatThreadRouteView } from "~/app/routes/chat-thread-route";
-import { type DiffRouteSearch, parseDiffRouteSearch } from "~/diff-route-search";
+import { type ChatShellSearch, parseChatShellSearch } from "~/diff-route-search";
 
 export const Route = createFileRoute("/_chat/$environmentId/$threadId")({
-  validateSearch: (search) => parseDiffRouteSearch(search),
+  validateSearch: (search: Record<string, unknown>) => parseChatShellSearch(search),
   search: {
-    middlewares: [retainSearchParams<DiffRouteSearch>(["diff"])],
+    middlewares: [
+      retainSearchParams<ChatShellSearch>(["diff", "diffTurnId", "diffFilePath", "workbench"]),
+    ],
   },
   component: ChatThreadRouteView,
 });

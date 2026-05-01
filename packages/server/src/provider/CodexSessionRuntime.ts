@@ -4,6 +4,8 @@ import {
   ApprovalRequestId,
   DEFAULT_MODEL_BY_PROVIDER,
   EventId,
+  defaultInstanceIdForDriver,
+  ProviderDriverKind,
   ProviderItemId,
   type ProviderApprovalDecision,
   type ProviderEvent,
@@ -32,7 +34,8 @@ import {
 } from "./CodexDeveloperInstructions.ts";
 import { expandHomePath } from "../path-expansion.ts";
 
-const PROVIDER = "codex" as const;
+const PROVIDER = ProviderDriverKind.make("codex");
+const PROVIDER_INSTANCE_ID = defaultInstanceIdForDriver(PROVIDER);
 
 const ANSI_ESCAPE_CHAR = String.fromCharCode(27);
 const ANSI_ESCAPE_REGEX = new RegExp(`${ANSI_ESCAPE_CHAR}\\[[0-9;]*m`, "g");
@@ -303,7 +306,8 @@ function buildCodexCollaborationMode(input: {
   if (input.interactionMode === undefined) {
     return undefined;
   }
-  const model = normalizeCodexModelSlug(input.model) ?? DEFAULT_MODEL_BY_PROVIDER.codex;
+  const model =
+    normalizeCodexModelSlug(input.model) ?? DEFAULT_MODEL_BY_PROVIDER[PROVIDER] ?? "gpt-5-codex";
   return {
     mode: input.interactionMode,
     settings: {
@@ -712,6 +716,7 @@ export const makeCodexSessionRuntime = (
 
     const initialSession = {
       provider: PROVIDER,
+      providerInstanceId: PROVIDER_INSTANCE_ID,
       status: "connecting",
       runtimeMode: options.runtimeMode,
       cwd: options.cwd,
@@ -724,10 +729,13 @@ export const makeCodexSessionRuntime = (
     const sessionRef = yield* Ref.make<ProviderSession>(initialSession);
     const offerEvent = (event: ProviderEvent) => Queue.offer(events, event).pipe(Effect.asVoid);
 
-    const emitEvent = (event: Omit<ProviderEvent, "id" | "provider" | "createdAt">) =>
+    const emitEvent = (
+      event: Omit<ProviderEvent, "id" | "provider" | "providerInstanceId" | "createdAt">,
+    ) =>
       offerEvent({
         id: EventId.make(randomUUID()),
         provider: PROVIDER,
+        providerInstanceId: PROVIDER_INSTANCE_ID,
         createdAt: new Date().toISOString(),
         ...event,
       });

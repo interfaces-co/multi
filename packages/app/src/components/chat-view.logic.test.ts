@@ -1,5 +1,12 @@
 import { scopeThreadRef } from "@multi/client-runtime";
-import { EnvironmentId, ProjectId, ThreadId, TurnId } from "@multi/contracts";
+import {
+  EnvironmentId,
+  ProjectId,
+  ProviderDriverKind,
+  ProviderInstanceId,
+  ThreadId,
+  TurnId,
+} from "@multi/contracts";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { type EnvironmentState, useStore } from "../store";
 import { type Thread } from "../types";
@@ -220,9 +227,9 @@ const makeThread = (input?: {
   codexThreadId: null,
   projectId: ProjectId.make("project-1"),
   title: "Thread",
-  modelSelection: { provider: "codex" as const, model: "gpt-5.4" },
-  runtimeMode: "full-access" as const,
-  interactionMode: "default" as const,
+  modelSelection: { instanceId: "codex", model: "gpt-5.4" },
+  runtimeMode: "full-access",
+  interactionMode: "default",
   session: null,
   messages: [],
   proposedPlans: [],
@@ -253,7 +260,7 @@ function setStoreThreads(threads: ReadonlyArray<ReturnType<typeof makeThread>>) 
         name: "Project",
         cwd: "/tmp/project",
         defaultModelSelection: {
-          provider: "codex",
+          instanceId: "codex",
           model: "gpt-5.4",
         },
         createdAt: "2026-03-29T00:00:00.000Z",
@@ -444,20 +451,21 @@ describe("hasServerAcknowledgedLocalDispatch", () => {
   const projectId = ProjectId.make("project-1");
   const previousLatestTurn = {
     turnId: TurnId.make("turn-1"),
-    state: "completed" as const,
+    state: "completed",
     requestedAt: "2026-03-29T00:00:00.000Z",
     startedAt: "2026-03-29T00:00:01.000Z",
     completedAt: "2026-03-29T00:00:10.000Z",
     assistantMessageId: null,
-  };
+  } as const;
 
   const previousSession = {
-    provider: "codex" as const,
-    status: "ready" as const,
+    provider: "codex",
+    providerInstanceId: "codex",
+    status: "ready",
     createdAt: "2026-03-29T00:00:00.000Z",
     updatedAt: "2026-03-29T00:00:10.000Z",
-    orchestrationStatus: "idle" as const,
-  };
+    orchestrationStatus: "idle",
+  } as const;
 
   it("does not clear local dispatch before server state changes", () => {
     const localDispatch = createLocalDispatchSnapshot({
@@ -466,7 +474,7 @@ describe("hasServerAcknowledgedLocalDispatch", () => {
       codexThreadId: null,
       projectId,
       title: "Thread",
-      modelSelection: { provider: "codex", model: "gpt-5.4" },
+      modelSelection: { instanceId: "codex", model: "gpt-5.4" },
       runtimeMode: "full-access",
       interactionMode: "default",
       session: previousSession,
@@ -503,7 +511,7 @@ describe("hasServerAcknowledgedLocalDispatch", () => {
       codexThreadId: null,
       projectId,
       title: "Thread",
-      modelSelection: { provider: "codex", model: "gpt-5.4" },
+      modelSelection: { instanceId: "codex", model: "gpt-5.4" },
       runtimeMode: "full-access",
       interactionMode: "default",
       session: previousSession,
@@ -549,7 +557,7 @@ describe("hasServerAcknowledgedLocalDispatch", () => {
       codexThreadId: null,
       projectId,
       title: "Thread",
-      modelSelection: { provider: "codex", model: "gpt-5.4" },
+      modelSelection: { instanceId: "codex", model: "gpt-5.4" },
       runtimeMode: "full-access",
       interactionMode: "default",
       session: previousSession,
@@ -592,7 +600,7 @@ describe("hasServerAcknowledgedLocalDispatch", () => {
       codexThreadId: null,
       projectId,
       title: "Thread",
-      modelSelection: { provider: "codex", model: "gpt-5.4" },
+      modelSelection: { instanceId: "codex", model: "gpt-5.4" },
       runtimeMode: "full-access",
       interactionMode: "default",
       session: previousSession,
@@ -635,7 +643,7 @@ describe("hasServerAcknowledgedLocalDispatch", () => {
       codexThreadId: null,
       projectId,
       title: "Thread",
-      modelSelection: { provider: "codex", model: "gpt-5.4" },
+      modelSelection: { instanceId: "codex", model: "gpt-5.4" },
       runtimeMode: "full-access",
       interactionMode: "default",
       session: previousSession,
@@ -685,7 +693,7 @@ describe("hasServerAcknowledgedLocalDispatch", () => {
       codexThreadId: null,
       projectId,
       title: "Thread",
-      modelSelection: { provider: "codex", model: "gpt-5.4" },
+      modelSelection: { instanceId: "codex", model: "gpt-5.4" },
       runtimeMode: "full-access",
       interactionMode: "default",
       session: previousSession,

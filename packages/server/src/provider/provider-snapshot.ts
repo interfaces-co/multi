@@ -1,11 +1,13 @@
-import type {
-  ModelCapabilities,
-  ServerProvider,
-  ServerProviderAuth,
-  ServerProviderSkill,
-  ServerProviderSlashCommand,
-  ServerProviderModel,
-  ServerProviderState,
+import {
+  ProviderDriverKind,
+  ProviderInstanceId,
+  type ModelCapabilities,
+  type ServerProvider,
+  type ServerProviderAuth,
+  type ServerProviderSkill,
+  type ServerProviderSlashCommand,
+  type ServerProviderModel,
+  type ServerProviderState,
 } from "@multi/contracts";
 import { Effect, Stream } from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
@@ -110,7 +112,7 @@ export function parseGenericCliVersion(output: string): string | null {
 
 export function providerModelsFromSettings(
   builtInModels: ReadonlyArray<ServerProviderModel>,
-  provider: ServerProvider["provider"],
+  provider: ProviderDriverKind,
   customModels: ReadonlyArray<string>,
   customModelCapabilities: ModelCapabilities,
 ): ReadonlyArray<ServerProviderModel> {
@@ -179,7 +181,9 @@ export function buildBooleanOptionDescriptor(input: {
 }
 
 export function buildServerProvider(input: {
-  provider: ServerProvider["provider"];
+  driver: ProviderDriverKind;
+  instanceId?: ProviderInstanceId;
+  accentColor?: string;
   presentation: ServerProviderPresentation;
   enabled: boolean;
   checkedAt: string;
@@ -189,8 +193,10 @@ export function buildServerProvider(input: {
   probe: ProviderProbeResult;
 }): ServerProvider {
   return {
-    provider: input.provider,
+    instanceId: input.instanceId ?? ProviderInstanceId.make(input.driver),
+    driver: input.driver,
     displayName: input.presentation.displayName,
+    ...(input.accentColor ? { accentColor: input.accentColor } : {}),
     ...(input.presentation.badgeLabel ? { badgeLabel: input.presentation.badgeLabel } : {}),
     ...(typeof input.presentation.showInteractionModeToggle === "boolean"
       ? { showInteractionModeToggle: input.presentation.showInteractionModeToggle }

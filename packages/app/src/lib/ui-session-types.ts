@@ -1,7 +1,7 @@
 /**
  * UI session types (formerly in @multi/contracts).
  *
- * Types that already exist in @multi/contracts (ProviderKind, ThreadId,
+ * Types that already exist in @multi/contracts (ProviderDriverKind, ThreadId,
  * ModelSelection, ProviderInteractionMode, etc.) are NOT duplicated here --
  * import those directly from @multi/contracts.
  */

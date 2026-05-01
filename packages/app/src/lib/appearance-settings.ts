@@ -1,4 +1,54 @@
-import { ALL_PRESET_VAR_KEYS, PIERRE_DARK_VARS, PIERRE_LIGHT_VARS } from "./pierre-color-presets";
+/**
+ * Legacy inline keys from the old JS-driven Pierre preset; cleared when switching palettes
+ * so earlier sessions do not leave stale `style` properties on :root.
+ */
+const INLINE_PRESET_VAR_KEYS = [
+  "--accent",
+  "--accent-foreground",
+  "--app-background",
+  "--background",
+  "--border",
+  "--card",
+  "--card-foreground",
+  "--destructive",
+  "--destructive-foreground",
+  "--foreground",
+  "--info",
+  "--info-foreground",
+  "--input",
+  "--multi-color-active",
+  "--multi-color-border",
+  "--multi-color-bubble",
+  "--multi-color-bubble-opaque",
+  "--multi-color-chat",
+  "--multi-color-editor",
+  "--multi-color-elevated",
+  "--multi-color-hover",
+  "--multi-color-menubar",
+  "--multi-color-sidebar",
+  "--multi-color-stroke",
+  "--multi-color-stroke-strong",
+  "--multi-color-surface",
+  "--multi-action",
+  "--multi-diff-addition",
+  "--multi-diff-addition-bg",
+  "--multi-diff-deletion",
+  "--multi-diff-deletion-bg",
+  "--multi-stroke-tertiary",
+  "--muted",
+  "--muted-foreground",
+  "--popover",
+  "--popover-foreground",
+  "--primary",
+  "--primary-foreground",
+  "--ring",
+  "--secondary",
+  "--secondary-foreground",
+  "--success",
+  "--success-foreground",
+  "--warning",
+  "--warning-foreground",
+] as const;
 
 export const STORAGE_COLOR_PALETTE = "multi:color-preset";
 export const STORAGE_REDUCE_TRANSPARENCY = "multi:reduce-transparency";
@@ -71,17 +121,14 @@ export function getColorPalette(): ColorPaletteId {
 
 export function applyColorPalette() {
   const root = document.documentElement;
+  root.dataset.colorPalette = getColorPalette();
   const preset = getColorPalette();
   const hue = parseIntStored(localStorage.getItem(STORAGE_TINT_HUE), 255, 0, 360);
   const saturation = readTintSaturation();
 
   if (preset === "pierre") {
-    const map = root.classList.contains("dark") ? PIERRE_DARK_VARS : PIERRE_LIGHT_VARS;
-    for (const k of ALL_PRESET_VAR_KEYS) {
+    for (const k of INLINE_PRESET_VAR_KEYS) {
       root.style.removeProperty(k);
-    }
-    for (const [k, v] of Object.entries(map)) {
-      root.style.setProperty(k, v);
     }
     root.style.removeProperty("--multi-user-hue");
     root.style.removeProperty("--multi-intensity");
@@ -89,7 +136,7 @@ export function applyColorPalette() {
     return;
   }
 
-  for (const k of ALL_PRESET_VAR_KEYS) {
+  for (const k of INLINE_PRESET_VAR_KEYS) {
     root.style.removeProperty(k);
   }
   root.style.setProperty("--multi-user-hue", String(hue));

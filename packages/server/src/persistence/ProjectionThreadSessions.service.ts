@@ -13,8 +13,7 @@ import {
   ThreadId,
   TurnId,
 } from "@multi/contracts";
-import { Option, Schema, Context } from "effect";
-import type { Effect } from "effect";
+import { Option, Schema, Context, Effect } from "effect";
 
 import type { ProjectionRepositoryError } from "./Errors.ts";
 
@@ -22,6 +21,9 @@ export const ProjectionThreadSession = Schema.Struct({
   threadId: ThreadId,
   status: OrchestrationSessionStatus,
   providerName: Schema.NullOr(Schema.String),
+  providerInstanceId: Schema.optionalKey(
+    Schema.NullOr(Schema.String).pipe(Schema.withDecodingDefault(Effect.succeed(null))),
+  ),
   runtimeMode: RuntimeMode,
   activeTurnId: Schema.NullOr(TurnId),
   lastError: Schema.NullOr(Schema.String),

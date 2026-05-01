@@ -2,11 +2,11 @@ import type { HarnessModelRef, ThinkingLevel } from "~/lib/ui-session-types";
 import { Menu } from "@base-ui/react/menu";
 import { LockIcon } from "lucide-react";
 import {
-  cursorMenuIconSlotClassName,
-  cursorMenuItemClassName,
-  cursorMenuMetaTextClassName,
-  cursorMenuPrimaryTextClassName,
-  cursorMenuSeparatorClassName,
+  workbenchMenuIconSlotClassName,
+  workbenchMenuItemClassName,
+  workbenchMenuMetaTextClassName,
+  workbenchMenuPrimaryTextClassName,
+  workbenchMenuSeparatorClassName,
 } from "@multi/ui/menu";
 import { IconBrain, IconCheckmark1Small, IconChevronRight } from "central-icons";
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
@@ -184,13 +184,13 @@ export const ModelPicker = forwardRef<
         aria-label={`Model: ${triggerLabel}${props.onThinkingLevel ? `, thinking ${thinkingDetailLabel(thinkingValue)}` : ""}${showFast ? `, fast mode ${fastValue}` : ""}`}
         disabled={!idle}
         className={cn(
-          "ui-model-picker__trigger inline-flex min-w-0 gap-1.5 rounded-full border text-left text-[12px]/[16px] outline-none transition-colors focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none",
+          "ui-model-picker__trigger ui-button inline-flex min-w-0 rounded-full border text-left text-[12px]/[16px] outline-none transition-colors focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none",
           settings
-            ? "h-auto min-h-7 w-full max-w-full flex-col items-stretch gap-0.5 border-cursor-stroke-tertiary bg-cursor-bg-quinary py-1 pl-2 pr-1 hover:border-cursor-stroke-secondary hover:bg-cursor-bg-quaternary"
-            : "h-6 max-w-[min(100%,240px)] items-center border-transparent bg-transparent px-1.5 py-0 hover:bg-cursor-bg-quaternary",
+            ? "h-auto min-h-7 w-full max-w-full flex-col items-stretch gap-0.5 border-multi-stroke-tertiary bg-multi-bg-quinary py-1 pl-2 pr-1 hover:border-multi-stroke-secondary hover:bg-multi-bg-quaternary"
+            : "h-6 max-w-[min(100%,240px)] items-center border-transparent bg-transparent hover:bg-multi-bg-quaternary",
           cur != null || props.selection.model?.id
-            ? "text-foreground/90"
-            : "text-muted-foreground/70",
+            ? "text-multi-fg-secondary"
+            : "text-multi-fg-tertiary",
           !idle && "opacity-50",
         )}
       >
@@ -210,21 +210,21 @@ export const ModelPicker = forwardRef<
                   className={cn(
                     "block w-full min-w-0 text-left text-[12px]/[16px]",
                     cur != null || props.selection.model?.id
-                      ? "text-foreground/90"
-                      : "text-muted-foreground/70",
+                      ? "text-multi-fg-secondary"
+                      : "text-multi-fg-tertiary",
                   )}
                 />
               </span>
               {thinkingValue === "xhigh" ? (
-                <span className="inline-flex h-4 shrink-0 items-center rounded-[4px] bg-cursor-bg-tertiary px-1 text-[9px]/[12px] font-semibold text-cursor-text-secondary">
+                <span className="inline-flex h-4 shrink-0 items-center rounded-[4px] bg-multi-bg-tertiary px-1 text-[9px]/[12px] font-semibold text-multi-fg-secondary">
                   MAX
                 </span>
               ) : null}
               {locked ? (
-                <LockIcon className="size-3 shrink-0 text-cursor-text-tertiary" aria-hidden />
+                <LockIcon className="size-3 shrink-0 text-multi-fg-tertiary" aria-hidden />
               ) : null}
               <IconChevronRight
-                className="size-3 shrink-0 rotate-90 text-cursor-text-tertiary"
+                className="size-3 shrink-0 rotate-90 text-multi-fg-tertiary"
                 aria-hidden
               />
             </div>
@@ -247,10 +247,10 @@ export const ModelPicker = forwardRef<
         >
           <Menu.Popup
             className={cn(
-              "multi-slash-menu-popup flex max-h-[min(var(--available-height),20rem)] w-[min(18rem,var(--available-width))] min-w-[15rem] max-w-[18rem] flex-col overflow-hidden rounded-[12px] border border-cursor-stroke-tertiary bg-cursor-bg-elevated font-multi text-[12px]/[16px] text-cursor-text-primary shadow-multi-popup outline-none ring-0 backdrop-blur-xl focus:outline-none focus-visible:outline-none",
+              "multi-slash-menu-popup flex max-h-[min(var(--available-height),20rem)] w-[min(18rem,var(--available-width))] min-w-[15rem] max-w-[18rem] flex-col overflow-hidden rounded-[12px] border border-multi-stroke-tertiary bg-multi-bg-elevated font-multi text-[12px]/[16px] text-multi-fg-primary shadow-multi-popup outline-none ring-0 backdrop-blur-xl focus:outline-none focus-visible:outline-none",
             )}
           >
-            <div className="shrink-0 border-b border-cursor-stroke-tertiary px-1.5 py-1.5">
+            <div className="shrink-0 border-b border-multi-stroke-tertiary px-1.5 py-1.5">
               <input
                 ref={inputRef}
                 type="search"
@@ -258,28 +258,28 @@ export const ModelPicker = forwardRef<
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={stopMenuSearchBubbling}
                 placeholder="Search models"
-                className="flex h-6 w-full rounded-[6px] border-0 bg-cursor-bg-quinary px-2 text-[12px]/[16px] text-cursor-text-primary outline-none ring-0 placeholder:text-cursor-text-quaternary focus:outline-none focus-visible:outline-none focus-visible:ring-0"
+                className="flex h-6 w-full rounded-[6px] border-0 bg-multi-bg-quinary px-2 text-[12px]/[16px] text-multi-fg-primary outline-none ring-0 placeholder:text-multi-fg-quaternary focus:outline-none focus-visible:outline-none focus-visible:ring-0"
               />
             </div>
             {confirmMax ? (
-              <div className="flex flex-col gap-2 border-b border-cursor-stroke-tertiary px-3 py-2.5">
-                <div className="text-[12px]/[16px] font-medium text-cursor-text-primary">
+              <div className="flex flex-col gap-2 border-b border-multi-stroke-tertiary px-3 py-2.5">
+                <div className="text-[12px]/[16px] font-medium text-multi-fg-primary">
                   Enable MAX Mode?
                 </div>
-                <div className="text-[11px]/[14px] text-cursor-text-tertiary">
+                <div className="text-[11px]/[14px] text-multi-fg-tertiary">
                   MAX uses the deepest reasoning level for this model.
                 </div>
                 <div className="flex items-center justify-end gap-1.5 pt-0.5">
                   <button
                     type="button"
-                    className="h-6 rounded-[5px] px-2 text-[12px]/[16px] text-cursor-text-secondary hover:bg-cursor-bg-quaternary hover:text-cursor-text-primary"
+                    className="h-6 rounded-[5px] px-2 text-[12px]/[16px] text-multi-fg-secondary hover:bg-multi-bg-quaternary hover:text-multi-fg-primary"
                     onClick={() => setConfirmMax(false)}
                   >
                     Cancel
                   </button>
                   <button
                     type="button"
-                    className="h-6 rounded-[5px] bg-cursor-bg-tertiary px-2 text-[12px]/[16px] font-medium text-cursor-text-primary hover:bg-cursor-bg-secondary"
+                    className="h-6 rounded-[5px] bg-multi-bg-tertiary px-2 text-[12px]/[16px] font-medium text-multi-fg-primary hover:bg-multi-bg-secondary"
                     data-action="variant_selected"
                     onClick={() => {
                       props.onThinkingLevel?.("xhigh");
@@ -303,8 +303,8 @@ export const ModelPicker = forwardRef<
                   setConfirmMax(true);
                 }}
                 className={cn(
-                  cursorMenuItemClassName,
-                  "w-full rounded-none border-b border-cursor-stroke-tertiary px-2 text-left text-cursor-text-primary disabled:cursor-default disabled:opacity-50",
+                  workbenchMenuItemClassName,
+                  "w-full rounded-none border-b border-multi-stroke-tertiary px-2 text-left text-multi-fg-primary disabled:cursor-default disabled:opacity-50",
                 )}
                 aria-pressed={thinkingValue === "xhigh"}
                 data-action="toggle_changed"
@@ -313,7 +313,7 @@ export const ModelPicker = forwardRef<
                 <span
                   className={cn(
                     "relative inline-flex h-4 w-7 shrink-0 items-center rounded-full p-px transition-colors",
-                    thinkingValue === "xhigh" ? "bg-primary" : "bg-cursor-bg-tertiary",
+                    thinkingValue === "xhigh" ? "bg-primary" : "bg-multi-bg-tertiary",
                   )}
                   aria-hidden
                 >
@@ -327,7 +327,7 @@ export const ModelPicker = forwardRef<
               </button>
             ) : null}
             {list.length === 0 ? (
-              <div className="shrink-0 px-4 py-3 text-center text-[12px]/[16px] text-cursor-text-tertiary">
+              <div className="shrink-0 px-4 py-3 text-center text-[12px]/[16px] text-multi-fg-tertiary">
                 {failed
                   ? "Unable to load models."
                   : props.items.length === 0
@@ -358,9 +358,9 @@ export const ModelPicker = forwardRef<
                       }}
                       data-action="model_selected"
                       className={cn(
-                        cursorMenuItemClassName,
+                        workbenchMenuItemClassName,
                         "group mx-1 px-1.5",
-                        selected && "bg-cursor-bg-tertiary text-cursor-text-primary",
+                        selected && "bg-multi-bg-tertiary text-multi-fg-primary",
                       )}
                     >
                       <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -369,21 +369,21 @@ export const ModelPicker = forwardRef<
                             text={displayModelName(item.name || item.id)}
                             className={cn(
                               "block w-full min-w-0 text-left",
-                              cursorMenuPrimaryTextClassName,
+                              workbenchMenuPrimaryTextClassName,
                             )}
                           />
                         </span>
                         <span
                           className={cn(
                             "max-w-[5rem] shrink-0 text-muted-foreground/70",
-                            cursorMenuMetaTextClassName,
+                            workbenchMenuMetaTextClassName,
                           )}
                         >
                           {displayProviderName(item.provider)}
                         </span>
                         <div className="flex shrink-0 items-center gap-1">
                           {item.reasoning ? (
-                            <span className={cursorMenuIconSlotClassName} title={modeLabel}>
+                            <span className={workbenchMenuIconSlotClassName} title={modeLabel}>
                               <IconBrain
                                 className="size-3 shrink-0 text-muted-foreground/75"
                                 aria-hidden
@@ -402,10 +402,10 @@ export const ModelPicker = forwardRef<
             ) : null}
             {props.onAddModels ? (
               <>
-                <Menu.Separator className={cn(cursorMenuSeparatorClassName, "mx-0 my-0")} />
+                <Menu.Separator className={cn(workbenchMenuSeparatorClassName, "mx-0 my-0")} />
                 <button
                   type="button"
-                  className={cn(cursorMenuItemClassName, "mx-1 mb-1 w-[calc(100%-0.5rem)] px-2")}
+                  className={cn(workbenchMenuItemClassName, "mx-1 mb-1 w-[calc(100%-0.5rem)] px-2")}
                   onClick={() => {
                     setOpen(false);
                     props.onAddModels?.();
@@ -413,7 +413,7 @@ export const ModelPicker = forwardRef<
                   data-action="open-model-settings"
                 >
                   <span className="min-w-0 flex-1 text-left">Add Models</span>
-                  <IconChevronRight className="size-3 shrink-0 text-cursor-text-tertiary" />
+                  <IconChevronRight className="size-3 shrink-0 text-multi-fg-tertiary" />
                 </button>
               </>
             ) : null}

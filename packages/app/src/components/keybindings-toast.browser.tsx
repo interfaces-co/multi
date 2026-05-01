@@ -4,6 +4,8 @@ import {
   DEFAULT_SERVER_SETTINGS,
   EnvironmentId,
   ORCHESTRATION_WS_METHODS,
+  ProviderDriverKind,
+  ProviderInstanceId,
   type MessageId,
   type OrchestrationReadModel,
   type ProjectId,
@@ -72,7 +74,8 @@ function createBaseServerConfig(): ServerConfig {
     issues: [],
     providers: [
       {
-        provider: "codex",
+        instanceId: ProviderInstanceId.make("codex"),
+        driver: ProviderDriverKind.make("codex"),
         enabled: true,
         installed: true,
         version: "0.116.0",
@@ -95,10 +98,19 @@ function createBaseServerConfig(): ServerConfig {
       ...DEFAULT_SERVER_SETTINGS,
       enableAssistantStreaming: false,
       defaultThreadEnvMode: "local" as const,
-      textGenerationModelSelection: { provider: "codex" as const, model: "gpt-5.4-mini" },
+      textGenerationModelSelection: {
+        instanceId: ProviderInstanceId.make("codex"),
+        model: "gpt-5.4-mini",
+      },
       providers: {
         ...DEFAULT_SERVER_SETTINGS.providers,
-        codex: { enabled: true, binaryPath: "", homePath: "", customModels: [] },
+        codex: {
+          enabled: true,
+          binaryPath: "",
+          homePath: "",
+          shadowHomePath: "",
+          customModels: [],
+        },
         claudeAgent: { enabled: true, binaryPath: "", customModels: [], launchArgs: "" },
       },
     },
@@ -114,7 +126,7 @@ function createMinimalSnapshot(): OrchestrationReadModel {
         title: "Project",
         workspaceRoot: "/repo/project",
         defaultModelSelection: {
-          provider: "codex",
+          instanceId: ProviderInstanceId.make("codex"),
           model: "gpt-5",
         },
         scripts: [],
@@ -129,7 +141,7 @@ function createMinimalSnapshot(): OrchestrationReadModel {
         projectId: PROJECT_ID,
         title: "Test thread",
         modelSelection: {
-          provider: "codex",
+          instanceId: ProviderInstanceId.make("codex"),
           model: "gpt-5",
         },
         interactionMode: "default",

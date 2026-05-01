@@ -45,8 +45,9 @@ class FakeCodexRuntime implements CodexSessionRuntimeShape {
 
   public readonly startImpl = vi.fn(() =>
     Promise.resolve({
-      provider: "codex" as const,
-      status: "ready" as const,
+      provider: "codex",
+      providerInstanceId: "codex",
+      status: "ready",
       runtimeMode: this.options.runtimeMode,
       threadId: this.options.threadId,
       cwd: this.options.cwd,
@@ -218,6 +219,7 @@ validationLayer("CodexAdapterLive validation", (it) => {
       const result = yield* adapter
         .startSession({
           provider: "claudeAgent",
+          providerInstanceId: "claudeAgent",
           threadId: asThreadId("thread-1"),
           runtimeMode: "full-access",
         })
@@ -242,6 +244,7 @@ validationLayer("CodexAdapterLive validation", (it) => {
 
       yield* adapter.startSession({
         provider: "codex",
+        providerInstanceId: "codex",
         threadId: asThreadId("thread-1"),
         modelSelection: createModelSelection("codex", "gpt-5.3-codex", [
           { id: "fastMode", value: true },
@@ -295,6 +298,7 @@ sessionErrorLayer("CodexAdapterLive session errors", (it) => {
       const adapter = yield* CodexAdapter;
       yield* adapter.startSession({
         provider: "codex",
+        providerInstanceId: "codex",
         threadId: asThreadId("sess-missing"),
         runtimeMode: "full-access",
       });
@@ -339,6 +343,7 @@ function startLifecycleRuntime() {
     const adapter = yield* CodexAdapter;
     yield* adapter.startSession({
       provider: "codex",
+      providerInstanceId: "codex",
       threadId: asThreadId("thread-1"),
       runtimeMode: "full-access",
     });
@@ -358,6 +363,7 @@ lifecycleLayer("CodexAdapterLive lifecycle", (it) => {
         id: asEventId("evt-msg-complete"),
         kind: "notification",
         provider: "codex",
+        providerInstanceId: "codex",
         createdAt: new Date().toISOString(),
         method: "item/completed",
         threadId: asThreadId("thread-1"),
@@ -400,6 +406,7 @@ lifecycleLayer("CodexAdapterLive lifecycle", (it) => {
         id: asEventId("evt-plan-complete"),
         kind: "notification",
         provider: "codex",
+        providerInstanceId: "codex",
         createdAt: new Date().toISOString(),
         method: "item/completed",
         threadId: asThreadId("thread-1"),
@@ -441,6 +448,7 @@ lifecycleLayer("CodexAdapterLive lifecycle", (it) => {
         id: asEventId("evt-plan-delta"),
         kind: "notification",
         provider: "codex",
+        providerInstanceId: "codex",
         createdAt: new Date().toISOString(),
         method: "item/plan/delta",
         threadId: asThreadId("thread-1"),
@@ -478,6 +486,7 @@ lifecycleLayer("CodexAdapterLive lifecycle", (it) => {
         id: asEventId("evt-session-closed"),
         kind: "session",
         provider: "codex",
+        providerInstanceId: "codex",
         threadId: asThreadId("thread-1"),
         createdAt: new Date().toISOString(),
         method: "session/closed",
@@ -509,6 +518,7 @@ lifecycleLayer("CodexAdapterLive lifecycle", (it) => {
         id: asEventId("evt-retryable-error"),
         kind: "notification",
         provider: "codex",
+        providerInstanceId: "codex",
         threadId: asThreadId("thread-1"),
         createdAt: new Date().toISOString(),
         method: "error",
@@ -547,6 +557,7 @@ lifecycleLayer("CodexAdapterLive lifecycle", (it) => {
         id: asEventId("evt-process-stderr"),
         kind: "notification",
         provider: "codex",
+        providerInstanceId: "codex",
         threadId: asThreadId("thread-1"),
         createdAt: new Date().toISOString(),
         method: "process/stderr",
@@ -581,6 +592,7 @@ lifecycleLayer("CodexAdapterLive lifecycle", (it) => {
         id: asEventId("evt-process-stderr-websocket"),
         kind: "notification",
         provider: "codex",
+        providerInstanceId: "codex",
         threadId: asThreadId("thread-1"),
         createdAt: new Date().toISOString(),
         method: "process/stderr",
@@ -617,6 +629,7 @@ lifecycleLayer("CodexAdapterLive lifecycle", (it) => {
         id: asEventId("evt-request-resolved"),
         kind: "notification",
         provider: "codex",
+        providerInstanceId: "codex",
         threadId: asThreadId("thread-1"),
         createdAt: new Date().toISOString(),
         method: "serverRequest/resolved",
@@ -652,6 +665,7 @@ lifecycleLayer("CodexAdapterLive lifecycle", (it) => {
         id: asEventId("evt-file-read-request-resolved"),
         kind: "notification",
         provider: "codex",
+        providerInstanceId: "codex",
         threadId: asThreadId("thread-1"),
         createdAt: new Date().toISOString(),
         method: "serverRequest/resolved",
@@ -687,6 +701,7 @@ lifecycleLayer("CodexAdapterLive lifecycle", (it) => {
         id: asEventId("evt-user-input-empty"),
         kind: "notification",
         provider: "codex",
+        providerInstanceId: "codex",
         threadId: asThreadId("thread-1"),
         createdAt: new Date().toISOString(),
         method: "item/tool/requestUserInput/answered",
@@ -727,6 +742,7 @@ lifecycleLayer("CodexAdapterLive lifecycle", (it) => {
         id: asEventId("evt-windows-sandbox-failed"),
         kind: "notification",
         provider: "codex",
+        providerInstanceId: "codex",
         threadId: asThreadId("thread-1"),
         createdAt: new Date().toISOString(),
         method: "windowsSandbox/setupCompleted",
@@ -772,6 +788,7 @@ lifecycleLayer("CodexAdapterLive lifecycle", (it) => {
           id: asEventId("evt-user-input-requested"),
           kind: "request",
           provider: "codex",
+          providerInstanceId: "codex",
           threadId: asThreadId("thread-1"),
           createdAt: new Date().toISOString(),
           method: "item/tool/requestUserInput",
@@ -799,6 +816,7 @@ lifecycleLayer("CodexAdapterLive lifecycle", (it) => {
           id: asEventId("evt-user-input-resolved"),
           kind: "notification",
           provider: "codex",
+          providerInstanceId: "codex",
           threadId: asThreadId("thread-1"),
           createdAt: new Date().toISOString(),
           method: "item/tool/requestUserInput/answered",
@@ -839,6 +857,7 @@ lifecycleLayer("CodexAdapterLive lifecycle", (it) => {
         id: asEventId("evt-codex-thread-token-usage-updated"),
         kind: "notification",
         provider: "codex",
+        providerInstanceId: "codex",
         threadId: asThreadId("thread-1"),
         turnId: asTurnId("turn-1"),
         createdAt: new Date().toISOString(),
@@ -913,6 +932,7 @@ scopedLifecycleLayer("CodexAdapterLive scoped lifecycle", (it) => {
 
       yield* adapter.startSession({
         provider: "codex",
+        providerInstanceId: "codex",
         threadId: asThreadId("thread-stop"),
         runtimeMode: "full-access",
       });
@@ -950,6 +970,7 @@ scopedFailureLayer("CodexAdapterLive scoped startup failure", (it) => {
       const result = yield* adapter
         .startSession({
           provider: "codex",
+          providerInstanceId: "codex",
           threadId: asThreadId("thread-fail"),
           runtimeMode: "full-access",
         })
@@ -967,7 +988,7 @@ scopedFailureLayer("CodexAdapterLive scoped startup failure", (it) => {
 
 it.effect("flushes managed native logs when the adapter layer shuts down", () =>
   Effect.gen(function* () {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "t3-codex-adapter-native-log-"));
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "multix-adapter-native-log-"));
     const basePath = path.join(tempDir, "provider-native.ndjson");
     const runtimeFactory = makeRuntimeFactory();
     const scope = yield* Scope.make("sequential");
@@ -988,6 +1009,7 @@ it.effect("flushes managed native logs when the adapter layer shuts down", () =>
 
       yield* adapter.startSession({
         provider: "codex",
+        providerInstanceId: "codex",
         threadId: asThreadId("thread-logger"),
         runtimeMode: "full-access",
       });
@@ -1000,6 +1022,7 @@ it.effect("flushes managed native logs when the adapter layer shuts down", () =>
         id: asEventId("evt-native-log"),
         kind: "notification",
         provider: "codex",
+        providerInstanceId: "codex",
         threadId: asThreadId("thread-logger"),
         createdAt: new Date().toISOString(),
         method: "process/stderr",

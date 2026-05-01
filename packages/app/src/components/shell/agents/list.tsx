@@ -75,29 +75,29 @@ function Section(props: {
   }, [onPrefetchAgent, open, section.items, visible]);
 
   return (
-    <section className="agent-sidebar-section min-w-0 w-full" data-agent-sidebar-section="">
-      <div className="agent-sidebar-section-heading flex min-h-5.5 min-w-0 w-full items-center gap-0 px-1">
+    <section
+      className="multi-agent-sidebar-section agent-sidebar-section min-w-0 w-full"
+      data-agent-sidebar-section=""
+    >
+      <div
+        className="multi-agent-sidebar-section-title agent-sidebar-section-heading agent-sidebar-section-title collapsible flex min-w-0 w-full items-center gap-0"
+        data-active={section.active ? "" : undefined}
+      >
         <button
           id={labelId}
           type="button"
           aria-expanded={open}
           aria-controls={open ? panelId : undefined}
           onClick={() => setOpen((value) => !value)}
-          className={`agent-sidebar-section-toggle relative flex min-w-0 flex-1 cursor-pointer items-center gap-1 rounded-multi-control px-1.5 py-0.5 text-left font-multi sidebar-label-track outline-none touch-manipulation transition-[color] duration-150 ease motion-reduce:transition-none pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background ${
-            section.active
-              ? "text-foreground/90 [@media(hover:hover)]:hover:text-foreground"
-              : "text-muted-foreground/60 [@media(hover:hover)]:hover:text-muted-foreground"
-          }`}
+          className="agent-sidebar-section-collapsible-trigger relative touch-manipulation font-multi"
         >
           <span
-            className={`agent-sidebar-section-chevron size-2.5 shrink-0 text-muted-foreground/50 transition-transform duration-150 ease-out motion-reduce:transition-none ${
-              open ? "" : "-rotate-90"
-            }`}
+            className={`agent-sidebar-section-chevron text-[10px]/[10px] ${open ? "" : "-rotate-90"}`}
             aria-hidden
           >
             ▾
           </span>
-          <span className="min-w-0 flex-1 truncate">{section.label}</span>
+          <span className="agent-sidebar-section-title-text">{section.label}</span>
         </button>
         {props.onNewAgent ? (
           <button
@@ -105,10 +105,10 @@ function Section(props: {
             onClick={() => props.onNewAgent?.(section.cwd)}
             aria-label={`New agent in ${section.label}`}
             title={`New agent in ${section.label}`}
-            className={`agent-sidebar-section-new relative flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-multi-control outline-none touch-manipulation transition-[color,background-color] duration-150 ease motion-reduce:transition-none pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background ${
+            className={`agent-sidebar-section-new relative flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-multi-control border border-transparent outline-none touch-manipulation transition-[color,background-color] duration-100 ease-out motion-reduce:transition-none pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 ${
               section.active
-                ? "text-foreground/65 [@media(hover:hover)]:hover:bg-multi-hover [@media(hover:hover)]:hover:text-foreground"
-                : "text-muted-foreground/55 [@media(hover:hover)]:hover:bg-multi-hover [@media(hover:hover)]:hover:text-muted-foreground"
+                ? "text-foreground/70 [@media(hover:hover)]:hover:bg-[var(--cursor-bg-quaternary)] [@media(hover:hover)]:hover:text-[var(--cursor-text-primary)]"
+                : "text-muted-foreground/55 [@media(hover:hover)]:hover:bg-[var(--cursor-bg-quaternary)] [@media(hover:hover)]:hover:text-[var(--cursor-text-primary)]"
             }`}
           >
             <span aria-hidden>+</span>
@@ -118,7 +118,7 @@ function Section(props: {
       {open ? (
         <div
           id={panelId}
-          className="agent-sidebar-section-items flex flex-col gap-px"
+          className="agent-sidebar-list min-w-0"
           role="region"
           aria-labelledby={labelId}
         >
@@ -135,7 +135,7 @@ function Section(props: {
             <button
               type="button"
               onClick={() => setExtra((count) => count + 1)}
-              className="agent-sidebar-more relative flex min-h-6 w-full cursor-pointer items-center gap-1.5 rounded-multi-control px-1.5 py-0.5 text-left font-multi text-[11px]/[14px] text-muted-foreground/65 outline-none touch-manipulation transition-[color,background-color] duration-150 ease motion-reduce:transition-none pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background [@media(hover:hover)]:hover:bg-multi-hover [@media(hover:hover)]:hover:text-muted-foreground"
+              className="agent-sidebar-more relative flex min-h-6 w-full cursor-pointer items-center gap-1.5 rounded-multi-control border border-transparent px-1.5 py-0.5 text-left font-multi font-normal text-muted-foreground/65 outline-none touch-manipulation transition-[color,background-color] duration-100 ease-out motion-reduce:transition-none pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 [@media(hover:hover)]:hover:bg-[var(--cursor-bg-quaternary)] [@media(hover:hover)]:hover:text-muted-foreground"
             >
               <span className="size-2.5 shrink-0 opacity-55" aria-hidden>
                 ⋯
@@ -151,18 +151,18 @@ function Section(props: {
 
 function SkeletonRows() {
   return (
-    <div className="agent-sidebar-list flex min-h-0 flex-1 flex-col gap-px overflow-y-auto px-2 py-1 [scrollbar-gutter:stable]">
+    <div className="sidebar-body multi-agent-sidebar agent-sidebar-sections flex min-h-0 flex-1 flex-col overflow-y-auto [scrollbar-gutter:stable]">
       {[0, 1].map((i) => (
         <div className="flex flex-col gap-2" key={i}>
           <div
-            className="h-3 w-16 animate-pulse rounded-multi-control bg-[var(--cursor-bg-tertiary)]"
+            className="h-3 w-16 animate-pulse rounded-multi-control bg-[var(--multi-bg-tertiary)]"
             data-skeleton={i}
           />
-          <div className="flex flex-col gap-1">
+          <div className="agent-sidebar-list flex flex-col">
             {[0, 1, 2].map((j) => (
               <div
                 key={j}
-                className="h-8 w-full animate-pulse rounded-multi-control bg-[var(--cursor-bg-tertiary)]"
+                className="h-7 w-full animate-pulse rounded-[6px] bg-[var(--multi-bg-tertiary)]"
                 data-skeleton={j}
               />
             ))}
@@ -195,7 +195,7 @@ export function AgentList(props: AgentListProps) {
   }
 
   return (
-    <div className="agent-sidebar-list flex min-h-0 flex-1 flex-col gap-px overflow-y-auto px-2 py-1 [scrollbar-gutter:stable]">
+    <div className="sidebar-body multi-agent-sidebar agent-sidebar-sections flex min-h-0 flex-1 flex-col overflow-y-auto [scrollbar-gutter:stable]">
       {props.sections.map((section) => (
         <Section
           key={section.id}

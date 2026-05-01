@@ -20,7 +20,6 @@ import { makeDrainableWorker } from "@multi/shared/DrainableWorker";
 import { ProviderService } from "../provider/ProviderService.service.ts";
 import { ProjectionTurnRepository } from "../persistence/ProjectionTurns.service.ts";
 import { ProjectionTurnRepositoryLive } from "../persistence/ProjectionTurns.ts";
-import { resolveThreadWorkspaceCwd } from "../checkpointing/Utils.ts";
 import { isGitRepository } from "../git/Utils.ts";
 import { OrchestrationEngineService } from "./OrchestrationEngine.service.ts";
 import {
@@ -28,6 +27,8 @@ import {
   type ProviderRuntimeIngestionShape,
 } from "./ProviderRuntimeIngestion.service.ts";
 import { ServerSettingsService } from "../server-settings.ts";
+import { ServerConfig } from "../config.ts";
+import { coerceThreadWorkspaceCwd } from "../workspace/AccessibleWorkspaceCwd.ts";
 
 const providerTurnKey = (threadId: ThreadId, turnId: TurnId) => `${threadId}:${turnId}`;
 const providerCommandId = (event: ProviderRuntimeEvent, tag: string): CommandId =>
@@ -513,6 +514,7 @@ const make = Effect.fn("make")(function* () {
   const providerService = yield* ProviderService;
   const projectionTurnRepository = yield* ProjectionTurnRepository;
   const serverSettingsService = yield* ServerSettingsService;
+  const serverConfig = yield* ServerConfig;
 
   const turnMessageIdsByTurnKey = yield* Cache.make<string, Set<MessageId>>({
     capacity: TURN_MESSAGE_IDS_BY_TURN_CACHE_CAPACITY,
@@ -538,9 +540,18 @@ const make = Effect.fn("make")(function* () {
     if (!thread) {
       return false;
     }
-    const workspaceCwd = resolveThreadWorkspaceCwd({
-      thread,
+    const workspaceCwd = yield* coerceThreadWorkspaceCwd({
+      operation: "ProviderRuntimeIngestion.isGitRepoForThread",
+      thread: {
+        id: thread.id,
+        projectId: thread.projectId,
+        worktreePath: thread.worktreePath,
+      },
       projects: readModel.projects,
+      fallbackCwds: [
+        { label: "server.cwd", cwd: serverConfig.cwd },
+        { label: "process.cwd", cwd: process.cwd() },
+      ],
     });
     if (!workspaceCwd) {
       return false;

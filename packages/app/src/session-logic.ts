@@ -1,10 +1,10 @@
 import {
   ApprovalRequestId,
   isToolLifecycleItemType,
+  ProviderDriverKind,
   type OrchestrationLatestTurn,
   type OrchestrationThreadActivity,
   type OrchestrationProposedPlanId,
-  type ProviderKind,
   type ProviderRequestKind,
   type ToolLifecycleItemType,
   type UserInputQuestion,
@@ -21,16 +21,16 @@ import type {
   TurnDiffSummary,
 } from "./types";
 
-export type ProviderPickerKind = ProviderKind | "cursor";
+export type ProviderPickerKind = ProviderDriverKind;
 
 export const PROVIDER_OPTIONS: Array<{
   value: ProviderPickerKind;
   label: string;
   available: boolean;
 }> = [
-  { value: "codex", label: "Codex", available: true },
-  { value: "claudeAgent", label: "Claude", available: true },
-  { value: "cursor", label: "Cursor", available: false },
+  { value: ProviderDriverKind.make("codex"), label: "Codex", available: true },
+  { value: ProviderDriverKind.make("claudeAgent"), label: "Claude", available: true },
+  { value: ProviderDriverKind.make("cursor"), label: "Cursor", available: false },
 ];
 
 export interface WorkLogSubagent {

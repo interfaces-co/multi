@@ -28,6 +28,9 @@ const watchedDirectories = [
 const forcedShutdownTimeoutMs = 1_500;
 const restartDebounceMs = 120;
 const childTreeGracePeriodMs = 1_200;
+const staleAppShutdownTimeoutMs = 1_500;
+/** Lets Chromium tear down SingletonLock before a hot-reload restart spins up a new GPU process. */
+const profileLockReleaseGraceMs = 350;
 
 await waitForResources({
   baseDir: desktopDir,
@@ -46,6 +49,12 @@ let restartQueue = Promise.resolve();
 const expectedExits = new WeakSet();
 const watchers = [];
 
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 function killChildTreeByPid(pid, signal) {
   if (process.platform === "win32" || typeof pid !== "number") {
     return;
@@ -54,12 +63,59 @@ function killChildTreeByPid(pid, signal) {
   spawnSync("pkill", [`-${signal}`, "-P", String(pid)], { stdio: "ignore" });
 }
 
-function cleanupStaleDevApps() {
+function staleDevAppMarker() {
+  return `--multi-dev-root=${desktopDir}`;
+}
+
+function findStaleDevAppPids() {
+  if (process.platform === "win32") {
+    return [];
+  }
+
+  const result = spawnSync("pgrep", ["-f", "--", staleDevAppMarker()], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"],
+  });
+  if (result.status !== 0 || typeof result.stdout !== "string") {
+    return [];
+  }
+
+  return result.stdout
+    .split(/\s+/)
+    .map((value) => Number.parseInt(value, 10))
+    .filter((pid) => Number.isInteger(pid) && pid > 0 && pid !== process.pid);
+}
+
+async function waitForStaleDevAppsToExit(timeoutMs) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    if (findStaleDevAppPids().length === 0) {
+      return true;
+    }
+    await sleep(50);
+  }
+
+  return findStaleDevAppPids().length === 0;
+}
+
+async function cleanupStaleDevApps() {
   if (process.platform === "win32") {
     return;
   }
 
-  spawnSync("pkill", ["-f", "--", `--multi-dev-root=${desktopDir}`], { stdio: "ignore" });
+  if (findStaleDevAppPids().length === 0) {
+    return;
+  }
+
+  spawnSync("pkill", ["-TERM", "-f", "--", staleDevAppMarker()], { stdio: "ignore" });
+  if (await waitForStaleDevAppsToExit(staleAppShutdownTimeoutMs)) {
+    await sleep(profileLockReleaseGraceMs);
+    return;
+  }
+
+  spawnSync("pkill", ["-KILL", "-f", "--", staleDevAppMarker()], { stdio: "ignore" });
+  await waitForStaleDevAppsToExit(staleAppShutdownTimeoutMs);
+  await sleep(profileLockReleaseGraceMs);
 }
 
 function startApp() {
@@ -154,6 +210,11 @@ function scheduleRestart() {
       .then(async () => {
         await stopApp();
         if (!shuttingDown) {
+          await new Promise((resolve) => {
+            setTimeout(resolve, profileLockReleaseGraceMs);
+          });
+        }
+        if (!shuttingDown) {
           startApp();
         }
       });
@@ -211,7 +272,7 @@ async function shutdown(exitCode) {
 }
 
 startWatchers();
-cleanupStaleDevApps();
+await cleanupStaleDevApps();
 startApp();
 
 process.once("SIGINT", () => {

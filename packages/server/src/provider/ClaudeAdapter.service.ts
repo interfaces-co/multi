@@ -10,6 +10,7 @@
  *
  * @module ClaudeAdapter
  */
+import { ProviderDriverKind } from "@multi/contracts";
 import { Context } from "effect";
 
 import type { ProviderAdapterError } from "./Errors.ts";
@@ -19,7 +20,7 @@ import type { ProviderAdapterShape } from "./ProviderAdapter.service.ts";
  * ClaudeAdapterShape - Service API for the Claude Agent provider adapter.
  */
 export interface ClaudeAdapterShape extends ProviderAdapterShape<ProviderAdapterError> {
-  readonly provider: "claudeAgent";
+  readonly provider: ProviderDriverKind;
 }
 
 /**

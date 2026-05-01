@@ -10,7 +10,7 @@ export function ShellSidebarFooter(props: { settings?: boolean }) {
   const active = Boolean(props.settings);
 
   return (
-    <div className="agent-window-sidebar-footer mt-auto flex shrink-0 flex-col px-2 py-1.5">
+    <div className="agent-window-sidebar-footer mt-auto flex shrink-0 flex-col px-2.5 py-1.5">
       <UpdatePill />
       <div className="agent-window-account-row flex min-h-7 items-center justify-between gap-2 rounded-multi-control px-1.5 py-1">
         <span className="agent-window-account-label flex min-w-0 items-center gap-1.5 text-detail text-muted-foreground/55">

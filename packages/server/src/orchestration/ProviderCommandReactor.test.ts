@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import type { ModelSelection, ProviderRuntimeEvent, ProviderSession } from "@multi/contracts";
+import { ModelSelection, ProviderRuntimeEvent, ProviderSession } from "@multi/contracts";
 import { createModelSelection } from "@multi/shared/model";
 import {
   ApprovalRequestId,
@@ -11,6 +11,7 @@ import {
   EventId,
   MessageId,
   ProjectId,
+  ProviderDriverKind,
   ThreadId,
   TurnId,
 } from "@multi/contracts";
@@ -97,19 +98,26 @@ describe("ProviderCommandReactor", () => {
 
   async function createHarness(input?: {
     readonly baseDir?: string;
+    readonly projectWorkspaceRoot?: string;
     readonly threadModelSelection?: ModelSelection;
     readonly sessionModelSwitch?: "unsupported" | "in-session";
   }) {
     const now = new Date().toISOString();
-    const baseDir = input?.baseDir ?? fs.mkdtempSync(path.join(os.tmpdir(), "t3code-reactor-"));
+    const baseDir = input?.baseDir ?? fs.mkdtempSync(path.join(os.tmpdir(), "multi-reactor-"));
     createdBaseDirs.add(baseDir);
+    const projectWorkspaceRoot =
+      input?.projectWorkspaceRoot ??
+      fs.mkdtempSync(path.join(os.tmpdir(), "multi-reactor-project-"));
+    if (input?.projectWorkspaceRoot === undefined) {
+      createdBaseDirs.add(projectWorkspaceRoot);
+    }
     const { stateDir } = deriveServerPathsSync(baseDir, undefined);
     createdStateDirs.add(stateDir);
     const runtimeEventPubSub = Effect.runSync(PubSub.unbounded<ProviderRuntimeEvent>());
     let nextSessionIndex = 1;
     const runtimeSessions: Array<ProviderSession> = [];
     const modelSelection = input?.threadModelSelection ?? {
-      provider: "codex",
+      instanceId: "codex",
       model: "gpt-5-codex",
     };
     const startSession = vi.fn((_: unknown, input: unknown) => {
@@ -126,8 +134,9 @@ describe("ProviderCommandReactor", () => {
           ? ThreadId.make(input.threadId)
           : ThreadId.make(`thread-${sessionIndex}`);
       const session: ProviderSession = {
-        provider: modelSelection.provider,
-        status: "ready" as const,
+        provider: ProviderDriverKind.make(modelSelection.instanceId),
+        providerInstanceId: modelSelection.instanceId,
+        status: "ready",
         runtimeMode:
           typeof input === "object" &&
           input !== null &&
@@ -284,7 +293,7 @@ describe("ProviderCommandReactor", () => {
         commandId: CommandId.make("cmd-project-create"),
         projectId: asProjectId("project-1"),
         title: "Provider Project",
-        workspaceRoot: "/tmp/provider-project",
+        workspaceRoot: projectWorkspaceRoot,
         defaultModelSelection: modelSelection,
         createdAt: now,
       }),
@@ -317,6 +326,7 @@ describe("ProviderCommandReactor", () => {
       refreshStatus,
       generateBranchName,
       generateThreadTitle,
+      projectWorkspaceRoot,
       stateDir,
       drain,
     };
@@ -347,9 +357,9 @@ describe("ProviderCommandReactor", () => {
     await waitFor(() => harness.sendTurn.mock.calls.length === 1);
     expect(harness.startSession.mock.calls[0]?.[0]).toEqual(ThreadId.make("thread-1"));
     expect(harness.startSession.mock.calls[0]?.[1]).toMatchObject({
-      cwd: "/tmp/provider-project",
+      cwd: harness.projectWorkspaceRoot,
       modelSelection: {
-        provider: "codex",
+        instanceId: "codex",
         model: "gpt-5-codex",
       },
       runtimeMode: "approval-required",
@@ -359,6 +369,39 @@ describe("ProviderCommandReactor", () => {
     const thread = readModel.threads.find((entry) => entry.id === ThreadId.make("thread-1"));
     expect(thread?.session?.threadId).toBe("thread-1");
     expect(thread?.session?.runtimeMode).toBe("approval-required");
+  });
+
+  it("falls back to an accessible server cwd when the project workspace root is stale", async () => {
+    const missingWorkspaceRoot = path.join(
+      os.tmpdir(),
+      `multi-reactor-missing-${crypto.randomUUID()}`,
+    );
+    fs.rmSync(missingWorkspaceRoot, { recursive: true, force: true });
+    const harness = await createHarness({ projectWorkspaceRoot: missingWorkspaceRoot });
+    const now = new Date().toISOString();
+
+    await Effect.runPromise(
+      harness.engine.dispatch({
+        type: "thread.turn.start",
+        commandId: CommandId.make("cmd-turn-start-stale-cwd"),
+        threadId: ThreadId.make("thread-1"),
+        message: {
+          messageId: asMessageId("user-message-stale-cwd"),
+          role: "user",
+          text: "hello from stale cwd",
+          attachments: [],
+        },
+        interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
+        runtimeMode: "approval-required",
+        createdAt: now,
+      }),
+    );
+
+    await waitFor(() => harness.startSession.mock.calls.length === 1);
+    await waitFor(() => harness.sendTurn.mock.calls.length === 1);
+    expect(harness.startSession.mock.calls[0]?.[1]).toMatchObject({
+      cwd: process.cwd(),
+    });
   });
 
   it("generates a thread title on the first turn", async () => {
@@ -505,14 +548,16 @@ describe("ProviderCommandReactor", () => {
   it("generates a worktree branch name for the first turn", async () => {
     const harness = await createHarness();
     const now = new Date().toISOString();
+    const worktreePath = fs.mkdtempSync(path.join(os.tmpdir(), "multi-reactor-worktree-"));
+    createdBaseDirs.add(worktreePath);
 
     await Effect.runPromise(
       harness.engine.dispatch({
         type: "thread.meta.update",
         commandId: CommandId.make("cmd-thread-branch"),
         threadId: ThreadId.make("thread-1"),
-        branch: "t3code/1234abcd",
-        worktreePath: "/tmp/provider-project-worktree",
+        branch: "multi/1234abcd",
+        worktreePath,
       }),
     );
 
@@ -553,7 +598,7 @@ describe("ProviderCommandReactor", () => {
     expect(harness.generateBranchName.mock.calls[0]?.[0]).toMatchObject({
       message: "Add a safer reconnect backoff.",
     });
-    expect(harness.refreshStatus.mock.calls[0]?.[0]).toBe("/tmp/provider-project-worktree");
+    expect(harness.refreshStatus.mock.calls[0]?.[0]).toBe(worktreePath);
   });
 
   it("forwards codex model options through session start and turn send", async () => {
@@ -600,7 +645,10 @@ describe("ProviderCommandReactor", () => {
 
   it("forwards claude effort options through session start and turn send", async () => {
     const harness = await createHarness({
-      threadModelSelection: { provider: "claudeAgent", model: "claude-sonnet-4-6" },
+      threadModelSelection: {
+        instanceId: "claudeAgent",
+        model: "claude-sonnet-4-6",
+      },
     });
     const now = new Date().toISOString();
 
@@ -641,7 +689,10 @@ describe("ProviderCommandReactor", () => {
 
   it("forwards claude fast mode options through session start and turn send", async () => {
     const harness = await createHarness({
-      threadModelSelection: { provider: "claudeAgent", model: "claude-opus-4-6" },
+      threadModelSelection: {
+        instanceId: "claudeAgent",
+        model: "claude-opus-4-6",
+      },
     });
     const now = new Date().toISOString();
 
@@ -763,7 +814,7 @@ describe("ProviderCommandReactor", () => {
     expect(harness.sendTurn.mock.calls[1]?.[0]).toMatchObject({
       threadId: ThreadId.make("thread-1"),
       modelSelection: {
-        provider: "codex",
+        instanceId: "codex",
         model: "gpt-5-codex",
       },
     });
@@ -771,7 +822,7 @@ describe("ProviderCommandReactor", () => {
 
   it("rejects a first turn when requested provider conflicts with the thread model", async () => {
     const harness = await createHarness({
-      threadModelSelection: { provider: "codex", model: "gpt-5-codex" },
+      threadModelSelection: { instanceId: "codex", model: "gpt-5-codex" },
     });
     const now = new Date().toISOString();
 
@@ -787,7 +838,7 @@ describe("ProviderCommandReactor", () => {
           attachments: [],
         },
         modelSelection: {
-          provider: "claudeAgent",
+          instanceId: "claudeAgent",
           model: "claude-opus-4-6",
         },
         interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
@@ -869,7 +920,10 @@ describe("ProviderCommandReactor", () => {
 
   it("restarts the provider session when the thread workspace changes", async () => {
     const harness = await createHarness({
-      threadModelSelection: { provider: "claudeAgent", model: "claude-sonnet-4-6" },
+      threadModelSelection: {
+        instanceId: "claudeAgent",
+        model: "claude-sonnet-4-6",
+      },
     });
     const now = new Date().toISOString();
 
@@ -893,15 +947,17 @@ describe("ProviderCommandReactor", () => {
     await waitFor(() => harness.startSession.mock.calls.length === 1);
     await waitFor(() => harness.sendTurn.mock.calls.length === 1);
     expect(harness.startSession.mock.calls[0]?.[1]).toMatchObject({
-      cwd: "/tmp/provider-project",
+      cwd: harness.projectWorkspaceRoot,
     });
 
+    const worktreePath = fs.mkdtempSync(path.join(os.tmpdir(), "multi-reactor-worktree-"));
+    createdBaseDirs.add(worktreePath);
     await Effect.runPromise(
       harness.engine.dispatch({
         type: "thread.meta.update",
         commandId: CommandId.make("cmd-thread-worktree-change"),
         threadId: ThreadId.make("thread-1"),
-        worktreePath: "/tmp/provider-project-worktree",
+        worktreePath,
       }),
     );
 
@@ -927,10 +983,10 @@ describe("ProviderCommandReactor", () => {
     expect(harness.stopSession.mock.calls.length).toBe(0);
     expect(harness.startSession.mock.calls[1]?.[1]).toMatchObject({
       threadId: ThreadId.make("thread-1"),
-      cwd: "/tmp/provider-project-worktree",
+      cwd: worktreePath,
       resumeCursor: { opaque: "resume-1" },
       modelSelection: {
-        provider: "claudeAgent",
+        instanceId: "claudeAgent",
         model: "claude-sonnet-4-6",
       },
       runtimeMode: "approval-required",
@@ -939,7 +995,10 @@ describe("ProviderCommandReactor", () => {
 
   it("restarts claude sessions when claude effort changes", async () => {
     const harness = await createHarness({
-      threadModelSelection: { provider: "claudeAgent", model: "claude-sonnet-4-6" },
+      threadModelSelection: {
+        instanceId: "claudeAgent",
+        model: "claude-sonnet-4-6",
+      },
     });
     const now = new Date().toISOString();
 
@@ -1083,7 +1142,10 @@ describe("ProviderCommandReactor", () => {
 
   it("does not inject derived model options when restarting claude on runtime mode changes", async () => {
     const harness = await createHarness({
-      threadModelSelection: { provider: "claudeAgent", model: "claude-opus-4-6" },
+      threadModelSelection: {
+        instanceId: "claudeAgent",
+        model: "claude-opus-4-6",
+      },
     });
     const now = new Date().toISOString();
 
@@ -1119,7 +1181,7 @@ describe("ProviderCommandReactor", () => {
 
     expect(harness.startSession.mock.calls[0]?.[1]).toMatchObject({
       modelSelection: {
-        provider: "claudeAgent",
+        instanceId: "claudeAgent",
         model: "claude-opus-4-6",
       },
       runtimeMode: "approval-required",
@@ -1227,7 +1289,7 @@ describe("ProviderCommandReactor", () => {
           attachments: [],
         },
         modelSelection: {
-          provider: "claudeAgent",
+          instanceId: "claudeAgent",
           model: "claude-opus-4-6",
         },
         interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
@@ -1346,7 +1408,7 @@ describe("ProviderCommandReactor", () => {
     expect(harness.startSession.mock.calls[0]?.[1]).toMatchObject({
       threadId: ThreadId.make("thread-1"),
       modelSelection: {
-        provider: "codex",
+        instanceId: "codex",
         model: "gpt-5-codex",
       },
       runtimeMode: "approval-required",

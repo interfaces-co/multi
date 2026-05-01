@@ -5,7 +5,6 @@ import {
   CheckIcon,
   FileTextIcon,
   GitBranchIcon,
-  GlobeIcon,
   PlusIcon,
   SearchIcon,
   TerminalIcon,
@@ -16,11 +15,11 @@ import { useMemo, useState, type ComponentType } from "react";
 import type { WorkbenchTab } from "~/lib/shell-panels-store";
 import { cn } from "~/lib/utils";
 import {
-  cursorMenuIconSlotClassName,
-  cursorMenuItemClassName,
-  cursorMenuMetaTextClassName,
-  cursorMenuPopupClassName,
-  cursorMenuPrimaryTextClassName,
+  workbenchMenuIconSlotClassName,
+  workbenchMenuItemClassName,
+  workbenchMenuMetaTextClassName,
+  workbenchMenuPopupClassName,
+  workbenchMenuPrimaryTextClassName,
 } from "@multi/ui/menu";
 
 const NEW_TAB_MENU_WIDTH =
@@ -38,7 +37,6 @@ interface Tab {
 const tabs: Tab[] = [
   { id: "git", label: "Changes", menuLabel: "Changes", icon: GitBranchIcon },
   { id: "terminal", label: "Terminal", menuLabel: "Terminal", icon: TerminalIcon },
-  { id: "browser", label: "Browser", menuLabel: "Browser", icon: GlobeIcon },
   { id: "files", label: "Files", menuLabel: "File", icon: FileTextIcon },
 ];
 
@@ -78,7 +76,7 @@ export function WorkbenchTabBar(props: {
   }, [query]);
 
   return (
-    <div className="ui-tab-system editor-panel-tab-root editor-panel-tab-root--simple-tabs no-drag flex h-[35px] shrink-0 items-stretch border-b border-cursor-stroke-tertiary bg-[var(--glass-editor-panel-tab-background,color-mix(in_srgb,var(--cursor-bg-elevated)_88%,transparent))] px-1.5 backdrop-blur-xl [--tab-system-bar-background:transparent]">
+    <div className="ui-tab-system editor-panel-tab-root editor-panel-tab-root--simple-tabs no-drag flex h-[35px] flex-none shrink-0 items-stretch bg-[var(--glass-editor-panel-tab-background,color-mix(in_srgb,var(--multi-bg-elevated)_88%,transparent))] px-1.5 backdrop-blur-xl [--tab-system-bar-background:transparent]">
       <div className="editor-panel-tab-bar-tab-cluster no-scrollbar flex min-w-0 flex-1 items-stretch overflow-hidden">
         {tabs.map((tab) => {
           const selected = tab.id === props.active;
@@ -90,8 +88,8 @@ export function WorkbenchTabBar(props: {
               type="button"
               onClick={() => props.onTab(tab.id)}
               className={cn(
-                "ui-tab-system-tab my-1.5 flex size-[22px] shrink-0 items-center justify-center rounded-[5px] text-cursor-icon-secondary transition-colors hover:bg-cursor-bg-quaternary hover:text-cursor-icon-primary",
-                selected && "bg-cursor-bg-tertiary text-cursor-icon-primary",
+                "ui-tab-system-tab my-1.5 flex size-[22px] shrink-0 items-center justify-center rounded-[5px] text-multi-icon-secondary transition-colors hover:bg-multi-bg-quaternary hover:text-multi-icon-primary",
+                selected && "bg-multi-bg-tertiary text-multi-icon-primary",
               )}
               aria-current={selected ? "page" : undefined}
               aria-label={`${tab.label}${countText}`}
@@ -115,7 +113,7 @@ export function WorkbenchTabBar(props: {
         }}
       >
         <Menu.Trigger
-          className="glass-editor-panel-new-tab-menu-trigger ui-icon-button my-1.5 flex size-[22px] shrink-0 items-center justify-center rounded-[5px] text-cursor-icon-secondary hover:bg-cursor-bg-quaternary hover:text-cursor-icon-primary data-[popup-open]:bg-cursor-bg-tertiary data-[popup-open]:text-cursor-icon-primary"
+          className="glass-editor-panel-new-tab-menu-trigger ui-icon-button my-1.5 flex size-[22px] shrink-0 items-center justify-center rounded-[5px] text-multi-icon-secondary hover:bg-multi-bg-quaternary hover:text-multi-icon-primary data-[popup-open]:bg-multi-bg-tertiary data-[popup-open]:text-multi-icon-primary"
           aria-expanded={open}
           aria-label="Open new tab menu"
           title="Open new tab menu"
@@ -131,20 +129,20 @@ export function WorkbenchTabBar(props: {
           >
             <Menu.Popup
               className={cn(
-                cursorMenuPopupClassName,
+                workbenchMenuPopupClassName,
                 "glass-editor-panel-new-tab-menu",
                 NEW_TAB_MENU_WIDTH,
                 NEW_TAB_MENU_MAX_HEIGHT,
               )}
             >
-              <div className="ui-menu__search-row flex items-center gap-1 border-b border-cursor-stroke-tertiary px-1.5 py-1.5">
-                <SearchIcon className="size-3.5 shrink-0 text-cursor-text-tertiary" aria-hidden />
+              <div className="ui-menu__search-row flex items-center gap-1 border-b border-multi-stroke-tertiary px-1.5 py-1.5">
+                <SearchIcon className="size-3.5 shrink-0 text-multi-fg-tertiary" aria-hidden />
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   onKeyDown={stopMenuSearchBubbling}
                   placeholder="Open any file, URL, ..."
-                  className="h-6 min-w-0 flex-1 bg-transparent text-[12px]/[16px] text-cursor-text-primary outline-none placeholder:text-cursor-text-quaternary"
+                  className="h-6 min-w-0 flex-1 bg-transparent text-[12px]/[16px] text-multi-fg-primary outline-none placeholder:text-multi-fg-quaternary"
                 />
               </div>
               <div className="ui-menu__list flex flex-col gap-px p-1">
@@ -160,19 +158,19 @@ export function WorkbenchTabBar(props: {
                         props.onTab(item.id as WorkbenchTab);
                         setOpen(false);
                       }}
-                      className={cn(cursorMenuItemClassName, "ui-menu__row gap-2")}
+                      className={cn(workbenchMenuItemClassName, "ui-menu__row gap-2")}
                     >
-                      <span className={cursorMenuIconSlotClassName}>
+                      <span className={workbenchMenuIconSlotClassName}>
                         <Icon className="size-3.5" aria-hidden />
                       </span>
-                      <span className={cn(cursorMenuPrimaryTextClassName, "flex-1")}>
+                      <span className={cn(workbenchMenuPrimaryTextClassName, "flex-1")}>
                         {item.menuLabel}
                       </span>
                       {item.disabled ? (
-                        <span className={cursorMenuMetaTextClassName}>Soon</span>
+                        <span className={workbenchMenuMetaTextClassName}>Soon</span>
                       ) : null}
                       {isActive ? (
-                        <CheckIcon className="size-3.5 shrink-0 text-cursor-text-tertiary" />
+                        <CheckIcon className="size-3.5 shrink-0 text-multi-fg-tertiary" />
                       ) : null}
                     </Menu.Item>
                   );
@@ -187,7 +185,7 @@ export function WorkbenchTabBar(props: {
         <button
           type="button"
           onClick={props.onToggle}
-          className="flex size-[22px] shrink-0 items-center justify-center rounded-[5px] text-cursor-icon-secondary hover:bg-cursor-bg-quaternary hover:text-cursor-icon-primary"
+          className="flex size-[22px] shrink-0 items-center justify-center rounded-[5px] text-multi-icon-secondary hover:bg-multi-bg-quaternary hover:text-multi-icon-primary"
           aria-label="Hide Panel"
           title="Hide Panel"
         >

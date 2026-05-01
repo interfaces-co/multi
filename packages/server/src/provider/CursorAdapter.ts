@@ -7,6 +7,8 @@ import * as nodePath from "node:path";
 
 import {
   ApprovalRequestId,
+  defaultInstanceIdForDriver,
+  ProviderDriverKind,
   type ProviderOptionSelection,
   EventId,
   type ProviderApprovalDecision,
@@ -76,7 +78,8 @@ import { CursorAdapter, type CursorAdapterShape } from "./CursorAdapter.service.
 import { resolveCursorAcpBaseModelId } from "./CursorProvider.ts";
 import { type EventNdjsonLogger, makeEventNdjsonLogger } from "./EventNdjsonLogger.ts";
 
-const PROVIDER = "cursor" as const;
+const PROVIDER = ProviderDriverKind.make("cursor");
+const PROVIDER_INSTANCE_ID = defaultInstanceIdForDriver(PROVIDER);
 const CURSOR_RESUME_VERSION = 1 as const;
 const ACP_PLAN_MODE_ALIASES = ["plan", "architect"];
 const ACP_IMPLEMENT_MODE_ALIASES = ["code", "agent", "default", "chat", "implement"];
@@ -304,8 +307,15 @@ function makeCursorAdapter(options?: CursorAdapterLiveOptions) {
     const nextEventId = Effect.map(Random.nextUUIDv4, (id) => EventId.make(id));
     const makeEventStamp = () => Effect.all({ eventId: nextEventId, createdAt: nowIso });
 
-    const offerRuntimeEvent = (event: ProviderRuntimeEvent) =>
-      PubSub.publish(runtimeEventPubSub, event).pipe(Effect.asVoid);
+    const offerRuntimeEvent = (
+      event: Omit<ProviderRuntimeEvent, "providerInstanceId"> & {
+        readonly providerInstanceId?: ProviderRuntimeEvent["providerInstanceId"];
+      },
+    ) =>
+      PubSub.publish(runtimeEventPubSub, {
+        ...event,
+        providerInstanceId: event.providerInstanceId ?? PROVIDER_INSTANCE_ID,
+      } as ProviderRuntimeEvent).pipe(Effect.asVoid);
 
     const getThreadSemaphore = (threadId: string) =>
       SynchronizedRef.modifyEffect(threadLocksRef, (current) => {
@@ -439,8 +449,7 @@ function makeCursorAdapter(options?: CursorAdapterLiveOptions) {
           }
 
           const cwd = nodePath.resolve(input.cwd.trim());
-          const cursorModelSelection =
-            input.modelSelection?.provider === "cursor" ? input.modelSelection : undefined;
+          const cursorModelSelection = input.modelSelection;
           const existing = sessions.get(input.threadId);
           if (existing && !existing.stopped) {
             yield* stopSessionInternal(existing);
@@ -480,7 +489,7 @@ function makeCursorAdapter(options?: CursorAdapterLiveOptions) {
             childProcessSpawner,
             cwd,
             ...(resumeSessionId ? { resumeSessionId } : {}),
-            clientInfo: { name: "t3-code", version: "0.0.0" },
+            clientInfo: { name: "multi", version: "0.0.0" },
             ...acpNativeLoggers,
           }).pipe(
             Effect.provideService(Scope.Scope, sessionScope),
@@ -666,6 +675,7 @@ function makeCursorAdapter(options?: CursorAdapterLiveOptions) {
           const now = yield* nowIso;
           const session: ProviderSession = {
             provider: PROVIDER,
+            providerInstanceId: input.providerInstanceId,
             status: "ready",
             runtimeMode: input.runtimeMode,
             cwd,
@@ -814,8 +824,7 @@ function makeCursorAdapter(options?: CursorAdapterLiveOptions) {
       Effect.gen(function* () {
         const ctx = yield* requireSession(input.threadId);
         const turnId = TurnId.make(crypto.randomUUID());
-        const turnModelSelection =
-          input.modelSelection?.provider === "cursor" ? input.modelSelection : undefined;
+        const turnModelSelection = input.modelSelection;
         const model = turnModelSelection?.model ?? ctx.session.model;
         const resolvedModel = resolveCursorAcpBaseModelId(model);
         yield* applyRequestedSessionConfiguration({

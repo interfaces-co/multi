@@ -15,17 +15,17 @@ describe("AcpCoreRuntimeEvents", () => {
     const stamp = { eventId: "event-1" as never, createdAt: "2026-03-27T00:00:00.000Z" };
     const turnId = TurnId.make("turn-1");
     const permissionRequest = {
-      kind: "execute" as const,
+      kind: "execute",
       detail: "cat package.json",
       toolCall: {
         toolCallId: "tool-1",
         kind: "execute",
-        status: "pending" as const,
+        status: "pending",
         command: "cat package.json",
         detail: "cat package.json",
         data: { toolCallId: "tool-1", kind: "execute" },
       },
-    };
+    } as const;
 
     expect(
       makeAcpRequestOpenedEvent({

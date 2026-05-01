@@ -1,7 +1,9 @@
+import * as NodeServices from "@effect/platform-node/NodeServices";
 import { CheckpointRef, ProjectId, ThreadId, TurnId } from "@multi/contracts";
 import { Effect, Layer, Option } from "effect";
 import { describe, expect, it } from "vitest";
 
+import { ServerConfig } from "../config.ts";
 import {
   ProjectionSnapshotQuery,
   type ProjectionThreadCheckpointContext,
@@ -53,7 +55,7 @@ describe("CheckpointDiffQueryLive", () => {
     const threadCheckpointContext = makeThreadCheckpointContext({
       projectId,
       threadId,
-      workspaceRoot: "/tmp/workspace",
+      workspaceRoot: process.cwd(),
       worktreePath: null,
       checkpointTurnCount: 1,
       checkpointRef: toCheckpointRef,
@@ -93,6 +95,8 @@ describe("CheckpointDiffQueryLive", () => {
           getThreadDetailById: () => Effect.succeed(Option.none()),
         }),
       ),
+      Layer.provide(ServerConfig.layerTest(process.cwd(), { prefix: "t3-checkpoint-diff-" })),
+      Layer.provideMerge(NodeServices.layer),
     );
 
     const result = await Effect.runPromise(
@@ -103,14 +107,14 @@ describe("CheckpointDiffQueryLive", () => {
           fromTurnCount: 0,
           toTurnCount: 1,
         });
-      }).pipe(Effect.provide(layer)),
+      }).pipe(Effect.provide(Layer.mergeAll(layer, NodeServices.layer))),
     );
 
     const expectedFromRef = checkpointRefForThreadTurn(threadId, 0);
     expect(hasCheckpointRefCalls).toEqual([expectedFromRef, toCheckpointRef]);
     expect(diffCheckpointsCalls).toEqual([
       {
-        cwd: "/tmp/workspace",
+        cwd: process.cwd(),
         fromCheckpointRef: expectedFromRef,
         toCheckpointRef,
       },
@@ -152,6 +156,8 @@ describe("CheckpointDiffQueryLive", () => {
           getThreadDetailById: () => Effect.succeed(Option.none()),
         }),
       ),
+      Layer.provide(ServerConfig.layerTest(process.cwd(), { prefix: "t3-checkpoint-diff-" })),
+      Layer.provideMerge(NodeServices.layer),
     );
 
     await expect(
@@ -163,7 +169,7 @@ describe("CheckpointDiffQueryLive", () => {
             fromTurnCount: 0,
             toTurnCount: 1,
           });
-        }).pipe(Effect.provide(layer)),
+        }).pipe(Effect.provide(layer), Effect.provide(NodeServices.layer)),
       ),
     ).rejects.toThrow("Thread 'thread-missing' not found.");
   });

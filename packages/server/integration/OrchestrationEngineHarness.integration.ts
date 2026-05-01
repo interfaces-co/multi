@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import {
   ApprovalRequestId,
-  ProviderKind,
+  ProviderDriverKind,
   type OrchestrationEvent,
   type OrchestrationThread,
 } from "@multi/contracts";
@@ -15,6 +15,7 @@ import {
   ManagedRuntime,
   Option,
   Path,
+  PubSub,
   Ref,
   Schedule,
   Schema,
@@ -213,7 +214,7 @@ export interface OrchestrationIntegrationHarness {
 }
 
 interface MakeOrchestrationIntegrationHarnessOptions {
-  readonly provider?: ProviderKind;
+  readonly provider?: ProviderDriverKind;
   readonly realCodex?: boolean;
 }
 
@@ -231,14 +232,45 @@ export const makeOrchestrationIntegrationHarness = (
       : yield* makeTestProviderAdapterHarness({
           provider,
         });
+    const makeStaticRegistryLayer = (input: {
+      readonly instanceId: string;
+      readonly provider: ProviderDriverKind;
+      readonly adapter: NonNullable<typeof adapterHarness>["adapter"];
+    }) =>
+      Layer.effect(
+        ProviderAdapterRegistry,
+        Effect.gen(function* () {
+          const changesPubSub = yield* PubSub.unbounded<void>();
+          return {
+            getByInstance: (instanceId) =>
+              instanceId === input.instanceId
+                ? Effect.succeed(input.adapter)
+                : Effect.fail(new ProviderUnsupportedError({ provider: instanceId })),
+            getInstanceInfo: (instanceId) =>
+              instanceId === input.instanceId
+                ? Effect.succeed({
+                    instanceId,
+                    driverKind: input.provider,
+                    enabled: true,
+                  })
+                : Effect.fail(new ProviderUnsupportedError({ provider: instanceId })),
+            listInstances: () => Effect.succeed([input.instanceId]),
+            getByProvider: (resolvedProvider) =>
+              resolvedProvider === input.provider
+                ? Effect.succeed(input.adapter)
+                : Effect.fail(new ProviderUnsupportedError({ provider: resolvedProvider })),
+            listProviders: () => Effect.succeed([input.provider]),
+            streamChanges: Stream.fromPubSub(changesPubSub),
+            subscribeChanges: PubSub.subscribe(changesPubSub),
+          } as const;
+        }),
+      );
     const fakeRegistry = adapterHarness
-      ? Layer.succeed(ProviderAdapterRegistry, {
-          getByProvider: (resolvedProvider) =>
-            resolvedProvider === adapterHarness.provider
-              ? Effect.succeed(adapterHarness.adapter)
-              : Effect.fail(new ProviderUnsupportedError({ provider: resolvedProvider })),
-          listProviders: () => Effect.succeed([adapterHarness.provider]),
-        } as typeof ProviderAdapterRegistry.Service)
+      ? makeStaticRegistryLayer({
+          instanceId: adapterHarness.provider,
+          provider: adapterHarness.provider,
+          adapter: adapterHarness.adapter,
+        })
       : null;
     const rootDir = yield* fileSystem.makeTempDirectoryScoped({
       prefix: "t3-orchestration-integration-",
@@ -264,13 +296,29 @@ export const makeOrchestrationIntegrationHarness = (
       ProviderAdapterRegistry,
       Effect.gen(function* () {
         const codexAdapter = yield* CodexAdapter;
+        const changesPubSub = yield* PubSub.unbounded<void>();
         return {
+          getByInstance: (instanceId) =>
+            instanceId === "codex"
+              ? Effect.succeed(codexAdapter)
+              : Effect.fail(new ProviderUnsupportedError({ provider: instanceId })),
+          getInstanceInfo: (instanceId) =>
+            instanceId === "codex"
+              ? Effect.succeed({
+                  instanceId,
+                  driverKind: "codex",
+                  enabled: true,
+                })
+              : Effect.fail(new ProviderUnsupportedError({ provider: instanceId })),
+          listInstances: () => Effect.succeed(["codex"]),
           getByProvider: (resolvedProvider) =>
             resolvedProvider === "codex"
               ? Effect.succeed(codexAdapter)
               : Effect.fail(new ProviderUnsupportedError({ provider: resolvedProvider })),
-          listProviders: () => Effect.succeed(["codex"] as const),
-        } as typeof ProviderAdapterRegistry.Service;
+          listProviders: () => Effect.succeed(["codex"]),
+          streamChanges: Stream.fromPubSub(changesPubSub),
+          subscribeChanges: PubSub.subscribe(changesPubSub),
+        } as const;
       }),
     ).pipe(
       Layer.provide(makeCodexAdapterLive()),

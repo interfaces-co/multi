@@ -10,13 +10,14 @@ import {
   ProjectId,
   ThreadId,
   type ModelSelection,
-  type ProviderKind,
+  ProviderDriverKind,
+  ProviderInstanceId,
   type ProviderOptionSelection,
 } from "@multi/contracts";
 import { createModelSelection } from "@multi/shared/model";
 
 type ProviderOptionSelectionBag = ReadonlyArray<ProviderOptionSelection>;
-type ProviderOptionSelectionsByProvider = Partial<Record<ProviderKind, ProviderOptionSelectionBag>>;
+type ProviderOptionSelectionsByProvider = Partial<Record<string, ProviderOptionSelectionBag>>;
 
 function toSelections(
   options: Record<string, string | boolean | undefined> | undefined,
@@ -32,11 +33,11 @@ function toSelections(
 }
 
 function selectionsByProvider(
-  options: Partial<Record<ProviderKind, Record<string, string | boolean | undefined>>>,
+  options: Partial<Record<string, Record<string, string | boolean | undefined>>>,
 ): ProviderOptionSelectionsByProvider {
   const result: ProviderOptionSelectionsByProvider = {};
   for (const [provider, bag] of Object.entries(options) as Array<
-    [ProviderKind, Record<string, string | boolean | undefined>]
+    [string, Record<string, string | boolean | undefined>]
   >) {
     result[provider] = toSelections(bag);
   }
@@ -125,11 +126,11 @@ function modelSelection(
   model: string,
   options?: Record<string, string | boolean | undefined>,
 ): ModelSelection {
-  return createModelSelection(provider, model, toSelections(options));
+  return createModelSelection(ProviderInstanceId.make(provider), model, toSelections(options));
 }
 
 function providerModelOptions(
-  options: Partial<Record<ProviderKind, Record<string, string | boolean | undefined>>>,
+  options: Partial<Record<string, Record<string, string | boolean | undefined>>>,
 ): ProviderOptionSelectionsByProvider {
   return selectionsByProvider(options);
 }
@@ -326,16 +327,8 @@ describe("composerDraftStore syncPersistedAttachments", () => {
     ]);
     await Promise.resolve();
 
-    expect(draftFor(threadId, TEST_ENVIRONMENT_ID)?.persistedAttachments).toEqual([
-      {
-        id: image.id,
-        name: image.name,
-        mimeType: image.mimeType,
-        sizeBytes: image.sizeBytes,
-        dataUrl: image.previewUrl,
-      },
-    ]);
-    expect(draftFor(threadId, TEST_ENVIRONMENT_ID)?.nonPersistedImageIds).toEqual([]);
+    expect(draftFor(threadId, TEST_ENVIRONMENT_ID)?.persistedAttachments).toEqual([]);
+    expect(draftFor(threadId, TEST_ENVIRONMENT_ID)?.nonPersistedImageIds).toEqual([image.id]);
   });
 });
 
@@ -943,7 +936,7 @@ describe("composerDraftStore modelSelection", () => {
       }),
     );
 
-    expect(draftFor(threadId, TEST_ENVIRONMENT_ID)?.modelSelectionByProvider.codex).toEqual(
+    expect(draftFor(threadId, TEST_ENVIRONMENT_ID)?.modelSelectionByProvider["codex"]).toEqual(
       modelSelection("codex", "gpt-5.3-codex", {
         reasoningEffort: "xhigh",
         fastMode: true,
@@ -955,7 +948,7 @@ describe("composerDraftStore modelSelection", () => {
     const store = useComposerDraftStore.getState();
     store.setModelSelection(threadRef, modelSelection("codex", "gpt-5.4"));
 
-    expect(draftFor(threadId, TEST_ENVIRONMENT_ID)?.modelSelectionByProvider.codex).toEqual(
+    expect(draftFor(threadId, TEST_ENVIRONMENT_ID)?.modelSelectionByProvider["codex"]).toEqual(
       modelSelection("codex", "gpt-5.4"),
     );
   });
@@ -981,12 +974,14 @@ describe("composerDraftStore modelSelection", () => {
       persistSticky: true,
     });
 
-    expect(draftFor(threadId, TEST_ENVIRONMENT_ID)?.modelSelectionByProvider.claudeAgent).toEqual(
+    expect(
+      draftFor(threadId, TEST_ENVIRONMENT_ID)?.modelSelectionByProvider["claudeAgent"],
+    ).toEqual(
       modelSelection("claudeAgent", "claude-opus-4-6", {
         thinking: false,
       }),
     );
-    expect(useComposerDraftStore.getState().stickyModelSelectionByProvider.claudeAgent).toEqual(
+    expect(useComposerDraftStore.getState().stickyModelSelectionByProvider["claudeAgent"]).toEqual(
       modelSelection("claudeAgent", "claude-opus-4-6", {
         thinking: false,
       }),
@@ -1005,7 +1000,9 @@ describe("composerDraftStore modelSelection", () => {
 
     store.setProviderModelOptions(threadRef, "claudeAgent", toSelections({ thinking: true }));
 
-    expect(draftFor(threadId, TEST_ENVIRONMENT_ID)?.modelSelectionByProvider.claudeAgent).toEqual(
+    expect(
+      draftFor(threadId, TEST_ENVIRONMENT_ID)?.modelSelectionByProvider["claudeAgent"],
+    ).toEqual(
       modelSelection("claudeAgent", "claude-opus-4-6", {
         thinking: true,
       }),
@@ -1024,7 +1021,7 @@ describe("composerDraftStore modelSelection", () => {
       toSelections({ reasoningEffort: "high", fastMode: false }),
     );
 
-    expect(draftFor(threadId, TEST_ENVIRONMENT_ID)?.modelSelectionByProvider.codex).toEqual(
+    expect(draftFor(threadId, TEST_ENVIRONMENT_ID)?.modelSelectionByProvider["codex"]).toEqual(
       modelSelection("codex", "gpt-5.4", {
         reasoningEffort: "high",
         fastMode: false,
@@ -1050,7 +1047,7 @@ describe("composerDraftStore modelSelection", () => {
       toSelections({ reasoning: "medium", fastMode: false, thinking: true }),
     );
 
-    expect(draftFor(threadId, TEST_ENVIRONMENT_ID)?.modelSelectionByProvider.cursor).toEqual(
+    expect(draftFor(threadId, TEST_ENVIRONMENT_ID)?.modelSelectionByProvider["cursor"]).toEqual(
       modelSelection("cursor", "claude-opus-4-6", {
         reasoning: "medium",
         fastMode: false,
@@ -1067,12 +1064,12 @@ describe("composerDraftStore modelSelection", () => {
       persistSticky: true,
     });
 
-    expect(draftFor(threadId, TEST_ENVIRONMENT_ID)?.modelSelectionByProvider.cursor).toEqual(
+    expect(draftFor(threadId, TEST_ENVIRONMENT_ID)?.modelSelectionByProvider["cursor"]).toEqual(
       modelSelection("cursor", "gpt-5.4", {
         reasoning: "high",
       }),
     );
-    expect(useComposerDraftStore.getState().stickyModelSelectionByProvider.cursor).toEqual(
+    expect(useComposerDraftStore.getState().stickyModelSelectionByProvider["cursor"]).toEqual(
       modelSelection("cursor", "gpt-5.4", {
         reasoning: "high",
       }),
@@ -1092,12 +1089,14 @@ describe("composerDraftStore modelSelection", () => {
 
     store.setProviderModelOptions(threadRef, "claudeAgent", toSelections({ thinking: false }));
 
-    expect(draftFor(threadId, TEST_ENVIRONMENT_ID)?.modelSelectionByProvider.claudeAgent).toEqual(
+    expect(
+      draftFor(threadId, TEST_ENVIRONMENT_ID)?.modelSelectionByProvider["claudeAgent"],
+    ).toEqual(
       modelSelection("claudeAgent", "claude-opus-4-6", {
         thinking: false,
       }),
     );
-    expect(useComposerDraftStore.getState().stickyModelSelectionByProvider.claudeAgent).toEqual(
+    expect(useComposerDraftStore.getState().stickyModelSelectionByProvider["claudeAgent"]).toEqual(
       modelSelection("claudeAgent", "claude-opus-4-6", { effort: "max" }),
     );
   });
@@ -1118,10 +1117,10 @@ describe("composerDraftStore modelSelection", () => {
     store.setModelOptions(threadRef, providerModelOptions({ codex: { reasoningEffort: "xhigh" } }));
 
     const draft = draftFor(threadId, TEST_ENVIRONMENT_ID);
-    expect(draft?.modelSelectionByProvider.codex?.options).toEqual(
+    expect(draft?.modelSelectionByProvider["codex"]?.options).toEqual(
       createModelSelection("codex", "gpt-5.4", toSelections({ reasoningEffort: "xhigh" })).options,
     );
-    expect(draft?.modelSelectionByProvider.claudeAgent?.options).toEqual(
+    expect(draft?.modelSelectionByProvider["claudeAgent"]?.options).toEqual(
       createModelSelection("claudeAgent", "claude-opus-4-6", toSelections({ effort: "max" }))
         .options,
     );
@@ -1141,10 +1140,10 @@ describe("composerDraftStore modelSelection", () => {
     store.setModelSelection(threadRef, modelSelection("claudeAgent", "claude-opus-4-6"));
 
     const draft = draftFor(threadId, TEST_ENVIRONMENT_ID);
-    expect(draft?.modelSelectionByProvider.claudeAgent).toEqual(
+    expect(draft?.modelSelectionByProvider["claudeAgent"]).toEqual(
       modelSelection("claudeAgent", "claude-opus-4-6", { effort: "max" }),
     );
-    expect(draft?.modelSelectionByProvider.codex?.options).toEqual(
+    expect(draft?.modelSelectionByProvider["codex"]?.options).toEqual(
       createModelSelection("codex", "gpt-5.4", toSelections({ fastMode: true })).options,
     );
     expect(draft?.activeProvider).toBe("claudeAgent");
@@ -1159,7 +1158,7 @@ describe("composerDraftStore modelSelection", () => {
       persistSticky: true,
     });
 
-    expect(useComposerDraftStore.getState().stickyModelSelectionByProvider.codex).toEqual(
+    expect(useComposerDraftStore.getState().stickyModelSelectionByProvider["codex"]).toEqual(
       modelSelection("codex", "gpt-5.4", {
         fastMode: true,
       }),
@@ -1181,12 +1180,14 @@ describe("composerDraftStore modelSelection", () => {
       persistSticky: false,
     });
 
-    expect(draftFor(threadId, TEST_ENVIRONMENT_ID)?.modelSelectionByProvider.claudeAgent).toEqual(
+    expect(
+      draftFor(threadId, TEST_ENVIRONMENT_ID)?.modelSelectionByProvider["claudeAgent"],
+    ).toEqual(
       modelSelection("claudeAgent", "claude-opus-4-6", {
         thinking: false,
       }),
     );
-    expect(useComposerDraftStore.getState().stickyModelSelectionByProvider.claudeAgent).toEqual(
+    expect(useComposerDraftStore.getState().stickyModelSelectionByProvider["claudeAgent"]).toEqual(
       modelSelection("claudeAgent", "claude-opus-4-6", { effort: "max" }),
     );
   });
@@ -1205,7 +1206,7 @@ describe("composerDraftStore setModelSelection", () => {
 
     store.setModelSelection(threadRef, modelSelection("codex", "gpt-5.3-codex"));
 
-    expect(draftFor(threadId, TEST_ENVIRONMENT_ID)?.modelSelectionByProvider.codex).toEqual(
+    expect(draftFor(threadId, TEST_ENVIRONMENT_ID)?.modelSelectionByProvider["codex"]).toEqual(
       modelSelection("codex", "gpt-5.3-codex"),
     );
   });
@@ -1226,7 +1227,7 @@ describe("composerDraftStore sticky composer settings", () => {
       }),
     );
 
-    expect(useComposerDraftStore.getState().stickyModelSelectionByProvider.codex).toEqual(
+    expect(useComposerDraftStore.getState().stickyModelSelectionByProvider["codex"]).toEqual(
       modelSelection("codex", "gpt-5.3-codex", {
         reasoningEffort: "medium",
         fastMode: true,
@@ -1240,7 +1241,7 @@ describe("composerDraftStore sticky composer settings", () => {
 
     store.setStickyModelSelection(modelSelection("codex", "gpt-5.4"));
 
-    expect(useComposerDraftStore.getState().stickyModelSelectionByProvider.codex).toEqual(
+    expect(useComposerDraftStore.getState().stickyModelSelectionByProvider["codex"]).toEqual(
       modelSelection("codex", "gpt-5.4"),
     );
     expect(useComposerDraftStore.getState().stickyActiveProvider).toBe("codex");
@@ -1258,7 +1259,7 @@ describe("composerDraftStore sticky composer settings", () => {
       }),
     );
 
-    expect(useComposerDraftStore.getState().stickyModelSelectionByProvider.cursor).toEqual(
+    expect(useComposerDraftStore.getState().stickyModelSelectionByProvider["cursor"]).toEqual(
       modelSelection("cursor", "gpt-5.4"),
     );
     expect(useComposerDraftStore.getState().stickyActiveProvider).toBe("cursor");
@@ -1274,7 +1275,7 @@ describe("composerDraftStore sticky composer settings", () => {
 
     expect(draftFor(threadId, TEST_ENVIRONMENT_ID)).toMatchObject({
       modelSelectionByProvider: {
-        claudeAgent: modelSelection("claudeAgent", "claude-opus-4-6"),
+        ["claudeAgent"]: modelSelection("claudeAgent", "claude-opus-4-6"),
       },
       activeProvider: "claudeAgent",
     });
@@ -1299,10 +1300,10 @@ describe("composerDraftStore provider-scoped option updates", () => {
     );
     store.setProviderModelOptions(threadRef, "claudeAgent", toSelections({ effort: "max" }));
     const draft = draftFor(threadId, TEST_ENVIRONMENT_ID);
-    expect(draft?.modelSelectionByProvider.codex).toEqual(
+    expect(draft?.modelSelectionByProvider["codex"]).toEqual(
       modelSelection("codex", "gpt-5.3-codex", { reasoningEffort: "medium" }),
     );
-    expect(draft?.modelSelectionByProvider.claudeAgent?.options).toEqual(
+    expect(draft?.modelSelectionByProvider["claudeAgent"]?.options).toEqual(
       createModelSelection("claudeAgent", "claude-opus-4-6", toSelections({ effort: "max" }))
         .options,
     );

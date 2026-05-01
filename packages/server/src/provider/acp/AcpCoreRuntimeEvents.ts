@@ -2,9 +2,10 @@ import {
   type RuntimeEventRawSource,
   RuntimeItemId,
   type CanonicalRequestType,
+  defaultInstanceIdForDriver,
   type EventId,
   type ProviderApprovalDecision,
-  type ProviderKind,
+  type ProviderDriverKind,
   type ProviderRuntimeEvent,
   type RuntimeRequestId,
   type ThreadId,
@@ -23,6 +24,9 @@ interface AcpEventStamp {
   readonly eventId: EventId;
   readonly createdAt: string;
 }
+
+const providerInstanceIdFromDriver = (provider: ProviderDriverKind) =>
+  defaultInstanceIdForDriver(provider);
 
 type AcpCanonicalRequestType = Extract<
   CanonicalRequestType,
@@ -78,7 +82,7 @@ function runtimeItemStatusFromAcpToolStatus(
 
 export function makeAcpRequestOpenedEvent(input: {
   readonly stamp: AcpEventStamp;
-  readonly provider: ProviderKind;
+  readonly provider: ProviderDriverKind;
   readonly threadId: ThreadId;
   readonly turnId: TurnId | undefined;
   readonly requestId: RuntimeRequestId;
@@ -93,6 +97,7 @@ export function makeAcpRequestOpenedEvent(input: {
     type: "request.opened",
     ...input.stamp,
     provider: input.provider,
+    providerInstanceId: providerInstanceIdFromDriver(input.provider),
     threadId: input.threadId,
     turnId: input.turnId,
     requestId: input.requestId,
@@ -111,7 +116,7 @@ export function makeAcpRequestOpenedEvent(input: {
 
 export function makeAcpRequestResolvedEvent(input: {
   readonly stamp: AcpEventStamp;
-  readonly provider: ProviderKind;
+  readonly provider: ProviderDriverKind;
   readonly threadId: ThreadId;
   readonly turnId: TurnId | undefined;
   readonly requestId: RuntimeRequestId;
@@ -122,6 +127,7 @@ export function makeAcpRequestResolvedEvent(input: {
     type: "request.resolved",
     ...input.stamp,
     provider: input.provider,
+    providerInstanceId: providerInstanceIdFromDriver(input.provider),
     threadId: input.threadId,
     turnId: input.turnId,
     requestId: input.requestId,
@@ -134,7 +140,7 @@ export function makeAcpRequestResolvedEvent(input: {
 
 export function makeAcpPlanUpdatedEvent(input: {
   readonly stamp: AcpEventStamp;
-  readonly provider: ProviderKind;
+  readonly provider: ProviderDriverKind;
   readonly threadId: ThreadId;
   readonly turnId: TurnId | undefined;
   readonly payload: AcpPlanUpdate;
@@ -146,6 +152,7 @@ export function makeAcpPlanUpdatedEvent(input: {
     type: "turn.plan.updated",
     ...input.stamp,
     provider: input.provider,
+    providerInstanceId: providerInstanceIdFromDriver(input.provider),
     threadId: input.threadId,
     turnId: input.turnId,
     payload: input.payload,
@@ -159,7 +166,7 @@ export function makeAcpPlanUpdatedEvent(input: {
 
 export function makeAcpToolCallEvent(input: {
   readonly stamp: AcpEventStamp;
-  readonly provider: ProviderKind;
+  readonly provider: ProviderDriverKind;
   readonly threadId: ThreadId;
   readonly turnId: TurnId | undefined;
   readonly toolCall: AcpToolCallState;
@@ -173,6 +180,7 @@ export function makeAcpToolCallEvent(input: {
         : "item.updated",
     ...input.stamp,
     provider: input.provider,
+    providerInstanceId: providerInstanceIdFromDriver(input.provider),
     threadId: input.threadId,
     turnId: input.turnId,
     itemId: RuntimeItemId.make(input.toolCall.toolCallId),
@@ -193,7 +201,7 @@ export function makeAcpToolCallEvent(input: {
 
 export function makeAcpAssistantItemEvent(input: {
   readonly stamp: AcpEventStamp;
-  readonly provider: ProviderKind;
+  readonly provider: ProviderDriverKind;
   readonly threadId: ThreadId;
   readonly turnId: TurnId | undefined;
   readonly itemId: string;
@@ -203,6 +211,7 @@ export function makeAcpAssistantItemEvent(input: {
     type: input.lifecycle,
     ...input.stamp,
     provider: input.provider,
+    providerInstanceId: providerInstanceIdFromDriver(input.provider),
     threadId: input.threadId,
     turnId: input.turnId,
     itemId: RuntimeItemId.make(input.itemId),
@@ -215,7 +224,7 @@ export function makeAcpAssistantItemEvent(input: {
 
 export function makeAcpContentDeltaEvent(input: {
   readonly stamp: AcpEventStamp;
-  readonly provider: ProviderKind;
+  readonly provider: ProviderDriverKind;
   readonly threadId: ThreadId;
   readonly turnId: TurnId | undefined;
   readonly itemId?: string;
@@ -226,6 +235,7 @@ export function makeAcpContentDeltaEvent(input: {
     type: "content.delta",
     ...input.stamp,
     provider: input.provider,
+    providerInstanceId: providerInstanceIdFromDriver(input.provider),
     threadId: input.threadId,
     turnId: input.turnId,
     ...(input.itemId ? { itemId: RuntimeItemId.make(input.itemId) } : {}),

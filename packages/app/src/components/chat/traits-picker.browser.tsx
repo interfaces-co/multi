@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { render } from "vitest-browser-react";
 import { page } from "vitest/browser";
 
-import type { ServerProviderModel } from "@multi/contracts";
+import { ProviderDriverKind, type ServerProviderModel } from "@multi/contracts";
 import { TraitsPicker } from "./traits-picker";
 
 const MODELS: ReadonlyArray<ServerProviderModel> = [
@@ -31,7 +31,7 @@ describe("TraitsPicker", () => {
   it("renders provider option labels from model descriptors", async () => {
     render(
       <TraitsPicker
-        provider="codex"
+        provider={ProviderDriverKind.make("codex")}
         models={MODELS}
         model="gpt-5.4"
         prompt=""

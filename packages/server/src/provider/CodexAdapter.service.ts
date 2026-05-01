@@ -10,6 +10,7 @@
  *
  * @module CodexAdapter
  */
+import { ProviderDriverKind } from "@multi/contracts";
 import { Context } from "effect";
 
 import type { ProviderAdapterError } from "./Errors.ts";
@@ -19,7 +20,7 @@ import type { ProviderAdapterShape } from "./ProviderAdapter.service.ts";
  * CodexAdapterShape - Service API for the Codex provider adapter.
  */
 export interface CodexAdapterShape extends ProviderAdapterShape<ProviderAdapterError> {
-  readonly provider: "codex";
+  readonly provider: ProviderDriverKind;
 }
 
 /**

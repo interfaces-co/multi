@@ -1,6 +1,6 @@
-import "../../../styles/tailwind.css";
-import "../../../styles/app.css";
-import "../../../styles/multi-tokens.css";
+import "../../../index.css";
+import "../../../styles/tokens.css";
+import "../../../styles/shell.css";
 
 import { useState } from "react";
 import { createRoot } from "react-dom/client";

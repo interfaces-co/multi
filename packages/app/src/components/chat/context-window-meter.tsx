@@ -21,7 +21,7 @@ export function ContextWindowMeter(props: { usage: ContextWindowSnapshot }) {
   const dashOffset = circumference - (normalizedPercentage / 100) * circumference;
 
   return (
-    <Popover>
+    <Popover data-composer-context-meter="">
       <PopoverTrigger
         openOnHover
         delay={150}
@@ -65,7 +65,7 @@ export function ContextWindowMeter(props: { usage: ContextWindowSnapshot }) {
               </svg>
               <span
                 className={cn(
-                  "relative flex h-[15px] w-[15px] items-center justify-center rounded-full bg-background text-[8px] font-medium",
+                  "relative flex h-[15px] w-[15px] items-center justify-center rounded-full bg-background font-medium tabular-nums text-[8px]",
                   "text-muted-foreground",
                 )}
               >
@@ -83,7 +83,7 @@ export function ContextWindowMeter(props: { usage: ContextWindowSnapshot }) {
             Context window
           </div>
           {usage.maxTokens !== null && usedPercentage ? (
-            <div className="whitespace-nowrap text-xs font-medium text-foreground">
+            <div className="whitespace-nowrap tabular-nums text-xs font-medium text-foreground">
               <span>{usedPercentage}</span>
               <span className="mx-1">⋅</span>
               <span>{formatContextWindowTokens(usage.usedTokens)}</span>

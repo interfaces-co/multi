@@ -12,6 +12,7 @@ import * as Layer from "effect/Layer";
 import * as HttpRouter from "effect/unstable/http/HttpRouter";
 import * as HttpServer from "effect/unstable/http/HttpServer";
 import * as CliError from "effect/unstable/cli/CliError";
+import * as SqlClient from "effect/unstable/sql/SqlClient";
 import * as TestConsole from "effect/testing/TestConsole";
 import { Command } from "effect/unstable/cli";
 
@@ -49,9 +50,9 @@ const captureStdout = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
     return { result, output };
   }).pipe(Effect.provide(Layer.mergeAll(CliRuntimeLayer, TestConsole.layer)));
 
-const makeCliTestServerConfig = (baseDir: string) =>
+const makeCliTestServerConfig = (baseDir: string, devUrl?: URL) =>
   Effect.gen(function* () {
-    const derivedPaths = yield* deriveServerPaths(baseDir, undefined);
+    const derivedPaths = yield* deriveServerPaths(baseDir, devUrl);
     return {
       logLevel: "Info",
       traceMinLevel: "Info",
@@ -70,7 +71,7 @@ const makeCliTestServerConfig = (baseDir: string) =>
       baseDir,
       ...derivedPaths,
       staticDir: undefined,
-      devUrl: undefined,
+      devUrl,
       noBrowser: true,
       startupPresentation: "browser",
       desktopBootstrapToken: undefined,
@@ -91,9 +92,9 @@ const makeProjectPersistenceLayer = (config: ServerConfigShape) =>
     Layer.provide(Layer.succeed(ServerConfig, config)),
   );
 
-const readPersistedSnapshot = (baseDir: string) =>
+const readPersistedSnapshot = (baseDir: string, devUrl?: URL) =>
   Effect.gen(function* () {
-    const config = yield* makeCliTestServerConfig(baseDir);
+    const config = yield* makeCliTestServerConfig(baseDir, devUrl);
     return yield* Effect.gen(function* () {
       const projectionSnapshotQuery = yield* ProjectionSnapshotQuery;
       return yield* projectionSnapshotQuery.getSnapshot();
@@ -258,6 +259,9 @@ it.layer(NodeServices.layer)("cli log-level parsing", (it) => {
     Effect.gen(function* () {
       const baseDir = mkdtempSync(join(tmpdir(), "multi-cli-projects-offline-test-"));
       const workspaceRoot = mkdtempSync(join(tmpdir(), "multi-cli-projects-workspace-"));
+      const relocatedWorkspaceRoot = mkdtempSync(
+        join(tmpdir(), "multi-cli-projects-relocated-workspace-"),
+      );
 
       yield* runCliWithRuntime([
         "project",
@@ -282,6 +286,22 @@ it.layer(NodeServices.layer)("cli log-level parsing", (it) => {
       );
       assert.equal(renamedProject?.title, "Beta");
       assert.equal(renamedProject?.deletedAt, null);
+
+      yield* runCliWithRuntime([
+        "project",
+        "relocate",
+        workspaceRoot,
+        relocatedWorkspaceRoot,
+        "--base-dir",
+        baseDir,
+      ]);
+      const afterRelocate = yield* readPersistedSnapshot(baseDir);
+      const relocatedProject = afterRelocate.projects.find(
+        (project) => project.id === addedProject?.id,
+      );
+      assert.equal(relocatedProject?.workspaceRoot, relocatedWorkspaceRoot);
+      assert.equal(relocatedProject?.title, "Beta");
+      assert.equal(relocatedProject?.deletedAt, null);
 
       yield* runCliWithRuntime([
         "project",
@@ -326,31 +346,90 @@ it.layer(NodeServices.layer)("cli log-level parsing", (it) => {
     }),
   );
 
-  it.effect("rejects dev-url on project commands", () =>
+  it.effect("relocates a project by stale workspace root when the old path is missing", () =>
     Effect.gen(function* () {
-      const workspaceRoot = mkdtempSync(
-        join(tmpdir(), "multi-cli-projects-unknown-option-workspace-"),
+      const baseDir = mkdtempSync(join(tmpdir(), "multi-cli-projects-stale-root-test-"));
+      const workspaceRoot = mkdtempSync(join(tmpdir(), "multi-cli-projects-stale-root-old-"));
+      const relocatedWorkspaceRoot = mkdtempSync(
+        join(tmpdir(), "multi-cli-projects-stale-root-new-"),
       );
-      const error = yield* runCliWithRuntime([
+      const missingWorkspaceRoot = join(baseDir, "missing-workspace-root");
+
+      yield* runCliWithRuntime([
         "project",
         "add",
         workspaceRoot,
-        "--dev-url",
-        "http://127.0.0.1:5173",
-      ]).pipe(Effect.flip);
+        "--title",
+        "Stale Root",
+        "--base-dir",
+        baseDir,
+      ]);
+      const afterAdd = yield* readPersistedSnapshot(baseDir);
+      const addedProject = afterAdd.projects.find(
+        (project) => project.workspaceRoot === workspaceRoot && project.deletedAt === null,
+      );
+      assert.isTrue(addedProject !== undefined);
 
-      if (!CliError.isCliError(error)) {
-        assert.fail(`Expected CliError, got ${String(error)}`);
-      }
-      if (error._tag !== "ShowHelp") {
-        assert.fail(`Expected ShowHelp, got ${error._tag}`);
-      }
-      assert.deepEqual(error.commandPath, ["multi", "project", "add"]);
-      const optionError = error.errors[0] as CliError.CliError | undefined;
-      if (!optionError || optionError._tag !== "UnrecognizedOption") {
-        assert.fail(`Expected UnrecognizedOption, got ${String(optionError?._tag)}`);
-      }
-      assert.equal(optionError.option, "--dev-url");
+      const config = yield* makeCliTestServerConfig(baseDir);
+      yield* Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        yield* sql`
+          UPDATE projection_projects
+          SET workspace_root = ${missingWorkspaceRoot}
+          WHERE project_id = ${addedProject?.id ?? ""}
+        `;
+      }).pipe(Effect.provide(makeProjectPersistenceLayer(config)));
+
+      yield* runCliWithRuntime([
+        "project",
+        "relocate",
+        missingWorkspaceRoot,
+        relocatedWorkspaceRoot,
+        "--base-dir",
+        baseDir,
+      ]);
+
+      const afterRelocate = yield* readPersistedSnapshot(baseDir);
+      const relocatedProject = afterRelocate.projects.find(
+        (project) => project.id === addedProject?.id,
+      );
+      assert.equal(relocatedProject?.workspaceRoot, relocatedWorkspaceRoot);
+    }),
+  );
+
+  it.effect("targets dev state when project commands receive dev-url", () =>
+    Effect.gen(function* () {
+      const workspaceRoot = mkdtempSync(join(tmpdir(), "multi-cli-projects-dev-url-workspace-"));
+      const baseDir = mkdtempSync(join(tmpdir(), "multi-cli-projects-dev-url-test-"));
+      const devUrl = new URL("http://127.0.0.1:5173");
+
+      yield* runCliWithRuntime([
+        "project",
+        "add",
+        workspaceRoot,
+        "--title",
+        "Dev Project",
+        "--base-dir",
+        baseDir,
+        "--dev-url",
+        devUrl.href,
+      ]);
+
+      const devSnapshot = yield* readPersistedSnapshot(baseDir, devUrl);
+      const userdataSnapshot = yield* readPersistedSnapshot(baseDir);
+      assert.equal(
+        devSnapshot.projects.some(
+          (project) =>
+            project.workspaceRoot === workspaceRoot &&
+            project.title === "Dev Project" &&
+            project.deletedAt === null,
+        ),
+        true,
+      );
+      assert.equal(
+        userdataSnapshot.projects.some((project) => project.workspaceRoot === workspaceRoot),
+        false,
+      );
     }),
   );
 });

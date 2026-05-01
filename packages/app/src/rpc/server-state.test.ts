@@ -2,6 +2,8 @@ import {
   DEFAULT_SERVER_SETTINGS,
   EnvironmentId,
   ProjectId,
+  ProviderDriverKind,
+  ProviderInstanceId,
   ThreadId,
   type ServerConfig,
   type ServerConfigStreamEvent,
@@ -40,7 +42,8 @@ const configListeners = new Set<(event: ServerConfigStreamEvent) => void>();
 
 const defaultProviders: ReadonlyArray<ServerProvider> = [
   {
-    provider: "codex",
+    instanceId: "codex",
+    driver: "codex",
     enabled: true,
     installed: true,
     version: "0.116.0",
@@ -57,14 +60,14 @@ const baseEnvironment = {
   environmentId: EnvironmentId.make("environment-local"),
   label: "Local environment",
   platform: {
-    os: "darwin" as const,
-    arch: "arm64" as const,
+    os: "darwin",
+    arch: "arm64",
   },
   serverVersion: "0.0.0-test",
   capabilities: {
     repositoryIdentity: true,
   },
-};
+} as const;
 
 const baseServerConfig: ServerConfig = {
   environment: baseEnvironment,

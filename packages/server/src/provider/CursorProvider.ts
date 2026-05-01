@@ -12,6 +12,7 @@ import type {
   ServerProviderState,
   ServerSettingsError,
 } from "@multi/contracts";
+import { ProviderDriverKind } from "@multi/contracts";
 import type * as EffectAcpSchema from "effect-acp/schema";
 import { Cause, Effect, Equal, Exit, Layer, Option, Result, Stream } from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
@@ -35,7 +36,7 @@ import { CursorProvider } from "./CursorProvider.service.ts";
 import { AcpSessionRuntime } from "./acp/AcpSessionRuntime.ts";
 import { ServerSettingsService } from "../server-settings.ts";
 
-const PROVIDER = "cursor" as const;
+const PROVIDER = ProviderDriverKind.make("cursor");
 const CURSOR_PRESENTATION = {
   displayName: "Cursor",
   badgeLabel: "Early Access",
@@ -62,7 +63,7 @@ function buildInitialCursorProviderSnapshot(cursorSettings: CursorSettings): Ser
 
   if (!cursorSettings.enabled) {
     return buildServerProvider({
-      provider: PROVIDER,
+      driver: PROVIDER,
       presentation: CURSOR_PRESENTATION,
       enabled: false,
       checkedAt,
@@ -72,13 +73,13 @@ function buildInitialCursorProviderSnapshot(cursorSettings: CursorSettings): Ser
         version: null,
         status: "warning",
         auth: { status: "unknown" },
-        message: "Cursor is disabled in T3 Code settings.",
+        message: "Cursor is disabled in Multi settings.",
       },
     });
   }
 
   return buildServerProvider({
-    provider: PROVIDER,
+    driver: PROVIDER,
     presentation: CURSOR_PRESENTATION,
     enabled: true,
     checkedAt,
@@ -406,7 +407,7 @@ const makeCursorAcpProbeRuntime = (cursorSettings: CursorSettings) =>
           cwd: process.cwd(),
         },
         cwd: process.cwd(),
-        clientInfo: { name: "t3-code-provider-probe", version: "0.0.0" },
+        clientInfo: { name: "multi-provider-probe", version: "0.0.0" },
         authMethodId: "cursor_login",
         clientCapabilities: CURSOR_PARAMETERIZED_MODEL_PICKER_CAPABILITIES,
       }).pipe(Layer.provide(Layer.succeed(ChildProcessSpawner.ChildProcessSpawner, spawner))),
@@ -686,7 +687,7 @@ export function buildCursorProviderSnapshot(input: {
 }): ServerProvider {
   const message = joinProviderMessages(input.parsed.message, input.discoveryWarning);
   return buildServerProvider({
-    provider: PROVIDER,
+    driver: PROVIDER,
     presentation: CURSOR_PRESENTATION,
     enabled: input.cursorSettings.enabled,
     checkedAt: input.checkedAt,
@@ -1039,7 +1040,7 @@ export const checkCursorProviderStatus = Effect.fn("checkCursorProviderStatus")(
 
     if (!cursorSettings.enabled) {
       return buildServerProvider({
-        provider: PROVIDER,
+        driver: PROVIDER,
         presentation: CURSOR_PRESENTATION,
         enabled: false,
         checkedAt,
@@ -1049,7 +1050,7 @@ export const checkCursorProviderStatus = Effect.fn("checkCursorProviderStatus")(
           version: null,
           status: "warning",
           auth: { status: "unknown" },
-          message: "Cursor is disabled in T3 Code settings.",
+          message: "Cursor is disabled in Multi settings.",
         },
       });
     }
@@ -1063,7 +1064,7 @@ export const checkCursorProviderStatus = Effect.fn("checkCursorProviderStatus")(
     if (Result.isFailure(aboutProbe)) {
       const error = aboutProbe.failure;
       return buildServerProvider({
-        provider: PROVIDER,
+        driver: PROVIDER,
         presentation: CURSOR_PRESENTATION,
         enabled: cursorSettings.enabled,
         checkedAt,
@@ -1082,7 +1083,7 @@ export const checkCursorProviderStatus = Effect.fn("checkCursorProviderStatus")(
 
     if (Option.isNone(aboutProbe.success)) {
       return buildServerProvider({
-        provider: PROVIDER,
+        driver: PROVIDER,
         presentation: CURSOR_PRESENTATION,
         enabled: cursorSettings.enabled,
         checkedAt,
@@ -1105,7 +1106,7 @@ export const checkCursorProviderStatus = Effect.fn("checkCursorProviderStatus")(
       });
     if (parameterizedModelPickerUnsupportedMessage) {
       return buildServerProvider({
-        provider: PROVIDER,
+        driver: PROVIDER,
         presentation: CURSOR_PRESENTATION,
         enabled: cursorSettings.enabled,
         checkedAt,

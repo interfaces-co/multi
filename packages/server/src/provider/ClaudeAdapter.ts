@@ -24,8 +24,10 @@ import {
   ApprovalRequestId,
   type CanonicalItemType,
   type CanonicalRequestType,
+  defaultInstanceIdForDriver,
   EventId,
   type ProviderApprovalDecision,
+  ProviderDriverKind,
   ProviderItemId,
   type ProviderRuntimeEvent,
   type ProviderRuntimeTurnStatus,
@@ -83,7 +85,8 @@ import {
 import { ClaudeAdapter, type ClaudeAdapterShape } from "./ClaudeAdapter.service.ts";
 import { type EventNdjsonLogger, makeEventNdjsonLogger } from "./EventNdjsonLogger.ts";
 
-const PROVIDER = "claudeAgent" as const;
+const PROVIDER = ProviderDriverKind.make("claudeAgent");
+const PROVIDER_INSTANCE_ID = defaultInstanceIdForDriver(PROVIDER);
 type ClaudeTextStreamKind = Extract<RuntimeContentStreamKind, "assistant_text" | "reasoning_text">;
 type ClaudeToolResultStreamKind = Extract<
   RuntimeContentStreamKind,
@@ -566,12 +569,8 @@ const CLAUDE_SETTING_SOURCES = [
 ] as const satisfies ReadonlyArray<SettingSource>;
 
 function buildPromptText(input: ProviderSendTurnInput): string {
-  const rawEffort =
-    input.modelSelection?.provider === "claudeAgent"
-      ? getModelSelectionStringOptionValue(input.modelSelection, "effort")
-      : null;
-  const claudeModel =
-    input.modelSelection?.provider === "claudeAgent" ? input.modelSelection.model : undefined;
+  const rawEffort = getModelSelectionStringOptionValue(input.modelSelection, "effort");
+  const claudeModel = input.modelSelection?.model;
   const caps = getClaudeModelCapabilities(claudeModel);
 
   const promptEffort = resolvePromptInjectedEffort(caps, rawEffort);
@@ -995,8 +994,15 @@ const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
   const nextEventId = Effect.map(Random.nextUUIDv4, (id) => EventId.make(id));
   const makeEventStamp = () => Effect.all({ eventId: nextEventId, createdAt: nowIso });
 
-  const offerRuntimeEvent = (event: ProviderRuntimeEvent): Effect.Effect<void> =>
-    Queue.offer(runtimeEventQueue, event).pipe(Effect.asVoid);
+  const offerRuntimeEvent = (
+    event: Omit<ProviderRuntimeEvent, "providerInstanceId"> & {
+      readonly providerInstanceId?: ProviderRuntimeEvent["providerInstanceId"];
+    },
+  ): Effect.Effect<void> =>
+    Queue.offer(runtimeEventQueue, {
+      ...event,
+      providerInstanceId: event.providerInstanceId ?? PROVIDER_INSTANCE_ID,
+    } as ProviderRuntimeEvent).pipe(Effect.asVoid);
 
   const logNativeSdkMessage = Effect.fn("logNativeSdkMessage")(function* (
     context: ClaudeSessionContext,
@@ -2834,8 +2840,7 @@ const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
       );
       const claudeBinaryPath = claudeSettings.binaryPath;
       const extraArgs = parseCliArgs(claudeSettings.launchArgs).flags;
-      const modelSelection =
-        input.modelSelection?.provider === "claudeAgent" ? input.modelSelection : undefined;
+      const modelSelection = input.modelSelection;
       const caps = getClaudeModelCapabilities(modelSelection?.model);
       const descriptors = getProviderOptionDescriptors({ caps });
       const apiModelId = modelSelection ? resolveClaudeApiModelId(modelSelection) : undefined;
@@ -2933,6 +2938,7 @@ const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
       const session: ProviderSession = {
         threadId,
         provider: PROVIDER,
+        providerInstanceId: input.providerInstanceId,
         status: "ready",
         runtimeMode: input.runtimeMode,
         ...(input.cwd ? { cwd: input.cwd } : {}),
@@ -3043,8 +3049,7 @@ const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
 
   const sendTurn: ClaudeAdapterShape["sendTurn"] = Effect.fn("sendTurn")(function* (input) {
     const context = yield* requireSession(input.threadId);
-    const modelSelection =
-      input.modelSelection?.provider === "claudeAgent" ? input.modelSelection : undefined;
+    const modelSelection = input.modelSelection;
 
     if (context.turnState) {
       // Auto-close a stale synthetic turn (from background agent responses

@@ -11,7 +11,7 @@ import { TextGeneration } from "./TextGeneration.service.ts";
 import { ServerSettingsService } from "../server-settings.ts";
 
 const DEFAULT_TEST_MODEL_SELECTION = {
-  provider: "codex" as const,
+  instanceId: "codex",
   model: "gpt-5.4-mini",
 };
 
@@ -19,7 +19,7 @@ const CodexTextGenerationTestLayer = CodexTextGenerationLive.pipe(
   Layer.provideMerge(ServerSettingsService.layerTest()),
   Layer.provideMerge(
     ServerConfig.layerTest(process.cwd(), {
-      prefix: "t3code-codex-text-generation-test-",
+      prefix: "multi-codex-text-generation-test-",
     }),
   ),
   Layer.provideMerge(NodeServices.layer),
@@ -137,9 +137,9 @@ function makeFakeCodexBinary(
           ? [`printf "%s\\n" ${JSON.stringify(input.stderr)} >&2`]
           : []),
         'if [ -n "$output_path" ]; then',
-        "  cat > \"$output_path\" <<'__T3CODE_FAKE_CODEX_OUTPUT__'",
+        "  cat > \"$output_path\" <<'__MULTI_FAKE_CODEX_OUTPUT__'",
         input.output,
-        "__T3CODE_FAKE_CODEX_OUTPUT__",
+        "__MULTI_FAKE_CODEX_OUTPUT__",
         "fi",
         `exit ${input.exitCode ?? 0}`,
         "",
@@ -167,7 +167,7 @@ function withFakeCodexEnv<A, E, R>(
   return Effect.acquireUseRelease(
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
-      const tempDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3code-codex-text-" });
+      const tempDir = yield* fs.makeTempDirectoryScoped({ prefix: "multi-codex-text-" });
       const codexPath = yield* makeFakeCodexBinary(tempDir, input);
       const serverSettings = yield* ServerSettingsService;
       const previousSettings = yield* serverSettings.getSettings;

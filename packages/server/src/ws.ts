@@ -20,6 +20,7 @@ import {
   ProjectWriteFileError,
   OrchestrationReplayEventsError,
   FilesystemBrowseError,
+  ProviderDriverKind,
   ThreadId,
   type TerminalEvent,
   WS_METHODS,
@@ -986,7 +987,10 @@ const makeWsRpcLayer = (currentSessionId: AuthSessionId) =>
               );
 
               yield* Effect.all(
-                [providerRegistry.refresh("codex"), providerRegistry.refresh("claudeAgent")],
+                [
+                  providerRegistry.refresh(ProviderDriverKind.make("codex")),
+                  providerRegistry.refresh(ProviderDriverKind.make("claudeAgent")),
+                ],
                 {
                   concurrency: "unbounded",
                   discard: true,

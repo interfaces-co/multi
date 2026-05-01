@@ -3,6 +3,8 @@ import {
   DEFAULT_MODEL_BY_PROVIDER,
   DEFAULT_PROVIDER_INTERACTION_MODE,
   type ModelSelection,
+  ProviderDriverKind,
+  ProviderInstanceId,
   ProjectId,
   ThreadId,
 } from "@multi/contracts";
@@ -11,6 +13,7 @@ import {
   Deferred,
   Effect,
   Exit,
+  FileSystem,
   Layer,
   Option,
   Path,
@@ -152,9 +155,45 @@ export const launchStartupHeartbeat = recordStartupHeartbeat.pipe(
   Effect.asVoid,
 );
 
+export const logInaccessibleProjectWorkspaceRoots = Effect.gen(function* () {
+  const projectionSnapshotQuery = yield* ProjectionSnapshotQuery;
+  const fileSystem = yield* FileSystem.FileSystem;
+
+  const snapshot = yield* projectionSnapshotQuery.getSnapshot().pipe(
+    Effect.catch((cause) =>
+      Effect.logWarning("failed to validate startup project workspace roots", {
+        cause,
+      }).pipe(Effect.as(null)),
+    ),
+  );
+  if (snapshot === null) {
+    return;
+  }
+
+  for (const project of snapshot.projects) {
+    if (project.deletedAt !== null) {
+      continue;
+    }
+
+    const stat = yield* Effect.exit(fileSystem.stat(project.workspaceRoot));
+    if (Exit.isSuccess(stat) && stat.value.type === "Directory") {
+      continue;
+    }
+
+    yield* Effect.logError("active project workspace root is not accessible", {
+      projectId: project.id,
+      title: project.title,
+      workspaceRoot: project.workspaceRoot,
+      detail: Exit.isSuccess(stat)
+        ? `Not a directory: ${stat.value.type}`
+        : "Directory is not accessible.",
+    });
+  }
+});
+
 export const getAutoBootstrapDefaultModelSelection = (): ModelSelection => ({
-  provider: "codex",
-  model: DEFAULT_MODEL_BY_PROVIDER.codex,
+  instanceId: ProviderInstanceId.make("codex"),
+  model: DEFAULT_MODEL_BY_PROVIDER[ProviderDriverKind.make("codex")] ?? "gpt-5-codex",
 });
 
 export const resolveWelcomeBase = Effect.gen(function* () {
@@ -326,6 +365,12 @@ export const makeServerRuntimeStartup = Effect.gen(function* () {
     yield* runStartupPhase(
       "reactors.start",
       orchestrationReactor.start().pipe(Scope.provide(reactorScope)),
+    );
+
+    yield* Effect.logDebug("startup phase: validating project workspace roots");
+    yield* runStartupPhase(
+      "projects.validate-workspace-roots",
+      logInaccessibleProjectWorkspaceRoots,
     );
 
     const welcomeBase = yield* resolveWelcomeBase;

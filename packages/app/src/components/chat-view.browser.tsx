@@ -16,6 +16,8 @@ import {
   WS_METHODS,
   OrchestrationSessionStatus,
   DEFAULT_SERVER_SETTINGS,
+  ProviderDriverKind,
+  ProviderInstanceId,
 } from "@multi/contracts";
 import {
   scopedProjectKey,
@@ -159,7 +161,8 @@ function createBaseServerConfig(): ServerConfig {
     issues: [],
     providers: [
       {
-        provider: "codex",
+        instanceId: ProviderInstanceId.make("codex"),
+        driver: ProviderDriverKind.make("codex"),
         enabled: true,
         installed: true,
         version: "0.116.0",
@@ -315,7 +318,7 @@ function createSnapshotForTargetUser(options: {
         title: "Project",
         workspaceRoot: "/repo/project",
         defaultModelSelection: {
-          provider: "codex",
+          instanceId: ProviderInstanceId.make("codex"),
           model: "gpt-5",
         },
         scripts: [],
@@ -330,7 +333,7 @@ function createSnapshotForTargetUser(options: {
         projectId: PROJECT_ID,
         title: THREAD_TITLE,
         modelSelection: {
-          provider: "codex",
+          instanceId: ProviderInstanceId.make("codex"),
           model: "gpt-5",
         },
         interactionMode: "default",
@@ -395,7 +398,7 @@ function addThreadToSnapshot(
         projectId: PROJECT_ID,
         title: "New thread",
         modelSelection: {
-          provider: "codex",
+          instanceId: ProviderInstanceId.make("codex"),
           model: "gpt-5",
         },
         interactionMode: "default",
@@ -732,7 +735,7 @@ function createSnapshotWithSecondaryProject(options?: {
           id: "thread-secondary-project" as ThreadId,
           projectId: SECOND_PROJECT_ID,
           title: "Release checklist",
-          modelSelection: { provider: "codex", model: "gpt-5" },
+          modelSelection: { instanceId: ProviderInstanceId.make("codex"), model: "gpt-5" },
           interactionMode: "default",
           runtimeMode: "full-access",
           branch: "release/docs-portal",
@@ -764,7 +767,7 @@ function createSnapshotWithSecondaryProject(options?: {
           id: ARCHIVED_SECONDARY_THREAD_ID,
           projectId: SECOND_PROJECT_ID,
           title: "Archived Docs Notes",
-          modelSelection: { provider: "codex", model: "gpt-5" },
+          modelSelection: { instanceId: ProviderInstanceId.make("codex"), model: "gpt-5" },
           interactionMode: "default",
           runtimeMode: "full-access",
           branch: "release/docs-archive",
@@ -799,7 +802,7 @@ function createSnapshotWithSecondaryProject(options?: {
         id: SECOND_PROJECT_ID,
         title: "Docs Portal",
         workspaceRoot: "/repo/clients/docs-portal",
-        defaultModelSelection: { provider: "codex", model: "gpt-5" },
+        defaultModelSelection: { instanceId: ProviderInstanceId.make("codex"), model: "gpt-5" },
         scripts: [],
         createdAt: NOW_ISO,
         updatedAt: NOW_ISO,
@@ -876,7 +879,7 @@ function createSnapshotWithPendingUserInput(): OrchestrationReadModel {
 }
 
 function createSnapshotWithPlanFollowUpPrompt(options?: {
-  modelSelection?: { provider: "codex"; model: string };
+  modelSelection?: { instanceId: ProviderInstanceId; model: string };
   planMarkdown?: string;
 }): OrchestrationReadModel {
   const snapshot = createSnapshotForTargetUser({
@@ -884,7 +887,7 @@ function createSnapshotWithPlanFollowUpPrompt(options?: {
     targetText: "plan follow-up thread",
   });
   const modelSelection = options?.modelSelection ?? {
-    provider: "codex" as const,
+    instanceId: ProviderInstanceId.make("codex"),
     model: "gpt-5",
   };
   const planMarkdown =
@@ -3758,8 +3761,8 @@ describe("ChatView timeline estimator parity (full app)", () => {
   it("snapshots sticky codex settings into a new draft thread", async () => {
     useComposerDraftStore.setState({
       stickyModelSelectionByProvider: {
-        codex: {
-          provider: "codex",
+        [ProviderInstanceId.make("codex")]: {
+          instanceId: ProviderInstanceId.make("codex"),
           model: "gpt-5.3-codex",
           options: [
             { id: "reasoningEffort", value: "medium" },
@@ -3767,7 +3770,7 @@ describe("ChatView timeline estimator parity (full app)", () => {
           ],
         },
       },
-      stickyActiveProvider: "codex",
+      stickyActiveProvider: ProviderInstanceId.make("codex"),
     });
 
     const mounted = await mountChatView({
@@ -3793,13 +3796,13 @@ describe("ChatView timeline estimator parity (full app)", () => {
 
       expect(composerDraftFor(newDraftId)).toMatchObject({
         modelSelectionByProvider: {
-          codex: {
-            provider: "codex",
+          [ProviderInstanceId.make("codex")]: {
+            instanceId: ProviderInstanceId.make("codex"),
             model: "gpt-5.3-codex",
             options: [{ id: "fastMode", value: true }],
           },
         },
-        activeProvider: "codex",
+        activeProvider: ProviderInstanceId.make("codex"),
       });
     } finally {
       await mounted.cleanup();
@@ -3809,8 +3812,8 @@ describe("ChatView timeline estimator parity (full app)", () => {
   it("hydrates the provider alongside a sticky claude model", async () => {
     useComposerDraftStore.setState({
       stickyModelSelectionByProvider: {
-        claudeAgent: {
-          provider: "claudeAgent",
+        [ProviderInstanceId.make("claudeAgent")]: {
+          instanceId: ProviderInstanceId.make("claudeAgent"),
           model: "claude-opus-4-6",
           options: [
             { id: "effort", value: "max" },
@@ -3818,7 +3821,7 @@ describe("ChatView timeline estimator parity (full app)", () => {
           ],
         },
       },
-      stickyActiveProvider: "claudeAgent",
+      stickyActiveProvider: ProviderInstanceId.make("claudeAgent"),
     });
 
     const mounted = await mountChatView({
@@ -3844,8 +3847,8 @@ describe("ChatView timeline estimator parity (full app)", () => {
 
       expect(composerDraftFor(newDraftId)).toMatchObject({
         modelSelectionByProvider: {
-          claudeAgent: {
-            provider: "claudeAgent",
+          [ProviderInstanceId.make("claudeAgent")]: {
+            instanceId: ProviderInstanceId.make("claudeAgent"),
             model: "claude-opus-4-6",
             options: [
               { id: "effort", value: "max" },
@@ -3853,7 +3856,7 @@ describe("ChatView timeline estimator parity (full app)", () => {
             ],
           },
         },
-        activeProvider: "claudeAgent",
+        activeProvider: ProviderInstanceId.make("claudeAgent"),
       });
     } finally {
       await mounted.cleanup();
@@ -3891,8 +3894,8 @@ describe("ChatView timeline estimator parity (full app)", () => {
   it("prefers draft state over sticky composer settings and defaults", async () => {
     useComposerDraftStore.setState({
       stickyModelSelectionByProvider: {
-        codex: {
-          provider: "codex",
+        [ProviderInstanceId.make("codex")]: {
+          instanceId: ProviderInstanceId.make("codex"),
           model: "gpt-5.3-codex",
           options: [
             { id: "reasoningEffort", value: "medium" },
@@ -3900,7 +3903,7 @@ describe("ChatView timeline estimator parity (full app)", () => {
           ],
         },
       },
-      stickyActiveProvider: "codex",
+      stickyActiveProvider: ProviderInstanceId.make("codex"),
     });
 
     const mounted = await mountChatView({
@@ -3926,17 +3929,17 @@ describe("ChatView timeline estimator parity (full app)", () => {
 
       expect(composerDraftFor(draftId)).toMatchObject({
         modelSelectionByProvider: {
-          codex: {
-            provider: "codex",
+          [ProviderInstanceId.make("codex")]: {
+            instanceId: ProviderInstanceId.make("codex"),
             model: "gpt-5.3-codex",
             options: [{ id: "fastMode", value: true }],
           },
         },
-        activeProvider: "codex",
+        activeProvider: ProviderInstanceId.make("codex"),
       });
 
       useComposerDraftStore.getState().setModelSelection(draftId, {
-        provider: "codex",
+        instanceId: ProviderInstanceId.make("codex"),
         model: "gpt-5.4",
         options: [
           { id: "reasoningEffort", value: "low" },
@@ -3953,8 +3956,8 @@ describe("ChatView timeline estimator parity (full app)", () => {
       );
       expect(composerDraftFor(draftId)).toMatchObject({
         modelSelectionByProvider: {
-          codex: {
-            provider: "codex",
+          [ProviderInstanceId.make("codex")]: {
+            instanceId: ProviderInstanceId.make("codex"),
             model: "gpt-5.4",
             options: [
               { id: "reasoningEffort", value: "low" },
@@ -3962,7 +3965,7 @@ describe("ChatView timeline estimator parity (full app)", () => {
             ],
           },
         },
-        activeProvider: "codex",
+        activeProvider: ProviderInstanceId.make("codex"),
       });
     } finally {
       await mounted.cleanup();
@@ -5406,7 +5409,10 @@ describe("ChatView timeline estimator parity (full app)", () => {
     const mounted = await mountChatView({
       viewport: WIDE_FOOTER_VIEWPORT,
       snapshot: createSnapshotWithPlanFollowUpPrompt({
-        modelSelection: { provider: "codex", model: "gpt-5.3-codex-spark" },
+        modelSelection: {
+          instanceId: ProviderInstanceId.make("codex"),
+          model: "gpt-5.3-codex-spark",
+        },
         planMarkdown:
           "# Imaginary Long-Range Plan: Multi Adaptive Orchestration and Safe-Delay Execution Initiative",
       }),
@@ -5436,7 +5442,10 @@ describe("ChatView timeline estimator parity (full app)", () => {
     const mounted = await mountChatView({
       viewport: WIDE_FOOTER_VIEWPORT,
       snapshot: createSnapshotWithPlanFollowUpPrompt({
-        modelSelection: { provider: "codex", model: "gpt-5.3-codex-spark" },
+        modelSelection: {
+          instanceId: ProviderInstanceId.make("codex"),
+          model: "gpt-5.3-codex-spark",
+        },
         planMarkdown:
           "# Imaginary Long-Range Plan: Multi Adaptive Orchestration and Safe-Delay Execution Initiative",
       }),
@@ -5461,6 +5470,35 @@ describe("ChatView timeline estimator parity (full app)", () => {
 
           expect(footer?.dataset.chatComposerFooterCompact).toBe("true");
           expect(actions?.dataset.chatComposerPrimaryActionsCompact).toBe("true");
+        },
+        { timeout: 8_000, interval: 16 },
+      );
+    } finally {
+      await mounted.cleanup();
+    }
+  });
+
+  it("opens the model picker when typing /model in the composer", async () => {
+    const mounted = await mountChatView({
+      viewport: DEFAULT_VIEWPORT,
+      snapshot: createSnapshotForTargetUser({
+        targetMessageId: "msg-user-command-menu-target" as MessageId,
+        targetText: "command menu thread",
+      }),
+    });
+
+    try {
+      await waitForComposerEditor();
+      await page.getByTestId("composer-editor").fill("/model");
+
+      await vi.waitFor(
+        () => {
+          const input = document.querySelector<HTMLInputElement>(
+            'input[placeholder="Search models..."]',
+          );
+          expect(input).not.toBeNull();
+          expect(input?.offsetParent).not.toBeNull();
+          expect(document.querySelector(`[data-composer-item-id="slash:model"]`)).toBeNull();
         },
         { timeout: 8_000, interval: 16 },
       );

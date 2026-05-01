@@ -1,6 +1,6 @@
 import type {
   ClaudeSettings,
-  ClaudeModelSelection,
+  ModelSelection,
   ModelCapabilities,
   ServerProvider,
   ServerProviderModel,
@@ -8,6 +8,7 @@ import type {
   ServerProviderSlashCommand,
   ServerProviderState,
 } from "@multi/contracts";
+import { ProviderDriverKind } from "@multi/contracts";
 import { Cache, Duration, Effect, Equal, Layer, Option, Result, Schema, Stream } from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 import { decodeJsonResult } from "@multi/shared/schema-json";
@@ -47,7 +48,7 @@ const DEFAULT_CLAUDE_MODEL_CAPABILITIES: ModelCapabilities = createModelCapabili
   optionDescriptors: [],
 });
 
-const PROVIDER = "claudeAgent" as const;
+const PROVIDER = ProviderDriverKind.make("claudeAgent");
 const CLAUDE_PRESENTATION = {
   displayName: "Claude",
   showInteractionModeToggle: true,
@@ -242,7 +243,7 @@ export function normalizeClaudeCliEffort(effort: string | null | undefined): str
   return effort;
 }
 
-export function resolveClaudeApiModelId(modelSelection: ClaudeModelSelection): string {
+export function resolveClaudeApiModelId(modelSelection: ModelSelection): string {
   switch (getModelSelectionStringOptionValue(modelSelection, "contextWindow")) {
     case "1m":
       return `${modelSelection.model}[1m]`;
@@ -654,7 +655,7 @@ export const checkClaudeProviderStatus = Effect.fn("checkClaudeProviderStatus")(
 
   if (!claudeSettings.enabled) {
     return buildServerProvider({
-      provider: PROVIDER,
+      driver: PROVIDER,
       presentation: CLAUDE_PRESENTATION,
       enabled: false,
       checkedAt,
@@ -664,7 +665,7 @@ export const checkClaudeProviderStatus = Effect.fn("checkClaudeProviderStatus")(
         version: null,
         status: "warning",
         auth: { status: "unknown" },
-        message: "Claude is disabled in T3 Code settings.",
+        message: "Claude is disabled in Multi settings.",
       },
     });
   }
@@ -677,7 +678,7 @@ export const checkClaudeProviderStatus = Effect.fn("checkClaudeProviderStatus")(
   if (Result.isFailure(versionProbe)) {
     const error = versionProbe.failure;
     return buildServerProvider({
-      provider: PROVIDER,
+      driver: PROVIDER,
       presentation: CLAUDE_PRESENTATION,
       enabled: claudeSettings.enabled,
       checkedAt,
@@ -696,7 +697,7 @@ export const checkClaudeProviderStatus = Effect.fn("checkClaudeProviderStatus")(
 
   if (Option.isNone(versionProbe.success)) {
     return buildServerProvider({
-      provider: PROVIDER,
+      driver: PROVIDER,
       presentation: CLAUDE_PRESENTATION,
       enabled: claudeSettings.enabled,
       checkedAt,
@@ -717,7 +718,7 @@ export const checkClaudeProviderStatus = Effect.fn("checkClaudeProviderStatus")(
   if (version.code !== 0) {
     const detail = detailFromResult(version);
     return buildServerProvider({
-      provider: PROVIDER,
+      driver: PROVIDER,
       presentation: CLAUDE_PRESENTATION,
       enabled: claudeSettings.enabled,
       checkedAt,
@@ -782,7 +783,7 @@ export const checkClaudeProviderStatus = Effect.fn("checkClaudeProviderStatus")(
   if (Result.isFailure(authProbe)) {
     const error = authProbe.failure;
     return buildServerProvider({
-      provider: PROVIDER,
+      driver: PROVIDER,
       presentation: CLAUDE_PRESENTATION,
       enabled: claudeSettings.enabled,
       checkedAt,
@@ -803,7 +804,7 @@ export const checkClaudeProviderStatus = Effect.fn("checkClaudeProviderStatus")(
 
   if (Option.isNone(authProbe.success)) {
     return buildServerProvider({
-      provider: PROVIDER,
+      driver: PROVIDER,
       presentation: CLAUDE_PRESENTATION,
       enabled: claudeSettings.enabled,
       checkedAt,
@@ -822,7 +823,7 @@ export const checkClaudeProviderStatus = Effect.fn("checkClaudeProviderStatus")(
   const parsed = parseClaudeAuthStatusFromOutput(authProbe.success.value);
   const authMetadata = claudeAuthMetadata({ subscriptionType, authMethod });
   return buildServerProvider({
-    provider: PROVIDER,
+    driver: PROVIDER,
     presentation: CLAUDE_PRESENTATION,
     enabled: claudeSettings.enabled,
     checkedAt,
@@ -856,7 +857,7 @@ const makePendingClaudeProvider = (claudeSettings: ClaudeSettings): ServerProvid
 
   if (!claudeSettings.enabled) {
     return buildServerProvider({
-      provider: PROVIDER,
+      driver: PROVIDER,
       presentation: CLAUDE_PRESENTATION,
       enabled: false,
       checkedAt,
@@ -866,13 +867,13 @@ const makePendingClaudeProvider = (claudeSettings: ClaudeSettings): ServerProvid
         version: null,
         status: "warning",
         auth: { status: "unknown" },
-        message: "Claude is disabled in T3 Code settings.",
+        message: "Claude is disabled in Multi settings.",
       },
     });
   }
 
   return buildServerProvider({
-    provider: PROVIDER,
+    driver: PROVIDER,
     presentation: CLAUDE_PRESENTATION,
     enabled: true,
     checkedAt,

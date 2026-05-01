@@ -16,39 +16,33 @@ const buttonVariants = cva(
     },
     variants: {
       size: {
-        cursor: "h-7 px-[calc(--spacing(2.5)-1px)] text-[12px]/[16px]",
-        "cursor-icon": "size-7 [&_svg:not([class*='size-'])]:size-4",
-        "cursor-sm": "h-6 gap-1 px-[calc(--spacing(2)-1px)] text-[12px]/[16px]",
-        default: "h-7 px-[calc(--spacing(2.5)-1px)]",
-        icon: "size-7",
+        default: "h-7 px-2.5 text-[12px]/[16px]",
+        icon: "size-7 [&_svg:not([class*='size-'])]:size-4",
         "icon-lg": "size-8",
         "icon-sm": "size-6",
         "icon-xl": "size-9 [&_svg:not([class*='size-'])]:size-4.5",
         "icon-xs":
           "size-5.5 rounded-sm before:rounded-[calc(var(--radius-sm)-1px)] not-in-data-[slot=input-group]:[&_svg:not([class*='size-'])]:size-3.5",
-        lg: "h-8 px-[calc(--spacing(3)-1px)]",
-        sm: "h-6 gap-1 px-[calc(--spacing(2)-1px)]",
-        xl: "h-9 px-[calc(--spacing(3.5)-1px)] text-[13px]/[18px] [&_svg:not([class*='size-'])]:size-4.5",
-        xs: "h-5.5 gap-1 rounded-sm px-[calc(--spacing(1.5)-1px)] text-[11px]/[14px] before:rounded-[calc(var(--radius-sm)-1px)] [&_svg:not([class*='size-'])]:size-3.5",
+        lg: "h-8 px-3",
+        sm: "h-6 gap-1 px-2.5 text-[12px]/[16px]",
+        xl: "h-9 px-3.5 text-[13px]/[18px] [&_svg:not([class*='size-'])]:size-4.5",
+        xs: "h-5.5 gap-1 rounded-sm px-1.5 text-[11px]/[14px] before:rounded-[calc(var(--radius-sm)-1px)] [&_svg:not([class*='size-'])]:size-3.5",
       },
       variant: {
-        cursor:
-          "border-cursor-stroke-tertiary bg-cursor-bg-quinary text-cursor-text-secondary shadow-none hover:border-cursor-stroke-secondary hover:bg-cursor-bg-quaternary hover:text-cursor-text-primary data-pressed:bg-cursor-bg-tertiary",
-        "cursor-ghost":
-          "border-transparent bg-transparent text-cursor-text-secondary shadow-none hover:bg-cursor-bg-quaternary hover:text-cursor-text-primary data-pressed:bg-cursor-bg-tertiary",
-        "cursor-primary":
-          "border-transparent bg-primary text-primary-foreground shadow-none hover:bg-primary/90 data-pressed:bg-primary/90",
+        /** Filled accent (workbench primary control). */
         default:
-          "border-primary bg-primary text-primary-foreground shadow-primary/16 shadow-xs [:disabled,:active,[data-pressed]]:shadow-none [:hover,[data-pressed]]:bg-primary/90",
+          "border-transparent bg-primary text-primary-foreground shadow-none hover:bg-primary/90 data-pressed:bg-primary/90",
         destructive:
           "border-destructive bg-destructive text-white shadow-destructive/16 shadow-xs [:disabled,:active,[data-pressed]]:shadow-none [:hover,[data-pressed]]:bg-destructive/90",
         "destructive-outline":
           "border-input bg-popover text-destructive-foreground shadow-xs/5 dark:bg-input/32 [:disabled,:active,[data-pressed]]:shadow-none [:hover,[data-pressed]]:border-destructive/32 [:hover,[data-pressed]]:bg-destructive/4",
+        /** Transparent hit target (workbench tertiary / ghost control). */
         ghost:
-          "border-transparent bg-transparent text-foreground data-pressed:bg-multi-hover [:hover,[data-pressed]]:bg-multi-hover",
+          "border-transparent bg-transparent text-multi-fg-secondary shadow-none hover:bg-multi-bg-quaternary hover:text-multi-fg-primary data-pressed:bg-multi-bg-tertiary",
         link: "border-transparent underline-offset-4 [:hover,[data-pressed]]:underline",
+        /** Secondary bordered surface (workbench outline control). */
         outline:
-          "border-input bg-popover text-foreground shadow-xs/5 dark:bg-input/32 [:disabled,:active,[data-pressed]]:shadow-none [:hover,[data-pressed]]:bg-multi-hover",
+          "border-multi-stroke-tertiary bg-multi-bg-quinary text-multi-fg-secondary shadow-none hover:border-multi-stroke-secondary hover:bg-multi-bg-quaternary hover:text-multi-fg-primary data-pressed:bg-multi-bg-tertiary",
         secondary:
           "border-transparent bg-secondary text-secondary-foreground [:active,[data-pressed]]:bg-secondary/80 [:hover,[data-pressed]]:bg-multi-hover",
       },

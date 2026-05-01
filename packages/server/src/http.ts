@@ -1,4 +1,5 @@
 import Mime from "@effect/platform-node/Mime";
+import { appendFile } from "node:fs/promises";
 import { Data, Effect, FileSystem, Option, Path } from "effect";
 import { cast } from "effect/Function";
 import {
@@ -121,6 +122,57 @@ export const otlpTracesProxyRouteLayer = HttpRouter.add(
         ),
       );
   }).pipe(Effect.catchTag("AuthError", respondToAuthError)),
+);
+
+function normalizeDebugEventsPayload(input: unknown): ReadonlyArray<unknown> {
+  if (
+    input &&
+    typeof input === "object" &&
+    "events" in input &&
+    Array.isArray((input as { readonly events?: unknown }).events)
+  ) {
+    return (input as { readonly events: ReadonlyArray<unknown> }).events;
+  }
+  if (Array.isArray(input)) {
+    return input;
+  }
+  return [input];
+}
+
+function encodeDebugEventLine(event: unknown, index: number): string {
+  return `${JSON.stringify({
+    source: "browser",
+    receivedAt: new Date().toISOString(),
+    index,
+    event,
+  })}\n`;
+}
+
+export const browserDebugEventsRouteLayer = HttpRouter.add(
+  "POST",
+  "/api/debug/browser-events",
+  Effect.gen(function* () {
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const config = yield* ServerConfig;
+    const body = yield* request.json;
+    const events = normalizeDebugEventsPayload(body);
+    const filePath = `${config.logsDir}/browser-debug.ndjson`;
+    const contents = events.map(encodeDebugEventLine).join("");
+
+    if (contents.length > 0) {
+      yield* Effect.tryPromise(() => appendFile(filePath, contents, "utf8")).pipe(
+        Effect.tapError((cause) =>
+          Effect.logWarning("Failed to append browser debug event", {
+            cause,
+            filePath,
+          }),
+        ),
+        Effect.catch(() => Effect.void),
+      );
+    }
+
+    return HttpServerResponse.jsonUnsafe({ ok: true, path: filePath }, { status: 202 });
+  }),
 );
 
 export const attachmentsRouteLayer = HttpRouter.add(

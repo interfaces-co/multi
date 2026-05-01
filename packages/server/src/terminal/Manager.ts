@@ -41,6 +41,10 @@ import {
   type PtyExitEvent,
   type PtyProcess,
 } from "./PTY.service";
+import {
+  coerceAccessibleWorkspaceCwd,
+  type WorkspaceCwdCandidate,
+} from "../workspace/AccessibleWorkspaceCwd.ts";
 
 const DEFAULT_HISTORY_LINE_LIMIT = 5_000;
 const DEFAULT_PERSIST_DEBOUNCE_MS = 40;
@@ -679,6 +683,7 @@ async function resolveGitWorkTreeRoot(cwd: string): Promise<string | null> {
 
 interface TerminalManagerOptions {
   logsDir: string;
+  fallbackCwds?: ReadonlyArray<WorkspaceCwdCandidate>;
   historyLineLimit?: number;
   ptyAdapter: PtyAdapterShape;
   shellResolver?: () => string | undefined;
@@ -690,10 +695,14 @@ interface TerminalManagerOptions {
 }
 
 const makeTerminalManager = Effect.fn("makeTerminalManager")(function* () {
-  const { terminalLogsDir } = yield* ServerConfig;
+  const { terminalLogsDir, cwd } = yield* ServerConfig;
   const ptyAdapter = yield* PtyAdapter;
   return yield* makeTerminalManagerWithOptions({
     logsDir: terminalLogsDir,
+    fallbackCwds: [
+      { label: "server.cwd", cwd },
+      { label: "process.cwd", cwd: process.cwd() },
+    ],
     ptyAdapter,
   });
 });
@@ -1077,10 +1086,22 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
     });
 
     const resolveTerminalCwd = Effect.fn("terminal.resolveTerminalCwd")(function* (cwd: string) {
-      yield* assertValidCwd(cwd);
-      const gitRoot = yield* Effect.promise(() => resolveGitWorkTreeRoot(cwd).catch(() => null));
-      if (!gitRoot || gitRoot === cwd) {
-        return cwd;
+      const accessibleCwd =
+        options.fallbackCwds && options.fallbackCwds.length > 0
+          ? yield* coerceAccessibleWorkspaceCwd({
+              operation: "terminal.resolveTerminalCwd",
+              candidates: [{ label: "terminal.cwd", cwd }],
+              fallbackCwds: options.fallbackCwds,
+            })
+          : cwd;
+      const candidateCwd = accessibleCwd ?? cwd;
+
+      yield* assertValidCwd(candidateCwd);
+      const gitRoot = yield* Effect.promise(() =>
+        resolveGitWorkTreeRoot(candidateCwd).catch(() => null),
+      );
+      if (!gitRoot || gitRoot === candidateCwd) {
+        return candidateCwd;
       }
 
       yield* assertValidCwd(gitRoot);

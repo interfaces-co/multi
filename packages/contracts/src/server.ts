@@ -11,7 +11,7 @@ import {
 import { KeybindingRule, ResolvedKeybindingsConfig } from "./keybindings";
 import { EditorId } from "./editor";
 import { ModelCapabilities } from "./model";
-import { ProviderKind } from "./orchestration";
+import { ProviderDriverKind, ProviderInstanceId } from "./provider-instance";
 import { ServerSettings } from "./settings";
 
 const KeybindingsMalformedConfigIssue = Schema.Struct({
@@ -84,8 +84,15 @@ export const ServerProviderSkill = Schema.Struct({
 export type ServerProviderSkill = typeof ServerProviderSkill.Type;
 
 export const ServerProvider = Schema.Struct({
-  provider: ProviderKind,
+  instanceId: ProviderInstanceId,
+  driver: ProviderDriverKind,
   displayName: Schema.optional(TrimmedNonEmptyString),
+  accentColor: Schema.optional(TrimmedNonEmptyString),
+  continuation: Schema.optional(
+    Schema.Struct({
+      groupKey: TrimmedNonEmptyString,
+    }),
+  ),
   badgeLabel: Schema.optional(TrimmedNonEmptyString),
   showInteractionModeToggle: Schema.optional(Schema.Boolean),
   enabled: Schema.Boolean,

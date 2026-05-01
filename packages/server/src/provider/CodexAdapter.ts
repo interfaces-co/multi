@@ -10,6 +10,7 @@
 import {
   type CanonicalItemType,
   type CanonicalRequestType,
+  ProviderDriverKind,
   type ProviderEvent,
   type ProviderRuntimeEvent,
   type ProviderRequestKind,
@@ -53,7 +54,7 @@ import {
 } from "./CodexSessionRuntime.ts";
 import { type EventNdjsonLogger, makeEventNdjsonLogger } from "./EventNdjsonLogger.ts";
 
-const PROVIDER = "codex" as const;
+const PROVIDER = ProviderDriverKind.make("codex");
 
 export interface CodexAdapterLiveOptions {
   readonly makeRuntime?: (
@@ -424,6 +425,7 @@ function runtimeEventBase(
   return {
     eventId: event.id,
     provider: event.provider,
+    providerInstanceId: event.providerInstanceId,
     threadId: canonicalThreadId,
     createdAt: event.createdAt,
     ...(event.turnId ? { turnId: event.turnId } : {}),
@@ -1382,11 +1384,8 @@ const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
             ? { resumeCursor: input.resumeCursor }
             : {}),
           runtimeMode: input.runtimeMode,
-          ...(input.modelSelection?.provider === "codex"
-            ? { model: input.modelSelection.model }
-            : {}),
-          ...(input.modelSelection?.provider === "codex" &&
-          getModelSelectionBooleanOptionValue(input.modelSelection, "fastMode") === true
+          ...(input.modelSelection ? { model: input.modelSelection.model } : {}),
+          ...(getModelSelectionBooleanOptionValue(input.modelSelection, "fastMode") === true
             ? { serviceTier: "fast" }
             : {}),
         };
@@ -1499,20 +1498,15 @@ const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
     );
 
     const session = yield* requireSession(input.threadId);
-    const reasoningEffort =
-      input.modelSelection?.provider === "codex"
-        ? getModelSelectionStringOptionValue(input.modelSelection, "reasoningEffort")
-        : undefined;
-    const fastMode =
-      input.modelSelection?.provider === "codex"
-        ? getModelSelectionBooleanOptionValue(input.modelSelection, "fastMode")
-        : undefined;
+    const reasoningEffort = getModelSelectionStringOptionValue(
+      input.modelSelection,
+      "reasoningEffort",
+    );
+    const fastMode = getModelSelectionBooleanOptionValue(input.modelSelection, "fastMode");
     return yield* session.runtime
       .sendTurn({
         ...(input.input !== undefined ? { input: input.input } : {}),
-        ...(input.modelSelection?.provider === "codex"
-          ? { model: input.modelSelection.model }
-          : {}),
+        ...(input.modelSelection ? { model: input.modelSelection.model } : {}),
         ...(reasoningEffort
           ? {
               effort: reasoningEffort as EffectCodexSchema.V2TurnStartParams__ReasoningEffort,

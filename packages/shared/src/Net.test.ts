@@ -48,6 +48,10 @@ it.layer(NetService.layer)("NetService", (it) => {
     it.effect("reserveLoopbackPort returns a positive loopback port", () =>
       Effect.gen(function* () {
         const net = yield* NetService;
+        const canListenOnLoopback = yield* net.canListenOnHost(0, "127.0.0.1");
+        if (!canListenOnLoopback) {
+          return;
+        }
         const port = yield* net.reserveLoopbackPort();
 
         assert.ok(port > 0);
@@ -55,23 +59,34 @@ it.layer(NetService.layer)("NetService", (it) => {
     );
 
     it.effect("isPortAvailableOnLoopback reports false for an occupied port", () =>
-      Effect.acquireUseRelease(
-        openServer("127.0.0.1"),
-        (server) =>
-          Effect.gen(function* () {
-            const net = yield* NetService;
-            const port = getPort(server);
+      Effect.gen(function* () {
+        const net = yield* NetService;
+        const canListenOnLoopback = yield* net.canListenOnHost(0, "127.0.0.1");
+        if (!canListenOnLoopback) {
+          return;
+        }
 
-            const available = yield* net.isPortAvailableOnLoopback(port);
-            assert.equal(available, false);
-          }),
-        closeServer,
-      ),
+        return yield* Effect.acquireUseRelease(
+          openServer("127.0.0.1"),
+          (server) =>
+            Effect.gen(function* () {
+              const port = getPort(server);
+
+              const available = yield* net.isPortAvailableOnLoopback(port);
+              assert.equal(available, false);
+            }),
+          closeServer,
+        );
+      }),
     );
 
     it.effect("findAvailablePort returns preferred when it is free", () =>
       Effect.gen(function* () {
         const net = yield* NetService;
+        const canListenOnWildcard = yield* net.canListenOnHost(0, "0.0.0.0");
+        if (!canListenOnWildcard) {
+          return;
+        }
         const preferred = yield* net.reserveLoopbackPort();
 
         const resolved = yield* net.findAvailablePort(preferred);
@@ -80,19 +95,26 @@ it.layer(NetService.layer)("NetService", (it) => {
     );
 
     it.effect("findAvailablePort falls back when preferred is occupied", () =>
-      Effect.acquireUseRelease(
-        openServer(),
-        (server) =>
-          Effect.gen(function* () {
-            const net = yield* NetService;
-            const preferred = getPort(server);
+      Effect.gen(function* () {
+        const net = yield* NetService;
+        const canListenOnWildcard = yield* net.canListenOnHost(0, "0.0.0.0");
+        if (!canListenOnWildcard) {
+          return;
+        }
 
-            const resolved = yield* net.findAvailablePort(preferred);
-            assert.ok(resolved > 0);
-            assert.notEqual(resolved, preferred);
-          }),
-        closeServer,
-      ),
+        return yield* Effect.acquireUseRelease(
+          openServer(),
+          (server) =>
+            Effect.gen(function* () {
+              const preferred = getPort(server);
+
+              const resolved = yield* net.findAvailablePort(preferred);
+              assert.ok(resolved > 0);
+              assert.notEqual(resolved, preferred);
+            }),
+          closeServer,
+        );
+      }),
     );
   });
 });

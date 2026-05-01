@@ -1,10 +1,11 @@
+import { ProviderDriverKind } from "@multi/contracts";
 import { Context } from "effect";
 
 import type { ProviderAdapterError } from "./Errors.ts";
 import type { ProviderAdapterShape } from "./ProviderAdapter.service.ts";
 
 export interface CursorAdapterShape extends ProviderAdapterShape<ProviderAdapterError> {
-  readonly provider: "cursor";
+  readonly provider: ProviderDriverKind;
 }
 
 export class CursorAdapter extends Context.Service<CursorAdapter, CursorAdapterShape>()(

@@ -1,11 +1,11 @@
 @import "tailwindcss";
 
 @custom-variant dark (&:is(.dark, .dark *));
-/* Window Controls Overlay: active when Electron exposes native titlebar control geometry. */
 @custom-variant wco (&:is(.wco, .wco *));
 
 @theme inline {
   --animate-skeleton: skeleton 2s -1s infinite linear;
+  --animate-thinking: thinking-shimmer 2s linear infinite;
   --color-warning-foreground: var(--warning-foreground);
   --color-warning: var(--warning);
   --color-success-foreground: var(--success-foreground);
@@ -31,6 +31,60 @@
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
+  --color-multi-sidebar: var(--multi-color-sidebar);
+  --color-multi-chat: var(--multi-color-chat);
+  --color-multi-editor: var(--multi-color-editor);
+  --color-multi-surface: var(--multi-color-surface);
+  --color-multi-elevated: var(--multi-color-elevated);
+  --color-multi-bubble: var(--multi-color-bubble);
+  --color-multi-bubble-opaque: var(--multi-color-bubble-opaque);
+  --color-multi-menubar: var(--multi-color-menubar);
+  --color-multi-border: var(--multi-color-border);
+  --color-multi-stroke: var(--multi-color-stroke);
+  --color-multi-stroke-strong: var(--multi-color-stroke-strong);
+  --color-multi-hover: var(--multi-color-hover);
+  --color-multi-active: var(--multi-color-active);
+  --color-multi-bg-elevated: var(--multi-bg-elevated);
+  --color-multi-bg-quinary: var(--multi-bg-quinary);
+  --color-multi-bg-quaternary: var(--multi-bg-quaternary);
+  --color-multi-bg-tertiary: var(--multi-bg-tertiary);
+  --color-multi-bg-secondary: var(--multi-bg-secondary);
+  --color-multi-bg-active: var(--multi-bg-active);
+  --color-multi-fg-primary: var(--multi-fg-primary);
+  --color-multi-fg-secondary: var(--multi-fg-secondary);
+  --color-multi-fg-tertiary: var(--multi-fg-tertiary);
+  --color-multi-fg-quaternary: var(--multi-fg-quaternary);
+  --color-multi-stroke-secondary: var(--multi-stroke-secondary);
+  --color-multi-stroke-tertiary: var(--multi-stroke-tertiary);
+  --color-multi-stroke-focused: var(--multi-stroke-focused);
+  --color-multi-stroke-primary: var(--multi-stroke-primary);
+  --color-multi-stroke-red-primary: var(--multi-stroke-red-primary);
+  --color-multi-icon-primary: var(--multi-icon-primary);
+  --color-multi-icon-secondary: var(--multi-icon-secondary);
+  --color-multi-icon-tertiary: var(--multi-icon-tertiary);
+  --color-multi-icon-quaternary: var(--multi-icon-quaternary);
+  --color-multi-icon-accent-primary: var(--multi-icon-accent-primary);
+  --color-multi-bg-primary: var(--multi-bg-primary);
+  --font-multi: var(--multi-font-ui);
+  --font-multi-mono: var(--multi-font-mono);
+  --shadow-multi-card: var(--multi-shadow-card);
+  --shadow-multi-popup: var(--multi-shadow-popup);
+  --font-size-caption: var(--multi-text-caption);
+  --font-size-detail: var(--multi-text-detail);
+  --font-size-body: var(--multi-text-body);
+  --font-size-title: var(--multi-text-title);
+  --font-size-heading: var(--multi-text-heading);
+  --font-size-multi-xs: 10px;
+  --font-size-multi-sm: 11px;
+  --font-size-multi-base: 12px;
+  --font-size-multi-lg: 13px;
+  --font-size-multi-xl: 16px;
+  --radius-multi: var(--multi-radius-card);
+  --radius-multi-chip: var(--multi-radius-chip);
+  --radius-multi-control: var(--multi-radius-control);
+  --radius-multi-card: var(--multi-radius-card);
+  --radius-multi-pill: var(--multi-radius-pill);
+  --radius-xs: 2px;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -38,10 +92,31 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+  --radius-full: 9999px;
   @keyframes skeleton {
     to {
       background-position: -200% 0;
     }
+  }
+  @keyframes thinking-shimmer {
+    to {
+      mask-position: -200% center;
+    }
+  }
+}
+
+@layer utilities {
+  .thinking-shimmer {
+    mask-image: linear-gradient(
+      90deg,
+      oklch(0 0 0 / 0.45) 0%,
+      oklch(0 0 0 / 0.45) 30%,
+      oklch(0 0 0) 50%,
+      oklch(0 0 0 / 0.45) 70%,
+      oklch(0 0 0 / 0.45) 100%
+    );
+    mask-size: 200% 100%;
+    animation: var(--animate-thinking);
   }
 }
 
@@ -77,8 +152,6 @@
   --card-foreground: var(--color-neutral-800);
   --popover: var(--color-white);
   --popover-foreground: var(--color-neutral-800);
-  --primary: oklch(0.488 0.217 264);
-  --primary-foreground: var(--color-white);
   --secondary: --alpha(var(--color-black) / 4%);
   --secondary-foreground: var(--color-neutral-800);
   --muted: --alpha(var(--color-black) / 4%);
@@ -88,7 +161,6 @@
   --destructive: var(--color-red-500);
   --border: --alpha(var(--color-black) / 8%);
   --input: --alpha(var(--color-black) / 10%);
-  --ring: oklch(0.488 0.217 264);
   --destructive-foreground: var(--color-red-700);
   --info: var(--color-blue-500);
   --info-foreground: var(--color-blue-700);
@@ -106,8 +178,6 @@
     --card-foreground: var(--color-neutral-100);
     --popover: color-mix(in srgb, var(--background) 98%, var(--color-white));
     --popover-foreground: var(--color-neutral-100);
-    --primary: oklch(0.588 0.217 264);
-    --primary-foreground: var(--color-white);
     --secondary: --alpha(var(--color-white) / 4%);
     --secondary-foreground: var(--color-neutral-100);
     --muted: --alpha(var(--color-white) / 4%);
@@ -117,7 +187,6 @@
     --destructive: color-mix(in srgb, var(--color-red-500) 90%, var(--color-white));
     --border: --alpha(var(--color-white) / 6%);
     --input: --alpha(var(--color-white) / 8%);
-    --ring: oklch(0.588 0.217 264);
     --destructive-foreground: var(--color-red-400);
     --info: var(--color-blue-500);
     --info-foreground: var(--color-blue-400);
@@ -129,13 +198,11 @@
 }
 
 body {
-  font-family:
-    "DM Sans",
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    system-ui,
-    sans-serif;
+  font-family: var(--multi-font-ui);
+  font-size: var(--multi-ui-font-size-user, 13px);
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   margin: 0;
   padding: 0;
   min-height: 100vh;
@@ -166,7 +233,8 @@ body::after {
 
 pre,
 code {
-  font-family: "SF Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-family: var(--multi-font-mono);
+  font-size: var(--multi-code-font-size-user, 12px);
 }
 
 /* Window drag region (frameless titlebar) */
@@ -174,6 +242,7 @@ code {
   -webkit-app-region: drag;
 }
 
+.no-drag,
 .drag-region button,
 .drag-region input,
 .drag-region textarea,
@@ -184,7 +253,8 @@ code {
 
 /* Scrollbar styling */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -192,20 +262,20 @@ code {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.15);
+  background: oklch(0 0 0 / 0.15);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.25);
+  background: oklch(0 0 0 / 0.25);
 }
 
 .dark ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: oklch(1 0 0 / 0.1);
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.18);
+  background: oklch(1 0 0 / 0.18);
 }
 
 .turn-chip-strip {
@@ -232,7 +302,7 @@ code {
   left: 0 !important;
 }
 
-/* Reasoning select -- clickable label surface */
+/* Reasoning select — clickable label surface */
 label:has(> select#reasoning-effort) {
   position: relative;
 }
@@ -245,219 +315,74 @@ label:has(> select#reasoning-effort) select {
   height: 100%;
 }
 
-/* Chat markdown rendering */
-.chat-markdown {
-  min-width: 0;
+/* Chat collapsibles: no focus ring that reads as an extra outline on the header row */
+[data-slot="collapsible-trigger"]:focus,
+[data-slot="collapsible-trigger"]:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Tool / terminal output: one flat strip (not a second card inside the tool rail) */
+.tool-output-surface {
+  border-radius: 0.125rem;
+  background: color-mix(in srgb, var(--foreground) 3.5%, transparent);
+  padding: 0.375rem 0.5rem;
+}
+
+.tool-terminal {
   overflow-wrap: anywhere;
   word-break: break-word;
+  border-radius: 0.25rem;
+  padding: 0.5rem 0.625rem;
+  background: color-mix(in srgb, var(--foreground) 4.5%, transparent);
 }
 
-.chat-markdown > :first-child {
-  margin-top: 0;
+.dark .tool-terminal {
+  background: color-mix(in srgb, var(--foreground) 7%, transparent);
 }
 
-.chat-markdown > :last-child {
-  margin-bottom: 0;
+.embed-diff.tool-output-surface {
+  padding: 0.375rem 0.5rem;
 }
 
-.chat-markdown p,
-.chat-markdown ul,
-.chat-markdown ol,
-.chat-markdown blockquote,
-.chat-markdown pre,
-.chat-markdown table {
-  margin: 0.65rem 0;
+/* Embedded diffs: compact pierre/diffs inside tool panels */
+.embed-diff {
+  --diffs-light-bg: color-mix(in srgb, var(--color-multi-bubble) 55%, var(--background));
+  --diffs-dark-bg: color-mix(in srgb, var(--color-multi-bubble) 48%, var(--background));
+  --diffs-bg-addition-override: var(--multi-diff-addition-bg);
+  --diffs-bg-deletion-override: var(--multi-diff-deletion-bg);
+  --diffs-bg-addition-number-override: transparent;
+  --diffs-bg-deletion-number-override: transparent;
+  --diffs-addition-color-override: var(--multi-diff-addition);
+  --diffs-deletion-color-override: var(--multi-diff-deletion);
+  --diffs-bg-context-override: color-mix(in srgb, var(--foreground) 2.5%, var(--diffs-light-bg));
+  --diffs-bg-buffer-override: transparent;
+  --diffs-bg-hover-override: transparent;
+  --diffs-bg-separator-override: transparent;
 }
 
-.chat-markdown ul {
-  padding-left: 1.25rem;
-  list-style-type: disc;
+.dark .embed-diff {
+  --diffs-bg-context-override: color-mix(in srgb, var(--foreground) 4%, var(--diffs-dark-bg));
 }
 
-.chat-markdown ol {
-  padding-left: 1.25rem;
-  list-style-type: decimal;
+.embed-diff [data-diff-span] {
+  background-color: transparent !important;
+  border-radius: 0;
 }
 
-.chat-markdown ul ul {
-  list-style-type: circle;
+.embed-diff [data-diffs-container] {
+  overflow: visible;
 }
 
-.chat-markdown ul ul ul {
-  list-style-type: square;
+.embed-diff [data-disable-line-numbers] [data-gutter] [data-column-number],
+.embed-diff [data-disable-line-numbers] [data-gutter] [data-gutter-buffer] {
+  border-right: none !important;
 }
 
-.chat-markdown ol ol {
-  list-style-type: lower-alpha;
-}
-
-.chat-markdown ol ol ol {
-  list-style-type: lower-roman;
-}
-
-.chat-markdown li + li {
-  margin-top: 0.25rem;
-}
-
-.chat-markdown a {
-  color: var(--info-foreground);
-  text-decoration: underline;
-  text-decoration-color: color-mix(in srgb, var(--info-foreground) 40%, transparent);
-}
-
-.chat-markdown a:hover {
-  opacity: 0.8;
-}
-
-.chat-markdown blockquote {
-  border-left: 2px solid var(--border);
-  padding-left: 0.8rem;
-  color: var(--muted-foreground);
-}
-
-.chat-markdown :not(pre) > code {
-  border: 1px solid var(--border);
-  border-radius: 0.375rem;
-  background: var(--muted);
-  padding: 0.1rem 0.35rem;
-  color: var(--foreground);
-  font-size: 0.75rem;
-}
-
-.chat-markdown-file-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.28rem;
-  border: 1px solid color-mix(in srgb, var(--border) 92%, transparent);
-  border-radius: 0.375rem;
-  background: color-mix(in srgb, var(--muted) 88%, var(--background));
-  padding: 0.08rem 0.34rem;
-  color: var(--foreground);
-  font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 0.75rem;
-  line-height: 1.15;
-  vertical-align: text-bottom;
-  transition:
-    background-color 120ms ease,
-    border-color 120ms ease,
-    color 120ms ease,
-    opacity 120ms ease;
-}
-
-.chat-markdown-file-link:hover {
-  opacity: 1;
-  color: var(--foreground);
-  border-color: color-mix(in srgb, var(--border) 65%, var(--foreground));
-  background: color-mix(in srgb, var(--muted) 72%, var(--background));
-}
-
-.chat-markdown-file-link:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ring) 70%, transparent);
-}
-
-.chat-markdown-file-link-icon {
-  opacity: 0.72;
-}
-
-.chat-markdown-file-link-label {
-  color: color-mix(in srgb, var(--foreground) 88%, transparent);
-  line-height: 1.1;
-}
-
-.chat-markdown pre {
-  max-width: 100%;
-  overflow-x: auto;
-  border: 1px solid var(--border);
-  border-radius: 0.75rem;
-  background: var(--muted);
-  padding: 0.8rem 0.9rem;
-}
-
-.chat-markdown pre code {
+.embed-diff .diff-render-file {
   border: none;
+  border-radius: 0;
   background: transparent;
-  padding: 0;
-  font-size: 0.75rem;
-}
-
-.markdown-file-link-tooltip-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--border) 78%, transparent) transparent;
-}
-
-.markdown-file-link-tooltip-scroll::-webkit-scrollbar {
-  height: 6px;
-}
-
-.markdown-file-link-tooltip-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.markdown-file-link-tooltip-scroll::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--border) 78%, transparent);
-}
-
-.chat-markdown .chat-markdown-codeblock {
-  --chat-markdown-codeblock-copy-button-space: 1.5rem;
-  position: relative;
-  margin: 0.65rem 0;
-}
-
-.chat-markdown .chat-markdown-codeblock pre {
-  margin: 0;
-  padding-right: calc(0.9rem + var(--chat-markdown-codeblock-copy-button-space));
-}
-
-.chat-markdown .chat-markdown-copy-button {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  z-index: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 1.5rem;
-  width: 1.5rem;
-  border-radius: 0.375rem;
-  border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--background) 82%, transparent);
-  color: var(--muted-foreground);
-  cursor: pointer;
-  opacity: 0;
-  pointer-events: none;
-  transition:
-    opacity 120ms ease,
-    color 120ms ease,
-    border-color 120ms ease;
-}
-
-.chat-markdown .chat-markdown-codeblock:hover .chat-markdown-copy-button,
-.chat-markdown .chat-markdown-codeblock:focus-within .chat-markdown-copy-button {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.chat-markdown .chat-markdown-copy-button:hover {
-  color: var(--foreground);
-  border-color: color-mix(in srgb, var(--border) 70%, var(--foreground));
-}
-
-.chat-markdown .chat-markdown-shiki .shiki {
-  background: color-mix(in srgb, var(--muted) 78%, var(--background)) !important;
-}
-
-.chat-markdown table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.chat-markdown th,
-.chat-markdown td {
-  border: 1px solid var(--border);
-  padding: 0.35rem 0.45rem;
-  text-align: left;
 }
 
 /* Diffs theme bridge (match diff surfaces to app palette) */
@@ -493,13 +418,13 @@ label:has(> select#reasoning-effort) select {
 .ultrathink-frame {
   --ultrathink-spectrum: linear-gradient(
     120deg,
-    #ff6b6b 0%,
-    #f59e0b 18%,
-    #22c55e 36%,
-    #14b8a6 54%,
-    #3b82f6 72%,
-    #ec4899 90%,
-    #ff6b6b 100%
+    oklch(0.712 0.181 22.839) 0%,
+    oklch(0.769 0.165 70.08) 18%,
+    oklch(0.723 0.192 149.579) 36%,
+    oklch(0.704 0.123 182.503) 54%,
+    oklch(0.623 0.188 259.815) 72%,
+    oklch(0.656 0.212 354.308) 90%,
+    oklch(0.712 0.181 22.839) 100%
   );
   background-image: var(--ultrathink-spectrum);
   background-size: 220% 220%;
@@ -510,27 +435,21 @@ label:has(> select#reasoning-effort) select {
   animation: ultrathink-chroma-shift 10s linear infinite;
 }
 
-.ultrathink-pill {
-  background:
-    linear-gradient(var(--card), var(--card)) padding-box,
-    var(--ultrathink-spectrum) border-box;
-  background-size:
-    100% 100%,
-    220% 220%;
-  background-position:
-    0 0,
-    0% 50%;
-  animation: ultrathink-rainbow 10s linear infinite;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--card) 82%, transparent);
+/* Dev: React Grab plugin toggles `html.multi-overlay-debug` */
+html.multi-overlay-debug [data-slot="tooltip-content"],
+html.multi-overlay-debug [data-slot="popover-token-menu"],
+html.multi-overlay-debug [data-slot="context-menu-popup"] {
+  outline: 2px solid oklch(0.604 0.259 311.121 / 0.88);
+  outline-offset: 2px;
 }
 
-.ultrathink-word {
-  display: inline-block;
-  color: transparent;
-  background-image: var(--ultrathink-spectrum);
-  background-size: 220% 220%;
-  background-position: 0% 50%;
-  background-clip: text;
-  -webkit-background-clip: text;
-  animation: ultrathink-rainbow 10s linear infinite;
+html.multi-overlay-debug [data-slot="tooltip-trigger"],
+html.multi-overlay-debug [data-slot="context-menu-trigger"] {
+  outline: 1px dashed oklch(0.682 0.14 237.298 / 0.85);
+  outline-offset: 2px;
+}
+
+html.multi-overlay-debug [data-slot="context-menu-root"] {
+  outline: 1px dotted oklch(0.832 0.162 87.735 / 0.45);
+  outline-offset: 1px;
 }
