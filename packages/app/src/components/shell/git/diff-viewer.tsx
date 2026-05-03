@@ -25,7 +25,7 @@ export const DiffViewer = memo(function DiffViewer(props: Props) {
 
   if (props.fileDiff) {
     return (
-      <div className={cn("embed-diff min-h-0 min-w-0 w-full overflow-auto", props.className)}>
+      <div className={cn("min-h-0 min-w-0 w-full overflow-auto", props.className)}>
         <div className="web-component min-h-0 min-w-0 w-full overflow-auto" data-diffs-container>
           <FileDiff
             fileDiff={props.fileDiff}

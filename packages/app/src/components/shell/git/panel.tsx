@@ -123,7 +123,8 @@ function GitPanelInner(props: { git: GitPanelModel }) {
   const [commitMenuOpen, setCommitMenuOpen] = useState(false);
   const filesKey = useMemo(() => files.map((row) => row.id).join("\n"), [files]);
   const [selectedId, setSelectedId] = useState<string | null>(() => files[0]?.id ?? null);
-  const allDiffCardsCollapsed = files.length > 0 && files.every((row) => !git.expandedIds.has(row.id));
+  const allDiffCardsCollapsed =
+    files.length > 0 && files.every((row) => !git.expandedIds.has(row.id));
   const gitRef = useRef(git);
   gitRef.current = git;
 

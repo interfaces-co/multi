@@ -82,29 +82,33 @@ export function GitDiffCard(props: {
     <div
       ref={rootRef}
       data-diff-card-id={props.file.id}
-      className={cn(
-        "git-diff-card",
-        props.selected && "git-diff-card--selected",
-        !props.expanded && "git-diff-card--collapsed",
-      )}
+      className={cn("git-diff-card", props.selected && "git-diff-card--selected")}
     >
-      <div className="git-diff-card__header" onClick={() => props.onSelect()}>
+      <div
+        className={cn(
+          "group/git-diff-header flex min-h-[30px] shrink-0 cursor-pointer flex-nowrap items-center gap-[6px] overflow-hidden border-b px-[6px] py-1 hover:bg-[color-mix(in_srgb,var(--multi-workbench-toolbar-hover-background)_88%,transparent)]",
+          props.expanded
+            ? "border-[color-mix(in_srgb,var(--multi-stroke-tertiary)_82%,transparent)]"
+            : "border-b-transparent",
+        )}
+        onClick={() => props.onSelect()}
+      >
         <button
           type="button"
           onClick={(event) => {
             event.stopPropagation();
             props.onExpandedChange(!props.expanded);
           }}
-          className="git-diff-card__expand"
+          className="group/git-diff-toggle inline-flex size-[14px] shrink-0 items-center justify-center text-multi-icon-tertiary focus-visible:rounded-[2px] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-multi-stroke-focused"
           aria-label={props.expanded ? "Collapse diff" : "Expand diff"}
           aria-expanded={props.expanded}
           title={props.expanded ? "Collapse diff" : "Expand diff"}
         >
-          <span className="git-diff-card__icon-area" aria-hidden>
-            <span className="git-diff-card__file-icon">
+          <span className="relative inline-flex size-4 items-center justify-center" aria-hidden>
+            <span className="absolute inset-0 inline-flex items-center justify-center text-multi-icon-tertiary opacity-100 transition-opacity duration-100 ease-out group-hover/git-diff-header:opacity-0 group-hover/git-diff-toggle:opacity-0">
               <VsFileIcon path={props.file.path} className="size-3.5" />
             </span>
-            <span className="git-diff-card__chevron">
+            <span className="absolute inset-0 inline-flex items-center justify-center text-multi-icon-tertiary opacity-0 transition-opacity duration-100 ease-out group-hover/git-diff-header:opacity-100 group-hover/git-diff-toggle:opacity-100">
               {props.expanded ? (
                 <IconChevronDownSmall className="size-3.5 shrink-0" />
               ) : (
