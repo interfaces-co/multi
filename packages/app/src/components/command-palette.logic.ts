@@ -6,8 +6,6 @@ import { formatRelativeTimeLabel } from "../timestamp-format";
 import { type Project, type SidebarThreadSummary, type Thread } from "../types";
 
 export const RECENT_THREAD_LIMIT = 12;
-export const ITEM_ICON_CLASS = "size-4 text-muted-foreground/80";
-export const ADDON_ICON_CLASS = "size-4";
 
 export interface CommandPaletteItem {
   readonly kind: "action" | "submenu";

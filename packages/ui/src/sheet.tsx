@@ -1,7 +1,7 @@
 "use client";
 
 import { Dialog as SheetPrimitive } from "@base-ui/react/dialog";
-import { XIcon } from "lucide-react";
+import { IconX as XIcon } from "central-icons";
 import { cn } from "./utils";
 import { Button } from "./button";
 import { ScrollArea } from "./scroll-area";

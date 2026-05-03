@@ -1,6 +1,9 @@
 import { ProviderInteractionMode, RuntimeMode } from "@multi/contracts";
 import { memo, type ReactNode } from "react";
-import { EllipsisIcon, ListTodoIcon } from "lucide-react";
+import {
+  IconDotGrid1x3Horizontal as EllipsisIcon,
+  IconSquareChecklist as ListTodoIcon,
+} from "central-icons";
 import { Button } from "@multi/ui/button";
 import {
   Menu,

@@ -13,7 +13,6 @@ interface ChatHeaderProps {
   activeThreadTitle: string;
   activeProjectName: string | undefined;
   isGitRepo: boolean;
-  sidebarPersistenceCwd: string | null;
   activeProjectScripts: ProjectScript[] | undefined;
   preferredScriptId: string | null;
   keybindings: ResolvedKeybindingsConfig;
@@ -31,10 +30,7 @@ interface ChatHeaderProps {
   onToggleDiff: () => void;
 }
 
-export const ChatHeader = memo(function ChatHeader({
-  activeThreadTitle,
-  sidebarPersistenceCwd,
-}: ChatHeaderProps) {
+export const ChatHeader = memo(function ChatHeader({ activeThreadTitle }: ChatHeaderProps) {
   return (
     <div className="multi-agent-panel-header @container/header-actions flex min-w-0 flex-1 items-center gap-2 text-[12px]/[16px]">
       <div className="multi-agent-panel-header__title flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
@@ -44,7 +40,7 @@ export const ChatHeader = memo(function ChatHeader({
           size="icon"
           className="size-6 shrink-0 md:hidden"
           aria-label="Toggle sidebar"
-          onClick={() => shellPanelsActions.toggleLeft(sidebarPersistenceCwd)}
+          onClick={() => shellPanelsActions.toggleLeft()}
         >
           <IconSidebar className="size-3.5" />
         </Button>

@@ -1,12 +1,19 @@
 "use client";
 
 import { TabsList, TabsTab } from "@multi/ui/tabs";
-import { FileTextIcon, GitBranchIcon, PlusIcon, TerminalIcon, XIcon } from "lucide-react";
+import {
+  IconBranch as GitBranchIcon,
+  IconConsole as TerminalIcon,
+  IconFileText as FileTextIcon,
+  IconPlusLarge as PlusIcon,
+  IconX as XIcon,
+} from "central-icons";
 import type { ComponentType, ReactNode } from "react";
 
 import type { TerminalSessionEntry, WorkbenchTab } from "~/lib/shell-panels-store";
 import { cn } from "~/lib/utils";
 
+import { getWorkbenchIconButtonClassName, WorkbenchIconButton } from "./workbench-icon-button";
 import { RightWorkbenchToolIsland } from "./right-workbench-tool-island";
 
 const TOOL_META: Record<
@@ -25,16 +32,21 @@ function ToolIconButton(props: { tab: WorkbenchTab; badge?: string | null }) {
   return (
     <TabsTab
       value={props.tab}
+      data-stable=""
       className={(state) =>
-        cn(
-          "no-drag outline-none focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 ui-tab-system-tab box-border flex h-(--multi-workbench-chrome-row-height) shrink-0 items-center justify-center rounded-[5px] border-0 px-(--multi-workbench-chrome-icon-padding-x) text-multi-icon-secondary shadow-none transition-colors hover:bg-multi-bg-quaternary hover:text-multi-icon-primary",
-          state.active && "bg-multi-bg-tertiary text-multi-icon-primary",
-        )
+        getWorkbenchIconButtonClassName({
+          active: state.active,
+          chrome: "tool",
+          className: "size-(--multi-workbench-action-size) p-0",
+          tabSystem: true,
+        })
       }
       aria-label={`${meta.label}${badgeText}`}
       title={`${meta.label}${badgeText}`}
     >
-      <Icon className="size-3.5" aria-hidden />
+      <span className="ui-tab-system-tab__content flex min-w-0 flex-none items-center justify-center">
+        <Icon className="ui-tab-system-tab__icon size-3.5" aria-hidden />
+      </span>
     </TabsTab>
   );
 }
@@ -59,15 +71,9 @@ function WorkbenchTabList(props: { activeTab: WorkbenchTab; gitCount?: number | 
 
 function WorkbenchChromeButton(props: { label: string; onClick: () => void; children: ReactNode }) {
   return (
-    <button
-      type="button"
-      onClick={props.onClick}
-      className="no-drag outline-none focus-visible:outline-none ui-tab-system-tab box-border flex h-(--multi-workbench-chrome-row-height) shrink-0 items-center justify-center rounded-[5px] border-0 px-(--multi-workbench-chrome-icon-padding-x) text-multi-icon-secondary shadow-none transition-colors hover:bg-multi-bg-quaternary hover:text-multi-icon-primary"
-      aria-label={props.label}
-      title={props.label}
-    >
+    <WorkbenchIconButton aria-label={props.label} chrome="tool" onClick={props.onClick}>
       {props.children}
-    </button>
+    </WorkbenchIconButton>
   );
 }
 
@@ -80,8 +86,9 @@ function TerminalSessionTab(props: {
 }) {
   return (
     <div
+      role="presentation"
       className={cn(
-        "no-drag group relative flex h-[22px] max-w-[var(--composer-tab-label-max-width,200px)] items-center overflow-hidden rounded-[5px] text-[12px]/[16px] transition-colors",
+        "no-drag group relative flex h-(--multi-workbench-action-size) max-w-(--composer-tab-label-max-width) items-center overflow-hidden rounded-[5px] text-[12px]/[16px] transition-colors",
         props.active
           ? "bg-multi-bg-tertiary text-multi-fg-primary"
           : "text-multi-fg-secondary hover:bg-multi-bg-quaternary hover:text-multi-fg-primary",
@@ -89,8 +96,10 @@ function TerminalSessionTab(props: {
     >
       <button
         type="button"
+        role="tab"
+        aria-selected={props.active}
         onClick={props.onActivate}
-        className="flex min-w-0 flex-1 items-center gap-1 px-1.5 text-left"
+        className="flex min-w-0 flex-1 items-center gap-1 px-1.5 text-left outline-hidden focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-multi-stroke-focused focus-visible:ring-inset"
         aria-current={props.active ? "page" : undefined}
       >
         <TerminalIcon className="size-3 shrink-0 opacity-60" aria-hidden />
@@ -104,7 +113,7 @@ function TerminalSessionTab(props: {
             e.stopPropagation();
             props.onClose();
           }}
-          className="no-drag mr-0.5 flex size-4 shrink-0 items-center justify-center rounded-sm text-multi-fg-tertiary opacity-0 transition-opacity group-hover:opacity-100 hover:text-multi-fg-primary"
+          className="no-drag mr-0.5 flex size-4 shrink-0 items-center justify-center rounded-sm text-multi-fg-tertiary opacity-0 outline-hidden transition-opacity group-hover:opacity-100 hover:text-multi-fg-primary focus-visible:opacity-100 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-multi-stroke-focused focus-visible:ring-inset"
         >
           <XIcon className="size-3" />
         </button>
@@ -140,26 +149,32 @@ export function RightWorkbenchHeader(props: RightWorkbenchHeaderProps) {
         {showTerminalSessionTabs ? (
           <>
             <div
-              className="h-[22px] w-px shrink-0 self-center bg-multi-stroke-tertiary"
+              className="h-(--multi-workbench-action-size) w-px shrink-0 self-center bg-multi-stroke-tertiary"
               aria-hidden
             />
-            {sessions.map((session) => (
-              <TerminalSessionTab
-                key={session.id}
-                session={session}
-                active={session.id === props.activeTerminalId}
-                onActivate={() => props.onTerminalTab?.(session.id)}
-                onClose={() => props.onCloseTerminal?.(session.id)}
-                closable={sessions.length > 1}
-              />
-            ))}
+            <div
+              className="flex min-w-0 items-center gap-(--multi-workbench-chrome-action-gap)"
+              role="tablist"
+              aria-label="Terminal sessions"
+            >
+              {sessions.map((session) => (
+                <TerminalSessionTab
+                  key={session.id}
+                  session={session}
+                  active={session.id === props.activeTerminalId}
+                  onActivate={() => props.onTerminalTab?.(session.id)}
+                  onClose={() => props.onCloseTerminal?.(session.id)}
+                  closable={sessions.length > 1}
+                />
+              ))}
+            </div>
           </>
         ) : null}
         {isTerminal && props.onNewTerminal ? (
           <>
             {!showTerminalSessionTabs ? (
               <div
-                className="h-[22px] w-px shrink-0 self-center bg-multi-stroke-tertiary"
+                className="h-(--multi-workbench-action-size) w-px shrink-0 self-center bg-multi-stroke-tertiary"
                 aria-hidden
               />
             ) : null}

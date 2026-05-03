@@ -29,7 +29,7 @@ const TREE_HOST_LAYOUT: TreeHostStyle = {
 };
 
 const TREE_HOST_MULTI_GIT: TreeHostStyle = {
-  "--trees-git-modified-color-override": "var(--vscode-terminal-ansiBlue)",
+  "--trees-git-modified-color-override": "var(--multi-hue-blue)",
   "--trees-git-added-color-override": "var(--multi-hue-green)",
   "--trees-git-deleted-color-override": "var(--multi-hue-red)",
   "--trees-git-untracked-color-override": "var(--multi-hue-orange)",

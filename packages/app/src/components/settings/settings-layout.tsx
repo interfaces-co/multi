@@ -1,4 +1,4 @@
-import { Undo2Icon } from "lucide-react";
+import { IconArrowUndoUp as Undo2Icon } from "central-icons";
 import { type ReactNode, useEffect, useState } from "react";
 
 import { cn } from "../../lib/utils";

@@ -6,7 +6,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 const workbenchChromeRowVariants = cva("no-drag flex shrink-0 items-center flex-nowrap", {
   variants: {
     variant: {
-      tool: "multi-workbench-tool-island relative z-20 box-border h-(--multi-workbench-chrome-row-height) min-h-(--multi-workbench-chrome-row-height) max-h-(--multi-workbench-chrome-row-height) flex-none gap-(--multi-workbench-chrome-action-gap) overflow-hidden border-b px-(--multi-workbench-chrome-padding-inline) [--tab-system-bar-background:transparent] editor-panel-tab-root editor-panel-tab-root--simple-tabs",
+      tool: "ui-tab-system multi-workbench-tool-island relative z-20 box-border h-(--multi-workbench-chrome-row-height) min-h-(--multi-workbench-chrome-row-height) max-h-(--multi-workbench-chrome-row-height) flex-none gap-(--multi-workbench-chrome-action-gap) overflow-hidden border-b px-(--multi-workbench-chrome-padding-inline) [--tab-system-bar-background:transparent] editor-panel-tab-root editor-panel-tab-root--simple-tabs",
       panel:
         "multi-workbench-panel-title-row w-full min-w-0 flex-row gap-(--multi-workbench-chrome-action-gap)",
     },
@@ -47,7 +47,10 @@ export function WorkbenchChromeRow(props: {
   const gap = props.gap ?? "action";
 
   return (
-    <div className={workbenchChromeRowVariants({ variant: props.variant })}>
+    <div
+      className={workbenchChromeRowVariants({ variant: props.variant })}
+      data-variant={props.variant === "tool" ? "simple-tabs" : undefined}
+    >
       <div className={workbenchChromeRowContentVariants({ gap, variant: props.variant })}>
         {props.children}
       </div>

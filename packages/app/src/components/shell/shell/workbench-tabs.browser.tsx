@@ -33,7 +33,7 @@ describe("WorkbenchTabBar", () => {
     document.body.innerHTML = "";
   });
 
-  it("opens Cursor-style new tab menu and filters panel entries", async () => {
+  it("opens the new tab menu and filters panel entries", async () => {
     await using harness = await mount();
 
     await page.getByLabelText("Open new tab menu").click();

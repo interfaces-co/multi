@@ -1,7 +1,7 @@
 import { type ServerProvider } from "@multi/contracts";
 import { memo } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@multi/ui/alert";
-import { CircleAlertIcon } from "lucide-react";
+import { IconExclamationCircle as CircleAlertIcon } from "central-icons";
 import { formatProviderDriverKindLabel } from "../../provider-models";
 
 export const ProviderStatusBanner = memo(function ProviderStatusBanner({

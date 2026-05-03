@@ -1,19 +1,19 @@
 ---
 name: Cursor chat bundle anatomy
-overview: Dissection of Cursor’s shipped workbench shows chat/tool/UI styling largely lives as an embedded CSS string inside `workbench.desktop.main.js`, while message rendering is driven by discriminated step types (`thinking`, `assistant-message`, `tool-call`) and per-tool `tool.case` variants with React props on a central tool renderer (`ZQl`).
+overview: Dissection of Cursor’s shipped workbench shows chat/tool/UI styling largely lives as embedded CSS strings inside `workbench.desktop.main.js`, while message rendering is driven by discriminated step types (`thinking`, `assistant-message`, `tool-call`) and per-tool `tool.case` variants. Minified renderer symbols are not stable across Cursor builds; use string discriminators and `ui-*`/`agent-panel-meta-agent-chat__*` class contracts as the canonical evidence.
 todos:
   - id: extract-css-chunk
     content: Extract the embedded `ui-*` CSS substring from workbench.desktop.main.js (script or manual bounds) for stable diffing across Cursor versions.
-    status: pending
+    status: completed
   - id: map-step-types
     content: Document step.type × tool.case matrix and which UI component/CSS block applies to each.
-    status: pending
-  - id: props-from-ZQl
-    content: Parse ZQl destructuring + QDt() usage to list layout-affecting props and context (density, copy).
-    status: pending
+    status: completed
+  - id: props-from-renderer
+    content: Parse central tool renderer destructuring + context usage to list layout-affecting props and context (density, copy); do not treat minified names as stable.
+    status: completed
   - id: mirror-in-multi
     content: Align packages/app chat components with extracted class semantics and state attributes as needed.
-    status: pending
+    status: completed
 isProject: false
 ---
 
@@ -32,11 +32,11 @@ isProject: false
 
 Conversation rows are built from **steps** with a string discriminator `step.type`:
 
-| `step.type` | Role |
-|-------------|------|
-| `thinking` | Collapsible “thought” text, optional header parsing (`parseHeaders`), duration (`thinkingDurationMs`), loading vs complete copy via helpers like `BKl`, `ckr`, `zoi`. |
-| `assistant-message` | Markdown / text body; participates in **grouping** when adjacent short messages meet `PKl` heuristics (`textMaxLength`, `textMaxLines`). |
-| `tool-call` | Renders a **tool card**; subtype is **`toolCall.tool.case`** (protobuf oneof-style), e.g. `awaitToolCall`, `readToolCall`, `grepToolCall`, `shellToolCall`, `editToolCall`. |
+| `step.type`         | Role                                                                                                                                                                        |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `thinking`          | Collapsible “thought” text, optional header parsing (`parseHeaders`), duration (`thinkingDurationMs`), loading vs complete copy via helpers like `BKl`, `ckr`, `zoi`.       |
+| `assistant-message` | Markdown / text body; participates in **grouping** when adjacent short messages meet `PKl` heuristics (`textMaxLength`, `textMaxLines`).                                    |
+| `tool-call`         | Renders a **tool card**; subtype is **`toolCall.tool.case`** (protobuf oneof-style), e.g. `awaitToolCall`, `readToolCall`, `grepToolCall`, `shellToolCall`, `editToolCall`. |
 
 **Grouping** ([`$Vm`](grep) in bundle): decides whether a step can merge with the next (e.g. `thinking` → `groupThinking`; `assistant-message` → `groupText`; `tool-call` → `isToolGroupable(case, toolCall)`).
 
@@ -53,7 +53,7 @@ Conversation rows are built from **steps** with a string discriminator `step.typ
 
 ## Tool messages: props and variants to extract
 
-The minified component **`ZQl`** (tool call body) destructures props that are the practical **public surface** for replicating behavior:
+The central tool-call renderer destructures props that are the practical **public surface** for replicating behavior. Older notes referred to this renderer as **`ZQl`**, but in the current local Cursor binary `function ZQl` is an unrelated string transform; do not anchor implementation to that symbol name.
 
 - **`toolCall`** – full protobuf message; inner dispatch uses **`toolCall.tool.case`**.
 - **`callId`**, **`loading`**, **`startedAtMs`**, **`hasError`**
@@ -68,6 +68,14 @@ The minified component **`ZQl`** (tool call body) destructures props that are th
 **Special case – wait / poll tools:** **`BZm`** handles `awaitToolCall` with `args.blockUntilMs`, ticking `Date.now()` on an interval, and renders a compact row via **`bW`** with `action` / `details` / `loading` from **`Wkr`**.
 
 **Copy / plain-text summary:** **`IKl(toolCall)`** produces human `{ action, details }`; used when flattening steps to text (line **641** region).
+
+---
+
+## Pretext evidence
+
+The current local Cursor bundle contains Pretext-derived symbols even though the package name string is not preserved: `prepare`, `prepareWithSegments`, `layout`, `walkLineRanges`, `measureNaturalWidth`, `getPretextFontFromComputedStyle`, `truncatePretextMiddleText`, `preparePretextBubbleText`, `collectWrapMetrics`, `findTightPretextBubbleContentWidth`, and `measurePretextBubbleContent` appear together in `workbench.desktop.main.js`.
+
+Multi already carries the same dependency (`@chenglou/pretext`) in `packages/app/package.json`. The concrete usage is `packages/app/src/hooks/use-composer-pretext-one-line.ts`, consumed by Git and model-picker labels through `PretextOneLine`; this is the right local primitive for Cursor-style tight/middle text fitting instead of ad hoc truncation.
 
 ---
 
@@ -91,12 +99,23 @@ Embedded CSS documents **two user message layouts**:
 
 ---
 
+## Multi implementation note
+
+- `packages/app/src/components/chat/cursor-chat-bundle.tsx` emits the durable Cursor class contracts for transcript bubbles and tool rows (`ui-meta-agent-*`, `ui-tool-call-*`, `ui-edit-tool-call*`, `ui-shell-tool-call*`).
+- `packages/app/src/components/chat/messages-timeline.tsx` now uses Cursor row/list hooks (`ui-imsg-thread__messages`, `agent-panel-meta-agent-chat__message-entry`, `agent-panel-meta-agent-chat__row--human|assistant|tool-call|loading`) instead of wrapping every row in a `multi-message-thread` shell.
+- Bubble sizing, padding, hover, tool-line shimmer, edit minimal rows, shell cards, and meta-agent cards live in the scoped chat CSS contract in `packages/app/src/styles/shell.css`, so the JSX emits canonical hooks rather than a parallel Tailwind-only clone.
+- Multi-specific classes remain only for behavior that is not represented by the Cursor bubble contract: media attachments, footer metadata, and hover action visibility.
+- Binary evidence used for the cleanup: targeted reads from `workbench.desktop.main.js` around `.ui-meta-agent-human-message`, `.ui-meta-agent-assistant-message`, `.ui-tool-call-line`, `.ui-tool-call-card`, `.ui-edit-tool-call`, `.ui-shell-tool-call`, and Pretext-derived text-fitting symbols.
+- The chat/composer shared chip cleanup followed the same rule: remove exported class-string tokens when the markup is better represented by a reusable component. `ComposerInlineChip` now owns the repeated chip frame, and markdown file-link/chip line-height utilities use Tailwind v4 text-size/line-height syntax instead of separate `leading-*` helpers.
+
+---
+
 ## Where “the CSS” lives in the binary
 
-| Location | Contents |
-|----------|----------|
-| **`workbench.desktop.main.js`** | Large **literal CSS string** interleaved with app code (starts in the **~6k-line** region in editors that wrap; includes tool + meta-agent + tray rules cited above). This is the right place to **mine class names and state attributes** (`data-has-content`, `data-tone`, `aria-expanded`, `role=button`). |
-| **`workbench.desktop.main.css`** | Workbench / editor / Monaco; not the main catalog for Cursor chat `ui-*` rules. |
+| Location                         | Contents                                                                                                                                                                                                                                                                                                      |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`workbench.desktop.main.js`**  | Large **literal CSS string** interleaved with app code (starts in the **~6k-line** region in editors that wrap; includes tool + meta-agent + tray rules cited above). This is the right place to **mine class names and state attributes** (`data-has-content`, `data-tone`, `aria-expanded`, `role=button`). |
+| **`workbench.desktop.main.css`** | Workbench / editor / Monaco; not the main catalog for Cursor chat `ui-*` rules.                                                                                                                                                                                                                               |
 
 ---
 

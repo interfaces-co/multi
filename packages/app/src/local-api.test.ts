@@ -7,8 +7,6 @@ import {
   type GitStatusResult,
   ProjectId,
   type OrchestrationShellStreamItem,
-  ProviderDriverKind,
-  ProviderInstanceId,
   type ServerConfig,
   type ServerProvider,
   type TerminalEvent,

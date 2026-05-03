@@ -107,8 +107,8 @@ function Section(props: {
             title={`New agent in ${section.label}`}
             className={`agent-sidebar-section-new relative flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-multi-control border border-transparent outline-none touch-manipulation transition-[color,background-color] duration-100 ease-out motion-reduce:transition-none pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 ${
               section.active
-                ? "text-foreground/70 [@media(hover:hover)]:hover:bg-[var(--cursor-bg-quaternary)] [@media(hover:hover)]:hover:text-[var(--cursor-text-primary)]"
-                : "text-muted-foreground/55 [@media(hover:hover)]:hover:bg-[var(--cursor-bg-quaternary)] [@media(hover:hover)]:hover:text-[var(--cursor-text-primary)]"
+                ? "text-multi-fg-secondary [@media(hover:hover)]:hover:bg-multi-bg-quaternary [@media(hover:hover)]:hover:text-multi-fg-primary"
+                : "text-multi-fg-tertiary [@media(hover:hover)]:hover:bg-multi-bg-quaternary [@media(hover:hover)]:hover:text-multi-fg-primary"
             }`}
           >
             <span aria-hidden>+</span>
@@ -135,7 +135,7 @@ function Section(props: {
             <button
               type="button"
               onClick={() => setExtra((count) => count + 1)}
-              className="agent-sidebar-more relative flex min-h-6 w-full cursor-pointer items-center gap-1.5 rounded-multi-control border border-transparent px-1.5 py-0.5 text-left font-multi font-normal text-muted-foreground/65 outline-none touch-manipulation transition-[color,background-color] duration-100 ease-out motion-reduce:transition-none pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 [@media(hover:hover)]:hover:bg-[var(--cursor-bg-quaternary)] [@media(hover:hover)]:hover:text-muted-foreground"
+              className="agent-sidebar-more relative flex min-h-6 w-full cursor-pointer items-center gap-1.5 rounded-multi-control border border-transparent px-1.5 py-0.5 text-left font-multi font-normal text-multi-fg-tertiary outline-none touch-manipulation transition-[color,background-color] duration-100 ease-out motion-reduce:transition-none pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 [@media(hover:hover)]:hover:bg-multi-bg-quaternary [@media(hover:hover)]:hover:text-multi-fg-secondary"
             >
               <span className="size-2.5 shrink-0 opacity-55" aria-hidden>
                 ⋯

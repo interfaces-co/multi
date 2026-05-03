@@ -11,8 +11,6 @@ import {
   KeybindingRule,
   MessageId,
   OpenError,
-  ProviderDriverKind,
-  ProviderInstanceId,
   TerminalNotRunningError,
   type OrchestrationCommand,
   type OrchestrationEvent,

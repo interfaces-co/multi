@@ -2,7 +2,6 @@ import { QueryClient } from "@tanstack/react-query";
 import {
   EnvironmentId,
   ProjectId,
-  ProviderInstanceId,
   ThreadId,
   TurnId,
   type OrchestrationShellSnapshot,

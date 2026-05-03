@@ -21,6 +21,7 @@ import { cn } from "~/lib/utils";
 import { useTheme } from "~/hooks/use-theme";
 
 import { TREE_UNSAFE_CSS, useWorkbenchTreeHostStyle } from "./pierre-workbench-tree";
+import { WorkbenchIconButton } from "../shell/workbench-icon-button";
 
 const EMPTY_PROJECT_ENTRIES: readonly ProjectEntry[] = [];
 
@@ -133,6 +134,7 @@ export function WorkspaceFileTree(props: {
   const { model } = useFileTree({
     paths: [],
     density: "compact",
+    itemHeight: 22,
     flattenEmptyDirectories: true,
     fileTreeSearchMode: "collapse-non-matches",
     initialExpansion: 1,
@@ -251,19 +253,16 @@ export function WorkspaceFileTree(props: {
       )}
     >
       <div className="multi-workbench-panel-title-row gap-2">
-        <span className="min-w-0 shrink-0 truncate text-[12px]/[16px] font-medium text-foreground/85">
+        <span className="min-w-0 shrink-0 truncate text-[12px]/[16px] font-medium text-multi-fg-primary">
           {props.title ?? basename(props.cwd)}
         </span>
         <span className="min-w-0 flex-1" />
-        <span className="tabular-nums shrink-0 text-muted-foreground/45 text-[11px]/[13px]">
+        <span className="shrink-0 text-[11px]/[13px] text-multi-fg-quaternary tabular-nums">
           {formatEntryCount(entries.length, truncated)}
         </span>
-        <button
-          type="button"
-          className={cn(
-            "flex shrink-0 items-center justify-center rounded-multi-control px-(--multi-workbench-chrome-icon-padding-x) transition-colors text-muted-foreground/55 hover:bg-multi-hover hover:text-foreground min-h-[calc(var(--multi-workbench-panel-title-row-height,29px)-6px)] max-h-[calc(var(--multi-workbench-panel-title-row-height,29px)-4px)]",
-          )}
+        <WorkbenchIconButton
           aria-label="Refresh files"
+          chrome="panel"
           onClick={() => {
             void entriesQuery.refetch();
           }}
@@ -271,7 +270,7 @@ export function WorkspaceFileTree(props: {
           <IconArrowRotateClockwise
             className={cn("size-3.5", entriesQuery.isFetching && "animate-spin")}
           />
-        </button>
+        </WorkbenchIconButton>
       </div>
 
       <div className="min-h-0 flex-1 overflow-hidden">

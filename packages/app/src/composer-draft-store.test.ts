@@ -10,7 +10,6 @@ import {
   ProjectId,
   ThreadId,
   type ModelSelection,
-  ProviderDriverKind,
   ProviderInstanceId,
   type ProviderOptionSelection,
 } from "@multi/contracts";

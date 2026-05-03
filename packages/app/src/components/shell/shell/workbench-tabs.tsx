@@ -2,13 +2,13 @@
 
 import { Menu } from "@base-ui/react/menu";
 import {
-  CheckIcon,
-  FileTextIcon,
-  GitBranchIcon,
-  PlusIcon,
-  SearchIcon,
-  TerminalIcon,
-} from "lucide-react";
+  IconBranch as GitBranchIcon,
+  IconCheckmark1 as CheckIcon,
+  IconConsole as TerminalIcon,
+  IconFileText as FileTextIcon,
+  IconMagnifyingGlass as SearchIcon,
+  IconPlusLarge as PlusIcon,
+} from "central-icons";
 import { IconSidebarHiddenRightWide } from "central-icons";
 import { useMemo, useState, type ComponentType } from "react";
 
@@ -76,7 +76,7 @@ export function WorkbenchTabBar(props: {
   }, [query]);
 
   return (
-    <div className="ui-tab-system editor-panel-tab-root editor-panel-tab-root--simple-tabs no-drag flex h-[35px] flex-none shrink-0 items-stretch bg-[var(--glass-editor-panel-tab-background,color-mix(in_srgb,var(--multi-bg-elevated)_88%,transparent))] px-1.5 backdrop-blur-xl [--tab-system-bar-background:transparent]">
+    <div className="ui-tab-system editor-panel-tab-root editor-panel-tab-root--simple-tabs no-drag flex h-(--multi-workbench-chrome-row-height) flex-none shrink-0 items-stretch bg-(--glass-editor-panel-tab-background) px-1.5 backdrop-blur-xl [--tab-system-bar-background:transparent]">
       <div className="editor-panel-tab-bar-tab-cluster no-scrollbar flex min-w-0 flex-1 items-stretch overflow-hidden">
         {tabs.map((tab) => {
           const selected = tab.id === props.active;
@@ -88,7 +88,7 @@ export function WorkbenchTabBar(props: {
               type="button"
               onClick={() => props.onTab(tab.id)}
               className={cn(
-                "ui-tab-system-tab my-1.5 flex size-[22px] shrink-0 items-center justify-center rounded-[5px] text-multi-icon-secondary transition-colors hover:bg-multi-bg-quaternary hover:text-multi-icon-primary",
+                "ui-tab-system-tab my-1.5 flex size-(--multi-workbench-action-size) shrink-0 items-center justify-center rounded-[5px] text-multi-icon-secondary transition-colors hover:bg-multi-bg-quaternary hover:text-multi-icon-primary",
                 selected && "bg-multi-bg-tertiary text-multi-icon-primary",
               )}
               aria-current={selected ? "page" : undefined}
@@ -113,7 +113,7 @@ export function WorkbenchTabBar(props: {
         }}
       >
         <Menu.Trigger
-          className="glass-editor-panel-new-tab-menu-trigger ui-icon-button my-1.5 flex size-[22px] shrink-0 items-center justify-center rounded-[5px] text-multi-icon-secondary hover:bg-multi-bg-quaternary hover:text-multi-icon-primary data-[popup-open]:bg-multi-bg-tertiary data-[popup-open]:text-multi-icon-primary"
+          className="glass-editor-panel-new-tab-menu-trigger ui-icon-button my-1.5 flex size-(--multi-workbench-action-size) shrink-0 items-center justify-center rounded-[5px] text-multi-icon-secondary hover:bg-multi-bg-quaternary hover:text-multi-icon-primary data-[popup-open]:bg-multi-bg-tertiary data-[popup-open]:text-multi-icon-primary"
           aria-expanded={open}
           aria-label="Open new tab menu"
           title="Open new tab menu"

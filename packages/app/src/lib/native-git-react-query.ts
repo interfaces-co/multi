@@ -10,6 +10,8 @@ export interface GitPatchData {
   diff: FileDiffMetadata | null;
 }
 
+const GIT_PATCH_CACHE_GC_TIME_MS = 2 * 60 * 1000;
+
 export const gitQueryKeys = {
   patch: (environmentId: EnvironmentId | null, cwd: string, path: string) =>
     ["git", "patch", environmentId ?? null, cwd, path] as const,
@@ -52,5 +54,6 @@ export function gitPatchQueryOptions(input: {
     },
     enabled: (input.enabled ?? true) && Boolean(input.cwd),
     staleTime: Infinity,
+    gcTime: GIT_PATCH_CACHE_GC_TIME_MS,
   });
 }

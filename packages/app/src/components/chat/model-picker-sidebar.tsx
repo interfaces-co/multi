@@ -1,6 +1,10 @@
 import { type ProviderInstanceId } from "@multi/contracts";
-import { memo, useMemo } from "react";
-import { Clock3Icon, SparklesIcon, StarIcon } from "lucide-react";
+import { memo, useMemo, type ReactNode } from "react";
+import {
+  IconClock3OClock as Clock3Icon,
+  IconSparklesThree as SparklesIcon,
+  IconStar as StarIcon,
+} from "central-icons";
 import { Gemini, GithubCopilotIcon } from "../icons";
 import { ProviderInstanceIcon } from "./provider-instance-icon";
 import { ScrollArea } from "@multi/ui/scroll-area";
@@ -30,17 +34,46 @@ function describeUnavailableInstance(entry: ProviderInstanceEntry): string {
   return msg ? `${label} — ${kind}. ${msg}` : `${label} — ${kind}.`;
 }
 
-const SELECTED_BUTTON_CLASS = "bg-background text-foreground shadow-sm";
-const SELECTED_INDICATOR_CLASS =
-  "pointer-events-none absolute -right-1 top-1/2 z-10 h-5 w-0.5 -translate-y-1/2 rounded-l-full bg-primary";
-const BADGE_BASE_CLASS =
-  "pointer-events-none absolute -right-0.5 top-0.5 z-10 flex size-3.5 items-center justify-center rounded-full bg-transparent shadow-sm ";
-const NEW_BADGE_CLASS = `${BADGE_BASE_CLASS} text-amber-600  dark:text-amber-300 `;
-const SOON_BADGE_CLASS = `${BADGE_BASE_CLASS} text-muted-foreground `;
-
 /** Opens toward the rail so the list stays readable (not over the model names). */
 const PICKER_TOOLTIP_SIDE = "left" as const;
-const PICKER_TOOLTIP_CLASS = "max-w-64 text-balance font-normal leading-snug";
+
+function SelectedProviderIndicator() {
+  return (
+    <div className="pointer-events-none absolute -right-1 top-1/2 z-10 h-5 w-0.5 -translate-y-1/2 rounded-l-full bg-primary" />
+  );
+}
+
+function ProviderRailBadge({
+  children,
+  variant,
+}: {
+  children: ReactNode;
+  variant: "new" | "soon";
+}) {
+  return (
+    <span
+      className={cn(
+        "pointer-events-none absolute -right-0.5 top-0.5 z-10 flex size-3.5 items-center justify-center rounded-full bg-transparent shadow-sm",
+        variant === "new" ? "text-amber-600 dark:text-amber-300" : "text-muted-foreground",
+      )}
+      aria-hidden
+    >
+      {children}
+    </span>
+  );
+}
+
+function ModelPickerTooltipPopup({ children }: { children: ReactNode }) {
+  return (
+    <TooltipPopup
+      side={PICKER_TOOLTIP_SIDE}
+      align="center"
+      className="max-w-64 text-balance text-xs/4 font-normal"
+    >
+      {children}
+    </TooltipPopup>
+  );
+}
 
 export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
   selectedInstanceId: ProviderInstanceId | "favorites";
@@ -80,24 +113,23 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
     <ScrollArea
       hideScrollbars
       scrollFade
-      className="w-12 shrink-0 border-r bg-muted/30"
+      className="w-12 shrink-0 border-r border-multi-stroke-tertiary bg-[color-mix(in_srgb,var(--cursor-bg-secondary,var(--multi-bg-secondary))_72%,transparent)]"
       data-model-picker-sidebar="true"
     >
       <div className="flex min-h-full flex-col gap-1 p-1">
         {/* Favorites section */}
         {showFavorites ? (
-          <div className="pb-1 mb-1 border-b">
+          <div className="mb-1 border-b border-multi-stroke-tertiary pb-1">
             <div className="relative w-full">
-              {props.selectedInstanceId === "favorites" && (
-                <div className={SELECTED_INDICATOR_CLASS} />
-              )}
+              {props.selectedInstanceId === "favorites" && <SelectedProviderIndicator />}
               <Tooltip>
                 <TooltipTrigger
                   render={
                     <button
                       className={cn(
-                        "relative isolate flex w-full cursor-pointer aspect-square items-center justify-center rounded transition-colors hover:bg-muted",
-                        props.selectedInstanceId === "favorites" && SELECTED_BUTTON_CLASS,
+                        "relative isolate flex aspect-square w-full cursor-pointer items-center justify-center rounded-[6px] transition-colors hover:bg-multi-bg-quaternary",
+                        props.selectedInstanceId === "favorites" &&
+                          "bg-multi-bg-active text-multi-fg-primary shadow-sm",
                       )}
                       onClick={() => handleSelect("favorites")}
                       type="button"
@@ -108,13 +140,7 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                     </button>
                   }
                 />
-                <TooltipPopup
-                  side={PICKER_TOOLTIP_SIDE}
-                  align="center"
-                  className={PICKER_TOOLTIP_CLASS}
-                >
-                  Favorites
-                </TooltipPopup>
+                <ModelPickerTooltipPopup>Favorites</ModelPickerTooltipPopup>
               </Tooltip>
             </div>
           </div>
@@ -138,9 +164,9 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
             <button
               data-model-picker-provider={entry.instanceId}
               className={cn(
-                "relative isolate flex w-full cursor-pointer aspect-square items-center justify-center rounded transition-colors hover:bg-muted",
-                isSelected && SELECTED_BUTTON_CLASS,
-                isDisabled && "opacity-50 cursor-not-allowed hover:bg-transparent",
+                "relative isolate flex aspect-square w-full cursor-pointer items-center justify-center rounded-[6px] transition-colors hover:bg-multi-bg-quaternary",
+                isSelected && "bg-multi-bg-active text-multi-fg-primary shadow-sm",
+                isDisabled && "cursor-not-allowed opacity-50 hover:bg-transparent",
               )}
               data-provider-accent-color={entry.accentColor}
               onClick={() => !isDisabled && handleSelect(entry.instanceId)}
@@ -163,9 +189,9 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                 iconClassName="size-5"
               />
               {showNewBadge ? (
-                <span className={NEW_BADGE_CLASS} aria-hidden>
+                <ProviderRailBadge variant="new">
                   <SparklesIcon className="size-2" />
-                </span>
+                </ProviderRailBadge>
               ) : null}
             </button>
           );
@@ -178,16 +204,10 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
 
           return (
             <div key={entry.instanceId} className="relative w-full">
-              {isSelected && <div className={SELECTED_INDICATOR_CLASS} />}
+              {isSelected && <SelectedProviderIndicator />}
               <Tooltip>
                 <TooltipTrigger render={trigger} />
-                <TooltipPopup
-                  side={PICKER_TOOLTIP_SIDE}
-                  align="center"
-                  className={PICKER_TOOLTIP_CLASS}
-                >
-                  {tooltip}
-                </TooltipPopup>
+                <ModelPickerTooltipPopup>{tooltip}</ModelPickerTooltipPopup>
               </Tooltip>
             </div>
           );
@@ -202,7 +222,7 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                   <span className="relative block w-full">
                     <button
                       className={cn(
-                        "relative isolate flex w-full aspect-square items-center justify-center rounded opacity-50 cursor-not-allowed transition-colors hover:bg-transparent",
+                        "relative isolate flex aspect-square w-full cursor-not-allowed items-center justify-center rounded-[6px] opacity-50 transition-colors hover:bg-transparent",
                       )}
                       disabled
                       type="button"
@@ -210,20 +230,14 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                       aria-label="Gemini — coming soon"
                     >
                       <Gemini className="size-5 text-muted-foreground/85" aria-hidden />
-                      <span className={SOON_BADGE_CLASS} aria-hidden>
+                      <ProviderRailBadge variant="soon">
                         <Clock3Icon className="size-2" />
-                      </span>
+                      </ProviderRailBadge>
                     </button>
                   </span>
                 }
               />
-              <TooltipPopup
-                side={PICKER_TOOLTIP_SIDE}
-                align="center"
-                className={PICKER_TOOLTIP_CLASS}
-              >
-                Gemini — Coming soon
-              </TooltipPopup>
+              <ModelPickerTooltipPopup>Gemini — Coming soon</ModelPickerTooltipPopup>
             </Tooltip>
             {/* Github Copilot button (coming soon) */}
             <Tooltip>
@@ -232,7 +246,7 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                   <span className="relative block w-full">
                     <button
                       className={cn(
-                        "relative isolate flex w-full aspect-square items-center justify-center rounded opacity-50 cursor-not-allowed transition-colors hover:bg-transparent",
+                        "relative isolate flex aspect-square w-full cursor-not-allowed items-center justify-center rounded-[6px] opacity-50 transition-colors hover:bg-transparent",
                       )}
                       disabled
                       type="button"
@@ -240,20 +254,14 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                       aria-label="Github Copilot — coming soon"
                     >
                       <GithubCopilotIcon className="size-5 text-muted-foreground/85" aria-hidden />
-                      <span className={SOON_BADGE_CLASS} aria-hidden>
+                      <ProviderRailBadge variant="soon">
                         <Clock3Icon className="size-2" />
-                      </span>
+                      </ProviderRailBadge>
                     </button>
                   </span>
                 }
               />
-              <TooltipPopup
-                side={PICKER_TOOLTIP_SIDE}
-                align="center"
-                className={PICKER_TOOLTIP_CLASS}
-              >
-                Github Copilot — Coming soon
-              </TooltipPopup>
+              <ModelPickerTooltipPopup>Github Copilot — Coming soon</ModelPickerTooltipPopup>
             </Tooltip>
           </>
         ) : null}

@@ -1,6 +1,6 @@
 "use client";
 
-import { TerminalIcon, XIcon } from "lucide-react";
+import { IconConsole as TerminalIcon, IconX as XIcon } from "central-icons";
 
 import type { TerminalSessionEntry } from "~/lib/shell-panels-store";
 import { cn } from "~/lib/utils";

@@ -1,11 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  DEFAULT_RUNTIME_MODE,
-  EnvironmentId,
-  ProjectId,
-  ProviderInstanceId,
-  ThreadId,
-} from "@multi/contracts";
+import { DEFAULT_RUNTIME_MODE, EnvironmentId, ProjectId, ThreadId } from "@multi/contracts";
 import { Thread } from "../types";
 import { getLatestThreadForProject, sortThreads } from "./thread-sort";
 

@@ -6,21 +6,19 @@ import { File, type FileOptions } from "@pierre/diffs/react";
 import {
   IconArrowLeft,
   IconArrowRight,
-  IconBarsThree,
   IconFileBend,
   IconMagnifyingGlass,
+  IconTree,
 } from "central-icons";
-import { List } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { PIERRE_WORKBENCH_CODE_UNSAFE_CSS } from "~/lib/pierre-workbench-code-css";
 import { projectReadFileQueryOptions } from "~/lib/project-react-query";
-import { shellPanelsActions, useSecondaryRail } from "~/lib/shell-panels-store";
 import { resolveDiffThemeName } from "~/lib/diff-rendering";
-import { cn } from "~/lib/utils";
 import { useTheme } from "~/hooks/use-theme";
 import { WorkspaceFileTree } from "./workspace-file-tree";
+import { WorkbenchIconButton } from "../shell/workbench-icon-button";
 import { RightWorkbenchLayout } from "../shell/right-workbench-layout";
 
 type FilePaneMode = "browse" | "search";
@@ -53,27 +51,17 @@ function ModeButton(props: {
   children: ReactNode;
   chrome?: "tool" | "sub" | "panel";
 }) {
-  const tier = props.chrome ?? "tool";
   return (
-    <button
-      type="button"
+    <WorkbenchIconButton
       aria-label={props.label}
-      aria-pressed={props.active}
-      title={props.label}
-      onClick={props.onClick}
-      className={cn(
-        "outline-none focus-visible:outline-none ui-icon-button box-border shrink-0 items-center justify-center rounded-[5px] border-0 px-(--multi-workbench-chrome-icon-padding-x) shadow-none transition-colors [&_svg]:block",
-        tier === "sub" &&
-          "flex min-h-[var(--multi-workbench-sub-chrome-row-height)] max-h-[var(--multi-workbench-sub-chrome-row-height)] text-multi-fg-secondary hover:bg-multi-bg-quaternary hover:text-multi-fg-primary",
-        tier === "panel" &&
-          "flex min-h-[calc(var(--multi-workbench-panel-title-row-height,29px)-6px)] max-h-[calc(var(--multi-workbench-panel-title-row-height,29px)-4px)] text-multi-fg-secondary hover:bg-multi-bg-quaternary hover:text-multi-fg-primary",
-        tier === "tool" &&
-          "flex h-(--multi-workbench-chrome-row-height) text-multi-fg-secondary hover:bg-multi-bg-quaternary hover:text-multi-fg-primary",
-        props.active && "bg-multi-bg-tertiary text-multi-fg-primary",
-      )}
+      {...(props.active === undefined
+        ? {}
+        : { active: props.active, "aria-pressed": props.active })}
+      {...(props.chrome === undefined ? {} : { chrome: props.chrome })}
+      {...(props.onClick === undefined ? {} : { onClick: props.onClick })}
     >
       {props.children}
-    </button>
+    </WorkbenchIconButton>
   );
 }
 
@@ -84,26 +72,15 @@ function NavButton(props: {
   children: ReactNode;
   chrome?: "tool" | "sub" | "panel";
 }) {
-  const tier = props.chrome ?? "tool";
   return (
-    <button
-      type="button"
+    <WorkbenchIconButton
       aria-label={props.label}
-      title={props.label}
       disabled={props.disabled}
       onClick={props.onClick}
-      className={cn(
-        "outline-none focus-visible:outline-none ui-icon-button box-border shrink-0 items-center justify-center rounded-[5px] border-0 px-(--multi-workbench-chrome-icon-padding-x) shadow-none transition-colors disabled:text-multi-fg-quaternary/45 disabled:hover:bg-transparent disabled:hover:text-multi-fg-quaternary/45 [&_svg]:block",
-        tier === "sub" &&
-          "flex min-h-[var(--multi-workbench-sub-chrome-row-height)] max-h-[var(--multi-workbench-sub-chrome-row-height)] text-multi-fg-secondary hover:bg-multi-bg-quaternary hover:text-multi-fg-primary",
-        tier === "panel" &&
-          "flex min-h-[calc(var(--multi-workbench-panel-title-row-height,29px)-6px)] max-h-[calc(var(--multi-workbench-panel-title-row-height,29px)-4px)] text-multi-fg-secondary hover:bg-multi-bg-quaternary hover:text-multi-fg-primary",
-        tier === "tool" &&
-          "flex h-(--multi-workbench-chrome-row-height) text-multi-fg-secondary hover:bg-multi-bg-quaternary hover:text-multi-fg-primary",
-      )}
+      {...(props.chrome === undefined ? {} : { chrome: props.chrome })}
     >
       {props.children}
-    </button>
+    </WorkbenchIconButton>
   );
 }
 
@@ -220,7 +197,6 @@ export function WorkspaceFilesPanel(props: {
 }) {
   const [mode, setMode] = useState<FilePaneMode>("browse");
   const [history, setHistory] = useState<PreviewHistory>(EMPTY_PREVIEW_HISTORY);
-  const { open: filesRailOpen } = useSecondaryRail(props.cwd, "files");
   const selectedPath = history.index >= 0 ? (history.paths[history.index] ?? null) : null;
   const canGoBack = history.index > 0;
   const canGoForward = history.index >= 0 && history.index < history.paths.length - 1;
@@ -260,30 +236,14 @@ export function WorkspaceFilesPanel(props: {
 
   return (
     <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
-      <div className="multi-workbench-panel-title-row gap-[var(--multi-workbench-chrome-action-gap)]">
-        <button
-          type="button"
-          className={cn(
-            "no-drag flex shrink-0 items-center justify-center rounded-[5px] border-0 px-(--multi-workbench-chrome-icon-padding-x) transition-colors focus-visible:outline-none",
-            "min-h-[calc(var(--multi-workbench-panel-title-row-height,29px)-4px)]",
-            filesRailOpen
-              ? "bg-multi-bg-tertiary text-multi-icon-primary"
-              : "bg-transparent text-multi-icon-secondary hover:bg-multi-bg-quaternary hover:text-multi-icon-primary",
-          )}
-          aria-label={filesRailOpen ? "Hide file tree" : "Show file tree"}
-          aria-pressed={filesRailOpen}
-          title={filesRailOpen ? "Hide file tree" : "Show file tree"}
-          onClick={() => shellPanelsActions.toggleSecondaryRail(props.cwd, "files")}
-        >
-          <List className="size-[15px]" aria-hidden />
-        </button>
+      <div className="multi-workbench-panel-title-row gap-(--multi-workbench-chrome-action-gap)">
         <ModeButton
           active={mode === "browse"}
           chrome="panel"
           label="Browse Files"
           onClick={() => setMode("browse")}
         >
-          <IconBarsThree className="size-3.5" />
+          <IconTree className="size-3.5" />
         </ModeButton>
         <ModeButton
           active={mode === "search"}
@@ -312,8 +272,8 @@ export function WorkspaceFilesPanel(props: {
         <div className="min-w-0 flex-1" />
       </div>
 
-      <RightWorkbenchLayout cwd={props.cwd} tab="files" rail={tree}>
-        <div className="editor-panel-inner flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--glass-editor-surface-background,color-mix(in_srgb,var(--multi-bg-elevated)_76%,transparent))]">
+      <RightWorkbenchLayout cwd={props.cwd} tab="files" rail={tree} railOpen>
+        <div className="editor-panel-inner flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-(--glass-editor-surface-background)">
           <div className="flex min-h-0 flex-1 flex-col">
             {selectedPath ? (
               <SourcePreview

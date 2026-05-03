@@ -44,8 +44,6 @@ const devProxyTarget = resolveDevProxyTarget(configuredWsUrl);
 
 export default defineConfig({
   plugins: [
-    // t3code parity: keep the router plugin on defaults.
-    // Enabling autoCodeSplitting here breaks Electron entry-point startup handling.
     tanstackRouter(),
     react(),
     babel({

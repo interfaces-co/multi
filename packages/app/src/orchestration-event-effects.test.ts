@@ -3,7 +3,6 @@ import {
   EventId,
   MessageId,
   ProjectId,
-  ProviderInstanceId,
   ThreadId,
   TurnId,
   type OrchestrationEvent,

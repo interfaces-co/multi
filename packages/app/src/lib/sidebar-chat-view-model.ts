@@ -15,7 +15,7 @@ export interface SidebarChatItem {
   id: string;
   kind: "draft" | "thread";
   title: string;
-  state: "draft" | "idle" | "running" | "error";
+  state: "draft" | "idle" | "running" | "needs_attention" | "error";
   unread: boolean;
   updatedAt: string;
   ago: string;
@@ -60,12 +60,25 @@ function buildThreadChat(sum: SessionListSummary, unreadIds?: ReadonlySet<string
     id: sum.id,
     kind: "thread",
     title: sum.name?.trim() || sum.firstMessage.trim() || "Untitled",
-    state: sum.isStreaming ? "running" : "idle",
+    state: threadState(sum),
     unread: unreadIds?.has(sum.id) ?? false,
     updatedAt: sum.modifiedAt,
     ago: timeAgo(sum.modifiedAt),
     cwd: sum.cwd || "/",
   } satisfies SidebarChatItem;
+}
+
+function threadState(sum: SessionListSummary): SidebarChatItem["state"] {
+  if (sum.orchestrationStatus === "error") return "error";
+  if (sum.needsAttention === true) return "needs_attention";
+  if (
+    sum.isStreaming ||
+    sum.orchestrationStatus === "starting" ||
+    sum.orchestrationStatus === "running"
+  ) {
+    return "running";
+  }
+  return "idle";
 }
 
 function buildDraftChat(draft: SidebarDraftSummary) {

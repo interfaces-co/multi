@@ -1,4 +1,4 @@
-import { EnvironmentId, ProjectId, ProviderInstanceId, ThreadId } from "@multi/contracts";
+import { EnvironmentId, ProjectId, ThreadId } from "@multi/contracts";
 import { scopeProjectRef } from "@multi/client-runtime";
 import { describe, expect, it } from "vitest";
 

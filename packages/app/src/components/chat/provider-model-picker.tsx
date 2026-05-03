@@ -5,7 +5,7 @@ import {
 } from "@multi/contracts";
 import { memo, useEffect, useMemo, useState } from "react";
 import type { VariantProps } from "class-variance-authority";
-import { ChevronDownIcon } from "lucide-react";
+import { IconChevronDownSmall as ChevronDownIcon } from "central-icons";
 import { Button, buttonVariants } from "@multi/ui/button";
 import { Popover, PopoverPopup, PopoverTrigger } from "@multi/ui/popover";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@multi/ui/tooltip";
@@ -115,7 +115,7 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
             variant={props.triggerVariant ?? "ghost"}
             data-chat-provider-model-picker="true"
             className={cn(
-              "min-w-0 justify-start overflow-hidden whitespace-nowrap px-2.5 text-muted-foreground/70 hover:text-foreground/80 [&_svg]:mx-0",
+              "max-w-full min-w-0 justify-start overflow-hidden rounded-[var(--cursor-radius-full,var(--multi-radius-full))] px-[var(--cursor-spacing-1-5,6px)] py-[var(--cursor-spacing-2-5,10px)] text-muted-foreground/70 whitespace-nowrap hover:text-foreground/80 [&_svg]:mx-0",
               props.compact ? "max-w-42 shrink-0" : "max-w-48 shrink sm:max-w-56 sm:px-3",
               props.triggerClassName,
             )}
@@ -145,7 +145,7 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
               render={
                 <span
                   className={cn(
-                    "min-w-0 flex-1 overflow-hidden",
+                    "min-w-0 max-w-full flex-1 overflow-hidden",
                     triggerSubtitle
                       ? "grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1"
                       : "truncate",
@@ -172,7 +172,7 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
       </PopoverTrigger>
       <PopoverPopup
         align="start"
-        className="border-0 bg-transparent p-0 shadow-none before:hidden [--viewport-inline-padding:0] *:data-[slot=popover-viewport]:p-0"
+        className="z-[70] border-0 bg-transparent p-0 opacity-100 shadow-none before:hidden data-starting-style:scale-100 data-starting-style:opacity-100 [--viewport-inline-padding:0] *:data-[slot=popover-viewport]:p-0"
       >
         <ModelPickerContent
           activeInstanceId={activeInstanceId}

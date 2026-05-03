@@ -1,5 +1,9 @@
 import { memo, useCallback, useEffect, useState } from "react";
-import { ChevronLeftIcon, ChevronRightIcon, XIcon } from "lucide-react";
+import {
+  IconChevronLeft as ChevronLeftIcon,
+  IconChevronRight as ChevronRightIcon,
+  IconX as XIcon,
+} from "central-icons";
 import { Button } from "@multi/ui/button";
 import type { ExpandedImagePreview } from "./expanded-image-preview";
 

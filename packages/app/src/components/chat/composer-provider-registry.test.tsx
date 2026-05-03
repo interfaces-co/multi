@@ -4,7 +4,6 @@ import {
   ProviderOptionSelection,
   ServerProviderModel,
 } from "@multi/contracts";
-import { ProviderDriverKind } from "@multi/contracts";
 import {
   getComposerProviderState,
   renderProviderTraitsMenuContent,
@@ -54,12 +53,6 @@ function selections(
   return entries.map(([id, value]) => ({ id, value }));
 }
 
-const ULTRATHINK_FRAME_CLASSES = {
-  composerFrameClassName: "ultrathink-frame",
-  composerSurfaceClassName: "shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]",
-  modelPickerIconClassName: "ultrathink-chroma",
-} as const;
-
 describe("getComposerProviderState", () => {
   it("returns descriptor defaults when no selections are provided", () => {
     const state = getComposerProviderState({
@@ -79,6 +72,7 @@ describe("getComposerProviderState", () => {
       provider: PROVIDER,
       promptEffort: "high",
       modelOptionsForDispatch: selections(["effort", "high"]),
+      ultrathinkActive: false,
     });
   });
 
@@ -101,6 +95,7 @@ describe("getComposerProviderState", () => {
       provider: PROVIDER,
       promptEffort: "low",
       modelOptionsForDispatch: selections(["effort", "low"], ["fastMode", true]),
+      ultrathinkActive: false,
     });
   });
 
@@ -134,6 +129,7 @@ describe("getComposerProviderState", () => {
       provider: PROVIDER,
       promptEffort: null,
       modelOptionsForDispatch: selections(["thinking", false]),
+      ultrathinkActive: false,
     });
   });
 
@@ -175,10 +171,11 @@ describe("getComposerProviderState", () => {
       provider: PROVIDER,
       promptEffort: null,
       modelOptionsForDispatch: undefined,
+      ultrathinkActive: false,
     });
   });
 
-  it("adds ultrathink class names when the prompt triggers a promptInjectedValues descriptor", () => {
+  it("marks ultrathink active when the prompt triggers a promptInjectedValues descriptor", () => {
     const state = getComposerProviderState({
       provider: PROVIDER,
       model: MODEL,
@@ -201,11 +198,11 @@ describe("getComposerProviderState", () => {
       provider: PROVIDER,
       promptEffort: "medium",
       modelOptionsForDispatch: selections(["effort", "medium"]),
-      ...ULTRATHINK_FRAME_CLASSES,
+      ultrathinkActive: true,
     });
   });
 
-  it("does not add ultrathink class names when the descriptor has no promptInjectedValues", () => {
+  it("does not mark ultrathink active when the descriptor has no promptInjectedValues", () => {
     const state = getComposerProviderState({
       provider: PROVIDER,
       model: MODEL,
@@ -216,9 +213,7 @@ describe("getComposerProviderState", () => {
       modelOptions: undefined,
     });
 
-    expect(state).not.toHaveProperty("composerFrameClassName");
-    expect(state).not.toHaveProperty("composerSurfaceClassName");
-    expect(state).not.toHaveProperty("modelPickerIconClassName");
+    expect(state.ultrathinkActive).toBe(false);
   });
 });
 

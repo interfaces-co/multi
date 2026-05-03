@@ -1,4 +1,10 @@
-import { ArchiveIcon, ArchiveX, LoaderIcon, RefreshCwIcon, XIcon } from "lucide-react";
+import {
+  IconArchive as ArchiveIcon,
+  IconArchiveJunk as ArchiveX,
+  IconArrowRotateClockwise as RefreshCwIcon,
+  IconLoader as LoaderIcon,
+  IconX as XIcon,
+} from "central-icons";
 import { type VariantProps } from "class-variance-authority";
 import { useQueryClient } from "@tanstack/react-query";
 import {

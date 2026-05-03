@@ -284,11 +284,11 @@ export function TerminalPanel(props: {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background text-foreground">
+    <div className="editor-panel-inner flex min-h-0 flex-1 flex-col overflow-hidden bg-(--multi-workbench-terminal-background) text-(--multi-workbench-terminal-foreground)">
       {bootErr ? (
         <p className="shrink-0 px-2 py-1 text-detail text-destructive">{bootErr}</p>
       ) : null}
-      <div ref={ref} className="min-h-0 flex-1 overflow-hidden px-2 py-1" />
+      <div ref={ref} className="min-h-0 flex-1 overflow-hidden px-2 py-1.5" />
     </div>
   );
 }

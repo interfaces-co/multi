@@ -1,6 +1,6 @@
 import type { HarnessModelRef, ThinkingLevel } from "~/lib/ui-session-types";
 import { Menu } from "@base-ui/react/menu";
-import { LockIcon } from "lucide-react";
+import { IconLock as LockIcon } from "central-icons";
 import {
   workbenchMenuIconSlotClassName,
   workbenchMenuItemClassName,
@@ -11,7 +11,7 @@ import {
 import { IconBrain, IconCheckmark1Small, IconChevronRight } from "central-icons";
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { Skeleton } from "@multi/ui/skeleton";
-import { usePretextOneLine } from "~/hooks/use-composer-pretext-one-line";
+import { PretextOneLine } from "~/components/pretext-one-line";
 import {
   displayModelName,
   displayProviderName,
@@ -19,24 +19,6 @@ import {
   type RuntimeModelItem,
 } from "~/lib/runtime-models";
 import { cn } from "~/lib/utils";
-
-function PretextOneLine(props: {
-  text: string;
-  className?: string;
-  fontPx?: number;
-  lineHeightPx?: number;
-}) {
-  const { ref, shown, fallback } = usePretextOneLine({
-    text: props.text,
-    ...(props.fontPx !== undefined ? { fontPx: props.fontPx } : {}),
-    ...(props.lineHeightPx !== undefined ? { lineHeightPx: props.lineHeightPx } : {}),
-  });
-  return (
-    <span ref={ref} className={cn(props.className, fallback && "truncate")}>
-      {shown}
-    </span>
-  );
-}
 
 /** `thinkingLevel`: `off` disables extended reasoning; other values set depth. */
 const thinkingOptions: { label: string; value: ThinkingLevel }[] = [

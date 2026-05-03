@@ -6,13 +6,13 @@ import { Button } from "@multi/ui/button";
 import { ScrollArea } from "@multi/ui/scroll-area";
 import ChatMarkdown from "./chat-markdown";
 import {
-  CheckIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
-  EllipsisIcon,
-  LoaderIcon,
-  PanelRightCloseIcon,
-} from "lucide-react";
+  IconCheckmark1 as CheckIcon,
+  IconChevronDownSmall as ChevronDownIcon,
+  IconChevronRight as ChevronRightIcon,
+  IconDotGrid1x3Horizontal as EllipsisIcon,
+  IconLoader as LoaderIcon,
+  IconSidebarHiddenRightWide as PanelRightCloseIcon,
+} from "central-icons";
 import { cn } from "~/lib/utils";
 import type { ActivePlanState } from "../session-logic";
 import type { LatestProposedPlanState } from "../session-logic";

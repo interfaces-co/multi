@@ -1,68 +1,84 @@
-<!-- intent-skills:start -->
+# Development Rules
 
-## Skill Loading
+## Conversational Style
 
-Before substantial work:
+- Keep answers short and concise
+- No emojis in commits, issues, PR comments, or code
+- No fluff or cheerful filler text
+- Technical prose only, be kind but direct (e.g., "Thanks @user" not "Thanks so much @user!")
 
-- Skill check: run `npx @tanstack/intent@latest list`, or use skills already listed in context.
-- Skill guidance: if one local skill clearly matches the task, run `npx @tanstack/intent@latest load <package>#<skill>` and follow the returned `SKILL.md`.
-- Monorepos: when working across packages, run the skill check from the workspace root and prefer the local skill for the package being changed.
-- Multiple matches: prefer the most specific local skill for the package or concern you are changing; load additional skills only when the task spans multiple packages or concerns.
-<!-- intent-skills:end -->
+## Code Quality
 
-# AGENTS.md
+- No `any` types unless absolutely necessary
+- Check node_modules for external API type definitions instead of guessing
+- **NEVER use inline imports** - no `await import("./foo.js")`, no `import("pkg").Type` in type positions, no dynamic imports for types. Always use standard top-level imports.
+- NEVER remove or downgrade code to fix type errors from outdated dependencies; upgrade the dependency instead
+- Always ask before removing functionality or code that appears to be intentional
+- Do not preserve backward compatibility unless the user explicitly asks for it
+- Never hardcode key checks with, eg. `matchesKey(keyData, "ctrl+x")`. All keybindings must be configurable. Add default to matching object (`DEFAULT_EDITOR_KEYBINDINGS` or `DEFAULT_APP_KEYBINDINGS`)
 
-## Task Completion Requirements
+## Commands
 
-- All of `bun fmt`, `bun lint`, and `bun typecheck` must pass before considering tasks completed.
-  - `bun lint` runs **oxlint** on TS/JS plus **stylelint** on `packages/**/*.css` (Tailwind v4 at-rules and project CSS). Utilities in `.tsx` files are not validated by stylelint; use editor / other checks for class strings.
-- NEVER run `bun test`. Always use `bun run test` (runs Vitest).
+- After code changes (not documentation changes): `bun run typecheck` (get full output, no tail). Fix all errors, warnings, and infos before committing.
+- Note: `bun run typecheck` does not run tests.
+- NEVER run: `bun run dev`, `bun run build`, `bun run test`
+- Only run specific tests if user instructs: `bunx vitest --run test/specific.test.ts`
+- Run tests from the package root, not the repo root.
+- If you create or modify a test file, you MUST run that test file and iterate until it passes.
+- When writing tests, run them, identify issues in either the test or implementation, and iterate until fixed.
+- NEVER commit unless user asks
+- for tailwind, use component inline or create a reusable component, do not ever use `const NEW_CLASS = "..."` as a tailwind class name.
+  Multiple agents may work on different files in the same worktree simultaneously. You MUST follow these rules:
 
-## Project Snapshot
+### Committing
 
-Multi is a minimal web GUI for using coding agents like Codex and Claude.
+- **ONLY commit files YOU changed in THIS session**
+- ALWAYS include `fixes #<number>` or `closes #<number>` in the commit message when there is a related issue or PR
+- NEVER use `git add -A` or `git add .` - these sweep up changes from other agents
+- ALWAYS use `git add <specific-file-paths>` listing only files you modified
+- Before committing, run `git status` and verify you are only staging YOUR files
+- Track which files you created/modified/deleted during the session
 
-This repository is a VERY EARLY WIP. Proposing sweeping changes that improve long-term maintainability is encouraged.
+### Forbidden Git Operations
 
-## Core Priorities
+These commands can destroy other agents' work:
 
-1. Performance first.
-2. Reliability first.
-3. Keep behavior predictable under load and during failures (session restarts, reconnects, partial streams).
+- `git reset --hard` - destroys uncommitted changes
+- `git checkout .` - destroys uncommitted changes
+- `git clean -fd` - deletes untracked files
+- `git stash` - stashes ALL changes including other agents' work
+- `git add -A` / `git add .` - stages other agents' uncommitted work
+- `git commit --no-verify` - bypasses required checks and is never allowed
 
-If a tradeoff is required, choose correctness and robustness over short-term convenience.
+### Safe Workflow
 
-## Maintainability
+```bash
+# 1. Check status first
+git status
 
-Long term maintainability is a core priority. If you add new functionality, first check if there is shared logic that can be extracted to a separate module. Duplicate logic across multiple files is a code smell and should be avoided. Don't be afraid to change existing code. Don't take shortcuts by just adding local logic to solve a problem.
+# 2. Add ONLY your specific files
+git add packages/ai/src/providers/transform-messages.ts
+git add packages/ai/CHANGELOG.md
 
-## Package Roles
+# 3. Commit
+git commit -m "fix(ai): description"
 
-- `packages/app`: React/Vite UI. Owns session UX, conversation/event rendering, route state, and client-side state. Connects to the server via WebSocket.
-- `packages/server`: Node.js WebSocket server. Wraps Codex app-server (JSON-RPC over stdio), serves the React app, and manages provider sessions.
-- `packages/desktop`: Electron shell. Owns desktop lifecycle, update flow, native window behavior, and launching the server process.
-- `packages/ui`: Reusable React UI primitives. Keep app/domain state out of this package; app-aware surfaces belong in `packages/app`.
-- `packages/contracts`: Shared effect/Schema schemas and TypeScript contracts for provider events, WebSocket protocol, and model/session types. Keep this package schema-only — no runtime logic.
-- `packages/shared`: Shared runtime utilities consumed by both server and app. Uses explicit subpath exports (e.g. `@multi/shared/git`) — no barrel index.
+# 4. Push (pull --rebase if needed, but NEVER reset/checkout)
+git pull --rebase && git push
+```
 
-## Codex App Server (Important)
+### If Rebase Conflicts Occur
 
-Multi is currently Codex-first. The server starts `codex app-server` (JSON-RPC over stdio) per provider session, then streams structured events to the browser through WebSocket push messages.
+- Resolve conflicts in YOUR files only
+- If conflict is in a file you didn't modify, abort and ask the user
+- NEVER force push
 
-How we use it in this codebase:
+### User override
 
-- Session startup/resume and turn lifecycle are brokered in `packages/server/src/codex-app-server-manager.ts`.
-- Provider dispatch and thread event logging are coordinated in `packages/server/src/provider/ProviderService.ts`.
-- WebSocket server routes NativeApi methods in `packages/server/src/ws.ts`.
-- Web app consumes orchestration domain events via WebSocket push on channel `orchestration.domainEvent` (provider runtime activity is projected into orchestration events server-side).
+If the user instructions co
+nflict with rules set out here, ask for confirmation that they want to override the rules. Only then execute their instructions.
 
-Docs:
+## Docs
 
 - Codex App Server docs: [https://developers.openai.com/codex/sdk/#app-server](https://developers.openai.com/codex/sdk/#app-server)
-
-## Reference Repos
-
-- Open-source Codex repo: [https://github.com/openai/codex](https://github.com/openai/codex)
 - Codex-Monitor (Tauri, feature-complete, strong reference implementation): [https://github.com/Dimillian/CodexMonitor](https://github.com/Dimillian/CodexMonitor)
-
-Use these as implementation references when designing protocol handling, UX flows, and operational safeguards.

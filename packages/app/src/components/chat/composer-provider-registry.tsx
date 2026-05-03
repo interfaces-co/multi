@@ -28,9 +28,7 @@ export type ComposerProviderState = {
   provider: ProviderDriverKind;
   promptEffort: string | null;
   modelOptionsForDispatch: ReadonlyArray<ProviderOptionSelection> | undefined;
-  composerFrameClassName?: string;
-  composerSurfaceClassName?: string;
-  modelPickerIconClassName?: string;
+  ultrathinkActive: boolean;
 };
 
 type TraitsRenderInput = {
@@ -62,13 +60,7 @@ export function getComposerProviderState(input: ComposerProviderStateInput): Com
     provider,
     promptEffort,
     modelOptionsForDispatch: buildProviderOptionSelectionsFromDescriptors(descriptors),
-    ...(ultrathinkActive
-      ? {
-          composerFrameClassName: "ultrathink-frame",
-          composerSurfaceClassName: "shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]",
-          modelPickerIconClassName: "ultrathink-chroma",
-        }
-      : {}),
+    ultrathinkActive,
   };
 }
 

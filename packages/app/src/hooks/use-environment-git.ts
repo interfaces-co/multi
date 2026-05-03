@@ -18,6 +18,7 @@ import { useLocalStorage } from "./use-local-storage";
 import { useShellState } from "./use-shell-cwd";
 
 const DiffStyle = Schema.Literals(["unified", "split"]);
+const MAX_ACTIVE_GIT_PATCH_QUERIES = 80;
 
 export function useDiffStylePreference() {
   return useLocalStorage<"unified" | "split", "unified" | "split">(
@@ -60,6 +61,7 @@ export interface GitPanelModel {
   diffLoadingByPath: Set<string>;
   diffErrorByPath: Map<string, string>;
   expandedIds: Set<string>;
+  requestDiff: (id: string) => void;
   toggleExpand: (id: string, open?: boolean) => void;
   expandAll: () => void;
   collapseAll: () => void;
@@ -256,7 +258,8 @@ export function useEnvironmentGitPanel(
     [status.data, view.kind],
   );
 
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => new Set());
+  const [requestedDiffIds, setRequestedDiffIds] = useState<Set<string>>(() => new Set());
   const prevRows = useRef<DiffRow[]>([]);
 
   useEffect(() => {
@@ -264,7 +267,20 @@ export function useEnvironmentGitPanel(
     const next = syncRows(previousRows, rows);
     prevRows.current = rows;
 
-    setExpandedIds((current) => {
+    setCollapsedIds((current) => {
+      let changed = false;
+      const kept = new Set<string>();
+      for (const id of current) {
+        if (!next.ids.has(id)) {
+          changed = true;
+          continue;
+        }
+        kept.add(id);
+      }
+      return changed ? kept : current;
+    });
+
+    setRequestedDiffIds((current) => {
       let changed = false;
       const kept = new Set<string>();
       for (const id of current) {
@@ -301,13 +317,20 @@ export function useEnvironmentGitPanel(
     }
   }, [cwd, environmentId, queryClient, rows]);
 
-  const expandedPaths = useMemo(
-    () => rows.filter((row) => expandedIds.has(row.id)).map((row) => row.path),
-    [expandedIds, rows],
+  const rowIds = useMemo(() => new Set(rows.map((row) => row.id)), [rows]);
+
+  const expandedIds = useMemo(
+    () => new Set(rows.filter((row) => !collapsedIds.has(row.id)).map((row) => row.id)),
+    [collapsedIds, rows],
+  );
+
+  const requestedDiffPaths = useMemo(
+    () => rows.filter((row) => requestedDiffIds.has(row.id)).map((row) => row.path),
+    [requestedDiffIds, rows],
   );
 
   const patchQueries = useQueries({
-    queries: expandedPaths.map((path) =>
+    queries: requestedDiffPaths.map((path) =>
       gitPatchQueryOptions({
         environmentId: environmentId ?? null,
         cwd,
@@ -322,7 +345,7 @@ export function useEnvironmentGitPanel(
   const diffLoadingByPath = new Set<string>();
   const diffErrorByPath = new Map<string, string>();
 
-  for (const [index, path] of expandedPaths.entries()) {
+  for (const [index, path] of requestedDiffPaths.entries()) {
     const query = patchQueries[index];
     if (!query) continue;
 
@@ -458,6 +481,48 @@ export function useEnvironmentGitPanel(
     await refreshGitStatus({ environmentId: environmentId ?? null, cwd }, api);
   }, [cwd, environmentId]);
 
+  const requestDiff = useCallback(
+    (id: string) => {
+      if (!rowIds.has(id)) return;
+
+      setRequestedDiffIds((current) => {
+        const next = new Set(current);
+        next.delete(id);
+        next.add(id);
+
+        for (const activeId of next) {
+          if (next.size <= MAX_ACTIVE_GIT_PATCH_QUERIES) break;
+          if (activeId === id) continue;
+          next.delete(activeId);
+        }
+
+        return next;
+      });
+    },
+    [rowIds],
+  );
+
+  const toggleExpand = useCallback(
+    (id: string, open?: boolean) => {
+      const shouldRequest = open ?? collapsedIds.has(id);
+      if (shouldRequest) {
+        requestDiff(id);
+      }
+
+      setCollapsedIds((current) => {
+        const next = new Set(current);
+        const shouldOpen = open ?? next.has(id);
+        if (shouldOpen) {
+          next.delete(id);
+        } else {
+          next.add(id);
+        }
+        return next;
+      });
+    },
+    [collapsedIds, requestDiff],
+  );
+
   return {
     cwd,
     view,
@@ -472,20 +537,10 @@ export function useEnvironmentGitPanel(
     diffLoadingByPath,
     diffErrorByPath,
     expandedIds,
-    toggleExpand: (id, open) => {
-      setExpandedIds((current) => {
-        const next = new Set(current);
-        const shouldOpen = open ?? !next.has(id);
-        if (shouldOpen) {
-          next.add(id);
-        } else {
-          next.delete(id);
-        }
-        return next;
-      });
-    },
-    expandAll: () => setExpandedIds(new Set(rows.map((row) => row.id))),
-    collapseAll: () => setExpandedIds(new Set()),
+    requestDiff,
+    toggleExpand,
+    expandAll: () => setCollapsedIds(new Set()),
+    collapseAll: () => setCollapsedIds(new Set(rows.map((row) => row.id))),
     refresh,
     init,
     discard,

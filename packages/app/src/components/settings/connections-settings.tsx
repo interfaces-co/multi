@@ -1,5 +1,5 @@
-import { PlusIcon, QrCodeIcon } from "lucide-react";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { IconPlusLarge as PlusIcon, IconQrCode as QrCodeIcon } from "central-icons";
+import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   type AuthClientSession,
   type AuthPairingLink,
@@ -160,11 +160,19 @@ function getSavedBackendStatusTooltip(
     : "Not connected yet.";
 }
 
-/** Direct row in the card – same pattern as the Provider / ACP-agent list rows. */
-const ITEM_ROW_CLASSNAME = "border-t border-border/60 px-4 py-4 first:border-t-0 sm:px-5";
+function SettingsItemRow({ children }: { children: ReactNode }) {
+  return (
+    <div className="border-t border-border/60 px-4 py-4 first:border-t-0 sm:px-5">{children}</div>
+  );
+}
 
-const ITEM_ROW_INNER_CLASSNAME =
-  "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between";
+function SettingsItemRowInner({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      {children}
+    </div>
+  );
+}
 
 function sortDesktopPairingLinks(links: ReadonlyArray<ServerPairingLinkRecord>) {
   return [...links].toSorted(
@@ -324,8 +332,8 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
   }
 
   return (
-    <div className={ITEM_ROW_CLASSNAME}>
-      <div className={ITEM_ROW_INNER_CLASSNAME}>
+    <SettingsItemRow>
+      <SettingsItemRowInner>
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex min-h-5 items-center gap-1.5">
             <ConnectionStatusDot
@@ -434,8 +442,8 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
             {revokingPairingLinkId === pairingLink.id ? "Revoking…" : "Revoke"}
           </Button>
         </div>
-      </div>
-    </div>
+      </SettingsItemRowInner>
+    </SettingsItemRow>
   );
 });
 
@@ -475,8 +483,8 @@ const ConnectedClientListRow = memo(function ConnectedClientListRow({
       clientSession.subject);
 
   return (
-    <div className={ITEM_ROW_CLASSNAME}>
-      <div className={ITEM_ROW_INNER_CLASSNAME}>
+    <SettingsItemRow>
+      <SettingsItemRowInner>
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex min-h-5 items-center gap-1.5">
             <ConnectionStatusDot
@@ -507,8 +515,8 @@ const ConnectedClientListRow = memo(function ConnectedClientListRow({
             </Button>
           ) : null}
         </div>
-      </div>
-    </div>
+      </SettingsItemRowInner>
+    </SettingsItemRow>
   );
 });
 
@@ -657,9 +665,9 @@ const PairingClientsList = memo(function PairingClientsList({
       ))}
 
       {pairingLinks.length === 0 && clientSessions.length === 0 && !isLoading ? (
-        <div className={ITEM_ROW_CLASSNAME}>
+        <SettingsItemRow>
           <p className="text-xs text-muted-foreground/60">No pairing links or client sessions.</p>
-        </div>
+        </SettingsItemRow>
       ) : null}
     </>
   );
@@ -708,8 +716,8 @@ function SavedBackendListRow({
   ].filter((value): value is string => value !== null);
 
   return (
-    <div className={ITEM_ROW_CLASSNAME}>
-      <div className={ITEM_ROW_INNER_CLASSNAME}>
+    <SettingsItemRow>
+      <SettingsItemRowInner>
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex min-h-5 items-center gap-1.5">
             <ConnectionStatusDot
@@ -746,8 +754,8 @@ function SavedBackendListRow({
             {removingEnvironmentId === environmentId ? "Removing…" : "Remove"}
           </Button>
         </div>
-      </div>
-    </div>
+      </SettingsItemRowInner>
+    </SettingsItemRow>
   );
 }
 
@@ -1241,9 +1249,9 @@ export function ConnectionsSettings() {
               }
             >
               {desktopAccessManagementError ? (
-                <div className={ITEM_ROW_CLASSNAME}>
+                <SettingsItemRow>
                   <p className="text-xs text-destructive">{desktopAccessManagementError}</p>
-                </div>
+                </SettingsItemRow>
               ) : null}
               <PairingClientsList
                 endpointUrl={desktopServerExposureState?.endpointUrl}
@@ -1419,12 +1427,12 @@ export function ConnectionsSettings() {
         ))}
 
         {savedEnvironmentIds.length === 0 ? (
-          <div className={ITEM_ROW_CLASSNAME}>
+          <SettingsItemRow>
             <p className="text-xs text-muted-foreground">
               No remote environments yet. Click &ldquo;Add environment&rdquo; to pair another
               environment.
             </p>
-          </div>
+          </SettingsItemRow>
         ) : null}
       </SettingsSection>
     </SettingsPageContainer>

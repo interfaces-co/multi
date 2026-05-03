@@ -66,7 +66,7 @@ export function GitChangesFileTree(props: {
   onSelectRef.current = props.onSelect;
 
   const sortedRows = useMemo(
-    () => [...props.rows].sort((a, b) => a.path.localeCompare(b.path)),
+    () => props.rows.toSorted((a, b) => a.path.localeCompare(b.path)),
     [props.rows],
   );
 
@@ -98,6 +98,7 @@ export function GitChangesFileTree(props: {
   const { model } = useFileTree({
     paths: [],
     density: "compact",
+    itemHeight: 22,
     flattenEmptyDirectories: true,
     fileTreeSearchMode: "collapse-non-matches",
     initialExpansion: "open",

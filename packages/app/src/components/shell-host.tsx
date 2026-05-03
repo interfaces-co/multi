@@ -1,5 +1,10 @@
-import { scopedProjectKey, scopeProjectRef } from "@multi/client-runtime";
-import type { EditorId, EnvironmentId } from "@multi/contracts";
+import {
+  scopedProjectKey,
+  scopedThreadKey,
+  scopeProjectRef,
+  scopeThreadRef,
+} from "@multi/client-runtime";
+import type { EditorId, EnvironmentId, ThreadId } from "@multi/contracts";
 import { useQueryClient } from "@tanstack/react-query";
 import { Outlet, useNavigate, useParams, useRouter } from "@tanstack/react-router";
 import { type ReactNode, useCallback, useMemo } from "react";
@@ -13,7 +18,10 @@ import { useHandleNewThread } from "~/hooks/use-handle-new-thread";
 import { useRouteThreadId } from "~/hooks/use-route-thread-id";
 import { useServerAvailableEditors } from "~/rpc/server-state";
 import { useComposerDraftStore } from "~/composer-draft-store";
-import { startNewThreadFromContext } from "~/lib/chat-thread-actions";
+import {
+  startNewThreadFromContext,
+  startNewThreadInProjectFromContext,
+} from "~/lib/chat-thread-actions";
 import {
   shellPanelsActions,
   useSecondaryRail,
@@ -28,15 +36,15 @@ import {
   type SidebarDraftSummary,
 } from "~/lib/sidebar-chat-view-model";
 import { cn } from "~/lib/utils";
-import { resolveShellPanelPersistenceCwd } from "~/lib/shell-panel-persistence-cwd";
-import { resolveSidebarNewThreadEnvMode } from "~/lib/thread-sidebar";
+import { resolveSidebarNewThreadEnvMode, resolveThreadStatusPill } from "~/lib/thread-sidebar";
 import { useSettings } from "~/hooks/use-settings";
 import {
   selectProjectsAcrossEnvironments,
+  selectSidebarThreadsAcrossEnvironments,
   selectThreadsAcrossEnvironments,
   useStore,
 } from "~/store";
-import type { Project, Thread } from "~/types";
+import type { Project, SidebarThreadSummary, Thread } from "~/types";
 import { resolveThreadRouteTarget } from "~/thread-routes";
 import { GitPanel } from "./shell/git/panel";
 import { WorkspaceFilesPanel } from "./shell/files/workspace-files-panel";
@@ -55,9 +63,25 @@ function toHarness(instanceId: Thread["modelSelection"]["instanceId"]): "codex" 
   return instanceId === "claudeAgent" ? "claudeCode" : "codex";
 }
 
-function toSummary(thread: Thread, project: Project | undefined): SessionListSummary {
+function sidebarThreadKey(thread: { environmentId: EnvironmentId; id: ThreadId }) {
+  return scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id));
+}
+
+function needsSidebarAttention(sidebarThread: SidebarThreadSummary | undefined): boolean {
+  if (!sidebarThread) return false;
+  const label = resolveThreadStatusPill({ thread: sidebarThread })?.label;
+  return label === "Pending Approval" || label === "Awaiting Input" || label === "Plan Ready";
+}
+
+function toSummary(
+  thread: Thread,
+  project: Project | undefined,
+  sidebarThread: SidebarThreadSummary | undefined,
+): SessionListSummary {
   const firstUserMessage = thread.messages.find((message) => message.role === "user")?.text?.trim();
   const cwd = thread.worktreePath ?? project?.cwd ?? "";
+  const orchestrationStatus =
+    thread.session?.orchestrationStatus ?? sidebarThread?.session?.orchestrationStatus ?? null;
   return {
     id: thread.id,
     harness: toHarness(thread.modelSelection.instanceId),
@@ -69,9 +93,9 @@ function toSummary(thread: Thread, project: Project | undefined): SessionListSum
     messageCount: thread.messages.length,
     firstMessage: firstUserMessage || thread.title,
     allMessagesText: thread.messages.map((message) => message.text).join("\n\n"),
-    isStreaming:
-      thread.session?.orchestrationStatus === "starting" ||
-      thread.session?.orchestrationStatus === "running",
+    isStreaming: orchestrationStatus === "starting" || orchestrationStatus === "running",
+    orchestrationStatus,
+    needsAttention: needsSidebarAttention(sidebarThread),
   };
 }
 
@@ -125,6 +149,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
   });
   const projects = useStore(useShallow(selectProjectsAcrossEnvironments));
   const threads = useStore(useShallow(selectThreadsAcrossEnvironments));
+  const sidebarThreads = useStore(useShallow(selectSidebarThreadsAcrossEnvironments));
   const availableEditors = useServerAvailableEditors();
   const firstProjectCwd = projects[0]?.cwd ?? null;
   const draftThreadsByThreadKey = useComposerDraftStore((store) => store.draftThreadsByThreadKey);
@@ -156,26 +181,40 @@ function ChatShellHost(props: { children?: ReactNode }) {
       ),
     [projects],
   );
+  const sidebarThreadByKey = useMemo(
+    () => new Map(sidebarThreads.map((thread) => [sidebarThreadKey(thread), thread])),
+    [sidebarThreads],
+  );
 
   const drafts = useMemo<SidebarDraftSummary[]>(() => {
     return Object.entries(draftThreadsByThreadKey)
       .filter(([, draftThread]) => draftThread.promotedTo == null)
-      .map(([draftId, draftThread]) => {
+      .flatMap(([draftId, draftThread]) => {
         const composerDraft = composerDraftsByThreadKey[draftId];
+        const hasVisibleDraftContent =
+          composerDraft &&
+          (composerDraft.prompt.trim().length > 0 ||
+            composerDraft.images.length > 0 ||
+            composerDraft.persistedAttachments.length > 0);
+        if (!hasVisibleDraftContent) {
+          return [];
+        }
         const project = projectByScopedKey.get(
           scopedProjectKey(scopeProjectRef(draftThread.environmentId, draftThread.projectId)),
         );
         const firstAttachment = composerDraft?.images[0] ?? composerDraft?.persistedAttachments[0];
         const attachmentCount =
           (composerDraft?.images.length ?? 0) + (composerDraft?.persistedAttachments.length ?? 0);
-        return {
-          id: draftId,
-          text: composerDraft?.prompt ?? "",
-          attachmentCount,
-          firstAttachmentName: firstAttachment?.name ?? null,
-          cwd: draftThread.worktreePath ?? project?.cwd ?? "/",
-          updatedAt: draftThread.createdAt,
-        };
+        return [
+          {
+            id: draftId,
+            text: composerDraft?.prompt ?? "",
+            attachmentCount,
+            firstAttachmentName: firstAttachment?.name ?? null,
+            cwd: draftThread.worktreePath ?? project?.cwd ?? "/",
+            updatedAt: draftThread.createdAt,
+          },
+        ];
       });
   }, [composerDraftsByThreadKey, draftThreadsByThreadKey, projectByScopedKey]);
 
@@ -183,9 +222,16 @@ function ChatShellHost(props: { children?: ReactNode }) {
     return Object.fromEntries(
       threads
         .filter((thread: Thread) => thread.archivedAt === null)
-        .map((thread: Thread) => [thread.id, toSummary(thread, projectById.get(thread.projectId))]),
+        .map((thread: Thread) => [
+          thread.id,
+          toSummary(
+            thread,
+            projectById.get(thread.projectId),
+            sidebarThreadByKey.get(sidebarThreadKey(thread)),
+          ),
+        ]),
     ) as Record<string, SessionListSummary>;
-  }, [projectById, threads]);
+  }, [projectById, sidebarThreadByKey, threads]);
 
   const unreadIds = useMemo(
     () => new Set(Object.keys(unread).filter((id) => unread[id])),
@@ -216,21 +262,21 @@ function ChatShellHost(props: { children?: ReactNode }) {
     (activeThread
       ? (activeThread.worktreePath ?? projectById.get(activeThread.projectId)?.cwd ?? null)
       : (defaultProject?.cwd ?? firstProjectCwd));
-  const draftProjectForPanels = activeDraftThread
+  const activeDraftProjectCwd = activeDraftThread
     ? (projectByScopedKey.get(
         scopedProjectKey(
           scopeProjectRef(activeDraftThread.environmentId, activeDraftThread.projectId),
         ),
       )?.cwd ?? null)
     : null;
-  const shellPanelsCwd = resolveShellPanelPersistenceCwd({
-    activeDraftThread,
-    draftProjectCwd: draftProjectForPanels,
-    activeThread,
-    threadProjectCwd: activeThread ? (projectById.get(activeThread.projectId)?.cwd ?? null) : null,
-    defaultProjectCwd: defaultProject?.cwd ?? null,
-    firstProjectCwd,
-  });
+  const activeThreadProjectCwd = activeThread
+    ? (projectById.get(activeThread.projectId)?.cwd ?? null)
+    : null;
+  const rightWorkbenchPersistenceCwd = activeDraftThread
+    ? (activeDraftProjectCwd ?? activeDraftThread.worktreePath ?? null)
+    : activeThread
+      ? (activeThreadProjectCwd ?? activeThread.worktreePath ?? null)
+      : (defaultProject?.cwd ?? firstProjectCwd);
   const activeEnvironmentId =
     activeThread?.environmentId ??
     projects.find((project) => project.cwd === activeCwd)?.environmentId ??
@@ -243,23 +289,38 @@ function ChatShellHost(props: { children?: ReactNode }) {
     [activeCwd, drafts, summaries, unreadIds],
   );
 
-  const create = useCallback(() => {
-    void startNewThreadFromContext({
+  const create = useCallback(
+    (cwd?: string) => {
+      const context = {
+        activeDraftThread,
+        activeThread: routeActiveThread,
+        defaultProjectRef,
+        defaultThreadEnvMode: resolveSidebarNewThreadEnvMode({
+          defaultEnvMode: defaultThreadEnvMode,
+        }),
+        handleNewThread,
+      };
+      const project =
+        cwd && cwd.length > 0 ? projects.find((candidate) => candidate.cwd === cwd) : null;
+      if (project) {
+        writeStoredWorkspaceCwd(project.cwd);
+        void startNewThreadInProjectFromContext(
+          context,
+          scopeProjectRef(project.environmentId, project.id),
+        );
+        return;
+      }
+      void startNewThreadFromContext(context);
+    },
+    [
       activeDraftThread,
-      activeThread: routeActiveThread,
       defaultProjectRef,
-      defaultThreadEnvMode: resolveSidebarNewThreadEnvMode({
-        defaultEnvMode: defaultThreadEnvMode,
-      }),
+      defaultThreadEnvMode,
       handleNewThread,
-    });
-  }, [
-    activeDraftThread,
-    defaultProjectRef,
-    defaultThreadEnvMode,
-    handleNewThread,
-    routeActiveThread,
-  ]);
+      projects,
+      routeActiveThread,
+    ],
+  );
 
   const clearThreadUnread = useThreadUnreadStore((store) => store.clear);
 
@@ -315,9 +376,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
         <ShellSidebarHeader
           onNewChat={create}
           onAddProject={openAddProject}
-          {...(isElectron
-            ? {}
-            : { onCollapse: () => shellPanelsActions.toggleLeft(shellPanelsCwd) })}
+          {...(isElectron ? {} : { onCollapse: () => shellPanelsActions.toggleLeft() })}
         />
       </div>
       <ThreadRail
@@ -340,7 +399,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
         center={props.children ?? <Outlet />}
         routeThreadId={routeThreadId}
         cwd={activeCwd}
-        panelPersistenceCwd={shellPanelsCwd}
+        panelPersistenceCwd={rightWorkbenchPersistenceCwd}
         environmentId={activeEnvironmentId}
         availableEditors={availableEditors}
       />
@@ -350,7 +409,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
   return (
     <AppShell
       cwd={activeCwd}
-      panelPersistenceCwd={shellPanelsCwd}
+      panelPersistenceCwd={rightWorkbenchPersistenceCwd}
       changesCount={0}
       left={chatLeft}
       center={props.children ?? <Outlet />}

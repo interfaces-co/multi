@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Alert, AlertAction, AlertDescription } from "@multi/ui/alert";
-import { CircleAlertIcon, XIcon } from "lucide-react";
+import { IconExclamationCircle as CircleAlertIcon, IconX as XIcon } from "central-icons";
 
 export const ThreadErrorBanner = memo(function ThreadErrorBanner({
   error,

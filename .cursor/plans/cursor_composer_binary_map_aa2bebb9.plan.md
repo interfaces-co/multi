@@ -4,7 +4,7 @@ overview: "Harvested-from-bundle blueprint to re-implement Cursor-style Glass co
 todos:
   - id: foundation-shell
     content: "Re-impl phase 1 — Glass shell: `body[data-cursor-glass-mode=true]`, `.agent-panel`, `.agent-panel-followup-input` (+ disabled/overlay modifiers), usage mount + scroll coupling"
-    status: pending
+    status: completed
   - id: prompt-input-core
     content: "Re-impl phase 2 — `PromptInput`/`Iap` parity — container attrs, header/footer slots, drag/drop images, ref API (focus/clear/getText/getCommands/getMentions/getSubmitData)"
     status: pending
@@ -16,7 +16,7 @@ todos:
     status: pending
   - id: unified-mode-ui
     content: "Re-impl phase 5 — `.composer-unified-dropdown[data-mode=…]` + `Kdf` token map; compact toolbar `data-compact-visible` ordering"
-    status: pending
+    status: completed
   - id: keybindings-parity
     content: "Re-impl phase 6 — Context keys `composerFocused`, `agentsPaneFocused`, mirror `editorTextFocus` gating; chord 2575/2577 weight split (410 vs 200); Tab indent policy when menus closed"
     status: pending
@@ -25,7 +25,7 @@ todos:
     status: pending
   - id: css-index
     content: "Maintain offset grep index for `workbench.desktop.main.css` composer/glass tokens + inline `<style>` from JS for `ui-prompt-input*`"
-    status: pending
+    status: completed
 isProject: false
 ---
 
@@ -39,6 +39,19 @@ isProject: false
 | [`/Applications/Cursor.app/Contents/Resources/app/out/vs/workbench/workbench.desktop.main.css`](/Applications/Cursor.app/Contents/Resources/app/out/vs/workbench/workbench.desktop.main.css) | ~2 MB  | Mostly **one minified line**; composer/Glass rules are **substring-searchable**, not sectioned by file layout.                                                                               |
 
 **Limitation:** Closed product; hashes and minified identifiers change between releases. Treat this as a **behavioral + DOM/CSS contract spec**, not a copy-paste source drop.
+
+## Current extraction anchors
+
+Verified against local Cursor binary:
+
+- `workbench.desktop.main.css` contains `.agent-prompt-input-root .glass-model-picker-wrapper`, `.ui-model-picker__trigger`, `.ui-model-picker__trigger-text`, and compact `[data-compact-visible]` rules in one minified line.
+- `workbench.desktop.main.css` contains `.composer-unified-dropdown` and mode token variables (`--composer-mode-chat-*`, `--composer-mode-plan-*`, `--composer-mode-spec-*`, `--composer-mode-debug-*`).
+- `workbench.desktop.main.js` contains the model picker trigger/menu CSS for `ui-model-picker__trigger`, `ui-model-picker__trigger-text`, `ui-model-picker__trigger-chevron`, `ui-model-picker__menu`, `ui-model-picker__item-content`, `ui-model-picker__item-content-name`, `ui-model-picker__item-tagline`, and `ui-menu__row`. Multi now emits those hooks from `ProviderModelPicker`, `ModelPickerContent`, and `ModelListRow`, which lets the picker share the same Cursor-derived contract instead of a separate divided-list surface.
+- Computer Use verification in Multi confirmed the model picker opens from the compact composer and exposes the provider rail, search input, and model rows in the live app accessibility tree.
+- Multi's slash menu keeps the Cursor binary hooks (`ui-slash-menu__content`, `ui-slash-menu__item`, `ui-menu__section-title`, `ui-menu__item-description`) inline on the elements that emit them, and deleted the duplicate `multi-composer-token-menu__*` CSS contract. Ordinary layout/spacing/typography now lives as inline Tailwind on `ComposerCommandMenu` markup, not exported class-string constants.
+- Computer-use verification confirmed typing `/` renders a visible slash menu above the composer after making the composer shell `overflow-visible` while the menu is open and replacing the assumed `z-60` utility with `z-[60]`.
+- Slash menu trigger state is controlled rather than inferred from hydrated draft text: opening/reloading a draft that already contains `/` does not auto-open the menu, and `Escape` records a dismissal key until the trigger text/range changes.
+- Composer inline chips no longer use exported `*_CLASS_NAME` string constants. `ComposerInlineChip` owns the shared Tailwind/Cursor hook markup, while mention/command/skill/token call sites inline their semantic hook classes (`ui-pill`, `ui-prompt-input-mention-chip`, `ui-prompt-input-command-chip`) at the element that emits them.
 
 ---
 

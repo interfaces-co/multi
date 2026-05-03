@@ -32,6 +32,7 @@ function useNewThreadState() {
       projectRef: ScopedProjectRef,
       options?: {
         branch?: string | null;
+        reuseExistingDraft?: boolean;
         worktreePath?: string | null;
         envMode?: DraftThreadEnvMode;
       },
@@ -56,13 +57,14 @@ function useNewThreadState() {
       const hasBranchOption = options?.branch !== undefined;
       const hasWorktreePathOption = options?.worktreePath !== undefined;
       const hasEnvModeOption = options?.envMode !== undefined;
+      const reuseExistingDraft = options?.reuseExistingDraft !== false;
       const storedDraftThread = getDraftSessionByLogicalProjectKey(logicalProjectKey);
       const latestActiveDraftThread: DraftThreadState | null = currentRouteTarget
         ? currentRouteTarget.kind === "server"
           ? getDraftThread(currentRouteTarget.threadRef)
           : getDraftSession(currentRouteTarget.draftId)
         : null;
-      if (storedDraftThread) {
+      if (reuseExistingDraft && storedDraftThread) {
         return (async () => {
           traceBrowserEvent("thread.new.reuse-stored-draft", {
             draftId: storedDraftThread.draftId,
@@ -93,6 +95,7 @@ function useNewThreadState() {
       }
 
       if (
+        reuseExistingDraft &&
         latestActiveDraftThread &&
         currentRouteTarget?.kind === "draft" &&
         latestActiveDraftThread.logicalProjectKey === logicalProjectKey &&

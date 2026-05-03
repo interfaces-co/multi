@@ -66,6 +66,8 @@ export interface WorkLogEntry {
   rawCommand?: string;
   changedFiles?: ReadonlyArray<string>;
   tone: "thinking" | "tool" | "info" | "error";
+  status?: "running" | "completed" | "error";
+  toolCallId?: string;
   toolTitle?: string;
   itemType?: ToolLifecycleItemType;
   requestKind?: PendingApproval["requestKind"];
@@ -666,6 +668,8 @@ function toDerivedWorkLogEntry(activity: OrchestrationThreadActivity): DerivedWo
   };
   const itemType = extractWorkLogItemType(payload);
   const requestKind = extractWorkLogRequestKind(payload);
+  const status = resolveWorkLogStatus(activity, payload, entry.tone);
+  const toolCallId = asTrimmedString(payload?.itemId);
   if (
     !taskDetailAsLabel &&
     payload &&
@@ -694,6 +698,12 @@ function toDerivedWorkLogEntry(activity: OrchestrationThreadActivity): DerivedWo
   }
   if (requestKind) {
     entry.requestKind = requestKind;
+  }
+  if (status) {
+    entry.status = status;
+  }
+  if (toolCallId) {
+    entry.toolCallId = toolCallId;
   }
   const collapseKey = deriveToolLifecycleCollapseKey(entry);
   if (collapseKey) {
@@ -744,6 +754,8 @@ function mergeDerivedWorkLogEntries(
   const toolTitle = next.toolTitle ?? previous.toolTitle;
   const itemType = next.itemType ?? previous.itemType;
   const requestKind = next.requestKind ?? previous.requestKind;
+  const status = next.status ?? previous.status;
+  const toolCallId = next.toolCallId ?? previous.toolCallId;
   const collapseKey = next.collapseKey ?? previous.collapseKey;
   return {
     ...previous,
@@ -755,6 +767,8 @@ function mergeDerivedWorkLogEntries(
     ...(toolTitle ? { toolTitle } : {}),
     ...(itemType ? { itemType } : {}),
     ...(requestKind ? { requestKind } : {}),
+    ...(status ? { status } : {}),
+    ...(toolCallId ? { toolCallId } : {}),
     ...(collapseKey ? { collapseKey } : {}),
   };
 }
@@ -774,6 +788,9 @@ function deriveToolLifecycleCollapseKey(entry: DerivedWorkLogEntry): string | un
   if (entry.activityKind !== "tool.updated" && entry.activityKind !== "tool.completed") {
     return undefined;
   }
+  if (entry.toolCallId) {
+    return `item:${entry.toolCallId}`;
+  }
   const normalizedLabel = normalizeCompactToolLabel(entry.toolTitle ?? entry.label);
   const detail = entry.detail?.trim() ?? "";
   const itemType = entry.itemType ?? "";
@@ -785,6 +802,34 @@ function deriveToolLifecycleCollapseKey(entry: DerivedWorkLogEntry): string | un
 
 function normalizeCompactToolLabel(value: string): string {
   return value.replace(/\s+(?:complete|completed)\s*$/i, "").trim();
+}
+
+function resolveWorkLogStatus(
+  activity: OrchestrationThreadActivity,
+  payload: Record<string, unknown> | null,
+  tone: WorkLogEntry["tone"],
+): WorkLogEntry["status"] | undefined {
+  if (tone === "error") {
+    return "error";
+  }
+
+  const payloadStatus = typeof payload?.status === "string" ? payload.status : null;
+  if (payloadStatus === "failed") {
+    return "error";
+  }
+
+  switch (activity.kind) {
+    case "tool.updated":
+      return "running";
+    case "tool.completed":
+      return "completed";
+    case "task.progress":
+      return "running";
+    case "task.completed":
+      return "completed";
+    default:
+      return undefined;
+  }
 }
 
 function toLatestProposedPlanState(proposedPlan: ProposedPlan): LatestProposedPlanState {
@@ -1179,7 +1224,7 @@ export function deriveTimelineEntries(
     proposedPlan,
   }));
   const workRows: TimelineEntry[] = workEntries.map((entry) => ({
-    id: entry.id,
+    id: entry.toolCallId ? `work:${entry.toolCallId}` : entry.id,
     kind: "work",
     createdAt: entry.createdAt,
     entry,

@@ -1,7 +1,10 @@
 import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
 import { cva, type VariantProps } from "class-variance-authority";
-import { PanelLeftCloseIcon, PanelLeftIcon } from "lucide-react";
+import {
+  IconSidebar as PanelLeftIcon,
+  IconSidebarHiddenLeftWide as PanelLeftCloseIcon,
+} from "central-icons";
 import * as React from "react";
 import { cn } from "./utils";
 import { Button } from "./button";

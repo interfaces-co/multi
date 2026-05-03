@@ -9,6 +9,8 @@
   --animate-thinking-details-in: thinking-details-in 0.14s ease-out;
   --animate-thinking-glyph: thinking-glyph 2.8s ease-in-out infinite;
   --animate-thinking-word-in: thinking-word-in 0.22s ease-out;
+  --animate-dotmatrix-diagonal-alt-sweep: dotmatrix-diagonal-alt-sweep var(--dmx-duration, 1.2s)
+    ease-in-out infinite;
   --color-warning-foreground: var(--warning-foreground);
   --color-warning: var(--warning);
   --color-success-foreground: var(--success-foreground);
@@ -137,6 +139,21 @@
       transform: translateY(0);
     }
   }
+  @keyframes dotmatrix-diagonal-alt-sweep {
+    0%,
+    100% {
+      opacity: var(--dmx-rest-opacity, 0.16);
+      transform: scale(0.72);
+    }
+    45% {
+      opacity: 0.94;
+      transform: scale(1);
+    }
+    72% {
+      opacity: var(--dmx-tail-opacity, 0.32);
+      transform: scale(0.86);
+    }
+  }
 }
 
 @layer utilities {
@@ -152,6 +169,26 @@
     mask-size: 200% 100%;
     animation: var(--animate-thinking);
   }
+}
+
+@utility dmx-dot {
+  display: block;
+  width: var(--dmx-dot-size, 3px);
+  height: var(--dmx-dot-size, 3px);
+  border-radius: 9999px;
+  background: currentColor;
+  opacity: 0.18;
+  transform-origin: center;
+}
+
+@utility dmx-inactive {
+  opacity: 0.08;
+}
+
+@utility dmx-diagonal-alt-sweep {
+  animation: var(--animate-dotmatrix-diagonal-alt-sweep);
+  animation-delay: var(--dmx-delay, 0ms);
+  will-change: opacity, transform;
 }
 
 @layer base {
@@ -447,26 +484,6 @@ label:has(> select#reasoning-effort) select {
   100% {
     filter: hue-rotate(360deg) saturate(1.2);
   }
-}
-
-.ultrathink-frame {
-  --ultrathink-spectrum: linear-gradient(
-    120deg,
-    oklch(0.712 0.181 22.839) 0%,
-    oklch(0.769 0.165 70.08) 18%,
-    oklch(0.723 0.192 149.579) 36%,
-    oklch(0.704 0.123 182.503) 54%,
-    oklch(0.623 0.188 259.815) 72%,
-    oklch(0.656 0.212 354.308) 90%,
-    oklch(0.712 0.181 22.839) 100%
-  );
-  background-image: var(--ultrathink-spectrum);
-  background-size: 220% 220%;
-  animation: ultrathink-rainbow 10s linear infinite;
-}
-
-.ultrathink-chroma {
-  animation: ultrathink-chroma-shift 10s linear infinite;
 }
 
 /* Dev: React Grab plugin toggles `html.multi-overlay-debug` */

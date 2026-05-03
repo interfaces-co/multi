@@ -1,6 +1,7 @@
 import { scopeProjectRef } from "@multi/client-runtime";
 import type { EnvironmentId, ProjectId, ScopedProjectRef } from "@multi/contracts";
 import type { DraftThreadEnvMode } from "../composer-draft-store";
+import { resolveSidebarNewThreadSeedContext } from "./thread-sidebar";
 
 interface ThreadContextLike {
   environmentId: EnvironmentId;
@@ -18,6 +19,7 @@ interface NewThreadHandler {
     projectRef: ScopedProjectRef,
     options?: {
       branch?: string | null;
+      reuseExistingDraft?: boolean;
       worktreePath?: string | null;
       envMode?: DraftThreadEnvMode;
     },
@@ -70,7 +72,28 @@ export async function startNewThreadInProjectFromContext(
   context: ChatThreadActionContext,
   projectRef: ScopedProjectRef,
 ): Promise<void> {
-  await context.handleNewThread(projectRef, buildContextualThreadOptions(context));
+  await context.handleNewThread(projectRef, {
+    ...resolveSidebarNewThreadSeedContext({
+      projectId: projectRef.projectId,
+      defaultEnvMode: context.defaultThreadEnvMode,
+      activeThread: context.activeThread
+        ? {
+            projectId: context.activeThread.projectId,
+            branch: context.activeThread.branch,
+            worktreePath: context.activeThread.worktreePath,
+          }
+        : null,
+      activeDraftThread: context.activeDraftThread
+        ? {
+            projectId: context.activeDraftThread.projectId,
+            branch: context.activeDraftThread.branch,
+            worktreePath: context.activeDraftThread.worktreePath,
+            envMode: context.activeDraftThread.envMode,
+          }
+        : null,
+    }),
+    reuseExistingDraft: false,
+  });
 }
 
 export async function startNewThreadFromContext(
@@ -81,7 +104,7 @@ export async function startNewThreadFromContext(
     return false;
   }
 
-  await startNewThreadInProjectFromContext(context, projectRef);
+  await context.handleNewThread(projectRef, buildContextualThreadOptions(context));
   return true;
 }
 

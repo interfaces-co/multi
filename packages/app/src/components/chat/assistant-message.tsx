@@ -1,4 +1,4 @@
-import { type MessageId, type TurnId } from "@multi/contracts";
+import { type TurnId } from "@multi/contracts";
 import { memo, useEffect, useState } from "react";
 import { formatElapsed } from "../../session-logic";
 import { type TurnDiffSummary } from "../../types";
@@ -13,6 +13,7 @@ import { useUiStateStore } from "~/ui-state-store";
 import { type TimestampFormat } from "@multi/contracts/settings";
 import { formatTimestamp } from "../../timestamp-format";
 import { type ChatMessage } from "../../types";
+import { CursorMessageBubble, CursorMessageMeta, CursorMessageMetaRow } from "./cursor-chat-bundle";
 
 interface AssistantMessageProps {
   message: ChatMessage;
@@ -57,59 +58,66 @@ export const AssistantMessage = memo(function AssistantMessage({
     streaming: message.streaming || assistantTurnStillInProgress,
   });
 
+  const footer = (
+    <CursorMessageMetaRow>
+      <CursorMessageMeta>
+        {message.streaming ? (
+          <LiveMessageMeta
+            createdAt={message.createdAt}
+            durationStart={durationStart}
+            timestampFormat={timestampFormat}
+          />
+        ) : (
+          formatMessageMeta(
+            message.createdAt,
+            formatElapsed(durationStart, message.completedAt),
+            timestampFormat,
+          )
+        )}
+      </CursorMessageMeta>
+      {assistantCopyState.visible ? (
+        <div className="flex items-center opacity-0 transition-opacity duration-200 group-hover/assistant:opacity-100">
+          <MessageCopyButton
+            text={assistantCopyState.text ?? ""}
+            size="icon-xs"
+            variant="outline"
+            className="border-border/50 bg-background/35 text-muted-foreground/45 shadow-none hover:border-border/70 hover:bg-background/55 hover:text-muted-foreground/70"
+          />
+        </div>
+      ) : null}
+    </CursorMessageMetaRow>
+  );
+
+  const body = (
+    <>
+      <div className="agent-panel-meta-agent-chat__assistant-markdown">
+        <ChatMarkdown
+          text={messageText}
+          cwd={markdownCwd}
+          isStreaming={Boolean(message.streaming)}
+        />
+      </div>
+      <AssistantChangedFilesSection
+        turnSummary={assistantTurnDiffSummary}
+        routeThreadKey={routeThreadKey}
+        resolvedTheme={resolvedTheme}
+        onOpenTurnDiff={onOpenTurnDiff}
+      />
+    </>
+  );
+
   return (
-    <div className="multi-assistant-message">
+    <div className="min-w-0">
       {showCompletionDivider && (
-        <div className="multi-assistant-message__divider my-3 flex items-center gap-3">
+        <div className="my-3 flex items-center gap-3">
           <span className="h-px flex-1 bg-border" />
-          <span className="rounded-full border border-border bg-background px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground/80">
+          <span className="rounded-full border border-border bg-background px-2.5 py-1 text-[10px]/3 tracking-[0.14em] text-muted-foreground/80 uppercase">
             {completionSummary ? `Response \u2022 ${completionSummary}` : "Response"}
           </span>
           <span className="h-px flex-1 bg-border" />
         </div>
       )}
-      <div className="multi-assistant-message__bubble min-w-0 px-1 py-0.5">
-        <div className="multi-assistant-message__body">
-          <ChatMarkdown
-            text={messageText}
-            cwd={markdownCwd}
-            isStreaming={Boolean(message.streaming)}
-          />
-        </div>
-        <AssistantChangedFilesSection
-          turnSummary={assistantTurnDiffSummary}
-          routeThreadKey={routeThreadKey}
-          resolvedTheme={resolvedTheme}
-          onOpenTurnDiff={onOpenTurnDiff}
-        />
-        <div className="mt-1.5 flex items-center gap-2">
-          <p className="text-[10px] text-muted-foreground/30">
-            {message.streaming ? (
-              <LiveMessageMeta
-                createdAt={message.createdAt}
-                durationStart={durationStart}
-                timestampFormat={timestampFormat}
-              />
-            ) : (
-              formatMessageMeta(
-                message.createdAt,
-                formatElapsed(durationStart, message.completedAt),
-                timestampFormat,
-              )
-            )}
-          </p>
-          {assistantCopyState.visible ? (
-            <div className="flex items-center opacity-0 transition-opacity duration-200 group-hover/assistant:opacity-100">
-              <MessageCopyButton
-                text={assistantCopyState.text ?? ""}
-                size="icon-xs"
-                variant="outline"
-                className="border-border/50 bg-background/35 text-muted-foreground/45 shadow-none hover:border-border/70 hover:bg-background/55 hover:text-muted-foreground/70"
-              />
-            </div>
-          ) : null}
-        </div>
-      </div>
+      <CursorMessageBubble role="assistant" body={body} footer={footer} />
     </div>
   );
 });

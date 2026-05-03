@@ -1,6 +1,6 @@
 import { type ProviderDriverKind, type ProviderInstanceId } from "@multi/contracts";
 import { memo } from "react";
-import { StarIcon } from "lucide-react";
+import { IconCheckmark1Small as CheckIcon } from "central-icons";
 import {
   getDisplayModelName,
   getTriggerDisplayModelLabel,
@@ -9,8 +9,6 @@ import {
 } from "./provider-icon-utils";
 import { ComboboxItem } from "@multi/ui/combobox";
 import { Kbd } from "@multi/ui/kbd";
-import { Tooltip, TooltipPopup, TooltipTrigger } from "@multi/ui/tooltip";
-import { cn } from "~/lib/utils";
 
 export const ModelListRow = memo(function ModelListRow(props: {
   index: number;
@@ -26,13 +24,12 @@ export const ModelListRow = memo(function ModelListRow(props: {
    */
   providerDisplayName: string;
   providerAccentColor?: string | undefined;
-  isFavorite: boolean;
+  isSelected: boolean;
   showProvider: boolean;
   preferShortName?: boolean;
   useTriggerLabel?: boolean;
   showNewBadge?: boolean;
   jumpLabel?: string | null;
-  onToggleFavorite: () => void;
 }) {
   const ProviderIcon = PROVIDER_ICON_BY_PROVIDER[props.driverKind] ?? null;
   const providerLabel = props.model.subProvider
@@ -44,41 +41,19 @@ export const ModelListRow = memo(function ModelListRow(props: {
       hideIndicator
       index={props.index}
       value={`${props.instanceId}:${props.model.slug}`}
-      contentClassName="flex w-full items-start gap-2"
-      className={cn(
-        "w-full cursor-pointer rounded px-3 py-2 transition-colors group",
-        "data-highlighted:bg-muted data-selected:bg-accent data-selected:text-foreground",
-      )}
+      contentClassName="flex w-full items-start gap-1.5"
+      className="group w-full cursor-pointer rounded-[5px] px-1.5 py-1 text-[12px]/[16px] transition-colors hover:bg-multi-bg-quaternary data-highlighted:bg-multi-bg-quaternary data-selected:bg-multi-bg-active data-selected:text-multi-fg-primary"
     >
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <button
-              className="mt-0.5 shrink-0 cursor-pointer opacity-40 transition-opacity group-hover:opacity-100"
-              onClick={(event) => {
-                event.stopPropagation();
-                props.onToggleFavorite();
-              }}
-              onKeyDown={(event) => {
-                event.stopPropagation();
-              }}
-              type="button"
-              aria-label={props.isFavorite ? "Remove from favorites" : "Add to favorites"}
-            >
-              <StarIcon
-                className={cn("size-4", props.isFavorite && "fill-current text-yellow-500")}
-              />
-            </button>
-          }
-        />
-        <TooltipPopup side="top" align="center">
-          {props.isFavorite ? "Remove from favorites" : "Add to favorites"}
-        </TooltipPopup>
-      </Tooltip>
+      <span
+        aria-hidden="true"
+        className="mt-px flex size-4 shrink-0 items-center justify-center text-[var(--cursor-text-secondary,var(--multi-fg-secondary))]"
+      >
+        <CheckIcon className={props.isSelected ? "size-3.5 opacity-100" : "size-3.5 opacity-0"} />
+      </span>
 
       <div className="min-w-0 flex-1 text-left">
-        <div className="flex items-center justify-between gap-2 min-w-0">
-          <div className="text-xs font-medium leading-snug flex items-center gap-2 min-w-0">
+        <div className="flex min-w-0 items-center justify-between gap-1.5">
+          <div className="flex min-w-0 items-center gap-1.5 text-[12px]/[16px] font-medium">
             <span className="truncate">
               {props.useTriggerLabel
                 ? getTriggerDisplayModelLabel(props.model)
@@ -89,7 +64,7 @@ export const ModelListRow = memo(function ModelListRow(props: {
             </span>
             {props.showNewBadge ? (
               <span
-                className="shrink-0 rounded border border-amber-500/35 bg-amber-500/15 px-0.5 py-px text-[10px] font-bold uppercase leading-none tracking-wide text-amber-800 dark:border-amber-400/30 dark:bg-amber-400/12 dark:text-amber-200"
+                className="shrink-0 rounded border border-amber-500/35 bg-amber-500/15 px-0.5 py-px text-[10px]/[12px] font-bold tracking-wide text-amber-800 uppercase dark:border-amber-400/30 dark:bg-amber-400/12 dark:text-amber-200"
                 aria-label="New model"
               >
                 New
@@ -97,13 +72,13 @@ export const ModelListRow = memo(function ModelListRow(props: {
             ) : null}
           </div>
           {props.jumpLabel ? (
-            <Kbd className="h-4 min-w-0 shrink-0 rounded-sm px-1.5 text-[10px]">
+            <Kbd className="h-4 min-w-0 shrink-0 rounded-[3px] px-1 text-[10px]/[12px]">
               {props.jumpLabel}
             </Kbd>
           ) : null}
         </div>
         {props.showProvider && (
-          <div className="flex items-center gap-1 mt-0.5">
+          <div className="mt-0.5 flex items-center gap-1">
             {ProviderIcon ? <ProviderIcon className="size-3 shrink-0" /> : null}
             {props.providerAccentColor ? (
               <span
@@ -112,7 +87,7 @@ export const ModelListRow = memo(function ModelListRow(props: {
                 aria-hidden
               />
             ) : null}
-            <span className="text-xs font-normal leading-snug text-muted-foreground/70 truncate">
+            <span className="truncate text-[11px]/[14px] font-normal text-[var(--cursor-text-tertiary,var(--multi-fg-tertiary))]">
               {providerLabel}
             </span>
           </div>

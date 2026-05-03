@@ -1,3 +1,5 @@
+import type { OrchestrationSessionStatus } from "@multi/contracts";
+
 /**
  * UI session types (formerly in @multi/contracts).
  *
@@ -172,6 +174,8 @@ export interface SessionListSummary {
   firstMessage: string;
   allMessagesText: string;
   isStreaming: boolean;
+  orchestrationStatus?: OrchestrationSessionStatus | null;
+  needsAttention?: boolean;
 }
 
 export interface UiSessionPending {

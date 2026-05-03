@@ -1,12 +1,5 @@
 import { scopeThreadRef } from "@multi/client-runtime";
-import {
-  EnvironmentId,
-  ProjectId,
-  ProviderDriverKind,
-  ProviderInstanceId,
-  ThreadId,
-  TurnId,
-} from "@multi/contracts";
+import { EnvironmentId, ProjectId, ThreadId, TurnId } from "@multi/contracts";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { type EnvironmentState, useStore } from "../store";
 import { type Thread } from "../types";

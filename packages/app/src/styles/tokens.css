@@ -1,5 +1,5 @@
 /*
- * Design system custom properties (incl. Pierre palette overrides) and VS Code/agent token bridges.
+ * Design system custom properties (incl. Pierre palette overrides) and Multi agent tokens.
  * shell.css owns layout-only and non-token component selectors (incl. chat markdown prose chrome).
  */
 
@@ -21,10 +21,7 @@
   --multi-workbench-toggle-right: var(--multi-workbench-toggle-right-user, 12px);
   --multi-workbench-changes-toggle-w: var(--multi-workbench-changes-toggle-w-user, 7rem);
   /*
-   * Panel chrome — Cursor/VS Code workbench.desktop.main.css (monaco-action-bar):
-   * .action-item.icon { height: 35px; padding: 0 3px }
-   * .monaco-toolbar .actions-container { gap: 2px }
-   * editor tabs container padding-inline ~8px
+   * Panel chrome: compact action row, 2px action gap, 8px inline padding.
    */
   --multi-workbench-chrome-row-height: 35px;
   /* Secondary pane headers (rails / preview toolbar) — below primary tool-island parity */
@@ -35,6 +32,7 @@
   --multi-workbench-chrome-action-gap: 2px;
   --multi-workbench-sub-chrome-action-gap: 2px;
   --multi-workbench-chrome-icon-padding-x: 3px;
+  --multi-workbench-action-size: 22px;
   --composer-max-width: 840px;
   --composer-messages-padding-inline: 16px;
   --prompt-input-section-gap: 6px;
@@ -56,10 +54,10 @@
   --composer-mode-plan-text: var(--primary);
   --composer-mode-plan-icon: var(--primary);
   --composer-mode-plan-border: color-mix(in srgb, var(--primary) 24%, transparent);
-  --composer-mode-triage-background: var(--vscode-input-background, var(--multi-bg-quaternary));
-  --composer-mode-triage-text: var(--vscode-input-foreground, var(--multi-fg-primary));
-  --composer-mode-triage-icon: var(--vscode-input-foreground, var(--multi-icon-secondary));
-  --composer-mode-triage-border: var(--vscode-focusBorder, var(--multi-stroke-secondary));
+  --composer-mode-triage-background: var(--multi-bg-quaternary);
+  --composer-mode-triage-text: var(--multi-fg-primary);
+  --composer-mode-triage-icon: var(--multi-icon-secondary);
+  --composer-mode-triage-border: var(--multi-stroke-secondary);
   --composer-mode-spec-background: color-mix(in srgb, var(--success) 10%, transparent);
   --composer-mode-spec-text: var(--success);
   --composer-mode-spec-icon: var(--success);
@@ -304,121 +302,143 @@ html.multi-reduce-transparency {
 }
 
 .agent-window {
-  --vscode-foreground: var(--foreground);
-  --vscode-disabledForeground: color-mix(in srgb, var(--foreground) 44%, transparent);
-  --vscode-focusBorder: var(--ring);
-  /* VS Code workbench.desktop.main.css — sash ergonomics when host exposes theme tokens */
-  --multi-shell-sash-hit-width: max(0.5rem, calc(var(--vscode-sash-hover-size, 8px)));
-  --multi-shell-sash-stripe-width: max(2px, var(--vscode-sash-size, 4px));
-  --multi-shell-sash-hover-shade: color-mix(
-    in srgb,
-    var(--vscode-sash-hoverBorder, var(--vscode-focusBorder)) 38%,
-    transparent
-  );
-  --vscode-widget-border: var(--multi-color-border);
-  --vscode-widget-shadow: oklch(0 0 0 / 0.18);
-  --vscode-sideBar-background: var(--multi-color-sidebar);
-  --vscode-editor-background: var(--multi-color-editor);
-  --vscode-panel-background: color-mix(
-    in srgb,
-    var(--vscode-editor-background) 92%,
-    var(--background)
-  );
-  --vscode-panel-border: color-mix(in srgb, var(--vscode-widget-border) 55%, transparent);
-  --vscode-dropdown-background: var(--multi-color-bubble-opaque);
-  --vscode-quickInput-background: var(--multi-color-bubble-opaque);
-  --vscode-list-activeSelectionBackground: var(--multi-color-active);
-  --vscode-list-activeSelectionForeground: var(--foreground);
-  /*
-   * workbench.desktop.main.css — Monaco list + Cursor glass sidebar (.session-item, .monaco-list-row:hover:not(.selected))
-   */
-  --vscode-list-hoverBackground: color-mix(in srgb, var(--vscode-foreground) 8%, transparent);
-  --vscode-list-hoverForeground: var(--vscode-foreground);
-  --vscode-list-inactiveSelectionBackground: color-mix(
-    in srgb,
-    var(--vscode-list-activeSelectionBackground) 78%,
-    var(--vscode-sideBar-background)
-  );
-  --vscode-list-inactiveSelectionForeground: color-mix(
-    in srgb,
-    var(--vscode-list-activeSelectionForeground) 92%,
-    var(--vscode-sideBar-foreground)
-  );
-  --vscode-sideBar-foreground: var(--vscode-foreground);
-  --vscode-sideBarSectionHeader-foreground: color-mix(
-    in srgb,
-    var(--vscode-foreground) 55%,
-    transparent
-  );
-  --vscode-descriptionForeground: color-mix(in srgb, var(--vscode-foreground) 66%, transparent);
-  --vscode-list-focusBackground: var(--multi-color-hover);
-  --vscode-list-focusForeground: var(--foreground);
-  --vscode-input-border: var(--multi-color-border);
-  --vscode-input-background: var(--multi-color-bubble-opaque);
-  --vscode-button-background: var(--multi-action);
-  --vscode-scrollbarSlider-background: color-mix(in srgb, var(--foreground) 14%, transparent);
-  --vscode-scrollbarSlider-hoverBackground: color-mix(in srgb, var(--foreground) 24%, transparent);
-  --vscode-scrollbarSlider-activeBackground: color-mix(in srgb, var(--foreground) 34%, transparent);
-  --vscode-charts-red: var(--multi-diff-deletion);
-  --vscode-charts-orange: oklch(0.72 0.16 58);
-  --vscode-charts-yellow: oklch(0.8 0.14 88);
-  --vscode-charts-green: var(--multi-diff-addition);
-  --vscode-charts-purple: oklch(0.68 0.14 305);
-  --vscode-terminal-ansiCyan: oklch(0.72 0.12 205);
-  --vscode-terminal-ansiBlue: var(--multi-action);
-  --vscode-terminal-ansiMagenta: oklch(0.7 0.15 325);
+  --multi-shell-sash-hit-width: 4px;
+  --multi-shell-sash-stripe-width: 4px;
+  --multi-shell-sash-hover-shade: color-mix(in srgb, var(--multi-stroke-focused) 38%, transparent);
+  --multi-hue-red: var(--multi-diff-deletion);
+  --multi-hue-orange: oklch(0.72 0.16 58);
+  --multi-hue-yellow: oklch(0.8 0.14 88);
+  --multi-hue-green: var(--multi-diff-addition);
+  --multi-hue-cyan: oklch(0.72 0.12 205);
+  --multi-hue-blue: var(--multi-action);
+  --multi-hue-magenta: oklch(0.7 0.15 325);
+  --multi-hue-purple: oklch(0.68 0.14 305);
   --glass-chat-bubble-background: var(--multi-color-bubble);
   --glass-chat-bubble-opaque-background: var(--multi-color-bubble-opaque);
-  --multi-hue-red: var(--vscode-charts-red);
-  --multi-hue-orange: var(--vscode-charts-orange);
-  --multi-hue-yellow: var(--vscode-charts-yellow);
-  --multi-hue-green: var(--vscode-charts-green);
-  --multi-hue-cyan: var(--vscode-terminal-ansiCyan);
-  --multi-hue-blue: var(--vscode-terminal-ansiBlue);
-  --multi-hue-magenta: var(--vscode-terminal-ansiMagenta);
-  --multi-hue-purple: var(--vscode-charts-purple);
-  --multi-fg-primary: var(--vscode-foreground);
-  --multi-fg-secondary: color-mix(in srgb, var(--vscode-foreground) 74%, transparent);
-  --multi-fg-tertiary: color-mix(in srgb, var(--vscode-foreground) 54%, transparent);
-  --multi-fg-quaternary: color-mix(in srgb, var(--vscode-foreground) 36%, transparent);
-  --multi-fg-active: var(--vscode-list-activeSelectionForeground);
-  --multi-fg-focused: var(--vscode-list-focusForeground);
+  --glass-chat-surface-background: var(--multi-chat-surface-background, var(--multi-color-chat));
+  --multi-fg-primary: var(--foreground);
+  --multi-fg-secondary: color-mix(in srgb, var(--foreground) 74%, transparent);
+  --multi-fg-tertiary: color-mix(in srgb, var(--foreground) 54%, transparent);
+  --multi-fg-quaternary: color-mix(in srgb, var(--foreground) 36%, transparent);
+  --multi-fg-active: var(--foreground);
+  --multi-fg-focused: var(--foreground);
   --multi-fg-red-primary: var(--multi-hue-red);
   --multi-fg-green-primary: var(--multi-hue-green);
-  --multi-icon-primary: color-mix(in srgb, var(--vscode-foreground) 86%, transparent);
-  --multi-icon-secondary: color-mix(in srgb, var(--vscode-foreground) 66%, transparent);
-  --multi-icon-tertiary: color-mix(in srgb, var(--vscode-foreground) 46%, transparent);
-  --multi-icon-quaternary: color-mix(in srgb, var(--vscode-foreground) 28%, transparent);
-  --multi-bg-primary: color-mix(in srgb, var(--vscode-foreground) 20%, transparent);
-  --multi-bg-secondary: color-mix(in srgb, var(--vscode-foreground) 14%, transparent);
-  --multi-bg-tertiary: color-mix(in srgb, var(--vscode-foreground) 8%, transparent);
-  --multi-bg-quaternary: color-mix(in srgb, var(--vscode-foreground) 6%, transparent);
-  --multi-bg-quinary: color-mix(in srgb, var(--vscode-foreground) 4%, transparent);
-  --multi-bg-elevated: var(--vscode-dropdown-background, var(--vscode-quickInput-background));
-  --multi-bg-active: var(--vscode-list-activeSelectionBackground);
-  --multi-bg-focused: var(--vscode-list-focusBackground);
+  --multi-icon-primary: color-mix(in srgb, var(--foreground) 86%, transparent);
+  --multi-icon-secondary: color-mix(in srgb, var(--foreground) 66%, transparent);
+  --multi-icon-tertiary: color-mix(in srgb, var(--foreground) 46%, transparent);
+  --multi-icon-quaternary: color-mix(in srgb, var(--foreground) 28%, transparent);
+  --multi-bg-primary: color-mix(in srgb, var(--foreground) 20%, transparent);
+  --multi-bg-secondary: color-mix(in srgb, var(--foreground) 14%, transparent);
+  --multi-bg-tertiary: color-mix(in srgb, var(--foreground) 8%, transparent);
+  --multi-bg-quaternary: color-mix(in srgb, var(--foreground) 6%, transparent);
+  --multi-bg-quinary: color-mix(in srgb, var(--foreground) 4%, transparent);
+  --multi-bg-elevated: var(--multi-color-bubble-opaque);
+  --multi-bg-active: var(--multi-color-active);
+  --multi-bg-focused: var(--multi-color-hover);
   --multi-bg-green-primary: var(--multi-hue-green);
-  --multi-stroke-primary: color-mix(in srgb, var(--vscode-foreground) 20%, transparent);
-  --multi-stroke-secondary: color-mix(in srgb, var(--vscode-foreground) 12%, transparent);
-  --multi-stroke-tertiary: color-mix(in srgb, var(--vscode-foreground) 8%, transparent);
-  --multi-stroke-quaternary: color-mix(in srgb, var(--vscode-foreground) 4%, transparent);
-  --multi-stroke-focused: var(--vscode-focusBorder);
-  --multi-shadow-primary: var(--vscode-widget-shadow);
-  --multi-shadow-secondary: color-mix(in srgb, var(--vscode-widget-shadow) 60%, transparent);
-  --multi-shadow-tertiary: color-mix(in srgb, var(--vscode-widget-shadow) 30%, transparent);
+  --multi-stroke-primary: color-mix(in srgb, var(--foreground) 20%, transparent);
+  --multi-stroke-secondary: color-mix(in srgb, var(--foreground) 12%, transparent);
+  --multi-stroke-tertiary: color-mix(in srgb, var(--foreground) 8%, transparent);
+  --multi-stroke-quaternary: color-mix(in srgb, var(--foreground) 4%, transparent);
+  --multi-stroke-focused: var(--ring);
+  --multi-shadow-primary: oklch(0 0 0 / 0.18);
+  --multi-shadow-secondary: color-mix(in srgb, var(--multi-shadow-primary) 60%, transparent);
+  --multi-shadow-tertiary: color-mix(in srgb, var(--multi-shadow-primary) 30%, transparent);
   --multi-shadow-workbench: 0 0 8px 2px
-    color-mix(in srgb, var(--vscode-widget-shadow) 40%, transparent);
+    color-mix(in srgb, var(--multi-shadow-primary) 40%, transparent);
+  --multi-workbench-panel-background: color-mix(
+    in srgb,
+    var(--multi-color-editor) 92%,
+    var(--background)
+  );
+  --multi-workbench-panel-border: color-mix(in srgb, var(--multi-color-border) 55%, transparent);
+  --multi-workbench-surface-background: color-mix(
+    in srgb,
+    var(--multi-workbench-panel-background) 74%,
+    transparent
+  );
+  --multi-workbench-editor-surface-background: color-mix(
+    in srgb,
+    var(--multi-color-editor) 92%,
+    transparent
+  );
+  --multi-workbench-panel-title-background: color-mix(
+    in srgb,
+    var(--multi-color-editor) 94%,
+    var(--multi-workbench-panel-background) 6%
+  );
+  --multi-workbench-tool-island-background: color-mix(
+    in srgb,
+    var(--multi-workbench-panel-background) 58%,
+    var(--multi-color-editor) 42%
+  );
+  --multi-workbench-card-background: color-mix(
+    in srgb,
+    var(--multi-color-sidebar) 14%,
+    var(--multi-color-editor) 86%
+  );
+  --multi-workbench-card-selected-background: color-mix(
+    in srgb,
+    var(--multi-color-active) 22%,
+    var(--multi-workbench-card-background)
+  );
+  --multi-workbench-terminal-background: var(--multi-workbench-panel-background);
+  --multi-workbench-terminal-foreground: var(--foreground);
+  --multi-workbench-toolbar-hover-background: var(--multi-color-hover);
   --composer-tab-label-max-width: 200px;
   --agent-sidebar-cell-hover-actions-width: 60px;
   /*
-   * Cursor workbench.desktop.main.css — aliases for bundled .agent-sidebar-* token names (after multi-*).
+   * Compatibility aliases for bundled .agent-sidebar-* token names.
    */
   --cursor-text-primary: var(--multi-fg-primary);
   --cursor-text-secondary: var(--multi-fg-secondary);
   --cursor-text-tertiary: var(--multi-fg-tertiary);
+  --cursor-text-quaternary: var(--multi-fg-quaternary);
+  --cursor-text-green-primary: var(--multi-fg-green-primary);
+  --cursor-text-red-primary: var(--multi-fg-red-primary);
+  --cursor-text-active: var(--multi-fg-active);
+  --cursor-foreground: var(--foreground);
+  --cursor-bg-editor: var(--multi-color-editor);
+  --cursor-bg-input: var(--glass-chat-bubble-opaque-background, var(--multi-color-bubble-opaque));
+  --cursor-bg-chrome: var(--multi-color-chat);
+  --cursor-bg-elevated: var(--multi-bg-elevated);
+  --cursor-bg-primary: var(--multi-bg-primary);
+  --cursor-bg-secondary: var(--multi-bg-secondary);
   --cursor-bg-tertiary: var(--multi-bg-tertiary);
   --cursor-bg-quaternary: var(--multi-bg-quaternary);
+  --cursor-bg-hover: var(--multi-color-hover);
+  --cursor-bg-green-primary: color-mix(in srgb, var(--success) 14%, transparent);
+  --cursor-bg-red-primary: color-mix(in srgb, var(--destructive) 14%, transparent);
   --cursor-icon-secondary: var(--multi-icon-secondary);
+  --cursor-stroke-primary: var(--multi-stroke-primary);
+  --cursor-stroke-secondary: var(--multi-stroke-secondary);
+  --cursor-stroke-tertiary: var(--multi-stroke-tertiary);
+  --cursor-stroke-focused: var(--multi-stroke-focused);
+  --cursor-stroke-red-primary: var(--multi-stroke-red-primary);
+  --cursor-radius-xs: 2px;
+  --cursor-radius-sm: 4px;
+  --cursor-radius-md: 6px;
+  --cursor-radius-lg: 8px;
+  --cursor-radius-xl: 12px;
+  --cursor-radius-full: 9999px;
+  --cursor-spacing-0-25: 1px;
+  --cursor-spacing-0-5: 2px;
+  --cursor-spacing-1: 4px;
+  --cursor-spacing-1-5: 6px;
+  --cursor-spacing-2: 8px;
+  --cursor-spacing-2-5: 10px;
+  --cursor-spacing-3: 12px;
+  --cursor-spacing-4: 16px;
+  --cursor-spacing-5: 20px;
+  --cursor-spacing-6: 24px;
+  --cursor-spacing-8: 32px;
+  --cursor-spacing-16: 64px;
+  --cursor-font-family-sans: var(--multi-font-ui);
+  --cursor-font-family-mono: var(--multi-font-mono);
+  --conversation-font-size: 13px;
+  --conversation-text-font-size: 13px;
+  --conversation-tool-card-padding-x: 8px;
   --meta-agent-overlay-height: 0px;
 }
 
@@ -509,9 +529,9 @@ html.multi-reduce-transparency {
   --multi-color-hover: oklch(0.94 0.028 252 / 0.35);
   --multi-color-active: oklch(0.94 0.028 252 / 0.8);
 
-  --vscode-charts-green: var(--multi-diff-addition);
-  --vscode-charts-red: var(--multi-diff-deletion);
-  --vscode-terminal-ansiBlue: var(--primary);
+  --multi-hue-green: var(--multi-diff-addition);
+  --multi-hue-red: var(--multi-diff-deletion);
+  --multi-hue-blue: var(--primary);
 }
 
 /* ---- Dark ---- */
@@ -600,9 +620,9 @@ html.multi-reduce-transparency {
   --multi-color-hover: oklch(0.268 0.045 261 / 0.35);
   --multi-color-active: oklch(0.268 0.045 261 / 0.6);
 
-  --vscode-charts-green: var(--multi-diff-addition);
-  --vscode-charts-red: var(--multi-diff-deletion);
-  --vscode-terminal-ansiBlue: var(--primary);
+  --multi-hue-green: var(--multi-diff-addition);
+  --multi-hue-red: var(--multi-diff-deletion);
+  --multi-hue-blue: var(--primary);
 }
 
 /* ---- Pierre: Display-P3 ---- */
@@ -616,8 +636,8 @@ html.multi-reduce-transparency {
       --multi-diff-deletion: color(display-p3 1 0.2502 0.2623);
       --multi-diff-addition-bg: color(display-p3 0.31 0.8276 0.7251 / 0.2);
       --multi-diff-deletion-bg: color(display-p3 1 0.2502 0.2623 / 0.2);
-      --vscode-charts-green: color(display-p3 0.31 0.8276 0.7251);
-      --vscode-charts-red: color(display-p3 1 0.2502 0.2623);
+      --multi-hue-green: color(display-p3 0.31 0.8276 0.7251);
+      --multi-hue-red: color(display-p3 1 0.2502 0.2623);
     }
 
     :root.dark[data-color-palette="pierre"] {
@@ -628,8 +648,8 @@ html.multi-reduce-transparency {
       --multi-diff-deletion: color(display-p3 1 0.2502 0.2623);
       --multi-diff-addition-bg: color(display-p3 0.31 0.8276 0.7251 / 0.1);
       --multi-diff-deletion-bg: color(display-p3 1 0.2502 0.2623 / 0.1);
-      --vscode-charts-green: color(display-p3 0.31 0.8276 0.7251);
-      --vscode-charts-red: color(display-p3 1 0.2502 0.2623);
+      --multi-hue-green: color(display-p3 0.31 0.8276 0.7251);
+      --multi-hue-red: color(display-p3 1 0.2502 0.2623);
     }
   }
 }

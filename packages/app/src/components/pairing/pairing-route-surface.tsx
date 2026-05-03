@@ -8,6 +8,7 @@ import {
   submitServerAuthCredential,
 } from "../../environments/primary";
 import { Button } from "@multi/ui/button";
+import { DotmSquare1 } from "@multi/ui/dotm-square-1";
 import { Input } from "@multi/ui/input";
 
 export function PairingPendingSurface() {
@@ -19,16 +20,25 @@ export function PairingPendingSurface() {
         <div className="absolute inset-0 bg-[linear-gradient(145deg,color-mix(in_srgb,var(--background)_90%,var(--color-black))_0%,var(--background)_55%)]" />
       </div>
 
-      <section className="relative w-full max-w-xl rounded-2xl border border-border/80 bg-card/90 p-6 shadow-2xl shadow-black/20 backdrop-blur-md sm:p-8">
-        <p className="text-[11px] font-semibold tracking-[0.18em] text-muted-foreground uppercase">
-          {APP_DISPLAY_NAME}
-        </p>
-        <h1 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
-          Pairing with this environment
-        </h1>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          Validating the pairing link and preparing your session.
-        </p>
+      <section className="relative flex w-full max-w-xl flex-col gap-5 rounded-2xl border border-border/80 bg-card/90 p-6 shadow-2xl shadow-black/20 backdrop-blur-md sm:p-8">
+        <DotmSquare1
+          className="text-foreground/70"
+          dotSize={3}
+          cellPadding={2}
+          boxSize={64}
+          minSize={48}
+        />
+        <div>
+          <p className="text-[11px] font-semibold tracking-[0.18em] text-muted-foreground uppercase">
+            {APP_DISPLAY_NAME}
+          </p>
+          <h1 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
+            Pairing with this environment
+          </h1>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            Validating the pairing link and preparing your session.
+          </p>
+        </div>
       </section>
     </div>
   );

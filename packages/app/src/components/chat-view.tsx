@@ -166,13 +166,14 @@ import { sanitizeThreadErrorMessage } from "~/rpc/transport-error";
 import { retainThreadDetailSubscription } from "../environments/runtime/service";
 import { traceBrowserEvent } from "~/observability/browserDebug";
 import {
-  ChevronDownIcon,
-  ChevronRightIcon,
-  FolderOpenIcon,
-  FolderPlusIcon,
-  SettingsIcon,
-  type LucideIcon,
-} from "lucide-react";
+  IconChevronDownSmall as ChevronDownIcon,
+  IconChevronRight as ChevronRightIcon,
+  IconFolderAddRight as FolderPlusIcon,
+  IconFolderOpen as FolderOpenIcon,
+  IconSettingsGear2 as SettingsIcon,
+  type CentralIconBaseProps,
+} from "central-icons";
+type CentralIconComponent = React.ComponentType<CentralIconBaseProps>;
 
 const IMAGE_ONLY_BOOTSTRAP_PROMPT =
   "[User attached one or more images without additional text. Respond using the conversation context and the attached image(s).]";
@@ -198,7 +199,7 @@ function heroActionStyle(tone: HeroActionTone): CSSProperties {
 interface HeroComposerActionCardProps {
   title: string;
   detail: string;
-  icon: LucideIcon;
+  icon: CentralIconComponent;
   tone: HeroActionTone;
   onClick: () => void;
 }
@@ -1065,8 +1066,8 @@ export default function ChatView(props: ChatViewProps) {
   const phase = derivePhase(activeThread?.session ?? null);
   const threadActivities = activeThread?.activities ?? EMPTY_ACTIVITIES;
   const workLogEntries = useMemo(
-    () => deriveWorkLogEntries(threadActivities, activeLatestTurn?.turnId ?? undefined),
-    [activeLatestTurn?.turnId, threadActivities],
+    () => deriveWorkLogEntries(threadActivities, undefined),
+    [threadActivities],
   );
   const latestTurnHasToolActivity = useMemo(
     () => hasToolActivityForTurn(threadActivities, activeLatestTurn?.turnId),
@@ -3214,7 +3215,6 @@ export default function ChatView(props: ChatViewProps) {
           activeThreadTitle={activeThread.title}
           activeProjectName={activeProject?.name}
           isGitRepo={isGitRepo}
-          sidebarPersistenceCwd={activeProjectCwd ?? gitCwd}
           activeProjectScripts={activeProject?.scripts}
           preferredScriptId={
             activeProject ? (lastInvokedScriptByProjectId[activeProject.id] ?? null) : null
@@ -3278,10 +3278,11 @@ export default function ChatView(props: ChatViewProps) {
                   <button
                     type="button"
                     onClick={() => scrollToEnd(true)}
-                    className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-border/60 bg-card px-3 py-1 text-muted-foreground text-xs shadow-sm transition-colors hover:border-border hover:text-foreground hover:cursor-pointer"
+                    className="agent-panel-scroll-to-bottom-button pointer-events-auto"
+                    aria-label="Scroll to bottom"
+                    title="Scroll to bottom"
                   >
-                    <ChevronDownIcon className="size-3.5" />
-                    Scroll to bottom
+                    <ChevronDownIcon className="ui-icon size-3" aria-hidden="true" />
                   </button>
                 </div>
               )}

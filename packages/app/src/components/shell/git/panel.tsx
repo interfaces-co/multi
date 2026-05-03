@@ -3,13 +3,14 @@
 import {
   IconBarsThree,
   IconBranch,
-  IconChevronBottom,
-  IconChevronRight,
+  IconChevronDownSmall,
+  IconChevronRightSmall,
   IconDotGrid1x3Horizontal,
+  IconBarsThree as List,
   IconSplit,
 } from "central-icons";
 import { Virtualizer } from "@pierre/diffs/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@multi/ui/button";
@@ -21,7 +22,6 @@ import {
   DialogPopup,
   DialogTitle,
 } from "@multi/ui/dialog";
-import { List } from "lucide-react";
 
 import { isElectron } from "~/env";
 import {
@@ -31,15 +31,12 @@ import {
 } from "~/hooks/use-environment-git";
 import { useGitViewed } from "~/hooks/use-git-viewed-state";
 import { shellPanelsActions, useSecondaryRail } from "~/lib/shell-panels-store";
-import { cn } from "~/lib/utils";
 import { BranchCommitDialog, CommitDialog } from "./commit-dialog";
 import { GitChangesFileTree } from "./git-changes-file-tree";
 import { GitDiffCard } from "./git-diff-card";
 import { WorkbenchChromeRow } from "../shell/workbench-chrome-row";
+import { WorkbenchIconButton, WorkbenchTextButton } from "../shell/workbench-icon-button";
 import { RightWorkbenchLayout } from "../shell/right-workbench-layout";
-
-/** Beyond this, expand-all prefetches every patch (expensive on large repos). */
-const GIT_EXPAND_ALL_CONFIRM_THRESHOLD = 120;
 
 export function GitPanel(props: { git: GitPanelModel }) {
   const git = props.git;
@@ -122,10 +119,11 @@ function GitPanelInner(props: { git: GitPanelModel }) {
   const [discardAllPending, setDiscardAllPending] = useState(false);
   const [commitOpen, setCommitOpen] = useState(false);
   const [branchOpen, setBranchOpen] = useState(false);
-  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
+  const [editorMenuOpen, setEditorMenuOpen] = useState(false);
+  const [commitMenuOpen, setCommitMenuOpen] = useState(false);
   const filesKey = useMemo(() => files.map((row) => row.id).join("\n"), [files]);
   const [selectedId, setSelectedId] = useState<string | null>(() => files[0]?.id ?? null);
-  const [expandAllDialogOpen, setExpandAllDialogOpen] = useState(false);
+  const allDiffCardsCollapsed = files.length > 0 && files.every((row) => !git.expandedIds.has(row.id));
   const gitRef = useRef(git);
   gitRef.current = git;
 
@@ -134,7 +132,7 @@ function GitPanelInner(props: { git: GitPanelModel }) {
     void id;
   });
   prefetchRef.current = (id: string) => {
-    git.toggleExpand(id, true);
+    git.requestDiff(id);
   };
 
   useEffect(() => {
@@ -201,19 +199,6 @@ function GitPanelInner(props: { git: GitPanelModel }) {
     setSelectedId(file.id);
   }, []);
 
-  const requestExpandAll = useCallback(() => {
-    git.expandAll();
-    setExpandAllDialogOpen(false);
-  }, [git]);
-
-  const onExpandAllClick = useCallback(() => {
-    if (files.length > GIT_EXPAND_ALL_CONFIRM_THRESHOLD) {
-      setExpandAllDialogOpen(true);
-      return;
-    }
-    git.expandAll();
-  }, [files.length, git]);
-
   return (
     <>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
@@ -221,8 +206,12 @@ function GitPanelInner(props: { git: GitPanelModel }) {
           branch={git.branch}
           onCommitAndPush={handleCommitAndPush}
           onBranchCommit={() => setBranchOpen(true)}
-          menuOpen={headerMenuOpen}
-          onMenuOpen={setHeaderMenuOpen}
+          diffStyle={diffStyle}
+          onDiffStyle={setDiffStyle}
+          editorMenuOpen={editorMenuOpen}
+          onEditorMenuOpen={setEditorMenuOpen}
+          commitMenuOpen={commitMenuOpen}
+          onCommitMenuOpen={setCommitMenuOpen}
         />
         <ChangesHeader
           railOpen={gitRailOpen}
@@ -230,10 +219,9 @@ function GitPanelInner(props: { git: GitPanelModel }) {
           count={files.length}
           add={git.totalAdd}
           del={git.totalDel}
-          onExpandAll={onExpandAllClick}
+          onExpandAll={git.expandAll}
           onCollapseAll={git.collapseAll}
-          diffStyle={diffStyle}
-          onDiffStyle={setDiffStyle}
+          allCollapsed={allDiffCardsCollapsed}
           onDiscardAll={() => setDiscardAllPending(true)}
           onRefresh={() => void git.refresh()}
         />
@@ -252,7 +240,7 @@ function GitPanelInner(props: { git: GitPanelModel }) {
         >
           <div
             ref={deckRootRef}
-            className="editor-panel-inner flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--glass-editor-surface-background,color-mix(in_srgb,var(--multi-bg-elevated)_76%,transparent))]"
+            className="editor-panel-inner flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-(--glass-editor-surface-background)"
           >
             {files.length === 0 ? (
               <div className="flex flex-1 items-center justify-center text-detail text-muted-foreground/60">
@@ -260,7 +248,7 @@ function GitPanelInner(props: { git: GitPanelModel }) {
               </div>
             ) : (
               <Virtualizer
-                className="git-stack-virtualizer h-full min-h-0 px-2 pb-3 pt-1"
+                className="git-stack-virtualizer h-full min-h-0 overflow-x-hidden overflow-y-auto overscroll-contain px-0 pb-0 pt-1"
                 config={{
                   overscrollSize: 640,
                   intersectionObserverMargin: 900,
@@ -272,8 +260,11 @@ function GitPanelInner(props: { git: GitPanelModel }) {
                     file={file}
                     selected={selectedId === file.id}
                     onSelect={() => setSelectedId(file.id)}
+                    expanded={git.expandedIds.has(file.id)}
+                    onExpandedChange={(open) => git.toggleExpand(file.id, open)}
                     diff={git.diffsByPath.get(file.path) ?? null}
                     patch={git.patchesByPath.get(file.path) ?? null}
+                    loaded={git.diffsByPath.has(file.path) || git.patchesByPath.has(file.path)}
                     loading={git.diffLoadingByPath.has(file.path)}
                     error={git.diffErrorByPath.get(file.path) ?? null}
                     diffStyle={diffStyle}
@@ -302,13 +293,6 @@ function GitPanelInner(props: { git: GitPanelModel }) {
         onConfirm={confirmDiscardAll}
         onOpenChange={setDiscardAllPending}
       />
-      <ExpandAllChangedFilesDialog
-        open={expandAllDialogOpen}
-        fileCount={files.length}
-        threshold={GIT_EXPAND_ALL_CONFIRM_THRESHOLD}
-        onConfirm={requestExpandAll}
-        onOpenChange={setExpandAllDialogOpen}
-      />
       <CommitDialog open={commitOpen} onOpenChange={setCommitOpen} onCommit={git.runCommit} />
       <BranchCommitDialog
         open={branchOpen}
@@ -319,42 +303,16 @@ function GitPanelInner(props: { git: GitPanelModel }) {
   );
 }
 
-function ExpandAllChangedFilesDialog(props: {
-  open: boolean;
-  fileCount: number;
-  threshold: number;
-  onConfirm: () => void;
-  onOpenChange: (open: boolean) => void;
-}) {
-  return (
-    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogPopup className="max-w-md" showCloseButton>
-        <DialogHeader>
-          <DialogTitle>Expand all files?</DialogTitle>
-          <DialogDescription>
-            This loads patches for all {props.fileCount} changed files immediately. Above{" "}
-            {props.threshold} files this can take noticeable time or memory on large repositories.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button type="button" variant="ghost" onClick={() => props.onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button type="button" onClick={props.onConfirm}>
-            Expand All
-          </Button>
-        </DialogFooter>
-      </DialogPopup>
-    </Dialog>
-  );
-}
-
 function LocalBranchBar(props: {
   branch: string | null;
   onCommitAndPush: () => void;
   onBranchCommit: () => void;
-  menuOpen: boolean;
-  onMenuOpen: (open: boolean) => void;
+  diffStyle: "unified" | "split";
+  onDiffStyle: (next: "unified" | "split") => void;
+  editorMenuOpen: boolean;
+  onEditorMenuOpen: (open: boolean) => void;
+  commitMenuOpen: boolean;
+  onCommitMenuOpen: (open: boolean) => void;
 }) {
   const copyBranch = () => {
     if (!props.branch) return;
@@ -367,28 +325,68 @@ function LocalBranchBar(props: {
       variant="panel"
       gap="loose"
       trailing={
-        <div className="flex shrink-0 items-center gap-1">
-          <Button type="button" size="sm" onClick={props.onCommitAndPush}>
-            Commit & Push
-          </Button>
+        <div className="flex shrink-0 items-center gap-(--multi-workbench-sub-chrome-action-gap)">
           <div className="relative shrink-0">
-            <button
-              type="button"
-              onClick={() => props.onMenuOpen(!props.menuOpen)}
-              className="flex size-6 items-center justify-center rounded-multi-control text-muted-foreground/70 hover:bg-multi-hover hover:text-foreground"
-              aria-label="More options"
+            <WorkbenchIconButton
+              onClick={() => props.onEditorMenuOpen(!props.editorMenuOpen)}
+              aria-label="Editor Options"
+              title="Editor Options"
+              chrome="panel"
             >
               <IconDotGrid1x3Horizontal className="size-3.5" />
-            </button>
-            {props.menuOpen && (
+            </WorkbenchIconButton>
+            {props.editorMenuOpen && (
               <>
-                <div className="fixed inset-0 z-40" onClick={() => props.onMenuOpen(false)} />
-                <div className="absolute top-full right-0 z-50 mt-1 min-w-[160px] rounded-multi-card border border-multi-stroke bg-multi-bubble p-1 text-detail shadow-multi-popup backdrop-blur-xl">
+                <div className="fixed inset-0 z-40" onClick={() => props.onEditorMenuOpen(false)} />
+                <div className="absolute top-full right-0 z-50 mt-1 min-w-[176px] rounded-[6px] border border-multi-stroke-secondary bg-multi-bg-elevated p-[3px] text-multi-fg-primary shadow-multi-popup">
+                  <MenuItem
+                    label="Unified Diff"
+                    active={props.diffStyle === "unified"}
+                    icon={<IconBarsThree className="size-3" />}
+                    onClick={() => {
+                      props.onDiffStyle("unified");
+                      props.onEditorMenuOpen(false);
+                    }}
+                  />
+                  <MenuItem
+                    label="Split Diff"
+                    active={props.diffStyle === "split"}
+                    icon={<IconSplit className="size-3" />}
+                    onClick={() => {
+                      props.onDiffStyle("split");
+                      props.onEditorMenuOpen(false);
+                    }}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+          <div className="relative inline-flex h-(--multi-workbench-action-size) min-w-0 shrink-0 overflow-hidden rounded-[5px] border border-[color-mix(in_srgb,var(--foreground)_72%,transparent)] bg-[color-mix(in_srgb,var(--foreground)_92%,var(--background))] text-[11px]/[14px] font-semibold text-background">
+            <button
+              type="button"
+              className="inline-flex h-full min-w-0 items-center justify-center px-2 text-inherit transition-colors hover:bg-[color-mix(in_srgb,var(--background)_13%,transparent)]"
+              onClick={props.onCommitAndPush}
+            >
+              Commit & Push
+            </button>
+            <button
+              type="button"
+              className="inline-flex h-full w-[18px] shrink-0 items-center justify-center border-l border-[color-mix(in_srgb,var(--background)_22%,transparent)] text-inherit transition-colors hover:bg-[color-mix(in_srgb,var(--background)_13%,transparent)]"
+              onClick={() => props.onCommitMenuOpen(!props.commitMenuOpen)}
+              aria-label="Open menu"
+              title="Open menu"
+            >
+              <IconChevronDownSmall className="size-3" />
+            </button>
+            {props.commitMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => props.onCommitMenuOpen(false)} />
+                <div className="absolute top-full right-0 z-50 mt-1 min-w-[180px] rounded-[6px] border border-multi-stroke-secondary bg-multi-bg-elevated p-[3px] text-multi-fg-primary shadow-multi-popup">
                   <MenuItem
                     label="Create Branch & Commit..."
                     onClick={() => {
                       props.onBranchCommit();
-                      props.onMenuOpen(false);
+                      props.onCommitMenuOpen(false);
                     }}
                   />
                 </div>
@@ -398,14 +396,14 @@ function LocalBranchBar(props: {
         </div>
       }
     >
-      <span className="shrink-0 text-detail font-medium text-muted-foreground/70">Local</span>
+      <span className="shrink-0 text-detail font-medium text-multi-fg-secondary">Local</span>
       <button
         type="button"
         onClick={copyBranch}
-        className="flex min-w-0 items-center gap-1 overflow-hidden rounded px-1.5 py-0.5 text-detail font-medium text-foreground/90 transition-colors hover:bg-multi-hover hover:text-foreground"
+        className="inline-flex h-(--multi-workbench-action-size) min-w-0 items-center gap-(--multi-workbench-sub-chrome-action-gap) overflow-hidden rounded-[5px] px-1.5 text-[11px]/[14px] font-medium text-multi-fg-primary transition-colors hover:bg-multi-bg-quaternary hover:text-multi-fg-primary"
         title="Copy branch name"
       >
-        <IconBranch className="size-3 shrink-0 text-muted-foreground/60" />
+        <IconBranch className="size-3 shrink-0 text-multi-icon-tertiary" />
         <span className="truncate font-mono">{props.branch ?? "detached"}</span>
       </button>
     </WorkbenchChromeRow>
@@ -420,119 +418,89 @@ function ChangesHeader(props: {
   del: number;
   onExpandAll: () => void;
   onCollapseAll: () => void;
-  diffStyle: "unified" | "split";
-  onDiffStyle: (next: "unified" | "split") => void;
+  allCollapsed: boolean;
   onDiscardAll: () => void;
   onRefresh: () => void;
 }) {
+  const toggleAll = props.allCollapsed ? props.onExpandAll : props.onCollapseAll;
+  const toggleAllLabel = props.allCollapsed ? "Expand all" : "Collapse all";
+
   return (
     <WorkbenchChromeRow
       variant="panel"
-      gap="relaxed"
+      gap="loose"
       trailing={
-        <div className="flex shrink-0 items-center gap-1">
-          <button
-            type="button"
+        <div className="flex shrink-0 items-center gap-(--multi-workbench-sub-chrome-action-gap)">
+          <WorkbenchTextButton
             onClick={props.onDiscardAll}
-            className="min-w-0 max-w-[8.5rem] truncate whitespace-nowrap text-detail text-muted-foreground/60 transition-colors hover:text-foreground"
+            className="max-w-[8.5rem]"
+            tone="danger"
             title="Discard All Changes"
           >
             Discard All Changes
-          </button>
-          <DiffStyleToggle style={props.diffStyle} onChange={props.onDiffStyle} />
-          <button
-            type="button"
-            onClick={props.onExpandAll}
-            className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground/60 hover:bg-multi-hover hover:text-foreground"
-            aria-label="Expand all"
-            title="Expand all"
+          </WorkbenchTextButton>
+          <WorkbenchIconButton
+            onClick={toggleAll}
+            aria-label={toggleAllLabel}
+            title={toggleAllLabel}
+            chrome="panel"
           >
-            <IconChevronBottom className="size-3" />
-          </button>
-          <button
-            type="button"
-            onClick={props.onCollapseAll}
-            className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground/60 hover:bg-multi-hover hover:text-foreground"
-            aria-label="Collapse all"
-            title="Collapse all"
-          >
-            <IconChevronRight className="size-3" />
-          </button>
+            {props.allCollapsed ? (
+              <IconChevronDownSmall className="size-3" />
+            ) : (
+              <IconChevronRightSmall className="size-3" />
+            )}
+          </WorkbenchIconButton>
         </div>
       }
     >
-      <button
-        type="button"
+      <WorkbenchIconButton
         onClick={props.onToggleRail}
-        className={cn(
-          "flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground/60 hover:bg-multi-hover hover:text-foreground",
-          props.railOpen ? "bg-multi-hover text-foreground" : null,
-        )}
         aria-label={props.railOpen ? "Hide changes list" : "Show changes list"}
         aria-pressed={props.railOpen}
+        active={props.railOpen}
         title={props.railOpen ? "Hide changes list" : "Show changes list"}
+        chrome="panel"
       >
         <List className="size-3.5 shrink-0" aria-hidden />
-      </button>
-      <span className="min-w-0 truncate text-detail tabular-nums text-foreground/80">
-        {props.count} Uncommitted Change{props.count === 1 ? "" : "s"}
+      </WorkbenchIconButton>
+      <span className="inline-flex min-w-0 items-center gap-0.5 overflow-hidden rounded-[5px] px-1 pr-0.5 text-[11px]/[14px] text-multi-fg-secondary tabular-nums">
+        <span className="min-w-0 truncate">
+          {props.count} Uncommitted Change{props.count === 1 ? "" : "s"}
+        </span>
+        <IconChevronDownSmall className="size-3 shrink-0 text-multi-icon-tertiary" />
       </span>
       <div className="flex shrink-0 items-center gap-1 text-detail tabular-nums">
-        {props.add > 0 && <span className="font-medium text-success-foreground">+{props.add}</span>}
+        {props.add > 0 && (
+          <span className="font-medium text-multi-fg-green-primary">+{props.add}</span>
+        )}
         {props.del > 0 && (
-          <span className="font-medium text-destructive-foreground">-{props.del}</span>
+          <span className="font-medium text-multi-fg-red-primary">-{props.del}</span>
         )}
       </div>
     </WorkbenchChromeRow>
   );
 }
 
-function DiffStyleToggle(props: {
-  style: "unified" | "split";
-  onChange: (next: "unified" | "split") => void;
+function MenuItem(props: {
+  label: string;
+  onClick: () => void;
+  active?: boolean | undefined;
+  icon?: ReactNode;
 }) {
-  return (
-    <div className="flex shrink-0 items-center rounded-multi-control border border-multi-border/45 bg-multi-hover/14 p-0.5">
-      <button
-        type="button"
-        onClick={() => props.onChange("unified")}
-        className={cn(
-          "flex size-5 items-center justify-center rounded-multi-control transition-colors",
-          props.style === "unified"
-            ? "bg-multi-active/60 text-foreground"
-            : "text-muted-foreground/70 hover:bg-multi-hover hover:text-foreground",
-        )}
-        aria-label="Unified diff"
-        aria-pressed={props.style === "unified"}
-      >
-        <IconBarsThree className="size-3" />
-      </button>
-      <button
-        type="button"
-        onClick={() => props.onChange("split")}
-        className={cn(
-          "flex size-5 items-center justify-center rounded-multi-control transition-colors",
-          props.style === "split"
-            ? "bg-multi-active/60 text-foreground"
-            : "text-muted-foreground/70 hover:bg-multi-hover hover:text-foreground",
-        )}
-        aria-label="Split diff"
-        aria-pressed={props.style === "split"}
-      >
-        <IconSplit className="size-3" />
-      </button>
-    </div>
-  );
-}
-
-function MenuItem(props: { label: string; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={props.onClick}
-      className="flex w-full items-center rounded-sm px-2 py-1 text-left text-foreground/82 transition-colors hover:bg-multi-active hover:text-foreground"
+      className="group flex w-full min-w-0 items-center gap-[7px] rounded-[4px] px-[7px] py-1 text-left text-[11px]/[14px] text-multi-fg-secondary transition-colors hover:bg-multi-bg-quaternary hover:text-multi-fg-primary data-[active=true]:bg-multi-bg-quaternary data-[active=true]:text-multi-fg-primary"
+      data-active={props.active || undefined}
     >
-      {props.label}
+      {props.icon ? (
+        <span className="inline-flex w-3.5 shrink-0 justify-center text-multi-icon-tertiary group-data-[active=true]:text-multi-icon-primary">
+          {props.icon}
+        </span>
+      ) : null}
+      <span className="min-w-0 flex-1 truncate">{props.label}</span>
     </button>
   );
 }

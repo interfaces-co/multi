@@ -1,7 +1,16 @@
 import { scopeThreadRef } from "@multi/client-runtime";
+import { StatusDot as UiStatusDot } from "@multi/ui/status-dot";
 import type { ThreadId } from "@multi/contracts";
-import { IconBell, IconFormCircle } from "central-icons";
-import { type KeyboardEvent, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type ComponentProps,
+  type KeyboardEvent,
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 
 import { ThreadContextMenu } from "~/components/shell/sidebar/thread-context-menu";
@@ -12,25 +21,38 @@ import { useThreadUnreadStore } from "~/lib/thread-unread-store";
 import { cn } from "~/lib/utils";
 import { selectThreadsAcrossEnvironments, useStore } from "~/store";
 
+type UiStatusDotState = NonNullable<ComponentProps<typeof UiStatusDot>["state"]>;
+
+function SidebarDot(props: { state: UiStatusDotState; className?: string }) {
+  return (
+    <UiStatusDot
+      state={props.state}
+      className={cn("size-3", props.className)}
+      role="presentation"
+      aria-hidden
+    />
+  );
+}
+
 function StatusDot(props: { item: SidebarChatItem }) {
   if (props.item.kind === "draft") {
-    return <IconFormCircle className="size-3 shrink-0 text-muted-foreground/50" aria-hidden />;
+    return <SidebarDot state="draft" />;
   }
   if (props.item.state === "running") {
     return (
-      <span className="relative flex size-[5.5px] shrink-0 items-center justify-center">
+      <span className="relative flex size-3 shrink-0 items-center justify-center">
         <span className="absolute size-[11px] animate-ping rounded-full bg-emerald-500/35" />
-        <span className="size-[5.5px] rounded-full bg-emerald-500" />
+        <SidebarDot state="running" className="after:bg-emerald-500" />
       </span>
     );
   }
   if (props.item.state === "error") {
-    return <span className="size-[5.5px] shrink-0 rounded-full bg-destructive/85" aria-hidden />;
+    return <SidebarDot state="critical" />;
   }
-  if (props.item.kind === "thread" && props.item.unread) {
-    return <IconBell className="size-3 shrink-0 text-muted-foreground/55" aria-hidden />;
+  if (props.item.state === "needs_attention") {
+    return <SidebarDot state="needsAttention" />;
   }
-  return <span className="size-[5.5px] shrink-0 rounded-full bg-muted-foreground/50" aria-hidden />;
+  return <SidebarDot state={props.item.unread ? "doneUnseen" : "doneSeen"} />;
 }
 
 function StatusSlot(props: { item: SidebarChatItem }) {

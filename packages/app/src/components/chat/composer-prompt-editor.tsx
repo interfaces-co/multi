@@ -48,10 +48,9 @@ import { parseComposerPromptDoc, type ComposerPromptDoc } from "~/composer-promp
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@multi/ui/tooltip";
 import { ComposerPendingTerminalContextChip } from "./composer-pending-terminal-contexts";
 import {
-  COMPOSER_INLINE_CHIP_CLASS_NAME,
-  COMPOSER_INLINE_CHIP_ICON_CLASS_NAME,
-  COMPOSER_INLINE_CHIP_LABEL_CLASS_NAME,
-  COMPOSER_INLINE_SKILL_CHIP_CLASS_NAME,
+  ComposerInlineChip,
+  ComposerInlineChipIcon,
+  ComposerInlineChipLabel,
 } from "../composer-inline-chip";
 
 const SURROUND_SYMBOLS: [string, string][] = [
@@ -149,7 +148,7 @@ interface ComposerPromptEditorProps {
     doc: ComposerPromptDoc,
   ) => void;
   onCommandKeyDown?: (
-    key: "ArrowDown" | "ArrowUp" | "Enter" | "Tab",
+    key: "ArrowDown" | "ArrowUp" | "Enter" | "Escape" | "Tab",
     event: KeyboardEvent,
   ) => boolean;
   onPaste: ClipboardEventHandler<HTMLElement>;
@@ -601,8 +600,8 @@ function ComposerMentionNodeView(props: NodeViewProps): ReactElement {
   const lineEnd = nullableNumberAttr(props.node.attrs.lineEnd);
   const theme = resolvedThemeFromDocument();
   const chip = (
-    <span
-      className={cn(COMPOSER_INLINE_CHIP_CLASS_NAME, "ui-pill ui-prompt-input-mention-chip")}
+    <ComposerInlineChip
+      className="ui-pill ui-prompt-input-mention-chip"
       contentEditable={false}
       data-read-only-mention=""
       data-type="mentionNode"
@@ -611,26 +610,26 @@ function ComposerMentionNodeView(props: NodeViewProps): ReactElement {
       <img
         alt=""
         aria-hidden="true"
-        className={COMPOSER_INLINE_CHIP_ICON_CLASS_NAME}
+        className="size-3.5 shrink-0 opacity-85"
         loading="lazy"
         src={getVscodeIconUrlForEntry(path, inferEntryKindFromPath(path), theme)}
       />
-      <span className={COMPOSER_INLINE_CHIP_LABEL_CLASS_NAME}>{label}</span>
+      <ComposerInlineChipLabel>{label}</ComposerInlineChipLabel>
       {lineStart !== null && lineEnd !== null ? (
         <span className="text-multi-fg-tertiary">
           {lineStart === lineEnd ? `:${lineStart}` : `:${lineStart}-${lineEnd}`}
         </span>
       ) : null}
-    </span>
+    </ComposerInlineChip>
   );
 
   return (
-    <NodeViewWrapper as="span" className="inline-flex align-middle leading-none">
+    <NodeViewWrapper as="span" className="inline-flex align-middle">
       <Tooltip>
         <TooltipTrigger render={chip} />
         <TooltipPopup
           side="top"
-          className="max-w-[30rem] whitespace-normal leading-tight wrap-anywhere"
+          className="max-w-[30rem] whitespace-normal text-xs/4 wrap-anywhere"
         >
           {path}
         </TooltipPopup>
@@ -644,8 +643,8 @@ function ComposerCommandNodeView(props: NodeViewProps): ReactElement {
   const content = nullableStringAttr(props.node.attrs.content);
   const label = name ? `/${name}` : "/";
   const chip = (
-    <span
-      className="ui-prompt-input-command-chip inline-flex max-w-full select-none items-center rounded-sm border border-multi-stroke-tertiary bg-multi-bg-quaternary px-1.5 py-px font-multi text-[12px]/[16px] font-medium text-multi-fg-primary align-middle"
+    <ComposerInlineChip
+      className="ui-prompt-input-command-chip"
       contentEditable={false}
       data-type="commandNode"
       spellCheck={false}
@@ -657,15 +656,15 @@ function ComposerCommandNodeView(props: NodeViewProps): ReactElement {
       >
         {label}
       </button>
-    </span>
+    </ComposerInlineChip>
   );
 
   return (
-    <NodeViewWrapper as="span" className="inline-flex align-middle leading-none">
+    <NodeViewWrapper as="span" className="inline-flex align-middle">
       {content ? (
         <Tooltip>
           <TooltipTrigger render={chip} />
-          <TooltipPopup side="top" className="max-w-[30rem] whitespace-normal leading-tight">
+          <TooltipPopup side="top" className="max-w-[30rem] whitespace-normal text-xs/4">
             {content}
           </TooltipPopup>
         </Tooltip>
@@ -702,25 +701,25 @@ function ComposerSkillNodeView(props: NodeViewProps): ReactElement {
     formatProviderSkillDisplayName({ name: stringAttr(props.node.attrs.skillName) });
   const description = nullableStringAttr(props.node.attrs.skillDescription);
   const chip = (
-    <span
-      className={COMPOSER_INLINE_SKILL_CHIP_CLASS_NAME}
+    <ComposerInlineChip
+      tone="object"
       contentEditable={false}
       data-composer-skill-chip="true"
       spellCheck={false}
     >
-      <span aria-hidden="true" className={COMPOSER_INLINE_CHIP_ICON_CLASS_NAME}>
+      <ComposerInlineChipIcon aria-hidden="true">
         <SkillGlyph />
-      </span>
-      <span className={COMPOSER_INLINE_CHIP_LABEL_CLASS_NAME}>{label}</span>
-    </span>
+      </ComposerInlineChipIcon>
+      <ComposerInlineChipLabel>{label}</ComposerInlineChipLabel>
+    </ComposerInlineChip>
   );
 
   return (
-    <NodeViewWrapper as="span" className="inline-flex align-middle leading-none">
+    <NodeViewWrapper as="span" className="inline-flex align-middle">
       {description ? (
         <Tooltip>
           <TooltipTrigger render={chip} />
-          <TooltipPopup side="top" className="max-w-[30rem] whitespace-normal leading-tight">
+          <TooltipPopup side="top" className="max-w-[30rem] whitespace-normal text-xs/4">
             {description}
           </TooltipPopup>
         </Tooltip>
@@ -738,22 +737,21 @@ function ComposerInlineTokenNodeView(props: NodeViewProps): ReactElement {
     "";
   const sourceUri = nullableStringAttr(props.node.attrs.sourceUri);
   const chip = (
-    <span
-      className={COMPOSER_INLINE_CHIP_CLASS_NAME}
+    <ComposerInlineChip
       contentEditable={false}
       data-composer-inline-token-chip="true"
       spellCheck={false}
     >
-      <span className={COMPOSER_INLINE_CHIP_LABEL_CLASS_NAME}>{label}</span>
-    </span>
+      <ComposerInlineChipLabel>{label}</ComposerInlineChipLabel>
+    </ComposerInlineChip>
   );
 
   return (
-    <NodeViewWrapper as="span" className="inline-flex align-middle leading-none">
+    <NodeViewWrapper as="span" className="inline-flex align-middle">
       {sourceUri ? (
         <Tooltip>
           <TooltipTrigger render={chip} />
-          <TooltipPopup side="top" className="max-w-[30rem] whitespace-normal leading-tight">
+          <TooltipPopup side="top" className="max-w-[30rem] whitespace-normal text-xs/4">
             {sourceUri}
           </TooltipPopup>
         </Tooltip>
@@ -767,7 +765,7 @@ function ComposerInlineTokenNodeView(props: NodeViewProps): ReactElement {
 function ComposerTerminalContextNodeView(props: NodeViewProps): ReactElement {
   const context = props.node.attrs.context as TerminalContextDraft;
   return (
-    <NodeViewWrapper as="span" className="inline-flex align-middle leading-none">
+    <NodeViewWrapper as="span" className="inline-flex align-middle">
       <ComposerPendingTerminalContextChip context={context} />
     </NodeViewWrapper>
   );
@@ -1154,6 +1152,7 @@ export const ComposerPromptEditor = forwardRef<
     if (
       event.key === "ArrowDown" ||
       event.key === "ArrowUp" ||
+      event.key === "Escape" ||
       event.key === "Enter" ||
       event.key === "Tab"
     ) {

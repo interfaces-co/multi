@@ -15,7 +15,7 @@ import {
 } from "@multi/shared/model";
 import { memo, useCallback, useState } from "react";
 import type { VariantProps } from "class-variance-authority";
-import { ChevronDownIcon } from "lucide-react";
+import { IconChevronDownSmall as ChevronDownIcon } from "central-icons";
 import { Button, buttonVariants } from "@multi/ui/button";
 import {
   Menu,

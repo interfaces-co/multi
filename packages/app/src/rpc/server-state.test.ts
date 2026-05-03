@@ -2,8 +2,6 @@ import {
   DEFAULT_SERVER_SETTINGS,
   EnvironmentId,
   ProjectId,
-  ProviderDriverKind,
-  ProviderInstanceId,
   ThreadId,
   type ServerConfig,
   type ServerConfigStreamEvent,

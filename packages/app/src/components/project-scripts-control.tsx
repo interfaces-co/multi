@@ -1,15 +1,15 @@
 import type { ProjectScript, ProjectScriptIcon, ResolvedKeybindingsConfig } from "@multi/contracts";
 import {
-  BugIcon,
-  ChevronDownIcon,
-  FlaskConicalIcon,
-  HammerIcon,
-  ListChecksIcon,
-  PlayIcon,
-  PlusIcon,
-  SettingsIcon,
-  WrenchIcon,
-} from "lucide-react";
+  IconBug as BugIcon,
+  IconChecklist as ListChecksIcon,
+  IconChevronDownSmall as ChevronDownIcon,
+  IconHammer as HammerIcon,
+  IconPlay as PlayIcon,
+  IconPlusLarge as PlusIcon,
+  IconSettingsGear2 as SettingsIcon,
+  IconTestTube as FlaskConicalIcon,
+  IconToolbox as WrenchIcon,
+} from "central-icons";
 import React, { type FormEvent, type KeyboardEvent, useCallback, useMemo, useState } from "react";
 
 import {

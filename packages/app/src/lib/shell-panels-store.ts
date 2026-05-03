@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-const STORAGE_KEY = "multi.shell.panels.v1";
+const STORAGE_KEY = "multi.shell.panels.v2";
 const SECONDARY_RAIL_STORAGE_KEY = "multi.shell.secondaryRail.v1";
 const TERMINAL_SESSIONS_STORAGE_KEY = "multi.shell.terminalSessions.v1";
 const DEFAULT_CWD_KEY = "default";
@@ -8,18 +8,21 @@ const DEFAULT_CWD_KEY = "default";
 /** Persisted width limits for the chat/settings thread rail (`LeftAside`). */
 export const SHELL_LEFT_PANEL_WIDTH_LIMITS = { min: 164, max: 560 } as const;
 
-const RIGHT_MIN = 340;
-const RIGHT_MAX = 600;
+/** Cursor/VS Code auxiliary workbench width floor. Cursor's bundled part uses minimumWidth 300. */
+export const RIGHT_WORKBENCH_WIDTH_LIMITS = { min: 300, max: 600 } as const;
 
 export const SECONDARY_RAIL_LIMITS = { min: 160, max: 320 } as const;
 const SECONDARY_RAIL_DEFAULT_WIDTH = 220;
 
 export type WorkbenchTab = "files" | "git" | "terminal";
 
-interface ShellPanelState {
+interface LeftPanelState {
   leftOpen: boolean;
-  rightOpen: boolean;
   leftW: number;
+}
+
+interface WorkbenchPanelState {
+  rightOpen: boolean;
   rightW: number;
   activeTab: WorkbenchTab;
   muted: boolean;
@@ -43,12 +46,14 @@ interface TerminalSessionsState {
 }
 
 interface ShellPanelsStoreState {
-  byCwd: Record<string, ShellPanelState>;
+  leftOpen: boolean;
+  leftW: number;
+  byCwd: Record<string, WorkbenchPanelState>;
   railByCwdAndTab: Record<string, SecondaryRailState>;
   terminalByCwd: Record<string, TerminalSessionsState>;
-  setLeftOpen: (cwd: string | null, open: boolean) => void;
+  setLeftOpen: (open: boolean) => void;
   setRightOpen: (cwd: string | null, open: boolean) => void;
-  setLeftWidth: (cwd: string | null, width: number) => void;
+  setLeftWidth: (width: number) => void;
   setRightWidth: (cwd: string | null, width: number) => void;
   setActiveTab: (cwd: string | null, tab: WorkbenchTab) => void;
   setMuted: (cwd: string | null, muted: boolean) => void;
@@ -59,19 +64,26 @@ interface ShellPanelsStoreState {
   removeTerminalSession: (cwd: string | null, terminalId: string) => void;
 }
 
-interface PersistedShellPanelState {
+interface PersistedShellPanelsState {
   leftOpen?: boolean;
-  rightOpen?: boolean;
   leftW?: number;
+  byCwd?: Record<string, PersistedWorkbenchPanelState>;
+}
+
+interface PersistedWorkbenchPanelState {
+  rightOpen?: boolean;
   rightW?: number;
   activeTab?: WorkbenchTab;
   muted?: boolean;
 }
 
-const DEFAULT_PANEL_STATE: ShellPanelState = Object.freeze({
+const DEFAULT_LEFT_PANEL_STATE: LeftPanelState = Object.freeze({
   leftOpen: true,
-  rightOpen: true,
   leftW: 180,
+});
+
+const DEFAULT_WORKBENCH_PANEL_STATE: WorkbenchPanelState = Object.freeze({
+  rightOpen: true,
   rightW: 400,
   activeTab: "files",
   muted: false,
@@ -98,65 +110,79 @@ function resolveCwdKey(cwd: string | null): string {
   return trimmed && trimmed.length > 0 ? trimmed : DEFAULT_CWD_KEY;
 }
 
-function readPersistedPanels(): Record<string, ShellPanelState> {
+function readPersistedPanels(): {
+  leftOpen: boolean;
+  leftW: number;
+  byCwd: Record<string, WorkbenchPanelState>;
+} {
   if (typeof window === "undefined") {
-    return {};
+    return { ...DEFAULT_LEFT_PANEL_STATE, byCwd: {} };
   }
 
   const raw = window.localStorage.getItem(STORAGE_KEY);
   if (!raw) {
-    return {};
+    return { ...DEFAULT_LEFT_PANEL_STATE, byCwd: {} };
   }
 
   try {
-    const parsed = JSON.parse(raw) as Record<string, PersistedShellPanelState> | null;
+    const parsed = JSON.parse(raw) as PersistedShellPanelsState | null;
     if (!parsed || typeof parsed !== "object") {
-      return {};
+      return { ...DEFAULT_LEFT_PANEL_STATE, byCwd: {} };
     }
 
-    const result: Record<string, ShellPanelState> = {};
-    for (const [cwd, value] of Object.entries(parsed)) {
+    const byCwd: Record<string, WorkbenchPanelState> = {};
+    for (const [cwd, value] of Object.entries(parsed.byCwd ?? {})) {
       const rawTab =
         value?.activeTab === "files" ||
         value?.activeTab === "git" ||
         value?.activeTab === "terminal"
           ? value.activeTab
           : value?.activeTab === "browser"
-            ? DEFAULT_PANEL_STATE.activeTab
+            ? DEFAULT_WORKBENCH_PANEL_STATE.activeTab
             : null;
-      const activeTab = rawTab ?? DEFAULT_PANEL_STATE.activeTab;
-      const normalized: ShellPanelState = {
-        leftOpen:
-          typeof value?.leftOpen === "boolean" ? value.leftOpen : DEFAULT_PANEL_STATE.leftOpen,
+      const activeTab = rawTab ?? DEFAULT_WORKBENCH_PANEL_STATE.activeTab;
+      const normalized: WorkbenchPanelState = {
         rightOpen:
-          typeof value?.rightOpen === "boolean" ? value.rightOpen : DEFAULT_PANEL_STATE.rightOpen,
-        leftW: clampWidth(
-          typeof value?.leftW === "number" ? value.leftW : DEFAULT_PANEL_STATE.leftW,
-          SHELL_LEFT_PANEL_WIDTH_LIMITS.min,
-          SHELL_LEFT_PANEL_WIDTH_LIMITS.max,
-        ),
+          typeof value?.rightOpen === "boolean"
+            ? value.rightOpen
+            : DEFAULT_WORKBENCH_PANEL_STATE.rightOpen,
         rightW: clampWidth(
-          typeof value?.rightW === "number" ? value.rightW : DEFAULT_PANEL_STATE.rightW,
-          RIGHT_MIN,
-          RIGHT_MAX,
+          typeof value?.rightW === "number" ? value.rightW : DEFAULT_WORKBENCH_PANEL_STATE.rightW,
+          RIGHT_WORKBENCH_WIDTH_LIMITS.min,
+          RIGHT_WORKBENCH_WIDTH_LIMITS.max,
         ),
         activeTab,
-        muted: typeof value?.muted === "boolean" ? value.muted : DEFAULT_PANEL_STATE.muted,
+        muted:
+          typeof value?.muted === "boolean" ? value.muted : DEFAULT_WORKBENCH_PANEL_STATE.muted,
       };
-      result[cwd && cwd !== DEFAULT_CWD_KEY ? cwd : DEFAULT_CWD_KEY] = normalized;
+      byCwd[cwd && cwd !== DEFAULT_CWD_KEY ? cwd : DEFAULT_CWD_KEY] = normalized;
     }
-    return result;
+
+    return {
+      leftOpen:
+        typeof parsed.leftOpen === "boolean" ? parsed.leftOpen : DEFAULT_LEFT_PANEL_STATE.leftOpen,
+      leftW: clampWidth(
+        typeof parsed.leftW === "number" ? parsed.leftW : DEFAULT_LEFT_PANEL_STATE.leftW,
+        SHELL_LEFT_PANEL_WIDTH_LIMITS.min,
+        SHELL_LEFT_PANEL_WIDTH_LIMITS.max,
+      ),
+      byCwd,
+    };
   } catch {
-    return {};
+    return { ...DEFAULT_LEFT_PANEL_STATE, byCwd: {} };
   }
 }
 
-function persistPanels(byCwd: Record<string, ShellPanelState>): void {
+function persistPanels(input: {
+  leftOpen: boolean;
+  leftW: number;
+  byCwd: Record<string, WorkbenchPanelState>;
+}): void {
   if (typeof window === "undefined") {
     return;
   }
 
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(byCwd));
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(input));
 }
 
 function railKey(cwd: string | null, tab: WorkbenchTab): string {
@@ -218,43 +244,39 @@ function persistTerminalSessions(data: Record<string, TerminalSessionsState>): v
 }
 
 function getPanelState(
-  byCwd: Record<string, ShellPanelState>,
+  byCwd: Record<string, WorkbenchPanelState>,
   cwd: string | null,
-): ShellPanelState {
-  return byCwd[resolveCwdKey(cwd)] ?? DEFAULT_PANEL_STATE;
+): WorkbenchPanelState {
+  return byCwd[resolveCwdKey(cwd)] ?? DEFAULT_WORKBENCH_PANEL_STATE;
 }
 
-function arePanelStatesEqual(left: ShellPanelState, right: ShellPanelState): boolean {
+function arePanelStatesEqual(left: WorkbenchPanelState, right: WorkbenchPanelState): boolean {
   return (
-    left.leftOpen === right.leftOpen &&
     left.rightOpen === right.rightOpen &&
-    left.leftW === right.leftW &&
     left.rightW === right.rightW &&
     left.activeTab === right.activeTab &&
     left.muted === right.muted
   );
 }
 
-const INITIAL_BY_CWD = readPersistedPanels();
+const INITIAL_PANELS = readPersistedPanels();
 const INITIAL_RAILS = readPersistedSecondaryRails();
 const INITIAL_TERMINAL_SESSIONS = readPersistedTerminalSessions();
 
 export const useShellPanelsStore = create<ShellPanelsStoreState>()((set) => ({
-  byCwd: INITIAL_BY_CWD,
+  leftOpen: INITIAL_PANELS.leftOpen,
+  leftW: INITIAL_PANELS.leftW,
+  byCwd: INITIAL_PANELS.byCwd,
   railByCwdAndTab: INITIAL_RAILS,
   terminalByCwd: INITIAL_TERMINAL_SESSIONS,
-  setLeftOpen: (cwd, leftOpen) => {
+  setLeftOpen: (leftOpen) => {
     set((state) => {
-      const key = resolveCwdKey(cwd);
-      const current = getPanelState(state.byCwd, cwd);
-      const next = current.leftOpen === leftOpen ? current : { ...current, leftOpen };
-      if (arePanelStatesEqual(current, next)) {
+      if (state.leftOpen === leftOpen) {
         return state;
       }
 
-      const byCwd = { ...state.byCwd, [key]: next };
-      persistPanels(byCwd);
-      return { byCwd };
+      persistPanels({ leftOpen, leftW: state.leftW, byCwd: state.byCwd });
+      return { leftOpen };
     });
   },
   setRightOpen: (cwd, rightOpen) => {
@@ -267,41 +289,41 @@ export const useShellPanelsStore = create<ShellPanelsStoreState>()((set) => ({
       }
 
       const byCwd = { ...state.byCwd, [key]: next };
-      persistPanels(byCwd);
+      persistPanels({ leftOpen: state.leftOpen, leftW: state.leftW, byCwd });
       return { byCwd };
     });
   },
-  setLeftWidth: (cwd, width) => {
+  setLeftWidth: (width) => {
     set((state) => {
-      const key = resolveCwdKey(cwd);
-      const current = getPanelState(state.byCwd, cwd);
       const nextWidth = clampWidth(
         width,
         SHELL_LEFT_PANEL_WIDTH_LIMITS.min,
         SHELL_LEFT_PANEL_WIDTH_LIMITS.max,
       );
-      const next = current.leftW === nextWidth ? current : { ...current, leftW: nextWidth };
-      if (arePanelStatesEqual(current, next)) {
+      if (state.leftW === nextWidth) {
         return state;
       }
 
-      const byCwd = { ...state.byCwd, [key]: next };
-      persistPanels(byCwd);
-      return { byCwd };
+      persistPanels({ leftOpen: state.leftOpen, leftW: nextWidth, byCwd: state.byCwd });
+      return { leftW: nextWidth };
     });
   },
   setRightWidth: (cwd, width) => {
     set((state) => {
       const key = resolveCwdKey(cwd);
       const current = getPanelState(state.byCwd, cwd);
-      const nextWidth = clampWidth(width, RIGHT_MIN, RIGHT_MAX);
+      const nextWidth = clampWidth(
+        width,
+        RIGHT_WORKBENCH_WIDTH_LIMITS.min,
+        RIGHT_WORKBENCH_WIDTH_LIMITS.max,
+      );
       const next = current.rightW === nextWidth ? current : { ...current, rightW: nextWidth };
       if (arePanelStatesEqual(current, next)) {
         return state;
       }
 
       const byCwd = { ...state.byCwd, [key]: next };
-      persistPanels(byCwd);
+      persistPanels({ leftOpen: state.leftOpen, leftW: state.leftW, byCwd });
       return { byCwd };
     });
   },
@@ -322,7 +344,7 @@ export const useShellPanelsStore = create<ShellPanelsStoreState>()((set) => ({
       }
 
       const byCwd = { ...state.byCwd, [key]: next };
-      persistPanels(byCwd);
+      persistPanels({ leftOpen: state.leftOpen, leftW: state.leftW, byCwd });
       return { byCwd };
     });
   },
@@ -336,7 +358,7 @@ export const useShellPanelsStore = create<ShellPanelsStoreState>()((set) => ({
       }
 
       const byCwd = { ...state.byCwd, [key]: next };
-      persistPanels(byCwd);
+      persistPanels({ leftOpen: state.leftOpen, leftW: state.leftW, byCwd });
       return { byCwd };
     });
   },
@@ -406,20 +428,20 @@ export const useShellPanelsStore = create<ShellPanelsStoreState>()((set) => ({
   },
 }));
 
-function selectPanelState(state: ShellPanelsStoreState, cwd: string | null): ShellPanelState {
-  return state.byCwd[resolveCwdKey(cwd)] ?? DEFAULT_PANEL_STATE;
+function selectPanelState(state: ShellPanelsStoreState, cwd: string | null): WorkbenchPanelState {
+  return state.byCwd[resolveCwdKey(cwd)] ?? DEFAULT_WORKBENCH_PANEL_STATE;
 }
 
-export function useLeftOpen(cwd: string | null): boolean {
-  return useShellPanelsStore((state) => selectPanelState(state, cwd).leftOpen);
+export function useLeftOpen(): boolean {
+  return useShellPanelsStore((state) => state.leftOpen);
 }
 
 export function useRightOpen(cwd: string | null): boolean {
   return useShellPanelsStore((state) => selectPanelState(state, cwd).rightOpen);
 }
 
-export function useLeftWidth(cwd: string | null): number {
-  return useShellPanelsStore((state) => selectPanelState(state, cwd).leftW);
+export function useLeftWidth(): number {
+  return useShellPanelsStore((state) => state.leftW);
 }
 
 export function useRightWidth(cwd: string | null): number {
@@ -447,21 +469,19 @@ export function useTerminalSessions(cwd: string | null): TerminalSessionsState {
 }
 
 export const shellPanelsActions = {
-  setLeftOpen: (cwd: string | null, open: boolean) =>
-    useShellPanelsStore.getState().setLeftOpen(cwd, open),
+  setLeftOpen: (open: boolean) => useShellPanelsStore.getState().setLeftOpen(open),
   setRightOpen: (cwd: string | null, open: boolean) =>
     useShellPanelsStore.getState().setRightOpen(cwd, open),
-  setLeftWidth: (cwd: string | null, width: number) =>
-    useShellPanelsStore.getState().setLeftWidth(cwd, width),
+  setLeftWidth: (width: number) => useShellPanelsStore.getState().setLeftWidth(width),
   setRightWidth: (cwd: string | null, width: number) =>
     useShellPanelsStore.getState().setRightWidth(cwd, width),
   setActiveTab: (cwd: string | null, tab: WorkbenchTab) =>
     useShellPanelsStore.getState().setActiveTab(cwd, tab),
   setMuted: (cwd: string | null, muted: boolean) =>
     useShellPanelsStore.getState().setMuted(cwd, muted),
-  toggleLeft: (cwd: string | null) => {
-    const current = getPanelState(useShellPanelsStore.getState().byCwd, cwd);
-    useShellPanelsStore.getState().setLeftOpen(cwd, !current.leftOpen);
+  toggleLeft: () => {
+    const current = useShellPanelsStore.getState().leftOpen;
+    useShellPanelsStore.getState().setLeftOpen(!current);
   },
   toggleRight: (cwd: string | null) => {
     const current = getPanelState(useShellPanelsStore.getState().byCwd, cwd);

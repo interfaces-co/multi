@@ -2,7 +2,11 @@ import { type TurnId } from "@multi/contracts";
 import { memo, useCallback, useMemo, useState } from "react";
 import { type TurnDiffFileChange } from "../../types";
 import { buildTurnDiffTree, type TurnDiffTreeNode } from "../../lib/turn-diff-tree";
-import { ChevronRightIcon, FolderIcon, FolderClosedIcon } from "lucide-react";
+import {
+  IconChevronRight as ChevronRightIcon,
+  IconFolder1 as FolderClosedIcon,
+  IconFolder1 as FolderIcon,
+} from "central-icons";
 import { cn } from "~/lib/utils";
 import { DiffStatLabel, hasNonZeroStat } from "./diff-stat-label";
 import { VscodeEntryIcon } from "./vscode-entry-icon";

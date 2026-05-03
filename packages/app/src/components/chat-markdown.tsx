@@ -1,5 +1,5 @@
 import { DiffsHighlighter, getSharedHighlighter, SupportedLanguages } from "@pierre/diffs";
-import { CheckIcon, CopyIcon } from "lucide-react";
+import { IconCheckmark1 as CheckIcon, IconClipboard as CopyIcon } from "central-icons";
 import React, {
   Children,
   Suspense,
@@ -170,7 +170,7 @@ function MarkdownCodeBlock({ code, children }: { code: string; children: ReactNo
   );
 
   return (
-    <div className="chat-markdown-codeblock leading-snug">
+    <div className="chat-markdown-codeblock text-sm/5">
       <button
         type="button"
         className="chat-markdown-copy-button"
@@ -268,10 +268,6 @@ interface MarkdownFileLinkProps {
 }
 
 const MARKDOWN_LINK_HREF_PATTERN = /\[[^\]]*]\(([^)\s]+)(?:\s+["'][^"']*["'])?\)/g;
-const MARKDOWN_FILE_LINK_CLASS_NAME =
-  "chat-markdown-file-link relative top-[2px] max-w-full no-underline";
-const MARKDOWN_FILE_LINK_ICON_CLASS_NAME = "chat-markdown-file-link-icon size-3.5 shrink-0";
-const MARKDOWN_FILE_LINK_LABEL_CLASS_NAME = "chat-markdown-file-link-label truncate";
 
 function pathParentSegments(path: string): string[] {
   const normalized = path.replaceAll("\\", "/");
@@ -441,7 +437,10 @@ const MarkdownFileLink = memo(function MarkdownFileLink({
         render={
           <a
             href={href}
-            className={cn(MARKDOWN_FILE_LINK_CLASS_NAME, className)}
+            className={cn(
+              "chat-markdown-file-link relative top-[2px] max-w-full no-underline",
+              className,
+            )}
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -453,15 +452,15 @@ const MarkdownFileLink = memo(function MarkdownFileLink({
               pathValue={filePath}
               kind="file"
               theme={theme}
-              className={cn(MARKDOWN_FILE_LINK_ICON_CLASS_NAME, "text-current")}
+              className="chat-markdown-file-link-icon size-3.5 shrink-0 text-current"
             />
-            <span className={MARKDOWN_FILE_LINK_LABEL_CLASS_NAME}>{label}</span>
+            <span className="chat-markdown-file-link-label truncate">{label}</span>
           </a>
         }
       />
       <TooltipPopup
         side="top"
-        className="max-w-[min(40rem,calc(100vw-2rem))] font-mono text-[11px] leading-tight"
+        className="max-w-[min(40rem,calc(100vw-2rem))] font-mono text-[11px]/4"
       >
         <div className="markdown-file-link-tooltip-scroll overflow-x-auto whitespace-nowrap">
           {displayPath}
@@ -603,7 +602,7 @@ function ChatMarkdown({ text, cwd, isStreaming = false }: ChatMarkdownProps) {
   );
 
   return (
-    <div className="chat-markdown w-full min-w-0 text-sm leading-relaxed text-foreground/80">
+    <div className="chat-markdown w-full min-w-0 text-sm/6 text-foreground/80">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={markdownComponents}

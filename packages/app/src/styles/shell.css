@@ -117,18 +117,18 @@ body {
   line-height: calc(var(--multi-code-font-size-user, 12px) * 1.45);
 }
 
-/* Pierre palette: diff bridge matches editor well + Shiki theme intent (not generic app surface). */
+/* Pierre palette: diff bridge matches the Multi editor surface + Shiki theme intent. */
 :root[data-color-palette="pierre"] [data-diffs-container] {
-  --diffs-bg: var(--vscode-editor-background);
-  --diffs-fg: var(--vscode-editor-foreground, var(--foreground));
-  --diffs-light-bg: var(--vscode-editor-background);
-  --diffs-dark-bg: var(--vscode-editor-background);
-  --diffs-light: var(--vscode-editor-foreground, var(--foreground));
-  --diffs-dark: var(--vscode-editor-foreground, var(--foreground));
+  --diffs-bg: var(--multi-color-editor);
+  --diffs-fg: var(--foreground);
+  --diffs-light-bg: var(--multi-color-editor);
+  --diffs-dark-bg: var(--multi-color-editor);
+  --diffs-light: var(--foreground);
+  --diffs-dark: var(--foreground);
 }
 
 :root[data-color-palette="pierre"] .web-component[data-diffs-container] {
-  background-color: var(--vscode-editor-background);
+  background-color: var(--multi-color-editor);
 }
 
 .web-component[data-diffs-container] {
@@ -143,15 +143,136 @@ body {
 }
 
 /*
- * Stacked git diff strip — card chrome uses VS Code token roles
- * (panel/widget border, diffEditor seam, list selection) per Cursor workbench.desktop.main.css scrape.
+ * Stacked git diff strip — compact card chrome resolved through Multi workbench tokens.
  */
+.git-branch-chip {
+  display: inline-flex;
+  height: var(--multi-workbench-action-size, 22px);
+  min-width: 0;
+  align-items: center;
+  gap: var(--multi-workbench-sub-chrome-action-gap, 2px);
+  overflow: hidden;
+  border-radius: 5px;
+  padding-inline: 6px;
+  color: var(--multi-fg-primary);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 14px;
+  transition:
+    background-color 100ms ease,
+    color 100ms ease;
+}
+
+.git-branch-chip:hover {
+  background: var(--multi-bg-quaternary);
+  color: var(--multi-fg-primary);
+}
+
+.git-commit-split {
+  display: inline-flex;
+  height: var(--multi-workbench-action-size, 22px);
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--foreground) 72%, transparent);
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--foreground) 92%, var(--background));
+  color: var(--background);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 14px;
+}
+
+.git-commit-split__primary,
+.git-commit-split__menu-button {
+  display: inline-flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+  transition: background-color 100ms ease;
+}
+
+.git-commit-split__primary {
+  min-width: 0;
+  padding-inline: 8px;
+}
+
+.git-commit-split__menu-button {
+  width: 18px;
+  flex-shrink: 0;
+  border-left: 1px solid color-mix(in srgb, var(--background) 22%, transparent);
+}
+
+.git-commit-split__primary:hover,
+.git-commit-split__menu-button:hover {
+  background: color-mix(in srgb, var(--background) 13%, transparent);
+}
+
+.git-menu-popup {
+  border: 1px solid var(--multi-stroke-secondary);
+  border-radius: 6px;
+  background: var(--multi-bg-elevated);
+  padding: 3px;
+  color: var(--multi-fg-primary);
+  box-shadow: var(--multi-shadow-popup);
+}
+
+.git-menu-item {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+  border-radius: 4px;
+  padding: 4px 7px;
+  color: var(--multi-fg-secondary);
+  font-size: 11px;
+  line-height: 14px;
+  text-align: left;
+  transition:
+    background-color 100ms ease,
+    color 100ms ease;
+}
+
+.git-menu-item:hover,
+.git-menu-item[data-active] {
+  background: var(--multi-bg-quaternary);
+  color: var(--multi-fg-primary);
+}
+
+.git-menu-item__icon {
+  display: inline-flex;
+  width: 14px;
+  flex-shrink: 0;
+  justify-content: center;
+  color: var(--multi-icon-tertiary);
+}
+
+.git-menu-item[data-active] .git-menu-item__icon {
+  color: var(--multi-icon-primary);
+}
+
+.git-changes-count-trigger {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 2px;
+  overflow: hidden;
+  border-radius: 5px;
+  padding-inline: 4px 2px;
+  color: var(--multi-fg-secondary);
+  font-size: 11px;
+  line-height: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
 .git-stack-virtualizer {
   scrollbar-gutter: stable;
 }
 
 .git-diff-card {
   box-sizing: border-box;
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -159,12 +280,8 @@ body {
   margin-bottom: 10px;
   overflow: hidden;
   border-radius: max(8px, var(--multi-radius-card, 8px));
-  border: 1px solid color-mix(in srgb, var(--vscode-panel-border, var(--border)) 88%, transparent);
-  background: color-mix(
-    in srgb,
-    var(--vscode-editorWidget-background, var(--vscode-sideBar-background)) 14%,
-    var(--vscode-editor-background) 86%
-  );
+  border: 1px solid color-mix(in srgb, var(--multi-workbench-panel-border) 88%, transparent);
+  background: var(--multi-workbench-card-background);
   transition:
     border-color 120ms ease,
     box-shadow 120ms ease,
@@ -176,60 +293,97 @@ body {
 }
 
 .git-diff-card--selected {
-  border-color: color-mix(in srgb, var(--vscode-focusBorder, var(--ring)) 55%, var(--border));
-  box-shadow: inset 0 0 0 1px
-    color-mix(in srgb, var(--vscode-focusBorder, var(--ring)) 45%, transparent);
-  background: color-mix(
-    in srgb,
-    var(--vscode-list-inactiveSelectionBackground, var(--multi-color-hover)) 22%,
-    color-mix(
-      in srgb,
-      var(--vscode-editorWidget-background, var(--vscode-sideBar-background)) 14%,
-      var(--vscode-editor-background) 86%
-    )
-  );
+  border-color: color-mix(in srgb, var(--multi-stroke-focused) 55%, var(--multi-color-border));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--multi-stroke-focused) 45%, transparent);
+  background: var(--multi-workbench-card-selected-background);
+}
+
+.git-diff-card--collapsed .git-diff-card__header {
+  border-bottom-color: transparent;
 }
 
 .git-diff-card__header {
   display: flex;
   flex-shrink: 0;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 6px;
-  min-height: 22px;
-  padding: 6px 8px;
-  padding-inline-start: max(8px, calc(var(--multi-workbench-sub-chrome-padding-inline, 12px)));
-  border-bottom: 1px solid
-    color-mix(in srgb, var(--vscode-diffEditor-border, var(--border)) 82%, transparent);
+  min-height: 30px;
+  overflow: hidden;
+  padding-block: 4px;
+  padding-inline: 6px;
+  border-bottom: 1px solid color-mix(in srgb, var(--multi-stroke-tertiary) 82%, transparent);
   cursor: pointer;
 }
 
-.git-diff-card__header:hover {
-  background: color-mix(in srgb, var(--vscode-list-hoverBackground) 88%, transparent);
-}
-
-.git-diff-card__icon-slot {
-  display: flex;
+.git-diff-card__expand {
+  display: inline-flex;
   width: 16px;
+  height: 16px;
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
+  color: var(--multi-icon-tertiary);
+}
+
+.git-diff-card__expand:focus-visible {
+  border-radius: 2px;
+  outline: 1px solid var(--multi-stroke-focused);
+  outline-offset: 1px;
+}
+
+.git-diff-card__header:hover {
+  background: color-mix(in srgb, var(--multi-workbench-toolbar-hover-background) 88%, transparent);
+}
+
+.git-diff-card__icon-area {
+  position: relative;
+  display: flex;
+  width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+}
+
+.git-diff-card__file-icon,
+.git-diff-card__chevron {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--multi-icon-tertiary);
+}
+
+.git-diff-card__chevron {
+  display: none;
+}
+
+.git-diff-card__expand:hover .git-diff-card__file-icon,
+.git-diff-card__header:hover .git-diff-card__file-icon {
+  display: none;
+}
+
+.git-diff-card__expand:hover .git-diff-card__chevron,
+.git-diff-card__header:hover .git-diff-card__chevron {
+  display: flex;
 }
 
 .git-diff-card__title {
   display: flex;
   min-width: 0;
-  flex: 1;
+  flex: 1 1 auto;
   flex-wrap: nowrap;
-  align-items: baseline;
-  gap: 6px;
-  line-height: 22px;
+  align-items: center;
+  overflow: hidden;
+  line-height: 16px;
 }
 
 .git-diff-card__basename {
-  flex-shrink: 0;
-  font-weight: 600;
+  min-width: 0;
   font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
   color: color-mix(in srgb, var(--foreground) 92%, transparent);
 }
 
@@ -249,28 +403,28 @@ body {
   display: flex;
   flex-shrink: 0;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-variant-numeric: tabular-nums;
   font-size: 11px;
   line-height: 16px;
 }
 
 .git-diff-card__stat-plus {
-  color: var(--vscode-gitDecoration-addedResourceForeground, var(--success));
+  color: var(--multi-fg-green-primary);
 }
 
 .git-diff-card__stat-minus {
-  color: var(--vscode-gitDecoration-deletedResourceForeground, var(--destructive));
+  color: var(--multi-fg-red-primary);
 }
 
 .git-diff-card__action {
   display: inline-flex;
-  width: max(22px, 1.375rem);
-  height: max(22px, 1.375rem);
+  width: var(--multi-workbench-action-size, 22px);
+  height: var(--multi-workbench-action-size, 22px);
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: 5px;
   color: color-mix(in srgb, var(--foreground) 52%, transparent);
   transition:
     background-color 90ms ease,
@@ -278,11 +432,7 @@ body {
 }
 
 .git-diff-card__action:hover {
-  background: color-mix(
-    in srgb,
-    var(--vscode-toolbar-hoverBackground, var(--multi-color-hover)) 100%,
-    transparent
-  );
+  background: color-mix(in srgb, var(--multi-workbench-toolbar-hover-background) 100%, transparent);
   color: var(--foreground);
 }
 
@@ -294,150 +444,63 @@ body {
 }
 
 .git-diff-card__label {
-  display: flex;
+  display: inline-flex;
+  min-height: var(--multi-workbench-action-size, 22px);
+  flex-shrink: 0;
   cursor: pointer;
   align-items: center;
   gap: 4px;
-  padding-inline: 2px;
+  border-radius: 5px;
+  padding-inline: 3px 4px;
   font-size: 11px;
   line-height: 16px;
   color: color-mix(in srgb, var(--foreground) 58%, transparent);
 }
 
-/* SCM-adjacent secondary rail surface (vscode sideBar roles) */
-.multi-shell-git-rail {
-  background: color-mix(
-    in srgb,
-    var(--vscode-sideBar-background, var(--background)) 97%,
-    transparent
-  );
-  box-shadow: inset -1px 0 0
-    color-mix(in srgb, var(--vscode-sideBar-border, var(--border)) 78%, transparent);
+.git-diff-card__label:hover {
+  background: color-mix(in srgb, var(--multi-workbench-toolbar-hover-background) 100%, transparent);
+  color: var(--foreground);
 }
 
-/* Slash / @ menu shell */
-.ui-prompt-input__menu-popover {
-  --composer-menu-width: 300px;
-  bottom: calc(100% + var(--prompt-input-section-gap, 8px));
-  left: 0;
-  position: absolute;
-  width: min(var(--composer-menu-width), calc(100vw - 32px));
-  z-index: 60;
-}
-
-.ui-prompt-input__menu-popover[data-menu-kind="mentions"] {
-  --composer-menu-width: 250px;
-}
-
-.multi-composer-token-menu {
-  background: color-mix(in srgb, var(--glass-chat-bubble-opaque-background) 96%, transparent);
-  border: 1px solid var(--multi-stroke-secondary);
-  border-radius: 8px;
-  box-shadow:
-    0 1px 2px oklch(0 0 0 / 0.12),
-    var(--multi-shadow-popup);
-  color: var(--multi-fg-primary);
-  font-family: var(--multi-font-ui);
-  font-size: 12px;
-  max-width: 100%;
-  min-width: min(var(--composer-menu-width), calc(100vw - 32px));
-  overflow: hidden;
-  backdrop-filter: blur(18px);
-}
-
-.multi-composer-token-menu.mentions-menu {
-  width: 250px;
-}
-
-.multi-composer-token-menu__group-label {
-  color: var(--multi-fg-tertiary);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  line-height: 14px;
-  padding: 7px 10px 3px;
-  text-transform: uppercase;
-}
-
-.multi-composer-token-menu__item {
+.git-diff-card__controls {
+  display: inline-flex;
+  min-width: 0;
+  flex: 0 0 auto;
   align-items: center;
-  border-radius: 6px;
-  color: var(--multi-fg-primary);
-  display: flex;
-  gap: 8px;
-  min-height: 32px;
-  padding: 4px 8px;
+  gap: var(--multi-workbench-sub-chrome-action-gap, 2px);
 }
 
-.multi-composer-token-menu__item:hover,
-.multi-composer-token-menu__item--active,
-.multi-composer-token-menu__item[data-is-selected] {
-  background: var(
-    --vscode-list-hoverBackground,
-    color-mix(in srgb, var(--multi-fg-primary) 8%, transparent)
-  ) !important;
-  color: var(--multi-fg-primary) !important;
+@container (max-width: 360px) {
+  .git-diff-card__label {
+    width: var(--multi-workbench-action-size, 22px);
+    justify-content: center;
+    padding-inline: 3px;
+  }
+
+  .git-diff-card__label-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .git-diff-card__stats {
+    gap: 4px;
+  }
 }
 
-.multi-composer-token-menu__icon {
-  color: var(--multi-fg-secondary);
+/* SCM-adjacent secondary rail surface */
+.multi-shell-git-rail {
+  background: color-mix(in srgb, var(--multi-color-sidebar) 97%, transparent);
+  box-shadow: inset -1px 0 0 color-mix(in srgb, var(--multi-stroke-quaternary) 78%, transparent);
 }
 
-.multi-composer-token-menu__item-text {
-  align-items: baseline;
-  display: flex;
-  flex: 1 1 auto;
-  gap: 8px;
-  min-width: 0;
-}
-
-.multi-composer-token-menu__primary {
-  flex: 0 0 auto;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 18px;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.multi-composer-token-menu__secondary {
-  color: var(--multi-fg-tertiary);
-  flex: 1 1 auto;
-  font-size: 11px;
-  line-height: 16px;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.multi-composer-token-menu__meta {
-  color: var(--multi-fg-tertiary);
-  flex: 0 0 auto;
-  font-size: 11px;
-  line-height: 16px;
-  padding-left: 8px;
-  white-space: nowrap;
-}
-
-.multi-composer-token-menu__empty {
-  padding: 8px 10px;
-}
-
-.multi-composer-token-menu__empty-text,
 .ui-hover-row-empty {
   color: var(--multi-fg-tertiary);
   font-size: 12px;
   line-height: 18px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .multi-composer-token-menu {
-    transition: none !important;
-    animation: none !important;
-  }
 }
 
 .multi-composer-object-row--active {
@@ -456,11 +519,11 @@ body {
 }
 
 .agent-window__sidebar {
-  background: var(--vscode-sideBar-background);
+  background: var(--multi-color-sidebar);
   box-shadow: none;
 }
 
-/* Hairline dividers (Cursor-style): pseudo so borders don’t participate in width math. */
+/* Hairline dividers: pseudo-elements keep borders out of width math. */
 .agent-window__sidebar[data-shell-left-expanded="true"]::after {
   content: "";
   position: absolute;
@@ -477,22 +540,17 @@ body {
 }
 
 .agent-window__workbench {
-  background: var(
-    --glass-editor-surface-background,
-    color-mix(
-      in srgb,
-      var(--vscode-panel-background, var(--vscode-editor-background)) 74%,
-      transparent
-    )
-  );
+  background: var(--glass-editor-surface-background, var(--multi-workbench-surface-background));
   box-shadow: none;
 }
 
 .editor-panel-inner {
+  --multi-workbench-terminal-background: var(--multi-workbench-panel-background);
+  --multi-workbench-terminal-foreground: var(--foreground);
   min-height: 0;
 }
 
-/* Composite pane title band — full-width under the 35px tool island (VS Code panel titles) */
+/* Composite pane title band — full-width under the 35px tool island. */
 .agent-window .multi-workbench-panel-title-row {
   box-sizing: border-box;
   display: flex;
@@ -503,25 +561,53 @@ body {
   min-height: var(--multi-workbench-panel-title-row-height, 29px);
   max-height: var(--multi-workbench-panel-title-row-height, 29px);
   flex-wrap: nowrap;
-  padding-inline: max(10px, var(--multi-workbench-sub-chrome-padding-inline));
-  border-bottom: 1px solid color-mix(in srgb, var(--vscode-panel-border) 94%, transparent);
-  background-color: color-mix(
-    in srgb,
-    var(--vscode-editor-background) 94%,
-    var(--vscode-panel-background) 6%
-  );
+  padding-inline: var(--multi-workbench-sub-chrome-padding-inline);
+  border-bottom: 1px solid color-mix(in srgb, var(--multi-workbench-panel-border) 94%, transparent);
+  background-color: var(--multi-workbench-panel-title-background);
 }
 
-/* Primary Electron workbench tabs — Cursor-like matte grey strip (avoid heavy glass blur) */
+/* Primary Electron workbench tabs — matte strip without heavy glass blur. */
 .agent-window .multi-workbench-tool-island.editor-panel-tab-root {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
-  background-color: color-mix(
-    in srgb,
-    var(--vscode-panel-background) 58%,
-    var(--vscode-editor-background) 42%
-  );
-  border-bottom-color: color-mix(in srgb, var(--vscode-panel-border) 90%, transparent);
+  background-color: var(--multi-workbench-tool-island-background);
+  border-bottom-color: color-mix(in srgb, var(--multi-workbench-panel-border) 90%, transparent);
+}
+
+.agent-window
+  .multi-workbench-tool-island.editor-panel-tab-root[data-variant="simple-tabs"]
+  .ui-tab-system-tab[data-stable]:not([data-stable-expanded]) {
+  align-items: center;
+  aspect-ratio: 1;
+  justify-content: center;
+  width: var(--multi-workbench-action-size, 22px);
+  min-width: unset;
+  height: var(--multi-workbench-action-size, 22px);
+  padding: 0;
+}
+
+.agent-window
+  .multi-workbench-tool-island.editor-panel-tab-root[data-variant="simple-tabs"]
+  .ui-tab-system-tab[data-stable]:not([data-active])
+  .ui-tab-system-tab__icon {
+  color: var(--multi-icon-tertiary);
+}
+
+.agent-window
+  .multi-workbench-tool-island.editor-panel-tab-root[data-variant="simple-tabs"]
+  .ui-tab-system-tab[data-stable]:hover:not([data-active])
+  .ui-tab-system-tab__icon {
+  color: var(--multi-icon-secondary);
+}
+
+.agent-window
+  .multi-workbench-tool-island.editor-panel-tab-root[data-variant="simple-tabs"]
+  .ui-tab-system-tab[data-stable]:not([data-stable-expanded])
+  .ui-tab-system-tab__content {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Secondary pane rails / preview strips — quieter than primary 35px tool island */
@@ -534,12 +620,8 @@ body {
   flex-shrink: 0;
   gap: var(--multi-workbench-sub-chrome-action-gap);
   padding-inline: var(--multi-workbench-sub-chrome-padding-inline);
-  border-bottom: 1px solid color-mix(in srgb, var(--vscode-panel-border) 94%, transparent);
-  background-color: color-mix(
-    in srgb,
-    var(--vscode-editor-background) 94%,
-    var(--vscode-panel-background) 6%
-  );
+  border-bottom: 1px solid color-mix(in srgb, var(--multi-workbench-panel-border) 94%, transparent);
+  background-color: var(--multi-workbench-panel-title-background);
 }
 
 .agent-window .multi-workbench-sub-chrome-label {
@@ -550,7 +632,7 @@ body {
   letter-spacing: 0.015em;
 }
 
-/* VS Code–style splitter hit target (+ optional host theme sash tokens) */
+/* Workbench splitter hit target */
 .multi-shell-sash-hit-area {
   position: absolute;
   top: 0;
@@ -596,7 +678,7 @@ body {
 
 .agent-window
   .editor-panel-tab-root.editor-panel-tab-root--simple-tabs:not(.multi-workbench-tool-island) {
-  border-bottom-color: color-mix(in srgb, var(--vscode-panel-border) 78%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--multi-workbench-panel-border) 78%, transparent);
 }
 
 .agent-window__workbench::before {
@@ -638,15 +720,11 @@ body {
     var(--multi-bg-elevated) 88%,
     transparent
   );
-  --glass-editor-surface-background: color-mix(
-    in srgb,
-    var(--vscode-editor-background) 92%,
-    transparent
-  );
+  --glass-editor-surface-background: var(--multi-workbench-editor-surface-background);
 }
 
 .agent-window-chat-header {
-  background: var(--vscode-editor-background);
+  background: var(--multi-color-editor);
   color: var(--multi-fg-secondary);
 }
 
@@ -685,7 +763,7 @@ body {
 }
 
 /*
- * workbench.desktop.main.css — Cursor’s .agent-sidebar-* rules (scoped to .agent-window).
+ * Agent sidebar rules scoped to .agent-window.
  */
 
 .agent-window .sidebar-body {
@@ -728,7 +806,7 @@ body {
 
 .agent-window .agent-sidebar-section-chevron {
   align-items: center;
-  color: var(--cursor-text-tertiary, var(--multi-fg-tertiary));
+  color: var(--multi-fg-tertiary);
   display: inline-flex;
   flex-shrink: 0;
   height: 14px;
@@ -757,11 +835,11 @@ body {
 
 .agent-window .agent-sidebar-section-heading[data-active] .agent-sidebar-section-chevron {
   opacity: 1;
-  color: var(--cursor-text-primary, var(--multi-fg-primary));
+  color: var(--multi-fg-primary);
 }
 
 .agent-window .agent-sidebar-section-heading[data-active] .agent-sidebar-section-title-text {
-  color: var(--cursor-text-primary, var(--multi-fg-primary));
+  color: var(--multi-fg-primary);
 }
 
 .agent-window .agent-sidebar-section-collapsible-trigger {
@@ -785,11 +863,11 @@ body {
 
 .agent-window .agent-sidebar-section-collapsible-trigger:focus-visible {
   border-radius: 4px;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--vscode-focusBorder) 92%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--multi-stroke-focused) 92%, transparent);
 }
 
 .agent-window .agent-sidebar-section-title-text {
-  color: var(--cursor-text-tertiary);
+  color: var(--multi-fg-tertiary);
   flex: 1 1 auto;
   font-size: 11px;
   font-weight: 400;
@@ -810,8 +888,8 @@ body {
 .agent-window .agent-sidebar-section-new:hover,
 .agent-window .agent-sidebar-more:hover,
 .agent-window .agent-window-open-workspace:hover {
-  background: var(--cursor-bg-quaternary, var(--multi-bg-quaternary));
-  color: var(--cursor-text-primary, var(--multi-fg-primary));
+  background: var(--multi-bg-quaternary);
+  color: var(--multi-fg-primary);
 }
 
 .agent-window .agent-sidebar-list {
@@ -833,25 +911,25 @@ body {
 }
 
 .agent-window .agent-sidebar-cell-status {
-  color: var(--cursor-icon-secondary, var(--multi-icon-secondary));
+  color: var(--multi-icon-secondary);
 }
 
 .agent-window .agent-sidebar-cell:hover {
-  background: var(--cursor-bg-quaternary, var(--multi-bg-quaternary));
+  background: var(--multi-bg-quaternary);
 }
 
 .agent-window .agent-sidebar-cell[data-selected="true"] {
-  background: var(--cursor-bg-tertiary, var(--multi-bg-tertiary));
+  background: var(--multi-bg-tertiary);
 }
 
 .agent-window .agent-sidebar-cell[data-highlighted="true"] {
-  background: color-mix(in srgb, var(--vscode-foreground) 14%, transparent);
-  outline: 1px solid var(--vscode-focusBorder, rgba(0, 122, 204, 0.6));
+  background: color-mix(in srgb, var(--foreground) 14%, transparent);
+  outline: 1px solid var(--multi-stroke-focused);
   outline-offset: -1px;
 }
 
 .agent-window .agent-sidebar-cell-text {
-  color: var(--cursor-text-secondary, var(--multi-fg-secondary));
+  color: var(--multi-fg-secondary);
   font-size: 12px;
   font-weight: 400;
   line-height: 16px;
@@ -860,11 +938,11 @@ body {
 }
 
 .agent-window .agent-sidebar-cell[data-selected="true"] .agent-sidebar-cell-text {
-  color: var(--cursor-text-primary, var(--multi-fg-primary));
+  color: var(--multi-fg-primary);
 }
 
 .agent-window .agent-sidebar-cell-subtitle {
-  color: var(--cursor-text-tertiary, var(--multi-fg-tertiary));
+  color: var(--multi-fg-tertiary);
   font-size: 11px;
   font-weight: 400;
   line-height: 14px;
@@ -877,7 +955,7 @@ body {
 }
 
 .agent-window .agent-sidebar-cell[data-selected="true"] .agent-sidebar-cell-subtitle {
-  color: var(--cursor-text-secondary, var(--multi-fg-secondary));
+  color: var(--multi-fg-secondary);
 }
 
 .agent-window .agent-sidebar-cell[data-renaming="true"] {
@@ -894,8 +972,8 @@ body {
 }
 
 .agent-window-new-agent:hover {
-  background: var(--cursor-bg-quaternary, var(--multi-bg-quaternary));
-  color: var(--cursor-text-primary, var(--multi-fg-primary));
+  background: var(--multi-bg-quaternary);
+  color: var(--multi-fg-primary);
 }
 
 .agent-window-shortcut {
@@ -924,7 +1002,7 @@ body {
 }
 
 .agent-window-account-row:hover {
-  background: var(--cursor-bg-quaternary, var(--multi-bg-quaternary));
+  background: var(--multi-bg-quaternary);
 }
 
 .agent-window-account-avatar {
@@ -975,13 +1053,100 @@ body {
   background: var(--multi-color-chat);
 }
 
+.agent-panel-meta-agent-chat-shell {
+  --meta-agent-thread-stack-gap: var(--cursor-spacing-2);
+  --meta-agent-thread-stack-horizontal-inset: var(--cursor-spacing-5);
+  --meta-agent-thread-stack-bottom-inset: var(--cursor-spacing-6);
+  --meta-agent-thread-stack-top-inset: var(--cursor-spacing-4);
+  display: flex;
+  flex: 1;
+  justify-content: center;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.ui-imsg-thread {
+  position: relative;
+}
+
+.agent-panel-meta-agent-chat {
+  display: flex;
+  flex: 1;
+  justify-content: center;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 .agent-panel-meta-agent-chat__content,
 [data-composer-messages] {
   box-sizing: border-box;
-  margin-left: auto;
-  margin-right: auto;
-  max-width: var(--composer-max-width);
+  margin: 0 auto;
+  max-width: var(--composer-max-width, 840px);
+  min-height: min-content;
+  padding-left: var(--cursor-spacing-4);
+  padding-right: var(--cursor-spacing-4);
   width: 100%;
+}
+
+@keyframes scroll-btn-enter {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes scroll-btn-exit {
+  0% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+.agent-panel .agent-panel-scroll-to-bottom-button {
+  align-items: center;
+  appearance: none;
+  animation: scroll-btn-enter 0.15s ease-out both;
+  background-color: var(--glass-chat-bubble-background) !important;
+  border: 1px solid var(--cursor-stroke-tertiary);
+  border-radius: 9999px;
+  box-shadow: none;
+  box-sizing: border-box;
+  color: var(--cursor-icon-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  flex-shrink: 0;
+  height: 28px !important;
+  justify-content: center;
+  margin: 0;
+  min-height: 28px !important;
+  min-width: 28px !important;
+  padding: 0 !important;
+  transition:
+    background-color 0.15s ease-out,
+    border-color 0.15s ease-out;
+  width: 28px !important;
+}
+
+.agent-panel .agent-panel-scroll-to-bottom-button[data-exiting="true"] {
+  animation: scroll-btn-exit 0.12s ease-in both;
+}
+
+.agent-panel .agent-panel-scroll-to-bottom-button .ui-icon {
+  color: var(--cursor-icon-secondary);
+  font-size: 12px !important;
+}
+
+.agent-panel
+  .agent-panel-scroll-to-bottom-button:not(:disabled):is(:hover, :active, :focus-visible) {
+  background-color: var(--glass-chat-bubble-background) !important;
+  border-color: var(--cursor-stroke-secondary);
 }
 
 .agent-window .agent-prompt-input-root {
@@ -1057,14 +1222,14 @@ body {
 }
 
 .agent-panel__root {
-  background: var(--vscode-editor-background);
+  background: var(--multi-color-editor);
 }
 
 .agent-panel__composer-dock {
   background: linear-gradient(
     to top,
-    var(--vscode-editor-background) 0%,
-    color-mix(in srgb, var(--vscode-editor-background) 88%, transparent) 64%,
+    var(--multi-color-editor) 0%,
+    color-mix(in srgb, var(--multi-color-editor) 88%, transparent) 64%,
     transparent 100%
   );
 }
@@ -1072,15 +1237,13 @@ body {
 /* ============================================================
  * Composer Shell — variant layout rules
  * ------------------------------------------------------------
- * Cursor ships parallel rules in workbench.desktop.main.js (e.g.
- * .ui-agent-tray__prompt-wrap .ui-prompt-input, [data-variant=compact]).
  * Multi uses .chat-composer-shell[data-variant=…] + --prompt-input-* from tokens.css.
  * Outer shell: border, shadow, radius. Inner .chat-composer-surface: compact row flex + padding
  * so editor/toolbar can use display:contents without an extra wrapper breaking the flex axis.
  * ============================================================ */
 
 .agent-window .chat-composer-shell {
-  --ui-agent-tray-prompt-shadow: var(--cursor-shadow-workbench, 0 2px 16px oklch(0 0 0 / 0.08));
+  --ui-agent-tray-prompt-shadow: var(--multi-shadow-workbench, 0 2px 16px oklch(0 0 0 / 0.08));
   border: 1px solid var(--prompt-input-container-border);
   border-radius: var(--prompt-input-border-radius-expanded);
   background-color: var(--prompt-input-container-bg, var(--glass-chat-bubble-background));
@@ -1229,7 +1392,7 @@ body {
   padding: 0 0 0 4px;
 }
 
-/* Composer placeholder — Cursor-style tertiary; padding tracks editor insets */
+/* Composer placeholder — tertiary tone; padding tracks editor insets. */
 .agent-window .composer-prompt-placeholder,
 .agent-window [data-composer-placeholder] {
   font-size: 13px;
@@ -1272,20 +1435,6 @@ body {
 }
 
 /* Compact row: editor (2) | model + trailing actions (order 2) | submit (3) */
-.agent-window
-  .chat-composer-shell[data-variant="compact"]:not([data-expanded])
-  .glass-model-picker-wrapper[data-compact-visible] {
-  order: 2;
-  margin-inline-end: 0;
-}
-
-.agent-window
-  .chat-composer-shell[data-variant="compact"]:not([data-expanded])
-  .glass-model-picker-wrapper[data-compact-visible]
-  .ui-model-picker__trigger {
-  margin-inline-end: 6px;
-}
-
 .agent-window
   .chat-composer-shell[data-variant="compact"]:not([data-expanded])
   .ui-prompt-input-submit-button {
@@ -1396,7 +1545,7 @@ body {
 
 .agent-window .composer-unified-dropdown[data-mode="agent"] {
   background: transparent !important;
-  color: var(--vscode-input-foreground, var(--multi-fg-primary)) !important;
+  color: var(--multi-fg-primary) !important;
 }
 
 .agent-window .composer-unified-dropdown[data-mode="chat"] {
@@ -1433,74 +1582,582 @@ body {
   color: var(--composer-mode-debug-text) !important;
 }
 
-/* ============================================================
- * Model Picker — inside composer
- * ============================================================ */
-
-.agent-prompt-input-root .glass-model-picker-wrapper {
-  --agent-prompt-model-picker-max-width: 240px;
-  display: inline-flex;
-  max-width: var(--agent-prompt-model-picker-max-width);
-  min-width: 0;
-  overflow: hidden;
-}
-
-.agent-prompt-input-root .glass-model-picker-wrapper .ui-model-picker__trigger {
-  align-items: center;
-  border-radius: var(--multi-radius-full);
-  display: flex;
-  height: 24px;
-  max-width: 100%;
-  min-width: 0;
-  overflow: hidden;
-  padding: 10px 6px;
-  background-color: transparent;
-  border-color: transparent;
-}
-
-.agent-prompt-input-root .glass-model-picker-wrapper .ui-model-picker__trigger-text {
-  display: block;
-  flex: 1 1 auto;
-  max-width: 100%;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.agent-prompt-input-root[data-variant="compact"] .glass-model-picker-wrapper,
-.agent-window
-  .chat-composer-shell[data-variant="compact"]:not([data-expanded])
-  .glass-model-picker-wrapper[data-compact-visible] {
-  --agent-prompt-model-picker-max-width: 200px;
-}
-
 /* =============================================================
  * Messages & Tool Call Cards
  * ============================================================ */
 
+.ui-imsg-thread__messages,
 .multi-message-thread__messages {
   display: flex;
   flex-direction: column;
   gap: var(--cursor-spacing-3, 12px);
 }
 
-.multi-human-message__bubble {
-  backdrop-filter: blur(10px);
-  background: var(--glass-chat-bubble-background, var(--multi-color-elevated));
-  border-color: var(--multi-stroke-tertiary);
-  box-shadow: 0 1px 2px 0 oklch(0 0 0 / 0.05);
+.agent-panel-meta-agent-chat__message-entry {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--cursor-spacing-1);
+  content-visibility: auto;
+  contain-intrinsic-size: 96px;
 }
 
-.multi-assistant-message__bubble {
-  background: var(--multi-chat-surface-background, var(--background));
+.agent-panel-meta-agent-chat__row {
+  display: flex;
+  width: 100%;
+  min-width: 0;
 }
 
-.multi-assistant-message__body {
+.agent-panel-meta-agent-chat__row--assistant,
+.agent-panel-meta-agent-chat__row--human {
+  box-sizing: border-box;
+  padding-right: 0;
+  padding-left: 0;
+}
+
+.agent-panel-meta-agent-chat__row--loading {
+  opacity: 0.75;
+}
+
+.agent-panel-meta-agent-chat__row--assistant .ui-meta-agent-assistant-message,
+.agent-panel-meta-agent-chat__row--human .ui-meta-agent-human-message {
+  min-width: 0;
+}
+
+.agent-panel-meta-agent-chat__assistant-markdown,
+.agent-panel-meta-agent-chat__assistant-markdown *,
+.agent-panel-meta-agent-chat__row--assistant .ui-meta-agent-assistant-message__body,
+.agent-panel-meta-agent-chat__row--assistant .ui-meta-agent-assistant-message__body *,
+.agent-panel-meta-agent-chat__row--human .ui-meta-agent-human-message__body,
+.agent-panel-meta-agent-chat__row--human .ui-meta-agent-human-message__body * {
+  user-select: text;
+}
+
+.agent-panel-meta-agent-chat__row--human .ui-meta-agent-human-message__body {
+  display: flex;
+  flex-direction: column;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.agent-panel-meta-agent-chat__human-message-content {
+  max-width: 100%;
   min-width: 0;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
 
-/* Browser workbench chrome (parity with Cursor glass browser framing) */
+.agent-panel-meta-agent-chat__tool-call-row {
+  width: 100%;
+}
+
+.ui-meta-agent-human-message {
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  justify-content: flex-end;
+}
+
+.ui-meta-agent-human-message__bubble {
+  box-sizing: border-box;
+  max-width: 85%;
+  border: 1px solid var(--cursor-stroke-secondary);
+  border-radius: 18px;
+  background: var(--cursor-bg-elevated);
+  padding: var(--cursor-spacing-2) var(--cursor-spacing-3);
+}
+
+.agent-panel-meta-agent-chat__row--human .ui-meta-agent-human-message__bubble {
+  backdrop-filter: blur(10px);
+  background: var(--glass-chat-bubble-background, var(--cursor-bg-elevated));
+  border-color: var(--cursor-stroke-tertiary);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.ui-meta-agent-human-message__body {
+  color: var(--cursor-text-primary);
+  font-size: var(--conversation-text-font-size, var(--conversation-font-size, 13px));
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.ui-meta-agent-assistant-message {
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.ui-meta-agent-assistant-message--has-leading-icon {
+  align-items: flex-start;
+  gap: var(--cursor-spacing-2);
+}
+
+.ui-meta-agent-assistant-message__leading-icon {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+.ui-meta-agent-assistant-message__bubble {
+  box-sizing: border-box;
+  max-width: 100%;
+  border: 1px solid var(--cursor-stroke-secondary);
+  border-radius: 18px;
+  background: var(--glass-chat-surface-background, var(--cursor-bg-chrome));
+  padding: var(--cursor-spacing-2) var(--cursor-spacing-3) var(--cursor-spacing-3);
+}
+
+.agent-panel-meta-agent-chat__row--assistant .ui-meta-agent-assistant-message__bubble {
+  background: var(--glass-chat-surface-background, var(--cursor-bg-primary));
+}
+
+.agent-panel-meta-agent-chat__row--assistant .ui-meta-agent-assistant-message__body,
+.agent-panel-meta-agent-chat__row--human .ui-meta-agent-human-message__body {
+  min-width: 0;
+}
+
+.ui-meta-agent-assistant-message__bubble[role="button"] {
+  cursor: pointer;
+  transition:
+    border-color 100ms ease,
+    box-shadow 100ms ease;
+}
+
+.ui-meta-agent-assistant-message__bubble[role="button"]:hover {
+  border-color: var(--cursor-stroke-primary);
+}
+
+.ui-meta-agent-assistant-message__bubble[role="button"]:focus-visible {
+  outline: 2px solid var(--cursor-stroke-focused);
+  outline-offset: 2px;
+}
+
+.ui-meta-agent-assistant-message__body {
+  color: var(--cursor-text-primary);
+  font-size: var(--conversation-text-font-size, var(--conversation-font-size, 13px));
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.ui-meta-agent-status-row {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  gap: var(--cursor-spacing-2);
+  padding: var(--cursor-spacing-1) 0;
+}
+
+.ui-meta-agent-status-row__task {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ui-meta-agent-status-row-task-color, var(--cursor-text-tertiary));
+  font-size: 13px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-meta-agent-card {
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--cursor-stroke-secondary);
+  border-radius: var(--cursor-radius-xl);
+  background: var(--cursor-bg-editor);
+}
+
+.ui-meta-agent-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cursor-spacing-2);
+  border-bottom: 1px solid var(--cursor-stroke-tertiary);
+  padding: var(--cursor-spacing-2-5) var(--cursor-spacing-3);
+}
+
+.ui-meta-agent-card__title {
+  min-width: 0;
+  color: var(--cursor-text-primary);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.ui-meta-agent-card__body {
+  padding: var(--cursor-spacing-2) var(--cursor-spacing-3);
+}
+
+.ui-tool-call-line {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  color: var(--cursor-text-primary);
+  font-size: var(--conversation-font-size, 13px);
+  line-height: 1.5;
+  text-align: left;
+  text-overflow: ellipsis;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.ui-tool-call-line[role="button"],
+.ui-tool-call-line--clickable {
+  cursor: pointer;
+}
+
+.ui-tool-call-line--clickable:hover .ui-tool-call-line-action {
+  color: var(--cursor-text-primary);
+}
+
+.ui-tool-call-line--clickable:hover .ui-tool-call-line-details {
+  color: var(--cursor-text-secondary);
+}
+
+.ui-tool-call-line-action {
+  flex-shrink: 0;
+  color: var(--cursor-text-secondary);
+  font-weight: 400;
+  transition: color 0.1s ease-in-out;
+}
+
+.ui-tool-call-line-details {
+  overflow: hidden;
+  color: var(--cursor-text-tertiary);
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  transition: color 0.1s ease-in-out;
+}
+
+.ui-tool-call-line-details--linkable {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--cursor-text-tertiary) 45%, transparent);
+}
+
+.ui-tool-call-line-details--linkable:hover,
+.ui-tool-call-line-details--linkable:focus-visible {
+  color: var(--cursor-text-secondary);
+  text-decoration-color: color-mix(in srgb, var(--cursor-text-secondary) 55%, transparent);
+}
+
+.ui-tool-call-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--card-border-color, var(--cursor-stroke-secondary));
+  border-radius: var(--card-border-radius, 8px);
+}
+
+.ui-tool-call-card__header {
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 6px;
+  border: 0;
+  background: var(--cursor-bg-editor);
+  padding: 4px var(--conversation-tool-card-padding-x, 8px);
+  color: inherit;
+  font: inherit;
+  font-size: var(--conversation-font-size, 13px);
+  text-align: left;
+  transition: background 150ms ease;
+}
+
+.ui-tool-call-card__header:hover {
+  background: var(--cursor-bg-tertiary);
+}
+
+.ui-tool-call-card__header:disabled {
+  cursor: default;
+}
+
+.ui-tool-call-card[data-has-content="true"] .ui-tool-call-card__header {
+  border-bottom: 1px solid var(--card-border-color, var(--cursor-stroke-secondary));
+}
+
+.ui-tool-call-card__body {
+  background: var(--cursor-bg-editor);
+}
+
+.ui-shell-tool-call {
+  padding-inline: 0;
+  font-size: 13px;
+  line-height: 18px;
+  letter-spacing: 0;
+}
+
+.ui-shell-tool-call--pending {
+  outline: none;
+}
+
+.ui-shell-tool-call--pending .ui-tool-call-card,
+.ui-shell-tool-call__accordion-body--pending {
+  border-color: var(--cursor-stroke-primary);
+}
+
+.ui-shell-tool-call--expandable .ui-shell-tool-call__header {
+  cursor: pointer;
+}
+
+.ui-shell-tool-call .ui-tool-call-card__header {
+  align-items: center;
+  gap: var(--cursor-spacing-1-5);
+  border-bottom: 1px solid transparent;
+}
+
+.ui-shell-tool-call__icon-swap {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--cursor-text-tertiary);
+}
+
+.ui-shell-tool-call__icon-hover {
+  display: none;
+}
+
+.ui-shell-tool-call--expandable:hover .ui-shell-tool-call__icon-default {
+  display: none;
+}
+
+.ui-shell-tool-call--expandable:hover .ui-shell-tool-call__icon-hover {
+  display: inline-flex;
+}
+
+.ui-shell-tool-call__description-row {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 0;
+  align-items: center;
+  gap: var(--cursor-spacing-1-5);
+  overflow: hidden;
+  color: var(--cursor-text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-shell-tool-call__description {
+  overflow: hidden;
+  color: var(--cursor-text-secondary);
+  text-overflow: ellipsis;
+}
+
+.ui-shell-tool-call__line-summary {
+  flex-shrink: 0;
+  color: var(--cursor-text-tertiary);
+  white-space: nowrap;
+}
+
+.ui-shell-tool-call--expandable:hover .ui-shell-tool-call__description {
+  color: var(--cursor-text-secondary);
+}
+
+.ui-shell-tool-call--expandable:hover .ui-shell-tool-call__line-summary {
+  color: var(--cursor-text-tertiary);
+}
+
+.ui-shell-tool-call__accordion-body {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--cursor-stroke-secondary);
+  border-radius: var(--cursor-radius-md);
+}
+
+.ui-shell-tool-call__command,
+.ui-shell-tool-call__output {
+  margin: 0;
+  background: var(--cursor-bg-editor);
+  color: var(--cursor-text-tertiary);
+  font-family: var(--cursor-font-family-mono, var(--monaco-monospace-font, monospace));
+  font-size: 12px;
+  line-height: 16px;
+  overflow-wrap: anywhere;
+  padding-inline: var(--conversation-tool-card-padding-x, var(--cursor-spacing-2));
+  user-select: text;
+  white-space: pre-wrap;
+}
+
+.ui-shell-tool-call__command {
+  padding-block: var(--cursor-spacing-1-5);
+}
+
+.ui-shell-tool-call__output {
+  padding-bottom: var(--cursor-spacing-1-5);
+}
+
+.ui-shell-tool-call__prompt {
+  color: var(--cursor-text-tertiary);
+  user-select: none;
+}
+
+.ui-edit-tool-call {
+  margin: 0;
+}
+
+.ui-edit-tool-call--minimal .ui-edit-tool-call__minimal-header {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.ui-edit-tool-call--minimal .ui-tool-call-line {
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.ui-edit-tool-call__filename {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--cursor-text-tertiary);
+  text-overflow: ellipsis;
+  transition: color 0.1s ease-in-out;
+  white-space: nowrap;
+}
+
+.ui-edit-tool-call--minimal .ui-tool-call-line--clickable:hover .ui-edit-tool-call__filename,
+.ui-edit-tool-call--minimal .ui-edit-tool-call__minimal-header:hover .ui-edit-tool-call__filename {
+  color: var(--cursor-text-secondary);
+}
+
+.ui-edit-tool-call--minimal.ui-edit-tool-call--delete
+  .ui-tool-call-line--clickable:hover
+  .ui-edit-tool-call__filename,
+.ui-edit-tool-call--minimal.ui-edit-tool-call--delete
+  .ui-edit-tool-call__minimal-header:hover
+  .ui-edit-tool-call__filename {
+  color: var(--cursor-text-tertiary);
+}
+
+.ui-edit-tool-call__stats {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 4px;
+  margin-left: 4px;
+}
+
+.ui-edit-tool-call__additions {
+  color: var(--cursor-text-green-primary);
+}
+
+.ui-edit-tool-call__deletions {
+  color: var(--cursor-text-red-primary);
+}
+
+.ui-edit-tool-call__minimal-expand-button {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: var(--cursor-text-tertiary);
+  cursor: pointer;
+  opacity: 0;
+  padding: 0;
+  transition:
+    color 0.1s ease-in-out,
+    opacity 0.1s ease-in-out;
+}
+
+.ui-edit-tool-call__minimal-expand-button:hover,
+.ui-edit-tool-call__minimal-expand-button:focus-visible,
+.ui-edit-tool-call__minimal-expand-button[aria-expanded="true"],
+.ui-edit-tool-call__minimal-header:hover .ui-edit-tool-call__minimal-expand-button {
+  color: var(--cursor-text-secondary);
+  opacity: 1;
+}
+
+.ui-edit-tool-call__minimal-expand-icon {
+  transition: transform 0.15s ease-in-out;
+}
+
+.ui-edit-tool-call__minimal-expand-button[aria-expanded="true"]
+  .ui-edit-tool-call__minimal-expand-icon {
+  transform: rotate(90deg);
+}
+
+.ui-edit-tool-call__minimal-content {
+  max-width: min(100%, var(--composer-max-width));
+  overflow: hidden;
+  margin-top: var(--cursor-spacing-1);
+  border: 1px solid var(--cursor-stroke-secondary);
+  border-radius: var(--cursor-radius-md);
+  background: var(--cursor-bg-editor);
+  color: var(--cursor-text-tertiary);
+  font-family: var(--cursor-font-family-mono, monospace);
+  font-size: 12px;
+  line-height: 16px;
+  padding: var(--cursor-spacing-1-5) var(--conversation-tool-card-padding-x, 8px);
+}
+
+.ui-edit-tool-call__preview {
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+  white-space: pre-wrap;
+}
+
+@keyframes text-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes tool-call-line-shine {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.ui-meta-agent-status-row__task--shimmer,
+.ui-tool-call-line-shimmer,
+.ui-shell-tool-call__description--loading,
+.ui-edit-tool-call__filename--loading {
+  animation: tool-call-line-shine 2s linear infinite;
+  background-clip: text;
+  background-image: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--cursor-foreground, currentColor) 60%, transparent) 0%,
+    color-mix(in srgb, var(--cursor-foreground, currentColor) 60%, transparent) 25%,
+    var(--cursor-text-primary) 60%,
+    color-mix(in srgb, var(--cursor-foreground, currentColor) 60%, transparent) 75%,
+    color-mix(in srgb, var(--cursor-foreground, currentColor) 60%, transparent) 100%
+  );
+  background-size: 200% 100%;
+  color: transparent;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-meta-agent-status-row__task--shimmer,
+  .ui-tool-call-line-shimmer,
+  .ui-shell-tool-call__description--loading,
+  .ui-edit-tool-call__filename--loading {
+    animation: none;
+    background: none;
+    color: var(--cursor-text-tertiary);
+    -webkit-text-fill-color: unset;
+  }
+}
+
+/* Browser workbench chrome */
 .glass-browser-toolbar {
   box-sizing: border-box;
   display: flex;
@@ -1523,36 +2180,43 @@ body {
   height: 100%;
 }
 
-/* ---- Chat markdown (VS Code interactive-session `.rendered-markdown` parity) ---- */
+/* ---- Chat markdown ---- */
 .chat-markdown {
   min-width: 0;
   overflow-wrap: anywhere;
   word-break: break-word;
   --monaco-monospace-font: var(--multi-font-mono);
-  --vscode-widget-shadow: color-mix(in srgb, var(--foreground) 10%, transparent);
-  --vscode-textCodeBlock-background: color-mix(in srgb, var(--foreground) 6.5%, var(--background));
-  --vscode-textBlockQuote-background: color-mix(in srgb, var(--foreground) 4%, var(--background));
-  --vscode-textBlockQuote-border: color-mix(in srgb, var(--foreground) 26%, transparent);
-  --vscode-textBlockQuote-foreground: var(--muted-foreground);
-  --vscode-textLink-foreground: var(--info-foreground);
-  --vscode-textLink-activeForeground: color-mix(
+  --multi-markdown-widget-shadow: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --multi-markdown-code-background: color-mix(in srgb, var(--foreground) 6.5%, var(--background));
+  --multi-markdown-blockquote-background: color-mix(
+    in srgb,
+    var(--foreground) 4%,
+    var(--background)
+  );
+  --multi-markdown-blockquote-border: color-mix(in srgb, var(--foreground) 26%, transparent);
+  --multi-markdown-blockquote-foreground: var(--muted-foreground);
+  --multi-markdown-link-foreground: var(--info-foreground);
+  --multi-markdown-link-active-foreground: color-mix(
     in srgb,
     var(--info-foreground) 88%,
     var(--foreground)
   );
-  --vscode-textPreformat-foreground: var(--foreground);
-  --vscode-chat-requestBorder: var(--border);
-  --vscode-input-border: color-mix(in srgb, var(--border) 90%, var(--foreground));
-  --vscode-keybindingLabel-background: var(--muted);
-  --vscode-keybindingLabel-border: var(--border);
-  --vscode-keybindingLabel-bottomBorder: var(--border);
-  --vscode-keybindingLabel-foreground: var(--foreground);
+  --multi-markdown-preformat-foreground: var(--foreground);
+  --multi-markdown-request-border: var(--border);
+  --multi-markdown-kbd-background: var(--muted);
+  --multi-markdown-kbd-border: var(--border);
+  --multi-markdown-kbd-bottom-border: var(--border);
+  --multi-markdown-kbd-foreground: var(--foreground);
 }
 
 .dark .chat-markdown {
-  --vscode-textCodeBlock-background: color-mix(in srgb, var(--foreground) 9%, var(--background));
-  --vscode-textBlockQuote-background: color-mix(in srgb, var(--foreground) 5%, var(--background));
-  --vscode-textBlockQuote-border: color-mix(in srgb, var(--foreground) 34%, transparent);
+  --multi-markdown-code-background: color-mix(in srgb, var(--foreground) 9%, var(--background));
+  --multi-markdown-blockquote-background: color-mix(
+    in srgb,
+    var(--foreground) 5%,
+    var(--background)
+  );
+  --multi-markdown-blockquote-border: color-mix(in srgb, var(--foreground) 34%, transparent);
 }
 
 .chat-markdown > :last-child {
@@ -1670,38 +2334,38 @@ body {
 }
 
 .chat-markdown a {
-  color: var(--vscode-textLink-foreground);
+  color: var(--multi-markdown-link-foreground);
   text-decoration: none;
   user-select: text;
 }
 
 .chat-markdown a:hover,
 .chat-markdown a:active {
-  color: var(--vscode-textLink-activeForeground);
+  color: var(--multi-markdown-link-active-foreground);
 }
 
 .chat-markdown a code {
-  color: var(--vscode-textLink-foreground);
+  color: var(--multi-markdown-link-foreground);
 }
 
 .chat-markdown blockquote {
   margin: 0;
   border-radius: 2px;
-  border-left: 5px solid var(--vscode-textBlockQuote-border);
-  background: var(--vscode-textBlockQuote-background);
-  color: var(--vscode-textBlockQuote-foreground);
+  border-left: 5px solid var(--multi-markdown-blockquote-border);
+  background: var(--multi-markdown-blockquote-background);
+  color: var(--multi-markdown-blockquote-foreground);
   padding: 0 16px 0 10px;
 }
 
 .chat-markdown kbd {
-  background-color: var(--vscode-keybindingLabel-background);
-  border-color: var(--vscode-keybindingLabel-border);
-  border-bottom-color: var(--vscode-keybindingLabel-bottomBorder);
+  background-color: var(--multi-markdown-kbd-background);
+  border-color: var(--multi-markdown-kbd-border);
+  border-bottom-color: var(--multi-markdown-kbd-bottom-border);
   border-radius: 3px;
   border-style: solid;
   border-width: 1px;
-  box-shadow: inset 0 -1px 0 var(--vscode-widget-shadow);
-  color: var(--vscode-keybindingLabel-foreground);
+  box-shadow: inset 0 -1px 0 var(--multi-markdown-widget-shadow);
+  color: var(--multi-markdown-kbd-foreground);
   font-family: var(--monaco-monospace-font);
   font-size: 0.85em;
   padding: 1px 3px;
@@ -1710,11 +2374,11 @@ body {
 
 .chat-markdown :not(pre) > code {
   border-radius: 3px;
-  background-color: var(--vscode-textCodeBlock-background);
+  background-color: var(--multi-markdown-code-background);
   font-family: var(--monaco-monospace-font);
   font-size: 0.8em;
   padding: 0.1em 0.3em;
-  color: var(--vscode-textPreformat-foreground);
+  color: var(--multi-markdown-preformat-foreground);
 }
 
 .chat-markdown strong,
@@ -1738,7 +2402,7 @@ body {
   max-width: 100%;
   overflow-x: auto;
   border-radius: 4px;
-  background-color: var(--vscode-textCodeBlock-background);
+  background-color: var(--multi-markdown-code-background);
   padding: 0.5em;
   border: none;
 }
@@ -1772,7 +2436,7 @@ body {
   height: 1.5rem;
   width: 1.5rem;
   border-radius: 3px;
-  border: 1px solid var(--vscode-chat-requestBorder);
+  border: 1px solid var(--multi-markdown-request-border);
   background: color-mix(in srgb, var(--background) 82%, transparent);
   color: var(--muted-foreground);
   opacity: 0;
@@ -1791,11 +2455,11 @@ body {
 
 .chat-markdown .chat-markdown-copy-button:hover {
   color: var(--foreground);
-  border-color: color-mix(in srgb, var(--vscode-chat-requestBorder) 70%, var(--foreground));
+  border-color: color-mix(in srgb, var(--multi-markdown-request-border) 70%, var(--foreground));
 }
 
 .chat-markdown .chat-markdown-shiki .shiki {
-  background: var(--vscode-textCodeBlock-background) !important;
+  background: var(--multi-markdown-code-background) !important;
 }
 
 .chat-markdown table {
@@ -1807,6 +2471,6 @@ body {
 
 .chat-markdown th,
 .chat-markdown td {
-  border: 1px solid var(--vscode-chat-requestBorder);
+  border: 1px solid var(--multi-markdown-request-border);
   padding: 4px 6px;
 }

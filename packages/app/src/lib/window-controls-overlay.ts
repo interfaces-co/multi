@@ -1,5 +1,3 @@
-const WCO_CLASS_NAME = "wco";
-
 interface WindowControlsOverlayLike {
   readonly visible: boolean;
   addEventListener(type: "geometrychange", listener: EventListener): void;
@@ -25,7 +23,7 @@ export function syncDocumentWindowControlsOverlayClass(): () => void {
 
   const overlay = getWindowControlsOverlay();
   const update = () => {
-    document.documentElement.classList.toggle(WCO_CLASS_NAME, overlay !== null && overlay.visible);
+    document.documentElement.classList.toggle("wco", overlay !== null && overlay.visible);
   };
 
   update();

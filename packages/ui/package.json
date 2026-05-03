@@ -48,6 +48,10 @@
       "types": "./src/dialog.tsx",
       "import": "./src/dialog.tsx"
     },
+    "./dotm-square-1": {
+      "types": "./src/dotm-square-1.tsx",
+      "import": "./src/dotm-square-1.tsx"
+    },
     "./empty": {
       "types": "./src/empty.tsx",
       "import": "./src/empty.tsx"
@@ -176,8 +180,8 @@
   "dependencies": {
     "@base-ui/react": "^1.4.1",
     "@multi/shared": "workspace:*",
+    "central-icons": "npm:@central-icons-react/round-outlined-radius-2-stroke-1.5@^1.1.215",
     "class-variance-authority": "^0.7.1",
-    "lucide-react": "^1.11.0",
     "react": "^19.2.5",
     "tailwind-merge": "^3.5.0"
   },

@@ -5,10 +5,10 @@ import type { ReactNode } from "react";
 import { cn } from "~/lib/utils";
 
 const popupSurface = cn(
-  "multi-slash-menu-popup multi-composer-token-menu",
+  "multi-slash-menu-popup",
   "origin-[var(--transform-origin)]",
   "overflow-hidden rounded-multi-card border border-multi-stroke bg-multi-bubble shadow-multi-popup backdrop-blur-xl",
-  "w-[min(280px,calc(100vw-2rem))] text-[12px] leading-[16px] select-none outline-none",
+  "w-[min(280px,calc(100vw-2rem))] text-[12px]/[16px] select-none outline-hidden",
 );
 
 const itemClass = cn(

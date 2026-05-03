@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { Schema } from "effect";
 
 import { ProviderRuntimeEvent } from "./provider-runtime";
-import { ProviderDriverKind } from "./provider-instance";
 
 const decodeRuntimeEvent = Schema.decodeUnknownSync(ProviderRuntimeEvent);
 

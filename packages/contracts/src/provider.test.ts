@@ -7,7 +7,6 @@ import {
   ProviderSession,
   ProviderSessionStartInput,
 } from "./provider";
-import { ProviderDriverKind, ProviderInstanceId } from "./provider-instance";
 
 const decodeProviderSessionStartInput = Schema.decodeUnknownSync(ProviderSessionStartInput);
 const decodeProviderSendTurnInput = Schema.decodeUnknownSync(ProviderSendTurnInput);

@@ -1,6 +1,6 @@
 import { type MessageId } from "@multi/contracts";
 import { memo, type ReactNode } from "react";
-import { Undo2Icon } from "lucide-react";
+import { IconArrowUndoUp as Undo2Icon } from "central-icons";
 import { Button } from "@multi/ui/button";
 import { buildExpandedImagePreview, type ExpandedImagePreview } from "./expanded-image-preview";
 import { MessageCopyButton } from "./message-copy-button";
@@ -17,6 +17,12 @@ import {
   textContainsInlineTerminalContextLabels,
 } from "./user-message-terminal-contexts";
 import { type ChatMessage } from "../../types";
+import {
+  CursorMessageActions,
+  CursorMessageBubble,
+  CursorMessageMeta,
+  CursorMessageMetaRow,
+} from "./cursor-chat-bundle";
 
 interface HumanMessageProps {
   message: ChatMessage;
@@ -42,75 +48,71 @@ export const HumanMessage = memo(function HumanMessage({
   const terminalContexts = displayedUserMessage.contexts;
   const canRevertAgentWork = typeof revertTurnCount === "number";
 
-  return (
-    <div className="multi-human-message flex justify-end">
-      <div className="multi-human-message__bubble group relative max-w-[80%] rounded-2xl rounded-br-sm border border-border bg-secondary px-4 py-3">
-        {userImages.length > 0 && (
-          <div className="mb-2 grid max-w-[420px] grid-cols-2 gap-2">
-            {userImages.map((image) => (
-              <div
-                key={image.id}
-                className="overflow-hidden rounded-lg border border-border/80 bg-background/70"
-              >
-                {image.previewUrl ? (
-                  <button
-                    type="button"
-                    className="h-full w-full cursor-zoom-in"
-                    aria-label={`Preview ${image.name}`}
-                    onClick={() => {
-                      const preview = buildExpandedImagePreview(userImages, image.id);
-                      if (!preview) return;
-                      onImageExpand(preview);
-                    }}
-                  >
-                    <img
-                      src={image.previewUrl}
-                      alt={image.name}
-                      className="block h-auto max-h-[220px] w-full object-cover"
-                    />
-                  </button>
-                ) : (
-                  <div className="flex min-h-[72px] items-center justify-center px-2 py-3 text-center text-[11px] text-muted-foreground/70">
-                    {image.name}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-        {(displayedUserMessage.visibleText.trim().length > 0 || terminalContexts.length > 0) && (
-          <div className="multi-human-message__body">
-            <UserMessageBody
-              text={displayedUserMessage.visibleText}
-              terminalContexts={terminalContexts}
-            />
-          </div>
-        )}
-        <div className="mt-1.5 flex items-center justify-end gap-2">
-          <div className="flex items-center gap-1.5 opacity-0 transition-opacity duration-200 focus-within:opacity-100 group-hover:opacity-100">
-            {displayedUserMessage.copyText && (
-              <MessageCopyButton text={displayedUserMessage.copyText} />
-            )}
-            {canRevertAgentWork && (
-              <Button
+  const media =
+    userImages.length > 0 ? (
+      <div className="mb-[var(--cursor-spacing-2)] grid max-w-[420px] grid-cols-2 gap-[var(--cursor-spacing-2)]">
+        {userImages.map((image) => (
+          <div
+            key={image.id}
+            className="overflow-hidden rounded-[var(--cursor-radius-md)] border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-editor)]"
+          >
+            {image.previewUrl ? (
+              <button
                 type="button"
-                size="xs"
-                variant="outline"
-                disabled={isRevertingCheckpoint || isWorking}
-                onClick={() => onRevertUserMessage(message.id)}
-                title="Revert to this message"
+                className="block size-full cursor-zoom-in border-0 bg-transparent p-0"
+                aria-label={`Preview ${image.name}`}
+                onClick={() => {
+                  const preview = buildExpandedImagePreview(userImages, image.id);
+                  if (!preview) return;
+                  onImageExpand(preview);
+                }}
               >
-                <Undo2Icon className="size-3" />
-              </Button>
+                <img
+                  src={image.previewUrl}
+                  alt={image.name}
+                  className="block max-h-[220px] w-full object-cover"
+                />
+              </button>
+            ) : (
+              <div className="flex min-h-[72px] items-center justify-center px-[var(--cursor-spacing-3)] py-[var(--cursor-spacing-2)] text-center text-[11px]/[14px] text-[var(--cursor-text-tertiary)]">
+                {image.name}
+              </div>
             )}
           </div>
-          <p className="text-right text-xs text-muted-foreground/50">
-            {formatTimestamp(message.createdAt, timestampFormat)}
-          </p>
-        </div>
+        ))}
       </div>
-    </div>
+    ) : null;
+  const body =
+    displayedUserMessage.visibleText.trim().length > 0 || terminalContexts.length > 0 ? (
+      <UserMessageBody
+        text={displayedUserMessage.visibleText}
+        terminalContexts={terminalContexts}
+      />
+    ) : null;
+  const footer = (
+    <CursorMessageMetaRow alignEnd>
+      <CursorMessageActions>
+        {displayedUserMessage.copyText ? (
+          <MessageCopyButton text={displayedUserMessage.copyText} />
+        ) : null}
+        {canRevertAgentWork ? (
+          <Button
+            type="button"
+            size="xs"
+            variant="outline"
+            disabled={isRevertingCheckpoint || isWorking}
+            onClick={() => onRevertUserMessage(message.id)}
+            title="Revert to this message"
+          >
+            <Undo2Icon className="size-3" />
+          </Button>
+        ) : null}
+      </CursorMessageActions>
+      <CursorMessageMeta>{formatTimestamp(message.createdAt, timestampFormat)}</CursorMessageMeta>
+    </CursorMessageMetaRow>
   );
+
+  return <CursorMessageBubble role="user" body={body} media={media} footer={footer} />;
 });
 
 const UserMessageTerminalContextInlineLabel = memo(
@@ -172,9 +174,7 @@ const UserMessageBody = memo(function UserMessageBody(props: {
         }
 
         return (
-          <div className="whitespace-pre-wrap wrap-break-word text-sm leading-relaxed text-foreground">
-            {inlineNodes}
-          </div>
+          <div className="agent-panel-meta-agent-chat__human-message-content">{inlineNodes}</div>
         );
       }
     }
@@ -199,20 +199,12 @@ const UserMessageBody = memo(function UserMessageBody(props: {
       return null;
     }
 
-    return (
-      <div className="whitespace-pre-wrap wrap-break-word text-sm leading-relaxed text-foreground">
-        {inlineNodes}
-      </div>
-    );
+    return <div className="agent-panel-meta-agent-chat__human-message-content">{inlineNodes}</div>;
   }
 
   if (props.text.length === 0) {
     return null;
   }
 
-  return (
-    <div className="whitespace-pre-wrap wrap-break-word text-sm leading-relaxed text-foreground">
-      {props.text}
-    </div>
-  );
+  return <div className="agent-panel-meta-agent-chat__human-message-content">{props.text}</div>;
 });

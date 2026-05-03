@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { isElectron } from "~/env";
 import { cn } from "~/lib/utils";
 
+import { DotmSquare1 } from "@multi/ui/dotm-square-1";
 import { Skeleton } from "@multi/ui/skeleton";
 
 export type DiffPanelMode = "inline" | "sheet" | "sidebar";
@@ -79,6 +80,15 @@ export function DiffPanelLoadingState(props: { label: string }) {
           <Skeleton className="ml-auto h-4 w-20 rounded-full" />
         </div>
         <div className="flex min-h-0 flex-1 flex-col gap-4 px-3 py-4">
+          <div className="flex justify-center py-2">
+            <DotmSquare1
+              className="text-muted-foreground/60"
+              dotSize={3}
+              cellPadding={2}
+              boxSize={64}
+              minSize={48}
+            />
+          </div>
           <div className="space-y-2">
             <Skeleton className="h-3 w-full rounded-full" />
             <Skeleton className="h-3 w-full rounded-full" />

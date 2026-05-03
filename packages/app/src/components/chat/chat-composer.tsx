@@ -93,15 +93,16 @@ import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "@mu
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@multi/ui/tooltip";
 import { toastManager } from "~/app/toast";
 import {
-  BotIcon,
-  CircleAlertIcon,
-  ListTodoIcon,
-  type LucideIcon,
-  LockIcon,
-  LockOpenIcon,
-  PenLineIcon,
-  XIcon,
-} from "lucide-react";
+  IconExclamationCircle as CircleAlertIcon,
+  IconLock as LockIcon,
+  IconPencilLine as PenLineIcon,
+  IconRobot as BotIcon,
+  IconSquareChecklist as ListTodoIcon,
+  IconUnlocked as LockOpenIcon,
+  IconX as XIcon,
+  type CentralIconBaseProps,
+} from "central-icons";
+type CentralIconComponent = React.ComponentType<CentralIconBaseProps>;
 import { proposedPlanTitle } from "../../proposed-plan";
 import { getProviderInteractionModeToggle } from "../../provider-models";
 import {
@@ -123,7 +124,7 @@ const IMAGE_SIZE_LIMIT_LABEL = `${Math.round(PROVIDER_SEND_TURN_MAX_IMAGE_BYTES 
 
 const runtimeModeConfig: Record<
   RuntimeMode,
-  { label: string; description: string; icon: LucideIcon }
+  { label: string; description: string; icon: CentralIconComponent }
 > = {
   "approval-required": {
     label: "Supervised",
@@ -776,9 +777,7 @@ export const ChatComposer = memo(
     const [composerCursor, setComposerCursor] = useState(() =>
       collapseExpandedComposerCursor(prompt, prompt.length),
     );
-    const [composerTrigger, setComposerTrigger] = useState<ComposerTrigger | null>(() =>
-      detectComposerTrigger(prompt, prompt.length),
-    );
+    const [composerTrigger, setComposerTrigger] = useState<ComposerTrigger | null>(null);
     const [composerHighlightedItemId, setComposerHighlightedItemId] = useState<string | null>(null);
     const [composerHighlightedSearchKey, setComposerHighlightedSearchKey] = useState<string | null>(
       null,
@@ -801,7 +800,36 @@ export const ChatComposer = memo(
     const composerMenuOpenRef = useRef(false);
     const composerMenuItemsRef = useRef<ComposerCommandItem[]>([]);
     const activeComposerMenuItemRef = useRef<ComposerCommandItem | null>(null);
+    const suppressInitialComposerTriggerDetectionRef = useRef(true);
+    const initialComposerTriggerSuppressionPromptRef = useRef(prompt);
+    const dismissedComposerTriggerKeyRef = useRef<string | null>(null);
     const dragDepthRef = useRef(0);
+
+    const composerTriggerDismissKey = useCallback(
+      (trigger: ComposerTrigger) =>
+        `${trigger.kind}:${trigger.rangeStart}:${trigger.rangeEnd}:${trigger.query}`,
+      [],
+    );
+
+    const resolveComposerTrigger = useCallback(
+      (text: string, expandedCursor: number): ComposerTrigger | null => {
+        if (suppressInitialComposerTriggerDetectionRef.current) {
+          if (text === initialComposerTriggerSuppressionPromptRef.current) {
+            return null;
+          }
+          suppressInitialComposerTriggerDetectionRef.current = false;
+        }
+        const nextTrigger = detectComposerTrigger(text, expandedCursor);
+        if (!nextTrigger) {
+          dismissedComposerTriggerKeyRef.current = null;
+          return null;
+        }
+        return composerTriggerDismissKey(nextTrigger) === dismissedComposerTriggerKeyRef.current
+          ? null
+          : nextTrigger;
+      },
+      [composerTriggerDismissKey],
+    );
 
     // ------------------------------------------------------------------
     // Derived: composer send state
@@ -1010,10 +1038,16 @@ export const ChatComposer = memo(
         setComposerDraftPrompt(composerDraftTarget, nextPrompt);
         const nextCursor = collapseExpandedComposerCursor(nextPrompt, nextPrompt.length);
         setComposerCursor(nextCursor);
-        setComposerTrigger(detectComposerTrigger(nextPrompt, nextPrompt.length));
+        setComposerTrigger(resolveComposerTrigger(nextPrompt, nextPrompt.length));
         scheduleComposerFocus();
       },
-      [composerDraftTarget, promptRef, scheduleComposerFocus, setComposerDraftPrompt],
+      [
+        composerDraftTarget,
+        promptRef,
+        resolveComposerTrigger,
+        scheduleComposerFocus,
+        setComposerDraftPrompt,
+      ],
     );
 
     const providerTraitsMenuContent = renderProviderTraitsMenuContent({
@@ -1093,12 +1127,13 @@ export const ChatComposer = memo(
         removeComposerDraftTerminalContext(composerDraftTarget, contextId);
         const nextCursor = collapseExpandedComposerCursor(removal.prompt, removal.cursor);
         setComposerCursor(nextCursor);
-        setComposerTrigger(detectComposerTrigger(removal.prompt, removal.cursor));
+        setComposerTrigger(resolveComposerTrigger(removal.prompt, removal.cursor));
       },
       [
         composerDraftTarget,
         composerTerminalContexts,
         promptRef,
+        resolveComposerTrigger,
         removeComposerDraftTerminalContext,
         setPrompt,
       ],
@@ -1181,7 +1216,7 @@ export const ChatComposer = memo(
       const nextCursor = collapseExpandedComposerCursor(nextCustomAnswer, nextCustomAnswer.length);
       setComposerCursor(nextCursor);
       setComposerTrigger(
-        detectComposerTrigger(
+        resolveComposerTrigger(
           nextCustomAnswer,
           expandCollapsedComposerCursor(nextCustomAnswer, nextCursor),
         ),
@@ -1192,6 +1227,7 @@ export const ChatComposer = memo(
       activePendingProgress?.activeQuestion?.id,
       activePendingUserInput?.requestId,
       promptRef,
+      resolveComposerTrigger,
     ]);
 
     // ------------------------------------------------------------------
@@ -1202,7 +1238,10 @@ export const ChatComposer = memo(
       setComposerCursor(
         collapseExpandedComposerCursor(promptRef.current, promptRef.current.length),
       );
-      setComposerTrigger(detectComposerTrigger(promptRef.current, promptRef.current.length));
+      suppressInitialComposerTriggerDetectionRef.current = true;
+      initialComposerTriggerSuppressionPromptRef.current = promptRef.current;
+      dismissedComposerTriggerKeyRef.current = null;
+      setComposerTrigger(null);
       dragDepthRef.current = 0;
       setIsDragOverComposer(false);
     }, [draftId, activeThreadId, promptRef]);
@@ -1348,7 +1387,7 @@ export const ChatComposer = memo(
         if (activePendingProgress?.activeQuestion && pendingUserInputs.length > 0) {
           setComposerCursor(nextCursor);
           setComposerTrigger(
-            cursorAdjacentToMention ? null : detectComposerTrigger(nextPrompt, expandedCursor),
+            cursorAdjacentToMention ? null : resolveComposerTrigger(nextPrompt, expandedCursor),
           );
           onChangeActivePendingUserInputCustomAnswer(
             activePendingProgress.activeQuestion.id,
@@ -1369,7 +1408,7 @@ export const ChatComposer = memo(
         }
         setComposerCursor(nextCursor);
         setComposerTrigger(
-          cursorAdjacentToMention ? null : detectComposerTrigger(nextPrompt, expandedCursor),
+          cursorAdjacentToMention ? null : resolveComposerTrigger(nextPrompt, expandedCursor),
         );
       },
       [
@@ -1380,6 +1419,7 @@ export const ChatComposer = memo(
         setPrompt,
         composerDraftTarget,
         composerTerminalContexts,
+        resolveComposerTrigger,
         setComposerDraftTerminalContexts,
       ],
     );
@@ -1420,7 +1460,7 @@ export const ChatComposer = memo(
           setPrompt(next.text);
         }
         setComposerCursor(nextCursor);
-        setComposerTrigger(detectComposerTrigger(next.text, nextExpandedCursor));
+        setComposerTrigger(resolveComposerTrigger(next.text, nextExpandedCursor));
         if (options?.focusEditorAfterReplace !== false) {
           window.requestAnimationFrame(() => {
             composerEditorRef.current?.focusAt(nextCursor);
@@ -1433,6 +1473,7 @@ export const ChatComposer = memo(
         activePendingUserInput,
         onChangeActivePendingUserInputCustomAnswer,
         promptRef,
+        resolveComposerTrigger,
         setPrompt,
       ],
     );
@@ -1481,9 +1522,36 @@ export const ChatComposer = memo(
       const snapshot = readComposerSnapshot();
       return {
         snapshot,
-        trigger: detectComposerTrigger(snapshot.value, snapshot.expandedCursor),
+        trigger: resolveComposerTrigger(snapshot.value, snapshot.expandedCursor),
       };
-    }, [readComposerSnapshot]);
+    }, [readComposerSnapshot, resolveComposerTrigger]);
+
+    const dismissComposerCommandMenu = useCallback(() => {
+      const snapshot = readComposerSnapshot();
+      const trigger = detectComposerTrigger(snapshot.value, snapshot.expandedCursor);
+      if (trigger) {
+        dismissedComposerTriggerKeyRef.current = composerTriggerDismissKey(trigger);
+      }
+      setComposerTrigger(null);
+      setComposerHighlightedItemId(null);
+      setComposerHighlightedSearchKey(null);
+    }, [composerTriggerDismissKey, readComposerSnapshot]);
+
+    useEffect(() => {
+      if (!composerMenuOpen) return;
+
+      const onPointerDown = (event: PointerEvent) => {
+        const form = composerFormRef.current;
+        if (!form) return;
+        if (event.target instanceof Node && form.contains(event.target)) return;
+        dismissComposerCommandMenu();
+      };
+
+      document.addEventListener("pointerdown", onPointerDown, true);
+      return () => {
+        document.removeEventListener("pointerdown", onPointerDown, true);
+      };
+    }, [composerMenuOpen, dismissComposerCommandMenu]);
 
     const onSelectComposerItem = useCallback(
       (item: ComposerCommandItem) => {
@@ -1608,9 +1676,14 @@ export const ChatComposer = memo(
     // Callbacks: command key
     // ------------------------------------------------------------------
     const onComposerCommandKey = (
-      key: "ArrowDown" | "ArrowUp" | "Enter" | "Tab",
+      key: "ArrowDown" | "ArrowUp" | "Enter" | "Escape" | "Tab",
       event: KeyboardEvent,
     ) => {
+      if (key === "Escape") {
+        dismissComposerCommandMenu();
+        return true;
+      }
+
       const { trigger } = resolveActiveComposerTrigger();
       const menuIsActive = composerMenuOpenRef.current || trigger !== null;
       if (menuIsActive) {
@@ -1776,7 +1849,7 @@ export const ChatComposer = memo(
           setComposerCursor(cursor);
           setComposerTrigger(
             options?.detectTrigger
-              ? detectComposerTrigger(
+              ? resolveComposerTrigger(
                   promptForState,
                   expandCollapsedComposerCursor(promptForState, cursor),
                 )
@@ -1813,7 +1886,7 @@ export const ChatComposer = memo(
           if (!inserted) return;
           promptRef.current = insertion.prompt;
           setComposerCursor(nextCollapsedCursor);
-          setComposerTrigger(detectComposerTrigger(insertion.prompt, insertion.cursor));
+          setComposerTrigger(resolveComposerTrigger(insertion.prompt, insertion.cursor));
           window.requestAnimationFrame(() => {
             composerEditorRef.current?.focusAt(nextCollapsedCursor);
           });
@@ -1846,6 +1919,7 @@ export const ChatComposer = memo(
         composerTerminalContextsRef,
         isComposerModelPickerOpen,
         readComposerSnapshot,
+        resolveComposerTrigger,
         selectedModel,
         selectedModelOptionsForDispatch,
         selectedModelSelection,
@@ -1890,7 +1964,9 @@ export const ChatComposer = memo(
           className="agent-prompt-input-root w-full min-w-0"
           containerClassName={cn(
             "group chat-composer-shell transition-[border-color,background-color] duration-200",
-            composerProviderState.composerFrameClassName,
+            composerMenuOpen && "overflow-visible!",
+            composerProviderState.ultrathinkActive &&
+              "animate-[ultrathink-rainbow_10s_linear_infinite] bg-[linear-gradient(120deg,oklch(0.712_0.181_22.839)_0%,oklch(0.769_0.165_70.08)_18%,oklch(0.723_0.192_149.579)_36%,oklch(0.704_0.123_182.503)_54%,oklch(0.623_0.188_259.815)_72%,oklch(0.656_0.212_354.308)_90%,oklch(0.712_0.181_22.839)_100%)] bg-[length:220%_220%]",
           )}
           containerProps={{
             onDragEnter: onComposerDragEnter,
@@ -1921,9 +1997,10 @@ export const ChatComposer = memo(
         >
           <div
             className={cn(
-              "chat-composer-surface min-w-0 transition-[background-color,box-shadow] duration-200",
+              "chat-composer-surface relative min-w-0 overflow-visible transition-[background-color,box-shadow] duration-200",
               isDragOverComposer ? "bg-accent/30 ring-2 ring-primary/60 ring-offset-0" : "",
-              composerProviderState.composerSurfaceClassName,
+              composerProviderState.ultrathinkActive &&
+                "shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]",
             )}
           >
             <div
@@ -2035,7 +2112,15 @@ export const ChatComposer = memo(
               />
             </div>
             {composerMenuOpen && !isComposerApprovalState && (
-              <div className="ui-prompt-input__menu-popover" data-menu-kind={composerMenuKind}>
+              <div
+                className={cn(
+                  "ui-prompt-input__menu-popover absolute bottom-[calc(100%+var(--prompt-input-section-gap,8px))] left-0 z-[60] w-[min(var(--composer-menu-width),calc(100vw-32px))]",
+                  composerMenuKind === "mentions"
+                    ? "[--composer-menu-width:250px]"
+                    : "[--composer-menu-width:300px]",
+                )}
+                data-menu-kind={composerMenuKind}
+              >
                 <ComposerCommandMenu
                   items={composerMenuItems}
                   resolvedTheme={resolvedTheme}
@@ -2075,9 +2160,17 @@ export const ChatComposer = memo(
                 )}
               >
                 <PromptInputToolbarLeft className="-m-1 flex min-w-0 flex-1 items-center gap-1 overflow-x-auto p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  <span className="glass-model-picker-wrapper" data-compact-visible="">
+                  <span
+                    className={cn(
+                      "inline-flex min-w-0 max-w-[var(--agent-prompt-model-picker-max-width)] overflow-hidden [--agent-prompt-model-picker-max-width:240px]",
+                      isComposerFooterCompact &&
+                        "order-2 [--agent-prompt-model-picker-max-width:200px]",
+                    )}
+                    data-compact-visible=""
+                  >
                     <ProviderModelPicker
                       compact={isComposerFooterCompact}
+                      {...(isComposerFooterCompact ? { triggerClassName: "mr-1" } : {})}
                       activeInstanceId={selectedInstanceId}
                       model={selectedModelForPickerWithCustomFallback}
                       lockedProvider={lockedProvider}
@@ -2088,10 +2181,10 @@ export const ChatComposer = memo(
                       terminalOpen={terminalOpen}
                       open={isComposerModelPickerOpen}
                       openSearchSeed={modelPickerOpenSearchSeed}
-                      {...(composerProviderState.modelPickerIconClassName
+                      {...(composerProviderState.ultrathinkActive
                         ? {
                             activeProviderIconClassName:
-                              composerProviderState.modelPickerIconClassName,
+                              "animate-[ultrathink-chroma-shift_10s_linear_infinite]",
                           }
                         : {})}
                       onOpenChange={(open) => {

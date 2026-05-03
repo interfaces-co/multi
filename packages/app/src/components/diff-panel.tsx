@@ -5,12 +5,12 @@ import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { scopeThreadRef } from "@multi/client-runtime";
 import type { TurnId } from "@multi/contracts";
 import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  Columns2Icon,
-  Rows3Icon,
-  TextWrapIcon,
-} from "lucide-react";
+  IconBrowserTabs as Rows3Icon,
+  IconChevronLeft as ChevronLeftIcon,
+  IconChevronRight as ChevronRightIcon,
+  IconColumnWideHalf as Columns2Icon,
+  IconText1 as TextWrapIcon,
+} from "central-icons";
 import {
   type WheelEvent as ReactWheelEvent,
   useCallback,
