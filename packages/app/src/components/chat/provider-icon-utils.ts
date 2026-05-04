@@ -1,12 +1,15 @@
 import { ProviderDriverKind } from "@multi/contracts";
-import { ClaudeAI, CodexIcon, CursorIcon, Icon, OpenCodeIcon } from "../icons";
-import { PROVIDER_OPTIONS } from "../../session-logic";
 
-export const PROVIDER_ICON_BY_PROVIDER: Partial<Record<ProviderDriverKind, Icon>> = {
-  [ProviderDriverKind.make("codex")]: CodexIcon,
-  [ProviderDriverKind.make("claudeAgent")]: ClaudeAI,
-  [ProviderDriverKind.make("opencode")]: OpenCodeIcon,
-  [ProviderDriverKind.make("cursor")]: CursorIcon,
+import { PROVIDER_OPTIONS } from "../../session-logic";
+import { IconOpenaiCodex, IconCursor, IconClaudeai, IconOpencode } from "central-icons";
+
+export const PROVIDER_ICON_BY_PROVIDER: Partial<
+  Record<ProviderDriverKind, typeof IconOpenaiCodex>
+> = {
+  [ProviderDriverKind.make("codex")]: IconOpenaiCodex,
+  [ProviderDriverKind.make("claudeAgent")]: IconClaudeai,
+  [ProviderDriverKind.make("opencode")]: IconOpencode,
+  [ProviderDriverKind.make("cursor")]: IconCursor,
 };
 
 type AvailableProviderOption = {
@@ -18,11 +21,9 @@ type AvailableProviderOption = {
 
 export const AVAILABLE_PROVIDER_OPTIONS: AvailableProviderOption[] = PROVIDER_OPTIONS.filter(
   (option) => option.available,
-).map((option) => ({
-  ...option,
-  value: ProviderDriverKind.make(option.value),
-  available: true,
-}));
+).map((option) =>
+  Object.assign(option, { value: ProviderDriverKind.make(option.value), available: true as const }),
+);
 
 export type ModelEsque = {
   slug: string;

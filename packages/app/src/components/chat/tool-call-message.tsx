@@ -48,17 +48,27 @@ export const ToolCallMessage = memo(function ToolCallMessage({
 
 function SubagentStatusSurface({ subagents }: { subagents: ReadonlyArray<WorkLogSubagent> }) {
   return (
-    <div className="mt-1 max-h-80 w-full overflow-x-hidden overflow-y-auto pl-5">
+    <div className="agent-panel-meta-agent-chat__nested-subagents mt-1 max-h-80 w-full overflow-x-hidden overflow-y-auto pl-5">
       {subagents.map((subagent) => (
         <div
           key={subagent.providerThreadId ?? subagent.threadId ?? subagent.agentId}
-          className="group/subagent flex w-fit max-w-full items-center gap-1.5 overflow-hidden"
+          className="agent-panel-meta-agent-chat__nested-subagent group/subagent flex w-fit max-w-full items-center gap-1.5 overflow-hidden"
+          data-status={subagent.isActive ? "running" : "completed"}
         >
+          <span
+            className="size-1.5 shrink-0 rounded-full bg-multi-icon-tertiary group-data-[status=running]/subagent:bg-multi-icon-accent-primary"
+            aria-hidden="true"
+          />
           <div className="min-w-0">
             <div className="inline-flex min-w-0 items-baseline gap-1.5">
               <span className="min-w-0 text-[12px]/4 text-multi-fg-secondary">
                 {subagent.title ?? subagent.nickname ?? subagent.role ?? "Subagent"}
               </span>
+              {subagent.model ? (
+                <span className="shrink-0 rounded border border-multi-stroke-tertiary px-1 text-[10px]/[14px] text-multi-fg-tertiary">
+                  {subagent.model}
+                </span>
+              ) : null}
               {subagent.statusLabel || subagent.latestUpdate ? (
                 <span className="min-w-0 overflow-hidden text-[11px]/[15px] text-ellipsis whitespace-nowrap text-multi-fg-tertiary">
                   {subagent.latestUpdate ?? subagent.statusLabel}
@@ -87,13 +97,19 @@ function resolveThinkingTask(workEntry: WorkLogEntry): string {
   return resolveTitle(workEntry);
 }
 
-function toToolCall(
-  workEntry: WorkLogEntry,
-  workspaceRoot: string | undefined,
-): ToolCallModel {
+function toToolCall(workEntry: WorkLogEntry, workspaceRoot: string | undefined): ToolCallModel {
   const toolCase = resolveToolCase(workEntry);
-  const action = resolveTitle(workEntry);
-  const details = resolveToolDetails(workEntry, workspaceRoot);
+  const action =
+    toolCase === "taskToolCall"
+      ? (workEntry.subagentAction?.tool ?? "Task")
+      : resolveTitle(workEntry);
+  const details =
+    toolCase === "taskToolCall"
+      ? workEntry.subagentAction?.summaryText?.trim() ||
+        workEntry.subagentAction?.prompt?.trim() ||
+        workEntry.detail?.trim() ||
+        "subagent"
+      : resolveToolDetails(workEntry, workspaceRoot);
   const command = workEntry.command ?? null;
   const output = resolveOutput(workEntry, toolCase);
   const firstChangedFile = workEntry.changedFiles?.[0] ?? null;

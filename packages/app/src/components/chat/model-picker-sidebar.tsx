@@ -1,7 +1,7 @@
 import { type ProviderInstanceId } from "@multi/contracts";
 import { memo, useMemo, type ReactNode } from "react";
 import { IconClock3OClock, IconSparklesThree, IconStar } from "central-icons";
-import { Gemini, GithubCopilotIcon } from "../icons";
+import { IconGemini, IconCopilot } from "central-icons";
 import { ProviderInstanceIcon } from "./provider-instance-icon";
 import { ScrollArea } from "@multi/ui/scroll-area";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@multi/ui/tooltip";
@@ -225,7 +225,7 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                       data-model-picker-provider="gemini-coming-soon"
                       aria-label="Gemini — coming soon"
                     >
-                      <Gemini className="size-5 text-muted-foreground/85" aria-hidden />
+                      <IconGemini className="size-5 text-muted-foreground/85" aria-hidden />
                       <ProviderRailBadge variant="soon">
                         <IconClock3OClock className="size-2" />
                       </ProviderRailBadge>
@@ -249,7 +249,7 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                       data-model-picker-provider="github-copilot-coming-soon"
                       aria-label="Github Copilot — coming soon"
                     >
-                      <GithubCopilotIcon className="size-5 text-muted-foreground/85" aria-hidden />
+                      <IconCopilot className="size-5 text-muted-foreground/85" aria-hidden />
                       <ProviderRailBadge variant="soon">
                         <IconClock3OClock className="size-2" />
                       </ProviderRailBadge>

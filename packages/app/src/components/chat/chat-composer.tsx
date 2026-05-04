@@ -796,6 +796,7 @@ export const ChatComposer = memo(
     // ------------------------------------------------------------------
     const composerEditorRef = useRef<ComposerPromptEditorHandle>(null);
     const composerFormRef = useRef<HTMLFormElement>(null);
+    const composerImageInputRef = useRef<HTMLInputElement>(null);
     const composerFormHeightRef = useRef(0);
     const isComposerModelPickerOpenRef = useRef(isComposerModelPickerOpen);
     const composerSelectLockRef = useRef(false);
@@ -981,7 +982,6 @@ export const ChatComposer = memo(
     const isDockComposerExpanded =
       composerVariant === "compact" &&
       (hasComposerHeader ||
-        prompt.includes("\n") ||
         composerImages.length > 0 ||
         activePendingProgress !== null);
 
@@ -1813,6 +1813,13 @@ export const ChatComposer = memo(
       addComposerImages(files);
       focusComposer();
     };
+    const onComposerImageInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(event.currentTarget.files ?? []);
+      event.currentTarget.value = "";
+      if (files.length === 0) return;
+      addComposerImages(files);
+      focusComposer();
+    };
     const handleInterruptPrimaryAction = useCallback(() => {
       void onInterrupt();
     }, [onInterrupt]);
@@ -1969,7 +1976,7 @@ export const ChatComposer = memo(
         <PromptInputRoot
           className="agent-prompt-input-root w-full min-w-0"
           containerClassName={cn(
-            "group chat-composer-shell transition-[border-color,background-color] duration-200",
+            "group chat-composer-shell w-full max-w-full min-w-0 overflow-hidden border border-(--prompt-input-container-border) bg-(--prompt-input-container-bg) shadow-(--multi-composer-surface-shadow) transition-[border-color,background-color] duration-200",
             composerMenuOpen && "overflow-visible!",
             composerProviderState.ultrathinkActive &&
               "animate-[ultrathink-rainbow_10s_linear_infinite] bg-[linear-gradient(120deg,oklch(0.712_0.181_22.839)_0%,oklch(0.769_0.165_70.08)_18%,oklch(0.723_0.192_149.579)_36%,oklch(0.704_0.123_182.503)_54%,oklch(0.623_0.188_259.815)_72%,oklch(0.656_0.212_354.308)_90%,oklch(0.712_0.181_22.839)_100%)] bg-[length:220%_220%]",
@@ -2009,8 +2016,33 @@ export const ChatComposer = memo(
                 "shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]",
             )}
           >
+            {composerVariant === "compact" && !isDockComposerExpanded && !isComposerApprovalState ? (
+              <>
+                <input
+                  ref={composerImageInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="sr-only"
+                  tabIndex={-1}
+                  onChange={onComposerImageInputChange}
+                />
+                <button
+                  type="button"
+                  className="ui-prompt-input-attachment-button flex size-10 shrink-0 items-center justify-center rounded-full text-multi-icon-tertiary transition-colors duration-150 hover:bg-multi-bg-tertiary hover:text-multi-icon-secondary disabled:pointer-events-none disabled:opacity-35"
+                  aria-label="Attach images"
+                  disabled={pendingUserInputs.length > 0 || isConnecting}
+                  onClick={() => composerImageInputRef.current?.click()}
+                >
+                  <span className="relative size-4" aria-hidden="true">
+                    <span className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 rounded bg-current" />
+                    <span className="absolute left-0 top-1/2 h-px w-full -translate-y-1/2 rounded bg-current" />
+                  </span>
+                </button>
+              </>
+            ) : null}
             <div
-              className="ui-prompt-input-editor relative"
+              className="ui-prompt-input-editor relative min-h-(--prompt-input-editor-min-height)"
               data-expanded={isDockComposerExpanded ? "" : undefined}
               data-variant={composerVariant}
             >
@@ -2111,7 +2143,9 @@ export const ChatComposer = memo(
                         ? "Add feedback to refine the plan, or leave this blank to implement it"
                         : phase === "disconnected"
                           ? "Ask for follow-up changes or attach images"
-                          : "Ask anything, @tag files/folders, or use / to show available commands"
+                          : composerVariant === "compact"
+                            ? "Send follow-up"
+                            : "Ask anything, @tag files/folders, or use / to show available commands"
                 }
                 disabled={isConnecting || isComposerApprovalState}
               />

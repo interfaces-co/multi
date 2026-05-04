@@ -1049,8 +1049,7 @@ body {
 }
 
 .agent-panel-followup-input,
-.agent-prompt-input-root.ui-prompt-input--agent-tray-stack,
-.agent-window .chat-composer-shell {
+.agent-prompt-input-root.ui-prompt-input--agent-tray-stack {
   --prompt-input-section-gap: 8px;
 }
 
@@ -1082,10 +1081,43 @@ body {
 }
 
 .agent-panel-followup-input--conversation-overlay {
+  bottom: 0;
   isolation: isolate;
+  left: 0;
   pointer-events: auto;
-  position: relative;
+  position: absolute;
+  right: 0;
   z-index: 30;
+}
+
+.agent-panel-followup-input--conversation-overlay::before {
+  background: var(--multi-composer-overlay-bg, var(--multi-color-editor));
+  bottom: calc(var(--multi-composer-overlay-bleed-mask-height, 12px) * -1);
+  content: "";
+  left: 50%;
+  margin-left: -50vw;
+  pointer-events: none;
+  position: absolute;
+  top: 50%;
+  width: 100vw;
+  z-index: 0;
+}
+
+.agent-panel-followup-input--conversation-overlay::after {
+  background: linear-gradient(
+    to top,
+    var(--multi-composer-overlay-bg, var(--multi-color-editor)),
+    transparent
+  );
+  bottom: 50%;
+  content: "";
+  height: var(--multi-composer-overlay-height, 24px);
+  left: 50%;
+  margin-left: -50vw;
+  pointer-events: none;
+  position: absolute;
+  width: 100vw;
+  z-index: 0;
 }
 
 .agent-panel-followup-input--conversation-overlay .ui-prompt-input {
@@ -1126,27 +1158,27 @@ body {
 }
 
 /* ============================================================
- * Composer Shell — variant layout rules
+ * Prompt Input — variant layout rules
  * ------------------------------------------------------------
- * Multi uses .chat-composer-shell[data-variant=…] + --prompt-input-* from tokens.css.
- * Outer shell: border, shadow, radius. Inner .chat-composer-surface: compact row flex + padding
- * so editor/toolbar can use display:contents without an extra wrapper breaking the flex axis.
+ * Generic semantic prompt selectors own the visual chrome. The inner
+ * .chat-composer-surface stays as the local React boundary for editor,
+ * popover, and toolbar layout.
  * ============================================================ */
 
-.agent-window .chat-composer-shell {
-  --ui-agent-tray-prompt-shadow: var(--multi-shadow-workbench, 0 2px 16px oklch(0 0 0 / 0.08));
-  border: 1px solid var(--prompt-input-container-border);
-  border-radius: var(--prompt-input-border-radius-expanded);
-  background-color: var(--prompt-input-container-bg, var(--glass-chat-bubble-background));
-  box-shadow: 0 1px 2px 0 oklch(0 0 0 / 0.05);
-  backdrop-filter: none;
-  transition:
-    border-color 0.15s ease-out,
-    background-color 0.15s ease-out;
-  box-sizing: border-box;
+.agent-window .ui-prompt-input {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: var(--prompt-input-section-gap);
+  min-width: 100%;
   width: 100%;
-  max-width: 100%;
-  min-width: 0;
+}
+
+.agent-window .ui-prompt-input__container {
+  --ui-agent-tray-prompt-shadow: var(--multi-shadow-workbench, 0 2px 16px oklch(0 0 0 / 0.08));
+  backdrop-filter: none;
+  box-sizing: border-box;
+  cursor: text;
   position: relative;
 }
 
@@ -1173,50 +1205,45 @@ body {
 .agent-window
   .agent-prompt-input-root
   > .ui-prompt-input__header[data-visible="true"]
-  + .chat-composer-shell {
+  + .ui-prompt-input__container {
   border-top-left-radius: 0;
   border-top-right-radius: 0;
 }
 
-.agent-window .chat-composer-shell[data-has-header] > .chat-composer-surface {
+.agent-window .ui-prompt-input__container[data-has-header] > .chat-composer-surface {
   border-top-left-radius: 0;
   border-top-right-radius: 0;
 }
 
-.agent-window .chat-composer-shell:hover,
-.agent-window .chat-composer-shell:focus-within {
+.agent-window .ui-prompt-input__container:hover,
+.agent-window .ui-prompt-input__container:focus-within {
   border-color: var(--prompt-input-container-border-hover);
 }
 
-.agent-window .chat-composer-shell[data-dragging] {
+.agent-window .ui-prompt-input__container[data-dragging] {
   border-color: var(--primary, oklch(0.6 0.15 250));
   background-color: color-mix(in srgb, var(--accent) 30%, transparent);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--multi-action) 20%, transparent);
 }
 
-.agent-window .chat-composer-shell--dragging {
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--multi-action) 20%, transparent);
-}
-
 /* Expanded (hero) shell: centered box, stacked editor top / toolbar below */
-.agent-window .chat-composer-shell[data-variant="expanded"] {
+.agent-window .ui-prompt-input__container[data-variant="expanded"] {
   display: block;
   padding: 0;
   border-radius: var(--prompt-input-border-radius-expanded);
   overflow: hidden;
 }
 
-.agent-window .chat-composer-shell[data-variant="expanded"] > .chat-composer-surface {
+.agent-window .ui-prompt-input__container[data-variant="expanded"] > .chat-composer-surface {
   border-radius: var(--prompt-input-border-radius-expanded);
 }
 
-.agent-window .chat-composer-shell[data-variant="expanded"] .ui-prompt-input-editor {
+.agent-window .ui-prompt-input__container[data-variant="expanded"] .ui-prompt-input-editor {
   position: relative;
-  min-height: var(--prompt-input-editor-min-height, 60px);
-  padding: var(--prompt-input-editor-padding, 10px 12px 6px);
+  min-height: var(--prompt-input-editor-min-height, 36px);
 }
 
-.agent-window .chat-composer-shell[data-variant="expanded"] .ui-prompt-input-toolbar {
+.agent-window .ui-prompt-input__container[data-variant="expanded"] .ui-prompt-input-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1224,51 +1251,52 @@ body {
   padding: var(--prompt-input-toolbar-padding);
 }
 
-.agent-window .chat-composer-shell[data-variant="expanded"] .ui-prompt-input-toolbar__left,
-.agent-window .chat-composer-shell[data-variant="expanded"] .ui-prompt-input-toolbar__right {
+.agent-window .ui-prompt-input__container[data-variant="expanded"] .ui-prompt-input-toolbar__left,
+.agent-window .ui-prompt-input__container[data-variant="expanded"] .ui-prompt-input-toolbar__right {
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
-.agent-window .chat-composer-shell[data-variant="expanded"] .ui-prompt-input-toolbar__left {
+.agent-window .ui-prompt-input__container[data-variant="expanded"] .ui-prompt-input-toolbar__left {
   min-width: 0;
   flex: 1 1 auto;
 }
 
-.agent-window .chat-composer-shell[data-variant="expanded"] .ui-prompt-input-toolbar__right {
+.agent-window .ui-prompt-input__container[data-variant="expanded"] .ui-prompt-input-toolbar__right {
   flex-shrink: 0;
 }
 
 /* Compact (dock) shell: collapsed single-row pill — flex row lives on .chat-composer-surface */
-.agent-window .chat-composer-shell[data-variant="compact"]:not([data-expanded]) {
+.agent-window .ui-prompt-input__container[data-variant="compact"]:not([data-expanded]) {
   display: block;
   padding: 0;
   border-radius: var(--prompt-input-border-radius-compact);
-  background-color: transparent;
   overflow: visible;
   z-index: 4;
 }
 
-.agent-window .chat-composer-shell[data-variant="compact"]:not([data-expanded]):hover,
-.agent-window .chat-composer-shell[data-variant="compact"]:not([data-expanded]):focus-within {
-  background-color: transparent;
-}
-
 .agent-window
-  .chat-composer-shell[data-variant="compact"]:not([data-expanded])
+  .ui-prompt-input__container[data-variant="compact"]:not([data-expanded])
   > .chat-composer-surface {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 8px 10px;
+  min-height: 52px;
+  padding: 6px 8px;
   border-radius: inherit;
   min-width: 0;
   box-sizing: border-box;
 }
 
 .agent-window
-  .chat-composer-shell[data-variant="compact"]:not([data-expanded])
+  .ui-prompt-input__container[data-variant="compact"]:not([data-expanded])
+  .ui-prompt-input-attachment-button {
+  order: 0;
+}
+
+.agent-window
+  .ui-prompt-input__container[data-variant="compact"]:not([data-expanded])
   .ui-prompt-input-editor {
   flex: 1 1 auto;
   order: 1;
@@ -1278,7 +1306,7 @@ body {
 }
 
 .agent-window
-  .chat-composer-shell[data-variant="compact"]:not([data-expanded])
+  .ui-prompt-input__container[data-variant="compact"]:not([data-expanded])
   .ui-prompt-input-editor
   [data-testid="composer-editor"] {
   min-height: 20px !important;
@@ -1289,30 +1317,9 @@ body {
   padding: 0 0 0 4px;
 }
 
-/* Composer placeholder — tertiary tone; padding tracks editor insets. */
-.agent-window .composer-prompt-placeholder,
-.agent-window [data-composer-placeholder] {
-  font-size: 13px;
-  line-height: 1.5;
-  font-weight: 400;
-  color: var(--multi-fg-tertiary, var(--muted-foreground));
-  opacity: 0.92;
-  padding: var(--prompt-input-editor-padding, 10px 12px 6px);
-}
-
-.agent-window
-  .chat-composer-shell[data-variant="compact"]:not([data-expanded])
-  .composer-prompt-placeholder,
-.agent-window
-  .chat-composer-shell[data-variant="compact"]:not([data-expanded])
-  [data-composer-placeholder] {
-  padding: 0 0 0 4px;
-  opacity: 0.88;
-}
-
 /* Compact toolbar: keep real flex wrappers so menu triggers retain stable hit areas. */
 .agent-window
-  .chat-composer-shell[data-variant="compact"]:not([data-expanded])
+  .ui-prompt-input__container[data-variant="compact"]:not([data-expanded])
   .ui-prompt-input-toolbar {
   display: flex;
   flex: 0 0 auto;
@@ -1327,7 +1334,7 @@ body {
 }
 
 .agent-window
-  .chat-composer-shell[data-variant="compact"]:not([data-expanded])
+  .ui-prompt-input__container[data-variant="compact"]:not([data-expanded])
   .ui-prompt-input-toolbar__left {
   display: flex;
   flex: 0 1 auto;
@@ -1340,7 +1347,7 @@ body {
 }
 
 .agent-window
-  .chat-composer-shell[data-variant="compact"]:not([data-expanded])
+  .ui-prompt-input__container[data-variant="compact"]:not([data-expanded])
   .ui-prompt-input-toolbar__right {
   display: flex;
   flex: 0 0 auto;
@@ -1355,14 +1362,14 @@ body {
 
 /* Compact: hide non-essential toolbar items */
 .agent-window
-  .chat-composer-shell[data-variant="compact"]:not([data-expanded])
+  .ui-prompt-input__container[data-variant="compact"]:not([data-expanded])
   .ui-prompt-input-toolbar__left
   > *:not([data-compact-visible]) {
   display: none;
 }
 
 .agent-window
-  .chat-composer-shell[data-variant="compact"]:not([data-expanded])
+  .ui-prompt-input__container[data-variant="compact"]:not([data-expanded])
   [data-compact-visible] {
   position: relative;
   z-index: 2;
@@ -1370,7 +1377,7 @@ body {
 
 /* Compact row: editor | model + compact controls | submit */
 .agent-window
-  .chat-composer-shell[data-variant="compact"]:not([data-expanded])
+  .ui-prompt-input__container[data-variant="compact"]:not([data-expanded])
   .ui-prompt-input-submit-button {
   flex-shrink: 0;
   width: 32px;
@@ -1383,47 +1390,44 @@ body {
 }
 
 .agent-window
-  .chat-composer-shell[data-variant="compact"]:not([data-expanded])
+  .ui-prompt-input__container[data-variant="compact"]:not([data-expanded])
   .ui-prompt-input-submit-button:disabled {
   opacity: 0.35;
 }
 
 /* Context meter belongs outside the pill — it was flattening into the row at default order 0. */
 .agent-window
-  .chat-composer-shell[data-variant="compact"]:not([data-expanded])
+  .ui-prompt-input__container[data-variant="compact"]:not([data-expanded])
   [data-composer-context-meter] {
   display: none !important;
 }
 
 .agent-window
-  .chat-composer-shell[data-variant="compact"]:not([data-expanded])
+  .ui-prompt-input__container[data-variant="compact"]:not([data-expanded])
   .ui-composer-inline-status {
   display: none !important;
 }
 
 /* Compact expanded (multi-line): revert to stacked layout */
-.agent-window .chat-composer-shell[data-variant="compact"][data-expanded] {
+.agent-window .ui-prompt-input__container[data-variant="compact"][data-expanded] {
   display: block;
   padding: 0;
   border-radius: var(--prompt-input-border-radius-compact-expanded);
-  background-color: transparent;
   overflow: visible;
 }
 
-.agent-window .chat-composer-shell[data-variant="compact"][data-expanded]:hover,
-.agent-window .chat-composer-shell[data-variant="compact"][data-expanded]:focus-within {
-  background-color: transparent;
-}
-
-.agent-window .chat-composer-shell[data-variant="compact"][data-expanded] .ui-prompt-input-editor {
+.agent-window
+  .ui-prompt-input__container[data-variant="compact"][data-expanded]
+  .ui-prompt-input-editor {
   flex: initial;
   order: initial;
   min-width: initial;
-  padding: var(--prompt-input-editor-padding, 10px 12px 6px);
   position: relative;
 }
 
-.agent-window .chat-composer-shell[data-variant="compact"][data-expanded] .ui-prompt-input-toolbar {
+.agent-window
+  .ui-prompt-input__container[data-variant="compact"][data-expanded]
+  .ui-prompt-input-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1432,22 +1436,24 @@ body {
 }
 
 .agent-window
-  .chat-composer-shell[data-variant="compact"][data-expanded]
+  .ui-prompt-input__container[data-variant="compact"][data-expanded]
   .ui-prompt-input-toolbar__left,
 .agent-window
-  .chat-composer-shell[data-variant="compact"][data-expanded]
+  .ui-prompt-input__container[data-variant="compact"][data-expanded]
   .ui-prompt-input-toolbar__right {
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
-.agent-window .chat-composer-shell[data-variant="compact"][data-expanded] [data-compact-visible] {
+.agent-window
+  .ui-prompt-input__container[data-variant="compact"][data-expanded]
+  [data-compact-visible] {
   order: initial;
 }
 
 .agent-window
-  .chat-composer-shell[data-variant="compact"][data-expanded]
+  .ui-prompt-input__container[data-variant="compact"][data-expanded]
   .ui-prompt-input-submit-button {
   order: initial;
 }
@@ -1457,11 +1463,7 @@ body {
  * ============================================================ */
 
 .agent-window .composer-prompt-editor-input {
-  min-height: var(--prompt-input-editor-min-height, 36px);
-  max-height: var(--prompt-input-editor-max-height, 200px);
-  font-size: 13px;
-  line-height: 1.5;
-  padding: var(--prompt-input-editor-padding, 10px 12px 6px);
+  position: relative;
 }
 
 .agent-window .composer-prompt-editor-input p {
@@ -1470,6 +1472,28 @@ body {
 
 .agent-window .composer-prompt-editor-input.ProseMirror {
   white-space: pre-wrap;
+}
+
+.agent-window .composer-prompt-editor-input p.is-editor-empty:first-child::before {
+  color: var(--multi-composer-placeholder-fg);
+  content: attr(data-placeholder);
+  float: left;
+  font-size: 13px;
+  font-weight: 400;
+  height: 0;
+  line-height: 1.5;
+  max-width: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-window
+  .ui-prompt-input__container[data-variant="compact"]:not([data-expanded])
+  .composer-prompt-editor-input
+  p.is-editor-empty:first-child::before {
+  max-width: calc(100% - 4px);
 }
 
 .agent-window .ui-prompt-input__slash-menu-anchor {

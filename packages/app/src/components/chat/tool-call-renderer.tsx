@@ -386,11 +386,14 @@ function TaskToolCall({
   };
 
   return (
-    <div className="min-w-0 max-w-full text-multi-fg-secondary">
+    <div
+      className="ui-task-tool-call min-w-0 max-w-full text-multi-fg-secondary"
+      data-status={hasError ? "error" : loading ? "running" : "completed"}
+    >
       {hasBody ? (
         <button
           type="button"
-          className="flex w-fit max-w-full min-w-0 cursor-pointer items-center gap-2"
+          className="ui-task-tool-call__header flex w-fit max-w-full min-w-0 cursor-pointer items-center gap-2"
           aria-expanded={isExpanded}
           onClick={toggleExpanded}
         >
@@ -404,13 +407,13 @@ function TaskToolCall({
           />
         </button>
       ) : (
-        <div className="flex w-fit max-w-full min-w-0 items-center gap-2">
+        <div className="ui-task-tool-call__header flex w-fit max-w-full min-w-0 items-center gap-2">
           {statusIcon}
           {titleArea}
         </div>
       )}
       {isExpanded && hasBody ? (
-        <div className="mt-1 min-w-0 max-w-full">
+        <div className="ui-task-tool-call__body mt-1 min-w-0 max-w-full">
           {subagentConversation}
           {renderStep?.(toolCall, 0, callId)}
         </div>

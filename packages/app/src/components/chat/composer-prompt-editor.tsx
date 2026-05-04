@@ -1,5 +1,6 @@
 import Link from "@tiptap/extension-link";
 import Mention from "@tiptap/extension-mention";
+import { Placeholder } from "@tiptap/extensions";
 import { PluginKey, TextSelection } from "@tiptap/pm/state";
 import StarterKit from "@tiptap/starter-kit";
 import {
@@ -21,7 +22,6 @@ import {
   useImperativeHandle,
   useLayoutEffect,
   useRef,
-  useState,
   type ClipboardEventHandler,
   type ReactElement,
 } from "react";
@@ -970,41 +970,46 @@ const ComposerTerminalContextExtension = TiptapNode.create({
   },
 });
 
-const composerExtensions = [
-  StarterKit.configure({
-    heading: false,
-    link: false,
-    bulletList: false,
-    orderedList: false,
-    listItem: false,
-    listKeymap: false,
-    blockquote: false,
-    codeBlock: false,
-    horizontalRule: false,
-    dropcursor: false,
-    gapcursor: false,
-    trailingNode: false,
-  }),
-  Link.configure({
-    openOnClick: false,
-    enableClickSelection: false,
-    linkOnPaste: false,
-    autolink: false,
-    defaultProtocol: "https",
-    HTMLAttributes: {
-      class: "ui-prompt-input-link",
-      rel: "noreferrer",
-      target: "_blank",
-    },
-    isAllowedUri: (url) => isSafeHttpUrl(url),
-    shouldAutoLink: () => false,
-  }),
-  ComposerCommandExtension,
-  ComposerMentionExtension,
-  ComposerSkillExtension,
-  ComposerInlineTokenExtension,
-  ComposerTerminalContextExtension,
-];
+function createComposerExtensions(placeholderRef: { current: string }) {
+  return [
+    StarterKit.configure({
+      heading: false,
+      link: false,
+      bulletList: false,
+      orderedList: false,
+      listItem: false,
+      listKeymap: false,
+      blockquote: false,
+      codeBlock: false,
+      horizontalRule: false,
+      dropcursor: false,
+      gapcursor: false,
+      trailingNode: false,
+    }),
+    Link.configure({
+      openOnClick: false,
+      enableClickSelection: false,
+      linkOnPaste: false,
+      autolink: false,
+      defaultProtocol: "https",
+      HTMLAttributes: {
+        class: "ui-prompt-input-link",
+        rel: "noreferrer",
+        target: "_blank",
+      },
+      isAllowedUri: (url) => isSafeHttpUrl(url),
+      shouldAutoLink: () => false,
+    }),
+    Placeholder.configure({
+      placeholder: () => placeholderRef.current,
+    }),
+    ComposerCommandExtension,
+    ComposerMentionExtension,
+    ComposerSkillExtension,
+    ComposerInlineTokenExtension,
+    ComposerTerminalContextExtension,
+  ];
+}
 
 export const ComposerPromptEditor = forwardRef<
   ComposerPromptEditorHandle,
@@ -1029,6 +1034,10 @@ export const ComposerPromptEditor = forwardRef<
   const onChangeRef = useRef(onChange);
   const onCommandKeyDownRef = useRef(onCommandKeyDown);
   const onPasteRef = useRef(onPaste);
+  const placeholderRef = useRef(placeholder);
+  placeholderRef.current = placeholder;
+  const extensionsRef = useRef<ReturnType<typeof createComposerExtensions> | null>(null);
+  extensionsRef.current ??= createComposerExtensions(placeholderRef);
   const pendingSurroundSelectionRef = useRef<SurroundSelectionSnapshot | null>(null);
   const isApplyingControlledUpdateRef = useRef(false);
   const skillMetadataRef = useRef(skillMetadataByName(skills));
@@ -1052,7 +1061,6 @@ export const ComposerPromptEditor = forwardRef<
   const parsedPromptDoc = parseComposerPromptDoc(doc);
   const promptDocSignature = parsedPromptDoc ? JSON.stringify(parsedPromptDoc) : "";
   const promptDocSignatureRef = useRef(promptDocSignature);
-  const [hasVisibleContent, setHasVisibleContent] = useState(value.length > 0);
 
   const emitSnapshotRef = useRef<(editor: Editor) => void>(() => {});
   const keyDownHandlerRef = useRef<(event: KeyboardEvent) => boolean>(() => false);
@@ -1075,13 +1083,13 @@ export const ComposerPromptEditor = forwardRef<
   }, [skills]);
 
   const editorClassName = cn(
-    "composer-prompt-editor-input ui-prompt-input-editor__input block w-full overflow-y-auto whitespace-pre-wrap break-words bg-transparent text-foreground outline-hidden",
+    "composer-prompt-editor-input ui-prompt-input-editor__input block w-full overflow-y-auto whitespace-pre-wrap break-words bg-transparent p-(--prompt-input-editor-padding) text-[13px]/[1.5] text-foreground outline-hidden min-h-(--prompt-input-editor-min-height) max-h-(--prompt-input-editor-max-height)",
     className,
   );
 
   const editor = useEditor(
     {
-      extensions: composerExtensions,
+      extensions: extensionsRef.current,
       content: initialDocRef.current as JSONContent,
       editable: !disabled,
       immediatelyRender: true,
@@ -1119,7 +1127,6 @@ export const ComposerPromptEditor = forwardRef<
     }
     const nextSnapshot = readSnapshotFromEditor(editor);
     snapshotRef.current = nextSnapshot;
-    setHasVisibleContent(nextSnapshot.value.length > 0);
     return nextSnapshot;
   }, [editor]);
 
@@ -1130,7 +1137,6 @@ export const ComposerPromptEditor = forwardRef<
     const nextSnapshot = readSnapshotFromEditor(nextEditor);
     const previous = snapshotRef.current;
     snapshotRef.current = nextSnapshot;
-    setHasVisibleContent(nextSnapshot.value.length > 0);
     if (snapshotsEqual(previous, nextSnapshot)) {
       return;
     }
@@ -1231,7 +1237,6 @@ export const ComposerPromptEditor = forwardRef<
       terminalContextIds: terminalContexts.map((context) => context.id),
       doc: nextDoc,
     };
-    setHasVisibleContent(value.length > 0);
     terminalContextsSignatureRef.current = terminalContextsSignature;
     skillsSignatureRef.current = skillsSignature;
     promptDocSignatureRef.current = promptDocSignature;
@@ -1340,7 +1345,6 @@ export const ComposerPromptEditor = forwardRef<
         setSelectionAtCollapsedOffset(editor, 0);
         const nextSnapshot = readSnapshotFromEditor(editor);
         snapshotRef.current = nextSnapshot;
-        setHasVisibleContent(false);
         onChangeRef.current("", 0, 0, false, [], EMPTY_DOC);
       },
       focusAt,
@@ -1373,16 +1377,8 @@ export const ComposerPromptEditor = forwardRef<
   );
 
   return (
-    <div className="relative">
+    <div className="composer-prompt-editor relative">
       <EditorContent editor={editor} />
-      {!hasVisibleContent && terminalContexts.length === 0 ? (
-        <div
-          data-composer-placeholder=""
-          className="composer-prompt-placeholder pointer-events-none absolute inset-0 overflow-hidden text-left"
-        >
-          {placeholder}
-        </div>
-      ) : null}
     </div>
   );
 });
