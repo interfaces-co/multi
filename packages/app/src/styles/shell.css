@@ -1050,7 +1050,7 @@ body {
 }
 
 .agent-panel-followup-input {
-  padding-bottom: 16px;
+  padding-bottom: var(--multi-composer-followup-padding-block-end);
   position: relative;
 }
 
@@ -1107,7 +1107,10 @@ body {
   );
   bottom: 50%;
   content: "";
-  height: var(--multi-composer-overlay-height, 24px);
+  height: max(
+    var(--multi-composer-overlay-height, 24px),
+    calc(var(--composer-messages-scroll-bottom-inset) * 0.12)
+  );
   left: 50%;
   margin-left: -50vw;
   pointer-events: none;
@@ -1176,6 +1179,13 @@ body {
   box-sizing: border-box;
   cursor: text;
   position: relative;
+}
+
+.agent-window .ui-prompt-input__container[data-variant="expanded"]:not([data-dragging]),
+.agent-window .ui-prompt-input__container[data-variant="compact"]:not([data-dragging]) {
+  background-color: var(--prompt-input-container-bg);
+  border: 1px solid var(--prompt-input-container-border);
+  box-shadow: var(--multi-composer-surface-shadow);
 }
 
 .agent-window .agent-prompt-input-root > .ui-prompt-input__header {

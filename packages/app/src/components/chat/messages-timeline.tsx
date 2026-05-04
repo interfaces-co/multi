@@ -52,11 +52,9 @@ export interface TimelineRowSharedState {
 export const TimelineRowCtx = createContext<TimelineRowSharedState>(null!);
 
 const CHAT_TIMELINE_SCROLLER_STYLE = {
-  paddingTop: 12,
-  paddingBottom: 24,
+  paddingTop: "var(--chat-timeline-padding-block-start)",
+  paddingBottom: "var(--composer-messages-scroll-bottom-inset)",
 } satisfies CSSProperties;
-
-const CHAT_TIMELINE_ROW_GAP = 12;
 
 const CHAT_TIMELINE_CONTENT_STYLE = {
   boxSizing: "border-box",
@@ -65,7 +63,7 @@ const CHAT_TIMELINE_CONTENT_STYLE = {
   width: "100%",
   paddingLeft: "var(--composer-messages-padding-inline, 16px)",
   paddingRight: "var(--composer-messages-padding-inline, 16px)",
-  gap: CHAT_TIMELINE_ROW_GAP,
+  gap: "var(--chat-timeline-row-gap)",
 } satisfies CSSProperties;
 
 // ---------------------------------------------------------------------------

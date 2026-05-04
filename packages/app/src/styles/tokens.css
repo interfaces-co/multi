@@ -54,9 +54,21 @@
   --multi-composer-overlay-bleed-mask-height: 12px;
   --multi-composer-overlay-height: 24px;
   --multi-composer-overlay-bg: var(--multi-color-editor);
+  --multi-composer-followup-padding-block-end: 16px;
+  /*
+   * Docked composer stack reserve: editor floor + toolbar row + gaps + shell follow-up
+   * padding + safe area (Cursor thread scroll vs overlay pattern).
+   */
   --composer-max-width: var(--multi-composer-max-width);
   --composer-messages-padding-inline: var(--multi-composer-column-padding-inline);
   --chat-timeline-row-gap: 12px;
+  --chat-timeline-padding-block-start: 12px;
+  --chat-timeline-assistant-top-inset: 8px;
+  --composer-messages-scroll-bottom-inset: calc(
+    var(--multi-composer-editor-min-height) + var(--multi-composer-overlay-height) +
+      (var(--multi-composer-section-gap) * 3) + 52px +
+      var(--multi-composer-followup-padding-block-end) + env(safe-area-inset-bottom, 0px)
+  );
   --prompt-input-section-gap: var(--multi-composer-section-gap);
   --prompt-input-container-bg: var(--multi-composer-surface-bg);
   --prompt-input-container-border: var(--multi-composer-surface-border);

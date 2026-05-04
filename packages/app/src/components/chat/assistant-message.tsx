@@ -86,7 +86,7 @@ export const AssistantMessage = memo(function AssistantMessage({
   );
 
   return (
-    <div className="min-w-0 pt-1.5">
+    <div className="min-w-0 pt-(--chat-timeline-assistant-top-inset)">
       {showCompletionDivider && (
         <div className="my-3 flex items-center gap-3">
           <span className="h-px flex-1 bg-border" />

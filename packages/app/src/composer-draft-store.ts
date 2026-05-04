@@ -353,6 +353,8 @@ interface ComposerDraftStoreState {
   ) => void;
   /** Marks a draft session as being promoted to a real server thread. */
   markDraftThreadPromoting: (threadRef: ComposerThreadTarget, promotedTo?: ScopedThreadRef) => void;
+  /** Clears premature promotion markers when navigating back after a failed first send. */
+  cancelDraftThreadPromotion: (threadRef: ComposerThreadTarget) => void;
   /** Removes draft-session metadata after promotion is complete. */
   finalizePromotedDraftThread: (threadRef: ComposerThreadTarget) => void;
   clearDraftThread: (threadRef: ComposerThreadTarget) => void;
@@ -2223,6 +2225,31 @@ const composerDraftStore = create<ComposerDraftStoreState>()(
                 [threadKey]: {
                   ...existing,
                   promotedTo: nextPromotedTo,
+                },
+              },
+            };
+          });
+        },
+        cancelDraftThreadPromotion: (threadRef) => {
+          const threadKey = resolveComposerDraftKey(get(), threadRef);
+          if (!threadKey) {
+            return;
+          }
+          set((state) => {
+            const existing = state.draftThreadsByThreadKey[threadKey];
+            if (
+              existing === undefined ||
+              existing.promotedTo === undefined ||
+              existing.promotedTo === null
+            ) {
+              return state;
+            }
+            return {
+              draftThreadsByThreadKey: {
+                ...state.draftThreadsByThreadKey,
+                [threadKey]: {
+                  ...existing,
+                  promotedTo: null,
                 },
               },
             };

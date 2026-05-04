@@ -30,7 +30,7 @@ import { applyClaudePromptEffortPrefix } from "@multi/shared/model";
 import { projectScriptCwd, projectScriptRuntimeEnv } from "@multi/shared/project-scripts";
 import { truncate } from "@multi/shared/String";
 import { Debouncer } from "@tanstack/react-pacer";
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useShallow } from "zustand/react/shallow";
 import { useGitStatus } from "~/lib/git-status-state";
@@ -184,17 +184,11 @@ const EMPTY_PENDING_USER_INPUT_ANSWERS: Record<string, PendingUserInputDraftAnsw
 
 type HeroActionTone = "accent" | "blue" | "green";
 
-const HERO_ACTION_ACCENT: Record<HeroActionTone, string> = {
-  accent: "var(--primary)",
-  blue: "var(--multi-action)",
-  green: "var(--success)",
+const HERO_ICON_TONE_CLASS: Record<HeroActionTone, string> = {
+  accent: "text-[var(--primary)]",
+  blue: "text-[var(--multi-action)]",
+  green: "text-[var(--success)]",
 };
-
-function heroActionStyle(tone: HeroActionTone): CSSProperties {
-  return {
-    "--hero-action-accent": HERO_ACTION_ACCENT[tone],
-  } as CSSProperties;
-}
 
 interface HeroComposerActionCardProps {
   title: string;
@@ -211,11 +205,15 @@ function HeroComposerActionCard(props: HeroComposerActionCardProps) {
     <button
       type="button"
       onClick={props.onClick}
-      style={heroActionStyle(props.tone)}
       className="group flex h-20 min-h-20 flex-col justify-between rounded-[8px] border border-multi-stroke-tertiary bg-multi-bg-elevated p-3 text-left text-multi-fg-primary shadow-none transition-colors hover:border-multi-stroke-secondary hover:bg-multi-bg-quaternary focus-visible:ring-1 focus-visible:ring-multi-stroke-focused focus-visible:outline-none"
     >
       <span className="flex items-center justify-between gap-2">
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-[7px] border border-multi-stroke-tertiary bg-multi-bg-tertiary text-(color:--hero-action-accent)">
+        <span
+          className={cn(
+            "flex size-7 shrink-0 items-center justify-center rounded-[7px] border border-multi-stroke-tertiary bg-multi-bg-tertiary",
+            HERO_ICON_TONE_CLASS[props.tone],
+          )}
+        >
           <Icon className="size-3.5" />
         </span>
         <IconChevronRight className="size-4 shrink-0 text-multi-fg-tertiary transition-colors group-hover:text-multi-fg-primary" />
@@ -723,6 +721,8 @@ export default function ChatView(props: ChatViewProps) {
     (store) => store.setInteractionMode,
   );
   const clearComposerDraftContent = useComposerDraftStore((store) => store.clearComposerContent);
+  const markDraftThreadPromoting = useComposerDraftStore((store) => store.markDraftThreadPromoting);
+  const cancelDraftThreadPromotion = useComposerDraftStore((store) => store.cancelDraftThreadPromotion);
   const setDraftThreadContext = useComposerDraftStore((store) => store.setDraftThreadContext);
   const getDraftSessionByLogicalProjectKey = useComposerDraftStore(
     (store) => store.getDraftSessionByLogicalProjectKey,
@@ -2553,6 +2553,8 @@ export default function ChatView(props: ChatViewProps) {
     clearComposerDraftContent(composerDraftTarget);
     composerRef.current?.resetCursorState();
 
+    let navigatedOptimistically = false;
+
     let turnStartSucceeded = false;
     await (async () => {
       let firstComposerImageName: string | null = null;
@@ -2632,6 +2634,15 @@ export default function ChatView(props: ChatViewProps) {
             }
           : undefined;
       beginLocalDispatch({ preparingWorktree: false });
+      if (isLocalDraftThread && draftId) {
+        await navigate({
+          to: "/$environmentId/$threadId",
+          params: buildThreadRouteParams(scopeThreadRef(environmentId, threadIdForSend)),
+          replace: true,
+        });
+        navigatedOptimistically = true;
+        markDraftThreadPromoting(draftId, scopeThreadRef(environmentId, threadIdForSend));
+      }
       await api.orchestration.dispatchCommand({
         type: "thread.turn.start",
         commandId: newCommandId(),
@@ -2650,14 +2661,15 @@ export default function ChatView(props: ChatViewProps) {
         createdAt: messageCreatedAt,
       });
       turnStartSucceeded = true;
-      if (isLocalDraftThread) {
+    })().catch(async (err: unknown) => {
+      if (navigatedOptimistically && draftId) {
+        cancelDraftThreadPromotion(draftId);
         await navigate({
-          to: "/$environmentId/$threadId",
-          params: buildThreadRouteParams(scopeThreadRef(environmentId, threadIdForSend)),
+          to: "/draft/$draftId",
+          params: buildDraftThreadRouteParams(draftId),
           replace: true,
         });
       }
-    })().catch(async (err: unknown) => {
       if (
         !turnStartSucceeded &&
         promptRef.current.length === 0 &&
@@ -3336,8 +3348,7 @@ export default function ChatView(props: ChatViewProps) {
           <div
             className={cn(
               "agent-panel-followup-input",
-              isHeroComposer ? "agent-panel-empty-state-shell" : "pt-1.5 sm:pt-2",
-              isHeroComposer ? undefined : isGitRepo ? "pb-1" : "pb-3 sm:pb-4",
+              isHeroComposer ? "agent-panel-empty-state-shell" : undefined,
               isConnecting ? "agent-panel-followup-input--disabled" : undefined,
               !showScrollToBottom ? "agent-panel-followup-input--conversation-overlay" : undefined,
             )}

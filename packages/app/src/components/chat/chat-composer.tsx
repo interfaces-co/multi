@@ -689,15 +689,48 @@ export const ChatComposer = memo(
       selectedProvider,
     ]);
 
-    const { modelOptions: composerModelOptions, selectedModel } = useEffectiveComposerModelState({
-      threadRef: composerDraftTarget,
-      providers: providerStatuses,
-      selectedProvider,
+    const { modelOptions: composerModelOptions, selectedModel: derivedComposerModel } =
+      useEffectiveComposerModelState({
+        threadRef: composerDraftTarget,
+        providers: providerStatuses,
+        selectedProvider,
+        selectedInstanceId,
+        threadModelSelection: activeThreadModelSelection,
+        projectModelSelection: activeProjectDefaultModelSelection,
+        settings,
+      });
+
+    // Instance-keyed option list so the picker can show each configured
+    // instance (built-in + custom) as a first-class sidebar entry. The
+    // options are server-reported models plus that exact instance's
+    // configured custom models; selected slugs are not injected into lists.
+    const modelOptionsByInstance = useMemo<
+      ReadonlyMap<ProviderInstanceId, ReadonlyArray<AppModelOption>>
+    >(() => {
+      const out = new Map<ProviderInstanceId, ReadonlyArray<AppModelOption>>();
+      for (const entry of providerInstanceEntries) {
+        out.set(entry.instanceId, getAppModelOptionsForInstance(settings, entry));
+      }
+      return out;
+    }, [providerInstanceEntries, settings]);
+
+    const instanceCoherentSelectedModel = useMemo(() => {
+      const currentOptions = modelOptionsByInstance.get(selectedInstanceId) ?? [];
+      const slugSet = new Set(currentOptions.map((option) => option.slug));
+      if (slugSet.has(derivedComposerModel)) {
+        return derivedComposerModel;
+      }
+      const normalized = normalizeModelSlug(derivedComposerModel, selectedProvider);
+      if (normalized && slugSet.has(normalized)) {
+        return normalized;
+      }
+      return currentOptions[0]?.slug ?? derivedComposerModel;
+    }, [
+      derivedComposerModel,
+      modelOptionsByInstance,
       selectedInstanceId,
-      threadModelSelection: activeThreadModelSelection,
-      projectModelSelection: activeProjectDefaultModelSelection,
-      settings,
-    });
+      selectedProvider,
+    ]);
 
     // Resolve the active instance's snapshot by `instanceId` so a custom
     // instance gets its own slash commands, skills, and model list — not
@@ -719,12 +752,18 @@ export const ChatComposer = memo(
       () =>
         getComposerProviderState({
           provider: selectedProvider,
-          model: selectedModel,
+          model: instanceCoherentSelectedModel,
           models: selectedProviderModels,
           prompt,
           modelOptions: composerModelOptions?.[selectedProvider],
         }),
-      [composerModelOptions, prompt, selectedModel, selectedProvider, selectedProviderModels],
+      [
+        composerModelOptions,
+        instanceCoherentSelectedModel,
+        prompt,
+        selectedProvider,
+        selectedProviderModels,
+      ],
     );
 
     const selectedPromptEffort = composerProviderState.promptEffort;
@@ -740,29 +779,17 @@ export const ChatComposer = memo(
     );
     const selectedModelSelection = useMemo<ModelSelection>(
       () =>
-        createModelSelection(selectedInstanceId, selectedModel, selectedModelOptionsForDispatch),
-      [selectedInstanceId, selectedModel, selectedModelOptionsForDispatch],
+        createModelSelection(
+          selectedInstanceId,
+          instanceCoherentSelectedModel,
+          selectedModelOptionsForDispatch,
+        ),
+      [
+        selectedInstanceId,
+        instanceCoherentSelectedModel,
+        selectedModelOptionsForDispatch,
+      ],
     );
-    const selectedModelForPicker = selectedModel;
-    // Instance-keyed option list so the picker can show each configured
-    // instance (built-in + custom) as a first-class sidebar entry. The
-    // options are server-reported models plus that exact instance's
-    // configured custom models; selected slugs are not injected into lists.
-    const modelOptionsByInstance = useMemo<
-      ReadonlyMap<ProviderInstanceId, ReadonlyArray<AppModelOption>>
-    >(() => {
-      const out = new Map<ProviderInstanceId, ReadonlyArray<AppModelOption>>();
-      for (const entry of providerInstanceEntries) {
-        out.set(entry.instanceId, getAppModelOptionsForInstance(settings, entry));
-      }
-      return out;
-    }, [providerInstanceEntries, settings]);
-    const selectedModelForPickerWithCustomFallback = useMemo(() => {
-      const currentOptions = modelOptionsByInstance.get(selectedInstanceId) ?? [];
-      return currentOptions.some((option) => option.slug === selectedModelForPicker)
-        ? selectedModelForPicker
-        : (normalizeModelSlug(selectedModelForPicker, selectedProvider) ?? selectedModelForPicker);
-    }, [modelOptionsByInstance, selectedInstanceId, selectedModelForPicker, selectedProvider]);
 
     // ------------------------------------------------------------------
     // Context window
@@ -1053,21 +1080,30 @@ export const ChatComposer = memo(
       ],
     );
 
-    const providerTraitsMenuContent = renderProviderTraitsMenuContent({
+    const traitsDockMenuInputBase = {
       provider: selectedProvider,
       ...(routeKind === "server" ? { threadRef: routeThreadRef } : {}),
       ...(routeKind === "draft" && draftId ? { draftId } : {}),
-      model: selectedModel,
+      model: instanceCoherentSelectedModel,
       models: selectedProviderModels,
       modelOptions: composerModelOptions?.[selectedProvider],
       prompt,
       onPromptChange: setPromptFromTraits,
+    };
+
+    const dockTraitsMenuFastSlot = renderProviderTraitsMenuContent({
+      ...traitsDockMenuInputBase,
+      traitsScope: "fast-only",
+    });
+    const dockTraitsMenuRestSlot = renderProviderTraitsMenuContent({
+      ...traitsDockMenuInputBase,
+      traitsScope: "except-fast",
     });
     const providerTraitsPicker = renderProviderTraitsPicker({
       provider: selectedProvider,
       ...(routeKind === "server" ? { threadRef: routeThreadRef } : {}),
       ...(routeKind === "draft" && draftId ? { draftId } : {}),
-      model: selectedModel,
+      model: instanceCoherentSelectedModel,
       models: selectedProviderModels,
       modelOptions: composerModelOptions?.[selectedProvider],
       prompt,
@@ -1915,7 +1951,7 @@ export const ChatComposer = memo(
             selectedModelOptionsForDispatch,
             selectedModelSelection,
             selectedProvider,
-            selectedModel,
+            selectedModel: instanceCoherentSelectedModel,
             selectedProviderModels,
           };
         },
@@ -1933,7 +1969,7 @@ export const ChatComposer = memo(
         isComposerModelPickerOpen,
         readComposerSnapshot,
         resolveComposerTrigger,
-        selectedModel,
+        instanceCoherentSelectedModel,
         selectedModelOptionsForDispatch,
         selectedModelSelection,
         selectedPromptEffort,
@@ -1976,7 +2012,7 @@ export const ChatComposer = memo(
         <PromptInputRoot
           className="agent-prompt-input-root w-full min-w-0"
           containerClassName={cn(
-            "group chat-composer-shell w-full max-w-full min-w-0 overflow-hidden border border-(--prompt-input-container-border) bg-(--prompt-input-container-bg) shadow-(--multi-composer-surface-shadow) transition-[border-color,background-color] duration-200",
+            "group chat-composer-shell w-full max-w-full min-w-0 overflow-hidden transition-[border-color,background-color] duration-200",
             composerMenuOpen && "overflow-visible!",
             composerProviderState.ultrathinkActive &&
               "animate-[ultrathink-rainbow_10s_linear_infinite] bg-[linear-gradient(120deg,oklch(0.712_0.181_22.839)_0%,oklch(0.769_0.165_70.08)_18%,oklch(0.723_0.192_149.579)_36%,oklch(0.704_0.123_182.503)_54%,oklch(0.623_0.188_259.815)_72%,oklch(0.656_0.212_354.308)_90%,oklch(0.712_0.181_22.839)_100%)] bg-[length:220%_220%]",
@@ -2211,7 +2247,7 @@ export const ChatComposer = memo(
                       compact={isComposerFooterCompact}
                       {...(isComposerFooterCompact ? { triggerClassName: "mr-1" } : {})}
                       activeInstanceId={selectedInstanceId}
-                      model={selectedModelForPickerWithCustomFallback}
+                      model={instanceCoherentSelectedModel}
                       lockedProvider={lockedProvider}
                       lockedContinuationGroupKey={lockedContinuationGroupKey}
                       instanceEntries={providerInstanceEntries}
@@ -2248,7 +2284,8 @@ export const ChatComposer = memo(
                         showInteractionModeToggle={
                           composerProviderControls.showInteractionModeToggle
                         }
-                        traitsMenuContent={providerTraitsMenuContent}
+                        traitsFastMenuContent={dockTraitsMenuFastSlot}
+                        traitsRestMenuContent={dockTraitsMenuRestSlot}
                         onToggleInteractionMode={toggleInteractionMode}
                         onTogglePlanSidebar={togglePlanSidebar}
                         onRuntimeModeChange={handleRuntimeModeChange}

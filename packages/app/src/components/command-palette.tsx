@@ -1179,17 +1179,19 @@ function OpenCommandPaletteDialog() {
             </KbdGroup>
           </div>
           {canOpenProjectFromFileManager ? (
-            <Button
-              variant="ghost"
-              size="xs"
-              className="h-auto px-2 text-xs text-muted-foreground/80 hover:bg-transparent hover:text-foreground"
+            <button
+              type="button"
               disabled={isPickingProjectFolder}
+              className={cn(
+                "text-xs underline-offset-2 hover:underline disabled:opacity-50",
+                "text-muted-foreground/80 hover:text-foreground",
+              )}
               onClick={() => {
                 void handleOpenProjectFromFileManager();
               }}
             >
               {`Open in ${fileManagerName}`}
-            </Button>
+            </button>
           ) : null}
         </CommandFooter>
       </Command>

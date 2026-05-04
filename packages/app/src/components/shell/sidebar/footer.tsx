@@ -13,7 +13,7 @@ export function ShellSidebarFooter(props: { settings?: boolean }) {
     <div className="agent-window-sidebar-footer mt-auto flex shrink-0 flex-col px-2.5 py-1.5">
       <UpdatePill />
       <div className="agent-window-account-row flex min-h-7 items-center justify-between gap-2 px-1.5 py-1">
-        <span className="agent-window-account-label flex min-w-0 items-center gap-1.5 text-detail text-muted-foreground/55">
+        <span className="agent-window-account-label pointer-events-none flex min-w-0 items-center gap-1.5 text-detail text-muted-foreground/55">
           <span className="agent-window-account-avatar flex size-4 shrink-0 items-center justify-center rounded-full text-[9px]/[10px] font-medium">
             M
           </span>

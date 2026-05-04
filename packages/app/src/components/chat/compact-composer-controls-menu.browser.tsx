@@ -134,6 +134,16 @@ async function mountMenu(props?: { modelSelection?: ModelSelection; prompt?: str
       }),
     },
   ];
+  const sharedTraitsProps = {
+    provider,
+    models,
+    threadRef,
+    model,
+    prompt: props?.prompt ?? "",
+    modelOptions: providerOptions,
+    onPromptChange,
+  };
+
   const screen = await render(
     <CompactComposerControlsMenu
       activePlan={false}
@@ -142,17 +152,8 @@ async function mountMenu(props?: { modelSelection?: ModelSelection; prompt?: str
       planSidebarOpen={false}
       runtimeMode="approval-required"
       showInteractionModeToggle
-      traitsMenuContent={
-        <TraitsMenuContent
-          provider={provider}
-          models={models}
-          threadRef={threadRef}
-          model={model}
-          prompt={props?.prompt ?? ""}
-          modelOptions={providerOptions}
-          onPromptChange={onPromptChange}
-        />
-      }
+      traitsFastMenuContent={<TraitsMenuContent {...sharedTraitsProps} traitsScope="fast-only" />}
+      traitsRestMenuContent={<TraitsMenuContent {...sharedTraitsProps} traitsScope="except-fast" />}
       onToggleInteractionMode={vi.fn()}
       onTogglePlanSidebar={vi.fn()}
       onRuntimeModeChange={vi.fn()}
@@ -194,9 +195,12 @@ describe("CompactComposerControlsMenu", () => {
 
     await vi.waitFor(() => {
       const text = document.body.textContent ?? "";
-      expect(text).toContain("Fast Mode");
+      expect(text).toContain("Fast");
       expect(text).toContain("On");
       expect(text).toContain("Off");
+      expect(text.indexOf("Fast")).toBeLessThan(text.indexOf("Mode"));
+      expect(text.indexOf("Chat")).toBeLessThan(text.indexOf("Reasoning"));
+      expect(text.indexOf("Access")).toBeLessThan(text.indexOf("Reasoning"));
     });
   });
 
@@ -211,7 +215,7 @@ describe("CompactComposerControlsMenu", () => {
     await page.getByLabelText("More composer controls").click();
 
     await vi.waitFor(() => {
-      expect(document.body.textContent ?? "").not.toContain("Fast Mode");
+      expect(document.body.textContent ?? "").not.toContain("Fast");
     });
   });
 

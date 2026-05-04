@@ -14,7 +14,12 @@ import type { ReactNode } from "react";
 
 import type { DraftId } from "../../composer-draft-store";
 import { getProviderModelCapabilities } from "../../provider-models";
-import { shouldRenderTraitsControls, TraitsMenuContent, TraitsPicker } from "./traits-picker";
+import {
+  getTraitsSectionVisibility,
+  shouldRenderTraitsControls,
+  TraitsMenuContent,
+  TraitsPicker,
+} from "./traits-picker";
 
 export type ComposerProviderStateInput = {
   provider: ProviderDriverKind;
@@ -40,6 +45,8 @@ type TraitsRenderInput = {
   modelOptions: ReadonlyArray<ProviderOptionSelection> | undefined;
   prompt: string;
   onPromptChange: (prompt: string) => void;
+  /** Default `all`. Applies to `TraitsMenuContent` splits in the compact composer overflow. */
+  traitsScope?: "all" | "fast-only" | "except-fast";
 };
 
 export function getComposerProviderState(input: ComposerProviderStateInput): ComposerProviderState {
@@ -68,15 +75,52 @@ function renderTraitsControl(
   Component: typeof TraitsMenuContent | typeof TraitsPicker,
   input: TraitsRenderInput,
 ): ReactNode {
-  const { provider, threadRef, draftId, model, models, modelOptions, prompt, onPromptChange } =
-    input;
+  const {
+    provider,
+    threadRef,
+    draftId,
+    model,
+    models,
+    modelOptions,
+    prompt,
+    onPromptChange,
+    traitsScope: traitsScopeRequested = "all",
+  } = input;
+  const traitsScopeForComponent =
+    Component === TraitsPicker ? "all" : traitsScopeRequested;
+
   const hasTarget = threadRef !== undefined || draftId !== undefined;
-  if (
-    !hasTarget ||
-    !shouldRenderTraitsControls({ provider, models, model, modelOptions, prompt })
-  ) {
+  if (!hasTarget) {
     return null;
   }
+
+  const visibilityInput = {
+    provider,
+    models,
+    model,
+    prompt,
+    modelOptions,
+    allowPromptInjectedEffort: true as boolean,
+  };
+
+  if (traitsScopeForComponent === "fast-only") {
+    if (!getTraitsSectionVisibility(visibilityInput).showFastMode) {
+      return null;
+    }
+  } else if (traitsScopeForComponent === "except-fast") {
+    const visibility = getTraitsSectionVisibility(visibilityInput);
+    const booleansExceptFastMode = visibility.booleanDescriptors.filter(
+      (descriptor) => descriptor.id !== "fastMode",
+    );
+    const hasRest =
+      visibility.selectDescriptors.length > 0 || booleansExceptFastMode.length > 0;
+    if (!hasRest) {
+      return null;
+    }
+  } else if (!shouldRenderTraitsControls(visibilityInput)) {
+    return null;
+  }
+
   return (
     <Component
       provider={provider}
@@ -87,6 +131,7 @@ function renderTraitsControl(
       modelOptions={modelOptions}
       prompt={prompt}
       onPromptChange={onPromptChange}
+      {...(Component === TraitsMenuContent ? { traitsScope: traitsScopeForComponent } : {})}
     />
   );
 }

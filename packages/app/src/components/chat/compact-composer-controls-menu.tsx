@@ -21,7 +21,10 @@ export const CompactComposerControlsMenu = memo(function CompactComposerControls
   planSidebarOpen: boolean;
   runtimeMode: RuntimeMode;
   showInteractionModeToggle: boolean;
-  traitsMenuContent?: ReactNode;
+  /** Leading slot: Fast (~fastMode) only; Cursor composer overflow order Fast → Mode → Access. */
+  traitsFastMenuContent?: ReactNode | null | undefined;
+  /** Remaining reasoning / booleans excluding fast preset. Rendered after Access. */
+  traitsRestMenuContent?: ReactNode | null | undefined;
   onToggleInteractionMode: () => void;
   onTogglePlanSidebar: () => void;
   onRuntimeModeChange: (mode: RuntimeMode) => void;
@@ -41,9 +44,9 @@ export const CompactComposerControlsMenu = memo(function CompactComposerControls
         <IconDotGrid1x3Horizontal aria-hidden="true" className="size-4" />
       </MenuTrigger>
       <MenuPopup align="start" variant="workbench">
-        {props.traitsMenuContent ? (
+        {props.traitsFastMenuContent ? (
           <>
-            {props.traitsMenuContent}
+            {props.traitsFastMenuContent}
             <MenuDivider variant="workbench" />
           </>
         ) : null}
@@ -89,6 +92,12 @@ export const CompactComposerControlsMenu = memo(function CompactComposerControls
             </MenuRadioItem>
           </MenuRadioGroup>
         </MenuGroup>
+        {props.traitsRestMenuContent ? (
+          <>
+            <MenuDivider variant="workbench" />
+            {props.traitsRestMenuContent}
+          </>
+        ) : null}
         {props.activePlan ? (
           <>
             <MenuDivider variant="workbench" />

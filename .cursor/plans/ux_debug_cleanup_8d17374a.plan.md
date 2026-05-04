@@ -4,22 +4,22 @@ overview: A focused UX bugfix sweep with emphasis on deleting redundant styling/
 todos:
   - id: hero-cards-delete-style
     content: "HeroComposerActionCard: remove heroActionStyle/CSS var path; unify token-based typography/contrast"
-    status: pending
+    status: completed
   - id: sidebar-footer-affordance
     content: "ShellSidebarFooter: separate UpdatePill vs account chrome; constrain interactivity to gear only"
-    status: pending
+    status: completed
   - id: menus-workbench-unify
     content: "Menu + TraitsPicker + CompactComposerControlsMenu: workbench rhythm (radio columns, labels)"
-    status: pending
+    status: completed
   - id: composer-model-provider-sync
     content: "ChatComposer/model state: unify picker vs traits/send model slug + instance-id resolution; audit selectedInstanceId fallbacks"
     status: pending
   - id: draft-send-optimistic-nav
     content: "ChatView onSend: navigate before awaited dispatch when isLocalDraftThread; reconcile chat-draft-route + error rollback"
-    status: pending
+    status: completed
   - id: timeline-user-assistant-gap
     content: "AssistantMessage/HumanMessage: single choke-point padding tweak after row bubble"
-    status: pending
+    status: completed
   - id: chat-scroll-composer-clearance
     content: MessagesTimeline LegendList scroll padding vs docked composer overlay; tokenized bottom inset (+ dead CSS var audit)
     status: pending
@@ -28,10 +28,10 @@ todos:
     status: pending
   - id: command-palette-viewport-footer
     content: command.tsx viewport grid parity + CommandFooter/control alignment
-    status: pending
+    status: completed
   - id: typecheck
     content: Run bun run typecheck; targeted vitest only if tests edited
-    status: pending
+    status: completed
 isProject: false
 ---
 
