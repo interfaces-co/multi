@@ -5,7 +5,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "~/lib/utils";
 
-const workbenchIconButtonVariants = cva(
+export const workbenchIconButtonVariants = cva(
   "no-drag ui-icon-button box-border flex shrink-0 items-center justify-center rounded-[5px] border-0 px-(--multi-workbench-chrome-icon-padding-x) text-multi-icon-secondary shadow-none outline-hidden transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-multi-stroke-focused focus-visible:ring-inset disabled:text-multi-fg-quaternary/45 disabled:hover:bg-transparent disabled:hover:text-multi-fg-quaternary/45 [&_svg]:block",
   {
     variants: {
@@ -35,13 +35,6 @@ const workbenchIconButtonVariants = cva(
 type WorkbenchIconButtonChrome = NonNullable<
   VariantProps<typeof workbenchIconButtonVariants>["chrome"]
 >;
-
-export function getWorkbenchIconButtonClassName(
-  props: VariantProps<typeof workbenchIconButtonVariants> & { className?: string | undefined },
-) {
-  const { className, ...variants } = props;
-  return cn(workbenchIconButtonVariants(variants), className);
-}
 
 const workbenchTextButtonVariants = cva(
   "no-drag box-border inline-flex h-(--multi-workbench-action-size) min-w-0 shrink-0 items-center justify-center gap-1 truncate rounded-[5px] border-0 px-1.5 text-detail font-medium outline-hidden transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-multi-stroke-focused focus-visible:ring-inset disabled:pointer-events-none disabled:text-multi-fg-quaternary/45 [&_svg]:block",
@@ -85,12 +78,14 @@ export function WorkbenchIconButton(props: {
       title={props.title ?? props["aria-label"]}
       disabled={props.disabled}
       onClick={props.onClick}
-      className={getWorkbenchIconButtonClassName({
-        active: props.active ?? false,
-        chrome: props.chrome,
-        className: props.className,
-        tabSystem: props.tabSystem ?? false,
-      })}
+      className={cn(
+        workbenchIconButtonVariants({
+          active: props.active ?? false,
+          chrome: props.chrome,
+          tabSystem: props.tabSystem ?? false,
+        }),
+        props.className,
+      )}
     >
       {props.children}
     </button>

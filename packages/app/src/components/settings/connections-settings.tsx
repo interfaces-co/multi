@@ -1,4 +1,4 @@
-import { IconPlusLarge as PlusIcon, IconQrCode as QrCodeIcon } from "central-icons";
+import { IconPlusLarge, IconQrCode } from "central-icons";
 import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   type AuthClientSession,
@@ -356,7 +356,7 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
                       />
                     }
                   >
-                    <QrCodeIcon aria-hidden className="size-3" />
+                    <IconQrCode aria-hidden className="size-3" />
                   </PopoverTrigger>
                   <PopoverPopup side="top" align="start" tooltipStyle className="w-max">
                     <QRCodeSvg
@@ -577,7 +577,7 @@ const AuthorizedClientsHeaderAction = memo(function AuthorizedClientsHeaderActio
         <DialogTrigger
           render={
             <Button size="xs" variant="default">
-              <PlusIcon className="size-3" />
+              <IconPlusLarge className="size-3" />
               Create link
             </Button>
           }
@@ -1290,7 +1290,7 @@ export function ConnectionsSettings() {
             <DialogTrigger
               render={
                 <Button size="xs" variant="outline">
-                  <PlusIcon className="size-3" />
+                  <IconPlusLarge className="size-3" />
                   Add environment
                 </Button>
               }
@@ -1406,7 +1406,7 @@ export function ConnectionsSettings() {
                     disabled={isAddingSavedBackend}
                     onClick={() => void handleAddSavedBackend()}
                   >
-                    <PlusIcon className="size-3.5" />
+                    <IconPlusLarge className="size-3.5" />
                     {isAddingSavedBackend ? "Adding…" : "Add Backend"}
                   </Button>
                 </div>

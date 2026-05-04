@@ -1,5 +1,5 @@
 import { memo, useRef } from "react";
-import { IconCheckmark1 as CheckIcon, IconClipboard as CopyIcon } from "central-icons";
+import { IconCheckmark1, IconClipboard } from "central-icons";
 import { Button } from "@multi/ui/button";
 import { useCopyToClipboard } from "~/hooks/use-copy-to-clipboard";
 import { cn } from "~/lib/utils";
@@ -72,7 +72,11 @@ export const MessageCopyButton = memo(function MessageCopyButton({
           />
         }
       >
-        {isCopied ? <CheckIcon className="size-3 text-success" /> : <CopyIcon className="size-3" />}
+        {isCopied ? (
+          <IconCheckmark1 className="size-3 text-success" />
+        ) : (
+          <IconClipboard className="size-3" />
+        )}
       </TooltipTrigger>
       <TooltipPopup>
         <p>Copy to clipboard</p>

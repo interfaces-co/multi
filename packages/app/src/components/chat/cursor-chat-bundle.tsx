@@ -1,12 +1,12 @@
 import {
-  IconChevronRight as ChevronRightIcon,
-  IconClock as TimerIcon,
-  IconConsole as TerminalIcon,
-  IconEyeOpen as EyeIcon,
-  IconFileEdit as FilePenLineIcon,
-  IconMagnifyingGlass as SearchIcon,
-  IconRobot as BotIcon,
-  IconToolbox as WrenchIcon,
+  IconChevronRight,
+  IconClock,
+  IconConsole,
+  IconEyeOpen,
+  IconFileEdit,
+  IconMagnifyingGlass,
+  IconRobot,
+  IconToolbox,
   type CentralIconBaseProps,
 } from "central-icons";
 type CentralIconComponent = React.ComponentType<CentralIconBaseProps>;
@@ -189,7 +189,7 @@ export const CursorThinkingStatus = memo(function CursorThinkingStatus({
 }) {
   return (
     <div className="ui-meta-agent-status-row">
-      <BotIcon className="size-3.5 shrink-0 text-[var(--cursor-text-tertiary)]" />
+      <IconRobot className="size-3.5 shrink-0 text-[var(--cursor-text-tertiary)]" />
       <span
         className={cn(
           "ui-meta-agent-status-row__task",
@@ -292,7 +292,7 @@ export const CursorToolCallRenderer = memo(function CursorToolCallRenderer({
     case "webSearchToolCall":
       return (
         <CursorToolCallLine
-          icon={SearchIcon}
+          icon={IconMagnifyingGlass}
           action={displayState.action}
           details={displayState.details}
           loading={loading}
@@ -442,8 +442,8 @@ function CursorShellToolCall({
           onClick={toggleExpanded}
         >
           <span className="ui-shell-tool-call__icon-swap">
-            <TerminalIcon className="ui-shell-tool-call__icon-default size-3.5" />
-            <ChevronRightIcon className="ui-shell-tool-call__icon-hover size-3.5" />
+            <IconConsole className="ui-shell-tool-call__icon-default size-3.5" />
+            <IconChevronRight className="ui-shell-tool-call__icon-hover size-3.5" />
           </span>
           <span className="ui-shell-tool-call__description-row">
             <span
@@ -541,7 +541,7 @@ function CursorEditToolCall({
               : undefined
           }
         >
-          <FilePenLineIcon className="size-3.5 shrink-0 text-[var(--cursor-text-tertiary)]" />
+          <IconFileEdit className="size-3.5 shrink-0 text-[var(--cursor-text-tertiary)]" />
           <span className="ui-tool-call-line-action">{action}</span>
           <span
             className={cn(
@@ -561,7 +561,7 @@ function CursorEditToolCall({
             aria-expanded={isExpanded}
             onClick={toggleExpanded}
           >
-            <ChevronRightIcon className="ui-edit-tool-call__minimal-expand-icon size-3" />
+            <IconChevronRight className="ui-edit-tool-call__minimal-expand-icon size-3" />
           </button>
         ) : null}
       </div>
@@ -698,22 +698,22 @@ function iconForToolCase(toolCase: CursorToolCase): CentralIconComponent {
   switch (toolCase) {
     case "readToolCall":
     case "imageViewToolCall":
-      return EyeIcon;
+      return IconEyeOpen;
     case "grepToolCall":
     case "globToolCall":
     case "webSearchToolCall":
-      return SearchIcon;
+      return IconMagnifyingGlass;
     case "awaitToolCall":
-      return TimerIcon;
+      return IconClock;
     case "editToolCall":
     case "deleteToolCall":
-      return FilePenLineIcon;
+      return IconFileEdit;
     case "shellToolCall":
-      return TerminalIcon;
+      return IconConsole;
     case "mcpToolCall":
     case "taskToolCall":
     case "unknownToolCall":
-      return WrenchIcon;
+      return IconToolbox;
   }
 }
 

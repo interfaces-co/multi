@@ -166,11 +166,11 @@ import { sanitizeThreadErrorMessage } from "~/rpc/transport-error";
 import { retainThreadDetailSubscription } from "../environments/runtime/service";
 import { traceBrowserEvent } from "~/observability/browserDebug";
 import {
-  IconChevronDownSmall as ChevronDownIcon,
-  IconChevronRight as ChevronRightIcon,
-  IconFolderAddRight as FolderPlusIcon,
-  IconFolderOpen as FolderOpenIcon,
-  IconSettingsGear2 as SettingsIcon,
+  IconChevronDownSmall,
+  IconChevronRight,
+  IconFolderAddRight,
+  IconFolderOpen,
+  IconSettingsGear2,
   type CentralIconBaseProps,
 } from "central-icons";
 type CentralIconComponent = React.ComponentType<CentralIconBaseProps>;
@@ -218,7 +218,7 @@ function HeroComposerActionCard(props: HeroComposerActionCardProps) {
         <span className="flex size-7 shrink-0 items-center justify-center rounded-[7px] border border-[color-mix(in_srgb,var(--hero-action-accent)_28%,transparent)] bg-[color-mix(in_srgb,var(--hero-action-accent)_13%,transparent)] text-[var(--hero-action-accent)]">
           <Icon className="size-3.5" />
         </span>
-        <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground/42 transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--hero-action-accent)]" />
+        <IconChevronRight className="size-4 shrink-0 text-muted-foreground/42 transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--hero-action-accent)]" />
       </span>
       <span className="grid gap-0.5">
         <span className="truncate text-body/[1.25] font-medium text-foreground">{props.title}</span>
@@ -239,21 +239,21 @@ function HeroComposerActions(props: {
       <HeroComposerActionCard
         title="Workspaces"
         detail={props.activeProjectName ?? "Browse projects"}
-        icon={FolderOpenIcon}
+        icon={IconFolderOpen}
         tone="blue"
         onClick={props.onOpenWorkspaces}
       />
       <HeroComposerActionCard
         title="Add project"
         detail="Choose a folder"
-        icon={FolderPlusIcon}
+        icon={IconFolderAddRight}
         tone="green"
         onClick={props.onAddProject}
       />
       <HeroComposerActionCard
         title="Appearance"
         detail="Theme and accent"
-        icon={SettingsIcon}
+        icon={IconSettingsGear2}
         tone="accent"
         onClick={props.onOpenAppearance}
       />
@@ -3282,7 +3282,7 @@ export default function ChatView(props: ChatViewProps) {
                     aria-label="Scroll to bottom"
                     title="Scroll to bottom"
                   >
-                    <ChevronDownIcon className="ui-icon size-3" aria-hidden="true" />
+                    <IconChevronDownSmall className="ui-icon size-3" aria-hidden="true" />
                   </button>
                 </div>
               )}

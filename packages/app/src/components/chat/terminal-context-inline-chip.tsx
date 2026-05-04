@@ -1,4 +1,4 @@
-import { IconConsole as TerminalIcon } from "central-icons";
+import { IconConsole } from "central-icons";
 
 import {
   ComposerInlineChip,
@@ -25,7 +25,7 @@ export function TerminalContextInlineChip(props: TerminalContextInlineChipProps)
             data-terminal-context-expired={expired ? "true" : undefined}
           >
             <ComposerInlineChipIcon className={expired ? "opacity-100" : undefined}>
-              <TerminalIcon className="size-3.5" />
+              <IconConsole className="size-3.5" />
             </ComposerInlineChipIcon>
             <ComposerInlineChipLabel>{label}</ComposerInlineChipLabel>
           </ComposerInlineChip>

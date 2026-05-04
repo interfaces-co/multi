@@ -68,9 +68,6 @@ export interface GitPanelModel {
   refresh: () => Promise<void>;
   init: () => Promise<void>;
   discard: (paths: string[]) => Promise<void>;
-  runCommit: (input: { message: string; push?: boolean }) => Promise<void>;
-  runBranchCommit: (input: { message: string; push?: boolean }) => Promise<void>;
-  runPush: () => Promise<void>;
 }
 
 interface GitStatusSnapshot {
@@ -155,7 +152,7 @@ function toRow(file: GitStatusResult["workingTree"]["files"][number]): DiffRow {
   return {
     id: file.path,
     path: file.path,
-    prevPath: null,
+    prevPath: file.prevPath ?? null,
     state: workingTreeStatusToGitFileState(file.status),
     staged: false,
     unstaged: true,
@@ -305,14 +302,12 @@ export function useEnvironmentGitPanel(
     for (const id of removed) {
       queryClient.removeQueries({
         queryKey: gitQueryKeys.patch(environmentId ?? null, cwd, id),
-        exact: true,
       });
     }
 
     for (const id of next.drop) {
       void queryClient.invalidateQueries({
         queryKey: gitQueryKeys.patch(environmentId ?? null, cwd, id),
-        exact: true,
       });
     }
   }, [cwd, environmentId, queryClient, rows]);
@@ -324,17 +319,19 @@ export function useEnvironmentGitPanel(
     [collapsedIds, rows],
   );
 
-  const requestedDiffPaths = useMemo(
-    () => rows.filter((row) => requestedDiffIds.has(row.id)).map((row) => row.path),
+  const requestedDiffRows = useMemo(
+    () => rows.filter((row) => requestedDiffIds.has(row.id)),
     [requestedDiffIds, rows],
   );
 
   const patchQueries = useQueries({
-    queries: requestedDiffPaths.map((path) =>
+    queries: requestedDiffRows.map((row) =>
       gitPatchQueryOptions({
         environmentId: environmentId ?? null,
         cwd,
-        path,
+        path: row.path,
+        prevPath: row.prevPath,
+        state: row.state,
         enabled: Boolean(cwd),
       }),
     ),
@@ -345,22 +342,22 @@ export function useEnvironmentGitPanel(
   const diffLoadingByPath = new Set<string>();
   const diffErrorByPath = new Map<string, string>();
 
-  for (const [index, path] of requestedDiffPaths.entries()) {
+  for (const [index, row] of requestedDiffRows.entries()) {
     const query = patchQueries[index];
     if (!query) continue;
 
     if (query.data) {
-      diffsByPath.set(path, query.data.diff);
-      patchesByPath.set(path, query.data.patch);
+      diffsByPath.set(row.path, query.data.diff);
+      patchesByPath.set(row.path, query.data.patch);
     }
 
     if (!query.data && (query.isPending || query.fetchStatus === "fetching")) {
-      diffLoadingByPath.add(path);
+      diffLoadingByPath.add(row.path);
     }
 
     if (!query.data && query.error) {
       diffErrorByPath.set(
-        path,
+        row.path,
         query.error instanceof Error ? query.error.message : String(query.error),
       );
     }
@@ -420,66 +417,6 @@ export function useEnvironmentGitPanel(
     },
     [cwd, environmentId],
   );
-
-  const runCommit = useCallback(
-    async (input: { message: string; push?: boolean }) => {
-      if (!cwd) {
-        throw new Error("No workspace");
-      }
-
-      const api = readNativeGitApi(environmentId);
-      if (!api) {
-        throw new Error("Git API not available");
-      }
-
-      await api.runStackedAction({
-        cwd,
-        action: input.push ? "commit_push" : "commit",
-        commitMessage: input.message,
-      });
-      await refreshGitStatus({ environmentId: environmentId ?? null, cwd }, api);
-    },
-    [cwd, environmentId],
-  );
-
-  const runBranchCommit = useCallback(
-    async (input: { message: string; push?: boolean }) => {
-      if (!cwd) {
-        throw new Error("No workspace");
-      }
-
-      const api = readNativeGitApi(environmentId);
-      if (!api) {
-        throw new Error("Git API not available");
-      }
-
-      await api.runStackedAction({
-        cwd,
-        action: input.push ? "commit_push" : "commit",
-        commitMessage: input.message,
-        featureBranch: true,
-      });
-      await refreshGitStatus({ environmentId: environmentId ?? null, cwd }, api);
-    },
-    [cwd, environmentId],
-  );
-
-  const runPush = useCallback(async () => {
-    if (!cwd) {
-      throw new Error("No workspace");
-    }
-
-    const api = readNativeGitApi(environmentId);
-    if (!api) {
-      throw new Error("Git API not available");
-    }
-
-    await api.runStackedAction({
-      cwd,
-      action: "push",
-    });
-    await refreshGitStatus({ environmentId: environmentId ?? null, cwd }, api);
-  }, [cwd, environmentId]);
 
   const requestDiff = useCallback(
     (id: string) => {
@@ -544,8 +481,5 @@ export function useEnvironmentGitPanel(
     refresh,
     init,
     discard,
-    runCommit,
-    runBranchCommit,
-    runPush,
   };
 }

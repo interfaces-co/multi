@@ -5,7 +5,7 @@ import {
 } from "@multi/contracts";
 import { memo, useEffect, useMemo, useState } from "react";
 import type { VariantProps } from "class-variance-authority";
-import { IconChevronDownSmall as ChevronDownIcon } from "central-icons";
+import { IconChevronDownSmall } from "central-icons";
 import { Button, buttonVariants } from "@multi/ui/button";
 import { Popover, PopoverPopup, PopoverTrigger } from "@multi/ui/popover";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@multi/ui/tooltip";
@@ -167,7 +167,7 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
             </TooltipTrigger>
             <TooltipPopup side="top">{triggerLabel}</TooltipPopup>
           </Tooltip>
-          <ChevronDownIcon aria-hidden="true" className="size-3 shrink-0 opacity-60" />
+          <IconChevronDownSmall aria-hidden="true" className="size-3 shrink-0 opacity-60" />
         </span>
       </PopoverTrigger>
       <PopoverPopup

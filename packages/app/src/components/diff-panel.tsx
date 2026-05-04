@@ -5,11 +5,11 @@ import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { scopeThreadRef } from "@multi/client-runtime";
 import type { TurnId } from "@multi/contracts";
 import {
-  IconBrowserTabs as Rows3Icon,
-  IconChevronLeft as ChevronLeftIcon,
-  IconChevronRight as ChevronRightIcon,
-  IconColumnWideHalf as Columns2Icon,
-  IconText1 as TextWrapIcon,
+  IconBrowserTabs,
+  IconChevronLeft,
+  IconChevronRight,
+  IconColumnWideHalf,
+  IconText1,
 } from "central-icons";
 import {
   type WheelEvent as ReactWheelEvent,
@@ -401,7 +401,7 @@ export default function DiffPanel({ mode = "inline" }: DiffPanelProps) {
           disabled={!canScrollTurnStripLeft}
           aria-label="Scroll turn list left"
         >
-          <ChevronLeftIcon className="size-3.5" />
+          <IconChevronLeft className="size-3.5" />
         </button>
         <button
           type="button"
@@ -415,7 +415,7 @@ export default function DiffPanel({ mode = "inline" }: DiffPanelProps) {
           disabled={!canScrollTurnStripRight}
           aria-label="Scroll turn list right"
         >
-          <ChevronRightIcon className="size-3.5" />
+          <IconChevronRight className="size-3.5" />
         </button>
         <div
           ref={turnStripRef}
@@ -493,10 +493,10 @@ export default function DiffPanel({ mode = "inline" }: DiffPanelProps) {
           }}
         >
           <Toggle aria-label="Stacked diff view" value="stacked">
-            <Rows3Icon className="size-3" />
+            <IconBrowserTabs className="size-3" />
           </Toggle>
           <Toggle aria-label="Split diff view" value="split">
-            <Columns2Icon className="size-3" />
+            <IconColumnWideHalf className="size-3" />
           </Toggle>
         </ToggleGroup>
         <Toggle
@@ -509,7 +509,7 @@ export default function DiffPanel({ mode = "inline" }: DiffPanelProps) {
             setDiffWordWrap(Boolean(pressed));
           }}
         >
-          <TextWrapIcon className="size-3" />
+          <IconText1 className="size-3" />
         </Toggle>
       </div>
     </>

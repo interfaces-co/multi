@@ -1,7 +1,7 @@
 "use client";
 
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
-import { IconX as XIcon } from "central-icons";
+import { IconCrossMediumDefault } from "central-icons";
 import { cn } from "./utils";
 import { Button } from "./button";
 import { ScrollArea } from "./scroll-area";
@@ -79,7 +79,7 @@ function DialogPopup({
               className="absolute end-2 top-2"
               render={<Button size="icon" variant="ghost" />}
             >
-              <XIcon />
+              <IconCrossMediumDefault />
             </DialogPrimitive.Close>
           )}
         </DialogPrimitive.Popup>

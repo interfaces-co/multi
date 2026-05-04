@@ -9,7 +9,7 @@ import {
   stripDisplayedPlanMarkdown,
 } from "../../proposed-plan";
 import ChatMarkdown from "../chat-markdown";
-import { IconDotGrid1x3Horizontal as EllipsisIcon } from "central-icons";
+import { IconDotGrid1x3Horizontal } from "central-icons";
 import { Button } from "@multi/ui/button";
 import { Input } from "@multi/ui/input";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@multi/ui/menu";
@@ -141,7 +141,7 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
           <MenuTrigger
             render={<Button aria-label="Plan actions" size="icon-xs" variant="outline" />}
           >
-            <EllipsisIcon aria-hidden="true" className="size-4" />
+            <IconDotGrid1x3Horizontal aria-hidden="true" className="size-4" />
           </MenuTrigger>
           <MenuPopup align="end">
             <MenuItem onClick={handleCopyPlan}>

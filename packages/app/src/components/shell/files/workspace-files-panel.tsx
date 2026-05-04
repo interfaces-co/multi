@@ -6,9 +6,9 @@ import { File, type FileOptions } from "@pierre/diffs/react";
 import {
   IconArrowLeft,
   IconArrowRight,
-  IconFileBend,
+  IconBarsThree,
+  IconFiles,
   IconMagnifyingGlass,
-  IconTree,
 } from "central-icons";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -92,7 +92,7 @@ function EmptyFilePreview(props: { onOpenFile: () => void }) {
         onClick={props.onOpenFile}
         className="flex h-7 items-center gap-1.5 rounded-[5px] border border-multi-stroke-tertiary bg-multi-bg-quinary px-2.5 text-[12px]/[16px] font-medium text-multi-fg-primary hover:bg-multi-bg-quaternary"
       >
-        <IconFileBend className="size-3.5" />
+        <IconFiles className="size-3.5" />
         Open File
       </button>
     </div>
@@ -230,7 +230,7 @@ export function WorkspaceFilesPanel(props: {
       onOpenFile={openPreviewPath}
       searchOpen={mode === "search"}
       selectedPath={selectedPath}
-      className="min-h-0 min-h-36 flex-1 border-b-0 bg-[color-mix(in_srgb,var(--multi-bg-elevated)_78%,transparent)]"
+      className="min-h-36 flex-1 border-b-0 bg-[color-mix(in_srgb,var(--multi-bg-elevated)_78%,transparent)]"
     />
   );
 
@@ -243,7 +243,7 @@ export function WorkspaceFilesPanel(props: {
           label="Browse Files"
           onClick={() => setMode("browse")}
         >
-          <IconTree className="size-3.5" />
+          <IconBarsThree className="size-3.5" />
         </ModeButton>
         <ModeButton
           active={mode === "search"}

@@ -1,14 +1,14 @@
 import type { ProjectScript, ProjectScriptIcon, ResolvedKeybindingsConfig } from "@multi/contracts";
 import {
-  IconBug as BugIcon,
-  IconChecklist as ListChecksIcon,
-  IconChevronDownSmall as ChevronDownIcon,
-  IconHammer as HammerIcon,
-  IconPlay as PlayIcon,
-  IconPlusLarge as PlusIcon,
-  IconSettingsGear2 as SettingsIcon,
-  IconTestTube as FlaskConicalIcon,
-  IconToolbox as WrenchIcon,
+  IconBug,
+  IconChecklist,
+  IconChevronDownSmall,
+  IconHammer,
+  IconPlay,
+  IconPlusLarge,
+  IconSettingsGear2,
+  IconTestTube,
+  IconToolbox,
 } from "central-icons";
 import React, { type FormEvent, type KeyboardEvent, useCallback, useMemo, useState } from "react";
 
@@ -66,12 +66,12 @@ function ScriptIcon({
   icon: ProjectScriptIcon;
   className?: string;
 }) {
-  if (icon === "test") return <FlaskConicalIcon className={className} />;
-  if (icon === "lint") return <ListChecksIcon className={className} />;
-  if (icon === "configure") return <WrenchIcon className={className} />;
-  if (icon === "build") return <HammerIcon className={className} />;
-  if (icon === "debug") return <BugIcon className={className} />;
-  return <PlayIcon className={className} />;
+  if (icon === "test") return <IconTestTube className={className} />;
+  if (icon === "lint") return <IconChecklist className={className} />;
+  if (icon === "configure") return <IconToolbox className={className} />;
+  if (icon === "build") return <IconHammer className={className} />;
+  if (icon === "debug") return <IconBug className={className} />;
+  return <IconPlay className={className} />;
 }
 
 export interface NewProjectScriptInput {
@@ -282,7 +282,7 @@ export default function ProjectScriptsControl({
             <MenuTrigger
               render={<Button size="icon-xs" variant="outline" aria-label="Script actions" />}
             >
-              <ChevronDownIcon className="size-4" />
+              <IconChevronDownSmall className="size-4" />
             </MenuTrigger>
             <MenuPopup align="end">
               {scripts.map((script) => {
@@ -322,14 +322,14 @@ export default function ProjectScriptsControl({
                           openEditDialog(script);
                         }}
                       >
-                        <SettingsIcon className="size-3.5" />
+                        <IconSettingsGear2 className="size-3.5" />
                       </Button>
                     </span>
                   </MenuItem>
                 );
               })}
               <MenuItem className={dropdownItemClassName} onClick={openAddDialog}>
-                <PlusIcon className="size-4" />
+                <IconPlusLarge className="size-4" />
                 Add action
               </MenuItem>
             </MenuPopup>
@@ -337,7 +337,7 @@ export default function ProjectScriptsControl({
         </Group>
       ) : (
         <Button size="xs" variant="outline" onClick={openAddDialog} title="Add action">
-          <PlusIcon className="size-3.5" />
+          <IconPlusLarge className="size-3.5" />
           <span className="sr-only @3xl/header-actions:not-sr-only @3xl/header-actions:ml-0.5">
             Add action
           </span>

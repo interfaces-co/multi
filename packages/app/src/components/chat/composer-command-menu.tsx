@@ -5,10 +5,10 @@ import {
   type ServerProviderSlashCommand,
 } from "@multi/contracts";
 import {
-  IconBox2 as BoxIcon,
-  IconRobot as BotIcon,
-  IconSettingsSliderHor as SlidersHorizontalIcon,
-  IconSquareChecklist as ListTodoIcon,
+  IconBox2,
+  IconRobot,
+  IconSettingsSliderHor,
+  IconSquareChecklist,
   type CentralIconBaseProps,
 } from "central-icons";
 type CentralIconComponent = React.ComponentType<CentralIconBaseProps>;
@@ -68,9 +68,9 @@ type ComposerCommandGroup = {
 type ComposerCommandMenuKind = "slash" | "mentions";
 
 function getSlashCommandIcon(command: ComposerSlashCommand): CentralIconComponent {
-  if (command === "model") return BoxIcon;
-  if (command === "plan") return ListTodoIcon;
-  return BotIcon;
+  if (command === "model") return IconBox2;
+  if (command === "plan") return IconSquareChecklist;
+  return IconRobot;
 }
 
 function getSlashCommandTertiaryText(command: ComposerSlashCommand): string {
@@ -286,7 +286,7 @@ const ComposerCommandMenuItem = memo(function ComposerCommandMenuItem(props: {
       ) : null}
       {props.item.type === "provider-slash-command" ? (
         <span className="ui-slash-menu__item-icon inline-flex size-4 shrink-0 items-center justify-center text-multi-fg-secondary">
-          <SlidersHorizontalIcon className="size-3.5" />
+          <IconSettingsSliderHor className="size-3.5" />
         </span>
       ) : null}
       {props.item.type === "skill" ? (

@@ -1,6 +1,6 @@
 import { type ProviderDriverKind, type ProviderInstanceId } from "@multi/contracts";
 import { memo } from "react";
-import { IconCheckmark1Small as CheckIcon } from "central-icons";
+import { IconCheckmark1Small } from "central-icons";
 import {
   getDisplayModelName,
   getTriggerDisplayModelLabel,
@@ -48,7 +48,9 @@ export const ModelListRow = memo(function ModelListRow(props: {
         aria-hidden="true"
         className="mt-px flex size-4 shrink-0 items-center justify-center text-[var(--cursor-text-secondary,var(--multi-fg-secondary))]"
       >
-        <CheckIcon className={props.isSelected ? "size-3.5 opacity-100" : "size-3.5 opacity-0"} />
+        <IconCheckmark1Small
+          className={props.isSelected ? "size-3.5 opacity-100" : "size-3.5 opacity-0"}
+        />
       </span>
 
       <div className="min-w-0 flex-1 text-left">

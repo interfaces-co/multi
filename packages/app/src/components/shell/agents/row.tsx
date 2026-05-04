@@ -27,7 +27,7 @@ function SidebarDot(props: { state: UiStatusDotState; className?: string }) {
   return (
     <UiStatusDot
       state={props.state}
-      className={cn("size-3", props.className)}
+      className={cn("size-3.5", props.className)}
       role="presentation"
       aria-hidden
     />
@@ -40,7 +40,7 @@ function StatusDot(props: { item: SidebarChatItem }) {
   }
   if (props.item.state === "running") {
     return (
-      <span className="relative flex size-3 shrink-0 items-center justify-center">
+      <span className="relative flex size-3.5 shrink-0 items-center justify-center">
         <span className="absolute size-[11px] animate-ping rounded-full bg-emerald-500/35" />
         <SidebarDot state="running" className="after:bg-emerald-500" />
       </span>
@@ -57,7 +57,7 @@ function StatusDot(props: { item: SidebarChatItem }) {
 
 function StatusSlot(props: { item: SidebarChatItem }) {
   return (
-    <span className="multi-agent-sidebar-cell-leading agent-sidebar-cell-status flex size-3 shrink-0 items-center justify-center">
+    <span className="multi-agent-sidebar-cell-leading-icon agent-sidebar-cell-status flex size-3.5 shrink-0 items-center justify-center">
       <StatusDot item={props.item} />
     </span>
   );
@@ -168,10 +168,12 @@ export const AgentRow = memo(
           onPointerEnter={() => props.onPrefetchAgent?.(props.item.id)}
           onClick={() => props.onSelectAgent(props.item.id)}
         >
-          <StatusSlot item={props.item} />
-          <span className="multi-agent-sidebar-cell-content-wrapper min-w-0 flex-1">
-            <span className="multi-agent-sidebar-cell-text agent-sidebar-cell-text min-w-0 flex-1 truncate">
-              {props.item.title}
+          <span className="multi-agent-sidebar-cell-leading agent-sidebar-cell-leading">
+            <StatusSlot item={props.item} />
+            <span className="multi-agent-sidebar-cell-content-wrapper">
+              <span className="multi-agent-sidebar-cell-text agent-sidebar-cell-text min-w-0 truncate">
+                {props.item.title}
+              </span>
             </span>
           </span>
           <span className="multi-agent-sidebar-cell-subtitle agent-sidebar-cell-subtitle shrink-0 tabular-nums">
@@ -211,18 +213,22 @@ export const AgentRow = memo(
             data-agent-sidebar-cell=""
             data-renaming="true"
           >
-            <StatusSlot item={props.item} />
-            <input
-              ref={inputRef}
-              type="text"
-              value={renameValue}
-              onChange={(e) => setRenameValue(e.target.value)}
-              onKeyDown={onRenameKeyDown}
-              onBlur={onBlur}
-              onClick={(e) => e.stopPropagation()}
-              className="min-w-0 flex-1 bg-transparent text-[12px]/[16px] text-foreground outline-none ring-0"
-              aria-label="Rename thread"
-            />
+            <span className="multi-agent-sidebar-cell-leading agent-sidebar-cell-leading min-w-0 flex-1">
+              <StatusSlot item={props.item} />
+              <span className="multi-agent-sidebar-cell-content-wrapper min-w-0">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={renameValue}
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  onKeyDown={onRenameKeyDown}
+                  onBlur={onBlur}
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-full min-w-0 bg-transparent text-[12px]/[16px] text-foreground outline-none ring-0"
+                  aria-label="Rename thread"
+                />
+              </span>
+            </span>
             <span className="multi-agent-sidebar-cell-subtitle agent-sidebar-cell-subtitle shrink-0 tabular-nums">
               {props.item.ago}
             </span>
@@ -237,10 +243,12 @@ export const AgentRow = memo(
             onPointerEnter={() => props.onPrefetchAgent?.(props.item.id)}
             onClick={() => props.onSelectAgent(props.item.id)}
           >
-            <StatusSlot item={props.item} />
-            <span className="multi-agent-sidebar-cell-content-wrapper min-w-0 flex-1">
-              <span className="multi-agent-sidebar-cell-text agent-sidebar-cell-text min-w-0 flex-1 truncate">
-                {props.item.title}
+            <span className="multi-agent-sidebar-cell-leading agent-sidebar-cell-leading">
+              <StatusSlot item={props.item} />
+              <span className="multi-agent-sidebar-cell-content-wrapper">
+                <span className="multi-agent-sidebar-cell-text agent-sidebar-cell-text min-w-0 truncate">
+                  {props.item.title}
+                </span>
               </span>
             </span>
             <span className="multi-agent-sidebar-cell-subtitle agent-sidebar-cell-subtitle shrink-0 tabular-nums">

@@ -2,27 +2,27 @@
 
 import { TabsList, TabsTab } from "@multi/ui/tabs";
 import {
-  IconBranch as GitBranchIcon,
-  IconConsole as TerminalIcon,
-  IconFileText as FileTextIcon,
-  IconPlusLarge as PlusIcon,
-  IconX as XIcon,
+  IconBranch,
+  IconConsole,
+  IconCrossMediumDefault,
+  IconFileText,
+  IconPlusLarge,
 } from "central-icons";
 import type { ComponentType, ReactNode } from "react";
 
 import type { TerminalSessionEntry, WorkbenchTab } from "~/lib/shell-panels-store";
 import { cn } from "~/lib/utils";
 
-import { getWorkbenchIconButtonClassName, WorkbenchIconButton } from "./workbench-icon-button";
+import { workbenchIconButtonVariants, WorkbenchIconButton } from "./workbench-icon-button";
 import { RightWorkbenchToolIsland } from "./right-workbench-tool-island";
 
 const TOOL_META: Record<
   WorkbenchTab,
   { label: string; icon: ComponentType<{ className?: string }> }
 > = {
-  files: { label: "Files", icon: FileTextIcon },
-  git: { label: "Changes", icon: GitBranchIcon },
-  terminal: { label: "Terminal", icon: TerminalIcon },
+  files: { label: "Files", icon: IconFileText },
+  git: { label: "Changes", icon: IconBranch },
+  terminal: { label: "Terminal", icon: IconConsole },
 };
 
 function ToolIconButton(props: { tab: WorkbenchTab; badge?: string | null }) {
@@ -34,12 +34,14 @@ function ToolIconButton(props: { tab: WorkbenchTab; badge?: string | null }) {
       value={props.tab}
       data-stable=""
       className={(state) =>
-        getWorkbenchIconButtonClassName({
-          active: state.active,
-          chrome: "tool",
-          className: "size-(--multi-workbench-action-size) p-0",
-          tabSystem: true,
-        })
+        cn(
+          workbenchIconButtonVariants({
+            active: state.active,
+            chrome: "tool",
+            tabSystem: true,
+          }),
+          "size-(--multi-workbench-action-size) p-0",
+        )
       }
       aria-label={`${meta.label}${badgeText}`}
       title={`${meta.label}${badgeText}`}
@@ -102,7 +104,7 @@ function TerminalSessionTab(props: {
         className="flex min-w-0 flex-1 items-center gap-1 px-1.5 text-left outline-hidden focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-multi-stroke-focused focus-visible:ring-inset"
         aria-current={props.active ? "page" : undefined}
       >
-        <TerminalIcon className="size-3 shrink-0 opacity-60" aria-hidden />
+        <IconConsole className="size-3 shrink-0 opacity-60" aria-hidden />
         <span className="min-w-0 truncate">{props.session.label}</span>
       </button>
       {props.closable ? (
@@ -115,7 +117,7 @@ function TerminalSessionTab(props: {
           }}
           className="no-drag mr-0.5 flex size-4 shrink-0 items-center justify-center rounded-sm text-multi-fg-tertiary opacity-0 outline-hidden transition-opacity group-hover:opacity-100 hover:text-multi-fg-primary focus-visible:opacity-100 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-multi-stroke-focused focus-visible:ring-inset"
         >
-          <XIcon className="size-3" />
+          <IconCrossMediumDefault className="size-3" />
         </button>
       ) : null}
     </div>
@@ -141,7 +143,7 @@ export function RightWorkbenchHeader(props: RightWorkbenchHeaderProps) {
   return (
     <RightWorkbenchToolIsland
       trailing={props.trailing}
-      end={<div className="no-drag size-(--multi-titlebar-control-height) shrink-0" aria-hidden />}
+      end={<div className="multi-workbench-titlebar-end-space no-drag shrink-0" aria-hidden />}
     >
       <>
         <WorkbenchTabList activeTab={props.activeTab} gitCount={props.gitCount} />
@@ -179,7 +181,7 @@ export function RightWorkbenchHeader(props: RightWorkbenchHeaderProps) {
               />
             ) : null}
             <WorkbenchChromeButton label="New terminal" onClick={props.onNewTerminal}>
-              <PlusIcon className="size-3.5" aria-hidden />
+              <IconPlusLarge className="size-3.5" aria-hidden />
             </WorkbenchChromeButton>
           </>
         ) : null}

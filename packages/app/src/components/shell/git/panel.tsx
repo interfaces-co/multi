@@ -6,7 +6,6 @@ import {
   IconChevronDownSmall,
   IconChevronRightSmall,
   IconDotGrid1x3Horizontal,
-  IconBarsThree as List,
   IconSplit,
 } from "central-icons";
 import { Virtualizer } from "@pierre/diffs/react";
@@ -29,16 +28,24 @@ import {
   type GitPanelModel,
   useDiffStylePreference,
 } from "~/hooks/use-environment-git";
+import {
+  GIT_AGENT_ACTIONS,
+  GIT_AGENT_ACTION_ORDER,
+  GIT_AGENT_PRIMARY_ACTION,
+  type GitAgentAction,
+} from "~/lib/git-agent-actions";
 import { useGitViewed } from "~/hooks/use-git-viewed-state";
 import { shellPanelsActions, useSecondaryRail } from "~/lib/shell-panels-store";
-import { BranchCommitDialog, CommitDialog } from "./commit-dialog";
 import { GitChangesFileTree } from "./git-changes-file-tree";
 import { GitDiffCard } from "./git-diff-card";
 import { WorkbenchChromeRow } from "../shell/workbench-chrome-row";
 import { WorkbenchIconButton, WorkbenchTextButton } from "../shell/workbench-icon-button";
 import { RightWorkbenchLayout } from "../shell/right-workbench-layout";
 
-export function GitPanel(props: { git: GitPanelModel }) {
+export function GitPanel(props: {
+  git: GitPanelModel;
+  onAgentAction: (action: GitAgentAction) => void;
+}) {
   const git = props.git;
 
   if (!isElectron) {
@@ -105,11 +112,14 @@ export function GitPanel(props: { git: GitPanelModel }) {
         </div>
       );
     case "changed":
-      return <GitPanelInner git={git} />;
+      return <GitPanelInner git={git} onAgentAction={props.onAgentAction} />;
   }
 }
 
-function GitPanelInner(props: { git: GitPanelModel }) {
+function GitPanelInner(props: {
+  git: GitPanelModel;
+  onAgentAction: (action: GitAgentAction) => void;
+}) {
   const git = props.git;
   const files = git.rows;
   const viewed = useGitViewed(git.cwd);
@@ -117,8 +127,6 @@ function GitPanelInner(props: { git: GitPanelModel }) {
   const [diffStyle, setDiffStyle] = useDiffStylePreference();
   const [pending, setPending] = useState<DiffRow | null>(null);
   const [discardAllPending, setDiscardAllPending] = useState(false);
-  const [commitOpen, setCommitOpen] = useState(false);
-  const [branchOpen, setBranchOpen] = useState(false);
   const [editorMenuOpen, setEditorMenuOpen] = useState(false);
   const [commitMenuOpen, setCommitMenuOpen] = useState(false);
   const filesKey = useMemo(() => files.map((row) => row.id).join("\n"), [files]);
@@ -193,8 +201,8 @@ function GitPanelInner(props: { git: GitPanelModel }) {
   }, [git, files]);
 
   const handleCommitAndPush = useCallback(() => {
-    setCommitOpen(true);
-  }, []);
+    props.onAgentAction(GIT_AGENT_PRIMARY_ACTION);
+  }, [props.onAgentAction]);
 
   const handleSelectFile = useCallback((file: DiffRow) => {
     setSelectedId(file.id);
@@ -206,7 +214,7 @@ function GitPanelInner(props: { git: GitPanelModel }) {
         <LocalBranchBar
           branch={git.branch}
           onCommitAndPush={handleCommitAndPush}
-          onBranchCommit={() => setBranchOpen(true)}
+          onAgentAction={props.onAgentAction}
           diffStyle={diffStyle}
           onDiffStyle={setDiffStyle}
           editorMenuOpen={editorMenuOpen}
@@ -260,7 +268,6 @@ function GitPanelInner(props: { git: GitPanelModel }) {
                     key={file.id}
                     file={file}
                     selected={selectedId === file.id}
-                    onSelect={() => setSelectedId(file.id)}
                     expanded={git.expandedIds.has(file.id)}
                     onExpandedChange={(open) => git.toggleExpand(file.id, open)}
                     diff={git.diffsByPath.get(file.path) ?? null}
@@ -294,12 +301,6 @@ function GitPanelInner(props: { git: GitPanelModel }) {
         onConfirm={confirmDiscardAll}
         onOpenChange={setDiscardAllPending}
       />
-      <CommitDialog open={commitOpen} onOpenChange={setCommitOpen} onCommit={git.runCommit} />
-      <BranchCommitDialog
-        open={branchOpen}
-        onOpenChange={setBranchOpen}
-        onCommit={git.runBranchCommit}
-      />
     </>
   );
 }
@@ -307,7 +308,7 @@ function GitPanelInner(props: { git: GitPanelModel }) {
 function LocalBranchBar(props: {
   branch: string | null;
   onCommitAndPush: () => void;
-  onBranchCommit: () => void;
+  onAgentAction: (action: GitAgentAction) => void;
   diffStyle: "unified" | "split";
   onDiffStyle: (next: "unified" | "split") => void;
   editorMenuOpen: boolean;
@@ -339,7 +340,10 @@ function LocalBranchBar(props: {
             {props.editorMenuOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => props.onEditorMenuOpen(false)} />
-                <div className="absolute top-full right-0 z-50 mt-1 min-w-[176px] rounded-[6px] border border-multi-stroke-secondary bg-multi-bg-elevated p-[3px] text-multi-fg-primary shadow-multi-popup">
+                <div
+                  className="absolute top-full right-0 z-50 mt-1 min-w-[176px] rounded-[6px] border border-multi-stroke-secondary bg-multi-bg-elevated p-[3px] text-multi-fg-primary shadow-multi-popup"
+                  role="menu"
+                >
                   <MenuItem
                     label="Unified Diff"
                     active={props.diffStyle === "unified"}
@@ -362,34 +366,48 @@ function LocalBranchBar(props: {
               </>
             )}
           </div>
-          <div className="relative inline-flex h-(--multi-workbench-action-size) min-w-0 shrink-0 overflow-hidden rounded-[5px] border border-[color-mix(in_srgb,var(--foreground)_72%,transparent)] bg-[color-mix(in_srgb,var(--foreground)_92%,var(--background))] text-[11px]/[14px] font-semibold text-background">
-            <button
-              type="button"
-              className="inline-flex h-full min-w-0 items-center justify-center px-2 text-inherit transition-colors hover:bg-[color-mix(in_srgb,var(--background)_13%,transparent)]"
-              onClick={props.onCommitAndPush}
-            >
-              Commit & Push
-            </button>
-            <button
-              type="button"
-              className="inline-flex h-full w-[18px] shrink-0 items-center justify-center border-l border-[color-mix(in_srgb,var(--background)_22%,transparent)] text-inherit transition-colors hover:bg-[color-mix(in_srgb,var(--background)_13%,transparent)]"
-              onClick={() => props.onCommitMenuOpen(!props.commitMenuOpen)}
-              aria-label="Open menu"
-              title="Open menu"
-            >
-              <IconChevronDownSmall className="size-3" />
-            </button>
+          <div className="relative min-w-0 shrink-0">
+            <div className="inline-flex h-(--multi-workbench-action-size) min-w-0 overflow-hidden rounded-[5px] border border-primary bg-primary text-[11px]/[14px] font-medium text-primary-foreground shadow-sm">
+              <button
+                type="button"
+                className="inline-flex h-full min-w-0 items-center justify-center px-2 text-inherit transition-colors hover:bg-primary/90"
+                onClick={() => {
+                  props.onCommitMenuOpen(false);
+                  props.onCommitAndPush();
+                }}
+              >
+                Commit & Push
+              </button>
+              <button
+                type="button"
+                className="inline-flex h-full w-[22px] shrink-0 items-center justify-center border-l border-primary-foreground/18 text-primary-foreground transition-colors hover:bg-primary/90 data-[open=true]:bg-primary/90"
+                onClick={() => props.onCommitMenuOpen(!props.commitMenuOpen)}
+                aria-label="Open commit menu"
+                aria-expanded={props.commitMenuOpen}
+                aria-haspopup="menu"
+                data-open={props.commitMenuOpen || undefined}
+                title="Open commit menu"
+              >
+                <IconChevronDownSmall className="size-3" />
+              </button>
+            </div>
             {props.commitMenuOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => props.onCommitMenuOpen(false)} />
-                <div className="absolute top-full right-0 z-50 mt-1 min-w-[180px] rounded-[6px] border border-multi-stroke-secondary bg-multi-bg-elevated p-[3px] text-multi-fg-primary shadow-multi-popup">
-                  <MenuItem
-                    label="Create Branch & Commit..."
-                    onClick={() => {
-                      props.onBranchCommit();
-                      props.onCommitMenuOpen(false);
-                    }}
-                  />
+                <div
+                  className="absolute top-full right-0 z-50 mt-1 min-w-[180px] rounded-[6px] border border-multi-stroke-secondary bg-multi-bg-elevated p-[3px] text-multi-fg-primary shadow-multi-popup"
+                  role="menu"
+                >
+                  {GIT_AGENT_ACTION_ORDER.map((action) => (
+                    <MenuItem
+                      key={action}
+                      label={GIT_AGENT_ACTIONS[action].label}
+                      onClick={() => {
+                        props.onAgentAction(action);
+                        props.onCommitMenuOpen(false);
+                      }}
+                    />
+                  ))}
                 </div>
               </>
             )}
@@ -463,7 +481,7 @@ function ChangesHeader(props: {
         title={props.railOpen ? "Hide changes list" : "Show changes list"}
         chrome="panel"
       >
-        <List className="size-3.5 shrink-0" aria-hidden />
+        <IconBarsThree className="size-3.5 shrink-0" aria-hidden />
       </WorkbenchIconButton>
       <span className="inline-flex min-w-0 items-center gap-0.5 overflow-hidden rounded-[5px] px-1 pr-0.5 text-[11px]/[14px] text-multi-fg-secondary tabular-nums">
         <span className="min-w-0 truncate">
@@ -493,6 +511,7 @@ function MenuItem(props: {
     <button
       type="button"
       onClick={props.onClick}
+      role="menuitem"
       className="group flex w-full min-w-0 items-center gap-[7px] rounded-[4px] px-[7px] py-1 text-left text-[11px]/[14px] text-multi-fg-secondary transition-colors hover:bg-multi-bg-quaternary hover:text-multi-fg-primary data-[active=true]:bg-multi-bg-quaternary data-[active=true]:text-multi-fg-primary"
       data-active={props.active || undefined}
     >

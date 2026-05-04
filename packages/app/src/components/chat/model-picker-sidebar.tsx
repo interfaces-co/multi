@@ -1,10 +1,6 @@
 import { type ProviderInstanceId } from "@multi/contracts";
 import { memo, useMemo, type ReactNode } from "react";
-import {
-  IconClock3OClock as Clock3Icon,
-  IconSparklesThree as SparklesIcon,
-  IconStar as StarIcon,
-} from "central-icons";
+import { IconClock3OClock, IconSparklesThree, IconStar } from "central-icons";
 import { Gemini, GithubCopilotIcon } from "../icons";
 import { ProviderInstanceIcon } from "./provider-instance-icon";
 import { ScrollArea } from "@multi/ui/scroll-area";
@@ -136,7 +132,7 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                       data-model-picker-provider="favorites"
                       aria-label="Favorites"
                     >
-                      <StarIcon className="size-5 fill-current shrink-0" aria-hidden />
+                      <IconStar className="size-5 fill-current shrink-0" aria-hidden />
                     </button>
                   }
                 />
@@ -190,7 +186,7 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
               />
               {showNewBadge ? (
                 <ProviderRailBadge variant="new">
-                  <SparklesIcon className="size-2" />
+                  <IconSparklesThree className="size-2" />
                 </ProviderRailBadge>
               ) : null}
             </button>
@@ -231,7 +227,7 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                     >
                       <Gemini className="size-5 text-muted-foreground/85" aria-hidden />
                       <ProviderRailBadge variant="soon">
-                        <Clock3Icon className="size-2" />
+                        <IconClock3OClock className="size-2" />
                       </ProviderRailBadge>
                     </button>
                   </span>
@@ -255,7 +251,7 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                     >
                       <GithubCopilotIcon className="size-5 text-muted-foreground/85" aria-hidden />
                       <ProviderRailBadge variant="soon">
-                        <Clock3Icon className="size-2" />
+                        <IconClock3OClock className="size-2" />
                       </ProviderRailBadge>
                     </button>
                   </span>

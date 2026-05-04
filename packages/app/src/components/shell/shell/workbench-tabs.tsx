@@ -2,14 +2,14 @@
 
 import { Menu } from "@base-ui/react/menu";
 import {
-  IconBranch as GitBranchIcon,
-  IconCheckmark1 as CheckIcon,
-  IconConsole as TerminalIcon,
-  IconFileText as FileTextIcon,
-  IconMagnifyingGlass as SearchIcon,
-  IconPlusLarge as PlusIcon,
+  IconBranch,
+  IconCheckmark1,
+  IconConsole,
+  IconFileText,
+  IconMagnifyingGlass,
+  IconPlusLarge,
+  IconSidebarHiddenRightWide,
 } from "central-icons";
-import { IconSidebarHiddenRightWide } from "central-icons";
 import { useMemo, useState, type ComponentType } from "react";
 
 import type { WorkbenchTab } from "~/lib/shell-panels-store";
@@ -35,9 +35,9 @@ interface Tab {
 }
 
 const tabs: Tab[] = [
-  { id: "git", label: "Changes", menuLabel: "Changes", icon: GitBranchIcon },
-  { id: "terminal", label: "Terminal", menuLabel: "Terminal", icon: TerminalIcon },
-  { id: "files", label: "Files", menuLabel: "File", icon: FileTextIcon },
+  { id: "git", label: "Changes", menuLabel: "Changes", icon: IconBranch },
+  { id: "terminal", label: "Terminal", menuLabel: "Terminal", icon: IconConsole },
+  { id: "files", label: "Files", menuLabel: "File", icon: IconFileText },
 ];
 
 const openMenuItems: Array<
@@ -51,7 +51,7 @@ const openMenuItems: Array<
     }
 > = [
   ...tabs,
-  { id: "canvas", label: "Canvas", menuLabel: "Canvas", icon: FileTextIcon, disabled: true },
+  { id: "canvas", label: "Canvas", menuLabel: "Canvas", icon: IconFileText, disabled: true },
 ];
 
 function stopMenuSearchBubbling(event: React.KeyboardEvent) {
@@ -118,7 +118,7 @@ export function WorkbenchTabBar(props: {
           aria-label="Open new tab menu"
           title="Open new tab menu"
         >
-          <PlusIcon className="size-3.5" aria-hidden />
+          <IconPlusLarge className="size-3.5" aria-hidden />
         </Menu.Trigger>
         <Menu.Portal>
           <Menu.Positioner
@@ -136,7 +136,10 @@ export function WorkbenchTabBar(props: {
               )}
             >
               <div className="ui-menu__search-row flex items-center gap-1 border-b border-multi-stroke-tertiary px-1.5 py-1.5">
-                <SearchIcon className="size-3.5 shrink-0 text-multi-fg-tertiary" aria-hidden />
+                <IconMagnifyingGlass
+                  className="size-3.5 shrink-0 text-multi-fg-tertiary"
+                  aria-hidden
+                />
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
@@ -170,7 +173,7 @@ export function WorkbenchTabBar(props: {
                         <span className={workbenchMenuMetaTextClassName}>Soon</span>
                       ) : null}
                       {isActive ? (
-                        <CheckIcon className="size-3.5 shrink-0 text-multi-fg-tertiary" />
+                        <IconCheckmark1 className="size-3.5 shrink-0 text-multi-fg-tertiary" />
                       ) : null}
                     </Menu.Item>
                   );

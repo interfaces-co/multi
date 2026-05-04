@@ -148,6 +148,10 @@ export interface DesktopServerExposureState {
   advertisedHost: string | null;
 }
 
+export interface DesktopWindowChromeState {
+  fullscreen: boolean;
+}
+
 export interface PickFolderOptions {
   initialPath?: string | null;
 }
@@ -232,6 +236,8 @@ export interface DesktopBrowserBridge {
 export interface DesktopBridge {
   getAppBranding: () => DesktopAppBranding | null;
   getLocalEnvironmentBootstrap: () => DesktopEnvironmentBootstrap | null;
+  getWindowChromeState: () => DesktopWindowChromeState;
+  onWindowChromeState: (listener: (state: DesktopWindowChromeState) => void) => () => void;
   getClientSettings: () => Promise<ClientSettings | null>;
   setClientSettings: (settings: ClientSettings) => Promise<void>;
   getSavedEnvironmentRegistry: () => Promise<readonly PersistedSavedEnvironmentRecord[]>;

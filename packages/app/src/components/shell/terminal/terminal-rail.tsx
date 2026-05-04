@@ -1,6 +1,6 @@
 "use client";
 
-import { IconConsole as TerminalIcon, IconX as XIcon } from "central-icons";
+import { IconConsole, IconCrossMediumDefault } from "central-icons";
 
 import type { TerminalSessionEntry } from "~/lib/shell-panels-store";
 import { cn } from "~/lib/utils";
@@ -31,7 +31,7 @@ export function TerminalRail(props: {
                 onClick={() => props.onActivate(session.id)}
                 className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
               >
-                <TerminalIcon className="size-3.5 shrink-0 opacity-60" />
+                <IconConsole className="size-3.5 shrink-0 opacity-60" />
                 <span className="min-w-0 truncate">{session.label}</span>
               </button>
               {props.sessions.length > 1 ? (
@@ -41,7 +41,7 @@ export function TerminalRail(props: {
                   onClick={() => props.onClose(session.id)}
                   className="flex size-4 shrink-0 items-center justify-center rounded-sm text-multi-fg-tertiary opacity-0 transition-opacity group-hover:opacity-100 hover:text-multi-fg-primary"
                 >
-                  <XIcon className="size-3" />
+                  <IconCrossMediumDefault className="size-3" />
                 </button>
               ) : null}
             </div>

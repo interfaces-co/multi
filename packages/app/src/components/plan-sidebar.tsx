@@ -6,12 +6,12 @@ import { Button } from "@multi/ui/button";
 import { ScrollArea } from "@multi/ui/scroll-area";
 import ChatMarkdown from "./chat-markdown";
 import {
-  IconCheckmark1 as CheckIcon,
-  IconChevronDownSmall as ChevronDownIcon,
-  IconChevronRight as ChevronRightIcon,
-  IconDotGrid1x3Horizontal as EllipsisIcon,
-  IconLoader as LoaderIcon,
-  IconSidebarHiddenRightWide as PanelRightCloseIcon,
+  IconCheckmark1,
+  IconChevronDownSmall,
+  IconChevronRight,
+  IconDotGrid1x3Horizontal,
+  IconLoader,
+  IconSidebarHiddenRightWide,
 } from "central-icons";
 import { cn } from "~/lib/utils";
 import type { ActivePlanState } from "../session-logic";
@@ -33,14 +33,14 @@ function stepStatusIcon(status: string): React.ReactNode {
   if (status === "completed") {
     return (
       <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-500">
-        <CheckIcon className="size-3" />
+        <IconCheckmark1 className="size-3" />
       </span>
     );
   }
   if (status === "inProgress") {
     return (
       <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-blue-500/15 text-blue-400">
-        <LoaderIcon className="size-3 animate-spin" />
+        <IconLoader className="size-3 animate-spin" />
       </span>
     );
   }
@@ -152,7 +152,7 @@ const PlanSidebar = memo(function PlanSidebar({
                   />
                 }
               >
-                <EllipsisIcon className="size-3.5" />
+                <IconDotGrid1x3Horizontal className="size-3.5" />
               </MenuTrigger>
               <MenuPopup align="end">
                 <MenuItem onClick={handleCopyPlan}>
@@ -175,7 +175,7 @@ const PlanSidebar = memo(function PlanSidebar({
             aria-label={`Close ${label.toLowerCase()} sidebar`}
             className="text-muted-foreground/50 hover:text-foreground/70"
           >
-            <PanelRightCloseIcon className="size-3.5" />
+            <IconSidebarHiddenRightWide className="size-3.5" />
           </Button>
         </div>
       </div>
@@ -232,9 +232,9 @@ const PlanSidebar = memo(function PlanSidebar({
                 onClick={() => setProposedPlanExpanded((v) => !v)}
               >
                 {proposedPlanExpanded ? (
-                  <ChevronDownIcon className="size-3 shrink-0 text-muted-foreground/40 transition-transform" />
+                  <IconChevronDownSmall className="size-3 shrink-0 text-muted-foreground/40 transition-transform" />
                 ) : (
-                  <ChevronRightIcon className="size-3 shrink-0 text-muted-foreground/40 transition-transform" />
+                  <IconChevronRight className="size-3 shrink-0 text-muted-foreground/40 transition-transform" />
                 )}
                 <span className="text-[10px] font-semibold tracking-widest text-muted-foreground/40 uppercase group-hover:text-muted-foreground/60">
                   {planTitle ?? "Full Plan"}

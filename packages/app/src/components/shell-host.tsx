@@ -8,6 +8,7 @@ import type { EditorId, EnvironmentId, ThreadId } from "@multi/contracts";
 import { useQueryClient } from "@tanstack/react-query";
 import { Outlet, useNavigate, useParams, useRouter } from "@tanstack/react-router";
 import { type ReactNode, useCallback, useMemo } from "react";
+import { toast } from "sonner";
 import { useShallow } from "zustand/react/shallow";
 
 import { prefetchDraftNavigation, prefetchThreadNavigation } from "~/app/thread-prefetch";
@@ -18,10 +19,12 @@ import { useHandleNewThread } from "~/hooks/use-handle-new-thread";
 import { useRouteThreadId } from "~/hooks/use-route-thread-id";
 import { useServerAvailableEditors } from "~/rpc/server-state";
 import { useComposerDraftStore } from "~/composer-draft-store";
+import { readEnvironmentApi } from "~/environment-api";
 import {
   startNewThreadFromContext,
   startNewThreadInProjectFromContext,
 } from "~/lib/chat-thread-actions";
+import { GIT_AGENT_ACTIONS, type GitAgentAction } from "~/lib/git-agent-actions";
 import {
   shellPanelsActions,
   useSecondaryRail,
@@ -35,7 +38,7 @@ import {
   buildWorkspaceChatSections,
   type SidebarDraftSummary,
 } from "~/lib/sidebar-chat-view-model";
-import { cn } from "~/lib/utils";
+import { cn, newCommandId, newMessageId, newThreadId } from "~/lib/utils";
 import { resolveSidebarNewThreadEnvMode, resolveThreadStatusPill } from "~/lib/thread-sidebar";
 import { useSettings } from "~/hooks/use-settings";
 import {
@@ -44,7 +47,13 @@ import {
   selectThreadsAcrossEnvironments,
   useStore,
 } from "~/store";
-import type { Project, SidebarThreadSummary, Thread } from "~/types";
+import {
+  DEFAULT_INTERACTION_MODE,
+  DEFAULT_RUNTIME_MODE,
+  type Project,
+  type SidebarThreadSummary,
+  type Thread,
+} from "~/types";
 import { resolveThreadRouteTarget } from "~/thread-routes";
 import { GitPanel } from "./shell/git/panel";
 import { WorkspaceFilesPanel } from "./shell/files/workspace-files-panel";
@@ -59,6 +68,7 @@ import { ThreadRail } from "./shell/sidebar/thread-rail";
 import { TerminalPanel } from "./shell/terminal/panel";
 import { TerminalRail } from "./shell/terminal/terminal-rail";
 import { TerminalWorkbenchSubChrome } from "./shell/terminal/workbench-subchrome";
+
 function toHarness(instanceId: Thread["modelSelection"]["instanceId"]): "codex" | "claudeCode" {
   return instanceId === "claudeAgent" ? "claudeCode" : "codex";
 }
@@ -370,6 +380,131 @@ function ChatShellHost(props: { children?: ReactNode }) {
     [drafts, projectById, queryClient, router, threads],
   );
 
+  const startGitAgentAction = useCallback(
+    async (action: GitAgentAction) => {
+      const activeDraftProject = activeDraftThread
+        ? (projectByScopedKey.get(
+            scopedProjectKey(
+              scopeProjectRef(activeDraftThread.environmentId, activeDraftThread.projectId),
+            ),
+          ) ?? null)
+        : null;
+      const activeThreadProject = activeThread
+        ? (projectById.get(activeThread.projectId) ?? null)
+        : null;
+      const activeCwdProject = activeCwd
+        ? (projects.find((project) => project.cwd === activeCwd) ?? null)
+        : null;
+      const project =
+        activeThreadProject ??
+        activeDraftProject ??
+        activeCwdProject ??
+        defaultProject ??
+        projects[0];
+
+      if (!project) {
+        toast.error("No project is available for this Git action.");
+        return;
+      }
+
+      const api = readEnvironmentApi(project.environmentId);
+      if (!api) {
+        toast.error("Environment API unavailable.");
+        return;
+      }
+
+      const modelSelection =
+        activeThread?.modelSelection ?? project.defaultModelSelection ?? undefined;
+      if (!modelSelection) {
+        toast.error("Choose a model before running this Git action.");
+        return;
+      }
+
+      const createdAt = new Date().toISOString();
+      const actionDetails = GIT_AGENT_ACTIONS[action];
+      const title = actionDetails.label;
+      const prompt = actionDetails.prompt;
+      const runtimeMode =
+        activeThread?.runtimeMode ?? activeDraftThread?.runtimeMode ?? DEFAULT_RUNTIME_MODE;
+      const interactionMode =
+        activeThread?.interactionMode ??
+        activeDraftThread?.interactionMode ??
+        DEFAULT_INTERACTION_MODE;
+      const targetThread =
+        activeThread?.environmentId === project.environmentId &&
+        activeThread.projectId === project.id &&
+        activeThread.session?.orchestrationStatus !== "starting" &&
+        activeThread.session?.orchestrationStatus !== "running"
+          ? activeThread
+          : null;
+      const threadId = targetThread?.id ?? newThreadId();
+      const projectScopedBranch =
+        activeThread?.projectId === project.id
+          ? activeThread.branch
+          : activeDraftThread?.projectId === project.id
+            ? activeDraftThread.branch
+            : null;
+      const projectScopedWorktreePath =
+        activeThread?.projectId === project.id
+          ? activeThread.worktreePath
+          : activeDraftThread?.projectId === project.id
+            ? activeDraftThread.worktreePath
+            : null;
+
+      try {
+        if (!targetThread) {
+          await api.orchestration.dispatchCommand({
+            type: "thread.create",
+            commandId: newCommandId(),
+            threadId,
+            projectId: project.id,
+            title,
+            modelSelection,
+            runtimeMode,
+            interactionMode,
+            branch: projectScopedBranch,
+            worktreePath: projectScopedWorktreePath,
+            createdAt,
+          });
+        }
+
+        await api.orchestration.dispatchCommand({
+          type: "thread.turn.start",
+          commandId: newCommandId(),
+          threadId,
+          message: {
+            messageId: newMessageId(),
+            role: "user",
+            text: prompt,
+            attachments: [],
+          },
+          modelSelection,
+          titleSeed: title,
+          runtimeMode,
+          interactionMode,
+          createdAt,
+        });
+
+        await navigate({
+          to: "/$environmentId/$threadId",
+          params: { environmentId: project.environmentId, threadId },
+        });
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Failed to start Git action.");
+      }
+    },
+    [
+      activeCwd,
+      activeDraftThread,
+      activeThread,
+      defaultProject,
+      navigate,
+      projectById,
+      projectByScopedKey,
+      projects,
+    ],
+  );
+
   const chatLeft = (
     <div className="agent-window__left-content thread-rail-pad flex min-h-0 flex-1 flex-col px-0">
       <div className={cn("agent-window__sidebar-chrome shrink-0", isElectron && "no-drag")}>
@@ -402,6 +537,9 @@ function ChatShellHost(props: { children?: ReactNode }) {
         panelPersistenceCwd={rightWorkbenchPersistenceCwd}
         environmentId={activeEnvironmentId}
         availableEditors={availableEditors}
+        onGitAgentAction={(action) => {
+          void startGitAgentAction(action);
+        }}
       />
     );
   }
@@ -463,6 +601,7 @@ function DesktopChatShellHost(props: {
   panelPersistenceCwd: string | null;
   environmentId: EnvironmentId | null;
   availableEditors: readonly EditorId[];
+  onGitAgentAction: (action: GitAgentAction) => void;
 }) {
   const git = useEnvironmentGitPanel(props.environmentId, props.cwd);
 
@@ -487,7 +626,7 @@ function DesktopChatShellHost(props: {
         ),
         git: (
           <WorkbenchPanel>
-            <GitPanel git={git} />
+            <GitPanel git={git} onAgentAction={props.onGitAgentAction} />
           </WorkbenchPanel>
         ),
         terminal: <TerminalWorkbenchPanel cwd={props.cwd} environmentId={props.environmentId} />,

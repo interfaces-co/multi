@@ -54,7 +54,10 @@ body {
 }
 
 .thread-rail-pad {
-  padding-top: var(--multi-electron-traffic-padding-top);
+  padding-top: var(
+    --multi-shell-sidebar-content-top-offset,
+    var(--multi-electron-traffic-padding-top)
+  );
 }
 
 .traffic-lights-spacer {
@@ -289,7 +292,14 @@ body {
 }
 
 .agent-window {
+  --multi-shell-left-effective-width: var(--multi-shell-left-width);
+  --multi-shell-right-effective-width: var(--multi-shell-right-workbench-width);
+  --multi-shell-secondary-rail-effective-width: var(--multi-shell-secondary-rail-width, 0px);
+  --multi-shell-right-workbench-header-end-space: calc(
+    var(--multi-shell-titlebar-control-size) + var(--multi-shell-titlebar-gutter)
+  );
   background: var(--multi-color-surface);
+  container-type: inline-size;
   font-family: var(--multi-font-ui);
   font-size: 12px;
   font-synthesis: none;
@@ -297,13 +307,25 @@ body {
   line-height: 16px;
 }
 
+.agent-window[data-shell-left-intent="collapsed"] {
+  --multi-shell-left-effective-width: var(--multi-shell-left-collapsed-width);
+}
+
+.agent-window[data-shell-right-intent="collapsed"],
+.agent-window[data-shell-right-panel="false"] {
+  --multi-shell-right-effective-width: var(--multi-shell-right-workbench-collapsed-width);
+}
+
 .agent-window__sidebar {
   background: var(--multi-color-sidebar);
   box-shadow: none;
+  width: var(--multi-shell-left-effective-width);
+  min-width: min(var(--multi-shell-left-effective-width), var(--multi-shell-left-min-width));
+  max-width: var(--multi-shell-left-max-width);
 }
 
 /* Hairline dividers: pseudo-elements keep borders out of width math. */
-.agent-window__sidebar[data-shell-left-expanded="true"]::after {
+.agent-window__sidebar[data-state="expanded"]::after {
   content: "";
   position: absolute;
   inset-block: 0;
@@ -321,6 +343,47 @@ body {
 .agent-window__workbench {
   background: var(--glass-editor-surface-background, var(--multi-workbench-surface-background));
   box-shadow: none;
+  width: var(--multi-shell-right-effective-width);
+  min-width: min(
+    var(--multi-shell-right-effective-width),
+    var(--multi-shell-right-workbench-min-width)
+  );
+  max-width: var(--multi-shell-right-workbench-max-width);
+}
+
+.agent-window__workbench[data-state="collapsed"],
+.agent-window__sidebar[data-state="collapsed"] {
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.multi-shell-titlebar-left-controls {
+  left: var(--multi-electron-traffic-inset);
+  top: var(--multi-shell-titlebar-control-y);
+  z-index: 1;
+}
+
+.multi-shell-titlebar-left-expand {
+  left: var(--multi-shell-titlebar-gutter);
+  top: var(--multi-shell-titlebar-gutter);
+}
+
+.multi-shell-titlebar-right-toggle {
+  right: var(--multi-shell-titlebar-gutter);
+  top: var(--multi-shell-titlebar-control-y);
+}
+
+.multi-shell-titlebar-right-toggle--web {
+  top: var(--multi-shell-titlebar-gutter);
+}
+
+.multi-shell-titlebar-drag-region {
+  margin-right: var(--multi-shell-right-effective-width);
+}
+
+.multi-workbench-titlebar-end-space {
+  width: var(--multi-shell-right-workbench-header-end-space);
+  height: var(--multi-shell-titlebar-control-size);
 }
 
 .editor-panel-inner {
@@ -493,6 +556,67 @@ body {
   background: var(--multi-stroke-quaternary);
 }
 
+.multi-shell-workbench-columns {
+  --multi-shell-secondary-rail-effective-width: var(--multi-shell-secondary-rail-width, 0px);
+}
+
+.multi-shell-workbench-columns[data-state="collapsed"] {
+  --multi-shell-secondary-rail-effective-width: var(
+    --multi-shell-secondary-rail-collapsed-width,
+    0px
+  );
+}
+
+.multi-shell-secondary-rail {
+  width: var(--multi-shell-secondary-rail-effective-width);
+  min-width: min(
+    var(--multi-shell-secondary-rail-effective-width),
+    var(--multi-shell-secondary-rail-min-width)
+  );
+  max-width: var(--multi-shell-secondary-rail-max-width);
+}
+
+.multi-shell-secondary-rail[data-state="collapsed"] {
+  pointer-events: none;
+  visibility: hidden;
+}
+
+@container (max-width: 980px) {
+  .multi-shell-workbench-columns {
+    --multi-shell-secondary-rail-effective-width: var(
+      --multi-shell-secondary-rail-collapsed-width,
+      0px
+    );
+  }
+
+  .multi-shell-secondary-rail {
+    pointer-events: none;
+    visibility: hidden;
+  }
+}
+
+@container (max-width: 900px) {
+  .agent-window__workbench {
+    width: var(--multi-shell-right-workbench-collapsed-width);
+    min-width: 0;
+    pointer-events: none;
+    visibility: hidden;
+  }
+
+  .multi-shell-titlebar-drag-region {
+    margin-right: var(--multi-shell-right-workbench-collapsed-width);
+  }
+}
+
+@container (max-width: 620px) {
+  .agent-window__sidebar {
+    width: var(--multi-shell-left-collapsed-width);
+    min-width: 0;
+    pointer-events: none;
+    visibility: hidden;
+  }
+}
+
 .editor-panel-container {
   --glass-editor-panel-tab-background: color-mix(
     in srgb,
@@ -590,10 +714,8 @@ body {
   flex-shrink: 0;
   height: 14px;
   justify-content: center;
-  opacity: 0;
-  transition:
-    opacity 0.1s ease,
-    transform 0.12s ease-out;
+  opacity: 1;
+  transition: transform 0.12s ease-out;
   width: 14px;
 }
 
@@ -601,24 +723,6 @@ body {
   .agent-window .agent-sidebar-section-chevron {
     transition: none;
   }
-}
-
-.agent-window .agent-sidebar-section-heading.collapsible:hover .agent-sidebar-section-chevron,
-.agent-window .agent-sidebar-section-title.collapsible:hover .agent-sidebar-section-chevron,
-.agent-window
-  .agent-sidebar-section-heading.collapsible:focus-within
-  .agent-sidebar-section-chevron,
-.agent-window .agent-sidebar-section-title.collapsible:focus-within .agent-sidebar-section-chevron {
-  opacity: 1;
-}
-
-.agent-window .agent-sidebar-section-heading[data-active] .agent-sidebar-section-chevron {
-  opacity: 1;
-  color: var(--multi-fg-primary);
-}
-
-.agent-window .agent-sidebar-section-heading[data-active] .agent-sidebar-section-title-text {
-  color: var(--multi-fg-primary);
 }
 
 .agent-window .agent-sidebar-section-collapsible-trigger {
@@ -647,7 +751,8 @@ body {
 
 .agent-window .agent-sidebar-section-title-text {
   color: var(--multi-fg-tertiary);
-  flex: 1 1 auto;
+  /* Keep chevron next to the label; spare width stays after the pair (not between them). */
+  flex: 0 1 auto;
   font-size: 11px;
   font-weight: 400;
   line-height: 14px;
@@ -676,6 +781,26 @@ body {
   flex-direction: column;
   gap: 1px;
   padding-bottom: 11px;
+}
+
+/* Cursor workbench parity: status + title share a leading cluster (6px gap), subtitle stays trailing. */
+.agent-window .agent-sidebar-cell-leading {
+  align-items: center;
+  display: flex;
+  flex: 1;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.agent-window .multi-agent-sidebar-cell-content-wrapper {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+  padding-left: 2px;
 }
 
 .agent-window .agent-sidebar-cell {

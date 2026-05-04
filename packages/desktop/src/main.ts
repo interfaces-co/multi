@@ -25,6 +25,7 @@ import type {
   DesktopAppBranding,
   DesktopServerExposureMode,
   DesktopServerExposureState,
+  DesktopWindowChromeState,
   DesktopUpdateChannel,
   PersistedSavedEnvironmentRecord,
   DesktopUpdateActionResult,
@@ -94,6 +95,8 @@ const UPDATE_INSTALL_CHANNEL = "desktop:update-install";
 const UPDATE_CHECK_CHANNEL = "desktop:update-check";
 const GET_APP_BRANDING_CHANNEL = "desktop:get-app-branding";
 const GET_LOCAL_ENVIRONMENT_BOOTSTRAP_CHANNEL = "desktop:get-local-environment-bootstrap";
+const GET_WINDOW_CHROME_STATE_CHANNEL = "desktop:get-window-chrome-state";
+const WINDOW_CHROME_STATE_CHANNEL = "desktop:window-chrome-state";
 const GET_CLIENT_SETTINGS_CHANNEL = "desktop:get-client-settings";
 const SET_CLIENT_SETTINGS_CHANNEL = "desktop:set-client-settings";
 const GET_SAVED_ENVIRONMENT_REGISTRY_CHANNEL = "desktop:get-saved-environment-registry";
@@ -1576,6 +1579,11 @@ function registerIpcHandlers(): void {
     } as const;
   });
 
+  ipcMain.removeAllListeners(GET_WINDOW_CHROME_STATE_CHANNEL);
+  ipcMain.on(GET_WINDOW_CHROME_STATE_CHANNEL, (event) => {
+    event.returnValue = getWindowChromeState(BrowserWindow.fromWebContents(event.sender));
+  });
+
   ipcMain.removeHandler(GET_CLIENT_SETTINGS_CHANNEL);
   ipcMain.handle(GET_CLIENT_SETTINGS_CHANNEL, async () => readClientSettings(CLIENT_SETTINGS_PATH));
 
@@ -1887,6 +1895,19 @@ function getInitialWindowBackgroundColor(): string {
   return nativeTheme.shouldUseDarkColors ? "#161616" : "#ffffff";
 }
 
+function getWindowChromeState(window: BrowserWindow | null): DesktopWindowChromeState {
+  return {
+    fullscreen: window?.isFullScreen() ?? false,
+  };
+}
+
+function sendWindowChromeState(window: BrowserWindow): void {
+  if (window.isDestroyed()) {
+    return;
+  }
+  window.webContents.send(WINDOW_CHROME_STATE_CHANNEL, getWindowChromeState(window));
+}
+
 function getWindowTitleBarOptions(): WindowTitleBarOptions {
   if (process.platform === "darwin") {
     return {
@@ -2047,8 +2068,15 @@ function createWindow(): BrowserWindow {
   window.on("responsive", () => {
     writeWindowLifecycleLog(window, "responsive");
   });
+  window.on("enter-full-screen", () => {
+    sendWindowChromeState(window);
+  });
+  window.on("leave-full-screen", () => {
+    sendWindowChromeState(window);
+  });
   window.once("ready-to-show", () => {
     writeWindowLifecycleLog(window, "ready-to-show");
+    sendWindowChromeState(window);
   });
   window.webContents.on("before-input-event", (_event, input) => {
     const isReload =

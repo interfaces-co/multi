@@ -27,7 +27,6 @@ function splitPath(path: string) {
 export function GitDiffCard(props: {
   file: DiffRow;
   selected: boolean;
-  onSelect: () => void;
   expanded: boolean;
   onExpandedChange: (open: boolean) => void;
   diff: FileDiffMetadata | null;
@@ -82,7 +81,7 @@ export function GitDiffCard(props: {
     <div
       ref={rootRef}
       data-diff-card-id={props.file.id}
-      className={cn("git-diff-card", props.selected && "git-diff-card--selected")}
+      className={cn("git-diff-card select-none", props.selected && "git-diff-card--selected")}
     >
       <div
         className={cn(
@@ -91,7 +90,7 @@ export function GitDiffCard(props: {
             ? "border-[color-mix(in_srgb,var(--multi-stroke-tertiary)_82%,transparent)]"
             : "border-b-transparent",
         )}
-        onClick={() => props.onSelect()}
+        onClick={() => props.onExpandedChange(!props.expanded)}
       >
         <button
           type="button"
@@ -173,7 +172,7 @@ export function GitDiffCard(props: {
         </span>
       </div>
       {props.expanded ? (
-        <div className="git-diff-card__body">
+        <div className="git-diff-card__body select-text">
           {showLoading ? (
             <div className="flex flex-col gap-2 px-3 py-3">
               <div className="h-3 w-full max-w-[14rem] animate-pulse rounded bg-muted/35" />

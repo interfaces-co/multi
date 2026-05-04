@@ -1,10 +1,10 @@
 import { FitAddon } from "@xterm/addon-fit";
 import {
-  IconConsoleSimple as TerminalSquare,
-  IconPlusLarge as Plus,
-  IconSplit as SquareSplitHorizontal,
-  IconTrashCan as Trash2,
-  IconX as XIcon,
+  IconConsoleSimple,
+  IconCrossMediumDefault,
+  IconPlusLarge,
+  IconSplit,
+  IconTrashCan,
 } from "central-icons";
 import {
   type ScopedThreadRef,
@@ -1156,7 +1156,7 @@ export default function ThreadTerminalDrawer({
               onClick={onSplitTerminalAction}
               label={splitTerminalActionLabel}
             >
-              <SquareSplitHorizontal className="size-3.25" />
+              <IconSplit className="size-3.25" />
             </TerminalActionButton>
             <div className="h-4 w-px bg-border/80" />
             <TerminalActionButton
@@ -1164,7 +1164,7 @@ export default function ThreadTerminalDrawer({
               onClick={onNewTerminalAction}
               label={newTerminalActionLabel}
             >
-              <Plus className="size-3.25" />
+              <IconPlusLarge className="size-3.25" />
             </TerminalActionButton>
             <div className="h-4 w-px bg-border/80" />
             <TerminalActionButton
@@ -1172,7 +1172,7 @@ export default function ThreadTerminalDrawer({
               onClick={() => onCloseTerminal(resolvedActiveTerminalId)}
               label={closeTerminalActionLabel}
             >
-              <Trash2 className="size-3.25" />
+              <IconTrashCan className="size-3.25" />
             </TerminalActionButton>
           </div>
         </div>
@@ -1255,21 +1255,21 @@ export default function ThreadTerminalDrawer({
                     onClick={onSplitTerminalAction}
                     label={splitTerminalActionLabel}
                   >
-                    <SquareSplitHorizontal className="size-3.25" />
+                    <IconSplit className="size-3.25" />
                   </TerminalActionButton>
                   <TerminalActionButton
                     className="inline-flex h-full items-center border-l border-border/70 px-1 text-foreground/90 transition-colors hover:bg-accent/70"
                     onClick={onNewTerminalAction}
                     label={newTerminalActionLabel}
                   >
-                    <Plus className="size-3.25" />
+                    <IconPlusLarge className="size-3.25" />
                   </TerminalActionButton>
                   <TerminalActionButton
                     className="inline-flex h-full items-center border-l border-border/70 px-1 text-foreground/90 transition-colors hover:bg-accent/70"
                     onClick={() => onCloseTerminal(resolvedActiveTerminalId)}
                     label={closeTerminalActionLabel}
                   >
-                    <Trash2 className="size-3.25" />
+                    <IconTrashCan className="size-3.25" />
                   </TerminalActionButton>
                 </div>
               </div>
@@ -1325,7 +1325,7 @@ export default function ThreadTerminalDrawer({
                                 className="flex min-w-0 flex-1 items-center gap-1 text-left"
                                 onClick={() => onActiveTerminalChange(terminalId)}
                               >
-                                <TerminalSquare className="size-3 shrink-0" />
+                                <IconConsoleSimple className="size-3 shrink-0" />
                                 <span className="truncate">
                                   {terminalLabelById.get(terminalId) ?? "Terminal"}
                                 </span>
@@ -1343,7 +1343,7 @@ export default function ThreadTerminalDrawer({
                                       />
                                     }
                                   >
-                                    <XIcon className="size-2.5" />
+                                    <IconCrossMediumDefault className="size-2.5" />
                                   </PopoverTrigger>
                                   <PopoverPopup
                                     tooltipStyle

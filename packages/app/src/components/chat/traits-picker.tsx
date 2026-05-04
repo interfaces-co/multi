@@ -15,7 +15,7 @@ import {
 } from "@multi/shared/model";
 import { memo, useCallback, useState } from "react";
 import type { VariantProps } from "class-variance-authority";
-import { IconChevronDownSmall as ChevronDownIcon } from "central-icons";
+import { IconChevronDownSmall } from "central-icons";
 import { Button, buttonVariants } from "@multi/ui/button";
 import {
   Menu,
@@ -419,12 +419,12 @@ export const TraitsPicker = memo(function TraitsPicker({
         {isCodexStyle ? (
           <span className="flex min-w-0 w-full items-center gap-2 overflow-hidden">
             {triggerLabel}
-            <ChevronDownIcon aria-hidden="true" className="size-3 shrink-0 opacity-60" />
+            <IconChevronDownSmall aria-hidden="true" className="size-3 shrink-0 opacity-60" />
           </span>
         ) : (
           <>
             <span>{triggerLabel}</span>
-            <ChevronDownIcon aria-hidden="true" className="size-3 opacity-60" />
+            <IconChevronDownSmall aria-hidden="true" className="size-3 opacity-60" />
           </>
         )}
       </MenuTrigger>

@@ -1,6 +1,6 @@
 import { memo, useMemo, useState } from "react";
 import { getVscodeIconUrlForEntry } from "../../vscode-icons";
-import { IconFileBend as FileIcon, IconFolder1 as FolderIcon } from "central-icons";
+import { IconFileBend, IconFolder1 } from "central-icons";
 import { cn } from "~/lib/utils";
 
 export const VscodeEntryIcon = memo(function VscodeEntryIcon(props: {
@@ -18,9 +18,9 @@ export const VscodeEntryIcon = memo(function VscodeEntryIcon(props: {
 
   if (failed) {
     return props.kind === "directory" ? (
-      <FolderIcon className={cn("size-4 text-muted-foreground/80", props.className)} />
+      <IconFolder1 className={cn("size-4 text-muted-foreground/80", props.className)} />
     ) : (
-      <FileIcon className={cn("size-4 text-muted-foreground/80", props.className)} />
+      <IconFileBend className={cn("size-4 text-muted-foreground/80", props.className)} />
     );
   }
 

@@ -23,6 +23,8 @@ const UPDATE_DOWNLOAD_CHANNEL = "desktop:update-download";
 const UPDATE_INSTALL_CHANNEL = "desktop:update-install";
 const GET_APP_BRANDING_CHANNEL = "desktop:get-app-branding";
 const GET_LOCAL_ENVIRONMENT_BOOTSTRAP_CHANNEL = "desktop:get-local-environment-bootstrap";
+const GET_WINDOW_CHROME_STATE_CHANNEL = "desktop:get-window-chrome-state";
+const WINDOW_CHROME_STATE_CHANNEL = "desktop:window-chrome-state";
 const GET_CLIENT_SETTINGS_CHANNEL = "desktop:get-client-settings";
 const SET_CLIENT_SETTINGS_CHANNEL = "desktop:set-client-settings";
 const GET_SAVED_ENVIRONMENT_REGISTRY_CHANNEL = "desktop:get-saved-environment-registry";
@@ -47,6 +49,24 @@ contextBridge.exposeInMainWorld("desktopBridge", {
       return null;
     }
     return result as ReturnType<DesktopBridge["getLocalEnvironmentBootstrap"]>;
+  },
+  getWindowChromeState: () => {
+    const result = ipcRenderer.sendSync(GET_WINDOW_CHROME_STATE_CHANNEL);
+    if (typeof result !== "object" || result === null) {
+      return { fullscreen: false };
+    }
+    return result as ReturnType<DesktopBridge["getWindowChromeState"]>;
+  },
+  onWindowChromeState: (listener) => {
+    const wrappedListener = (_event: Electron.IpcRendererEvent, state: unknown) => {
+      if (typeof state !== "object" || state === null) return;
+      listener(state as Parameters<typeof listener>[0]);
+    };
+
+    ipcRenderer.on(WINDOW_CHROME_STATE_CHANNEL, wrappedListener);
+    return () => {
+      ipcRenderer.removeListener(WINDOW_CHROME_STATE_CHANNEL, wrappedListener);
+    };
   },
   getClientSettings: () => ipcRenderer.invoke(GET_CLIENT_SETTINGS_CHANNEL),
   setClientSettings: (settings) => ipcRenderer.invoke(SET_CLIENT_SETTINGS_CHANNEL, settings),

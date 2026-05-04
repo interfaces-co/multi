@@ -1,3 +1,4 @@
+import { IconChevronRightMedium } from "central-icons";
 import { useEffect, useMemo, useState } from "react";
 
 import type { SidebarSectionModel } from "~/lib/sidebar-chat-view-model";
@@ -79,10 +80,7 @@ function Section(props: {
       className="multi-agent-sidebar-section agent-sidebar-section min-w-0 w-full"
       data-agent-sidebar-section=""
     >
-      <div
-        className="multi-agent-sidebar-section-title agent-sidebar-section-heading agent-sidebar-section-title collapsible flex min-w-0 w-full items-center gap-0"
-        data-active={section.active ? "" : undefined}
-      >
+      <div className="multi-agent-sidebar-section-title agent-sidebar-section-heading agent-sidebar-section-title collapsible flex min-w-0 w-full items-center gap-0">
         <button
           id={labelId}
           type="button"
@@ -91,13 +89,12 @@ function Section(props: {
           onClick={() => setOpen((value) => !value)}
           className="agent-sidebar-section-collapsible-trigger relative touch-manipulation font-multi"
         >
-          <span
-            className={`agent-sidebar-section-chevron text-[10px]/[10px] ${open ? "" : "-rotate-90"}`}
-            aria-hidden
-          >
-            ▾
-          </span>
           <span className="agent-sidebar-section-title-text">{section.label}</span>
+          <IconChevronRightMedium
+            size={14}
+            className={`agent-sidebar-section-chevron shrink-0 ${open ? "rotate-90" : ""}`}
+            aria-hidden
+          />
         </button>
         {props.onNewAgent ? (
           <button

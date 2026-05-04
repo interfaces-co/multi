@@ -52,6 +52,7 @@ function isWorkbenchTab(value: unknown): value is WorkbenchTab {
 }
 
 type RightPanels = Record<WorkbenchTab, ReactNode>;
+type ShellRootStyle = CSSProperties & Record<`--${string}`, string>;
 
 export interface AppShellPanels {
   leftOpen: boolean;
@@ -106,9 +107,13 @@ function LeftAside(props: { children: ReactNode }) {
       )}
       data-agent-window-sidebar=""
       data-shell-left-expanded={leftOpen ? "true" : "false"}
+      data-shell-panel="left"
+      data-side="left"
+      data-state={leftOpen ? "expanded" : "collapsed"}
+      data-resizing={resize.dragging ? "true" : "false"}
+      aria-hidden={!leftOpen ? true : undefined}
       ref={asideRef}
       style={{
-        width: leftOpen ? leftWidth : 0,
         borderRightWidth: 0,
       }}
     >
@@ -238,11 +243,12 @@ function RightAside(props: {
           : "transition-[width] duration-100 ease-[cubic-bezier(0.19,1,0.22,1)] motion-reduce:transition-none",
       )}
       data-agent-window-workbench=""
+      data-shell-panel="right"
+      data-side="right"
+      data-state={rightOpen ? "expanded" : "collapsed"}
+      data-resizing={resize.dragging ? "true" : "false"}
       ref={asideRef}
       style={{
-        width: rightOpen ? rightWidth : 0,
-        minWidth: rightOpen ? RIGHT_LIMITS.min : 0,
-        maxWidth: RIGHT_LIMITS.max,
         borderLeftWidth: 0,
       }}
       aria-hidden={!rightOpen ? true : undefined}
@@ -310,7 +316,6 @@ function ElectronHeaderControls(props: {
   const leftOpen = useLeftOpen();
   const storedRightOpen = useRightOpen(props.rightPanelPersistenceCwd);
   const muted = useIsMuted(props.rightPanelPersistenceCwd);
-  const rightWidth = useRightWidth(props.rightPanelPersistenceCwd);
   const rightOpen = resolveEffectiveRightOpen({
     storedRightOpen,
     routeThreadId: props.routeThreadId,
@@ -318,11 +323,9 @@ function ElectronHeaderControls(props: {
     muted,
   });
 
-  const dragFillerMarginRight = props.showRight ? (rightOpen ? rightWidth : 0) : undefined;
-
   return (
     <div className="pointer-events-none absolute top-0 right-0 left-0 z-10 box-border flex h-(--multi-header-height) min-w-0 items-start">
-      <div className="pointer-events-auto no-drag flex shrink-0 items-center gap-1 self-start pl-(--multi-electron-traffic-inset) pt-(--multi-titlebar-control-row-top)">
+      <div className="multi-shell-titlebar-left-controls pointer-events-auto no-drag absolute flex shrink-0 items-center gap-1 self-start">
         {props.onBack ? (
           <button
             type="button"
@@ -347,8 +350,8 @@ function ElectronHeaderControls(props: {
         </button>
       </div>
       <div
-        className="pointer-events-auto drag-region isolate min-h-0 min-w-0 flex-1 self-stretch"
-        style={dragFillerMarginRight != null ? { marginRight: dragFillerMarginRight } : undefined}
+        className="multi-shell-titlebar-drag-region pointer-events-auto drag-region isolate min-h-0 min-w-0 flex-1 self-stretch"
+        data-state={props.showRight && rightOpen ? "expanded" : "collapsed"}
         aria-hidden
       />
     </div>
@@ -382,8 +385,8 @@ function RightPanelChromeToggle(props: {
   return (
     <div
       className={cn(
-        "pointer-events-none absolute right-2 z-30 wco:right-[calc(100vw-env(titlebar-area-width)-env(titlebar-area-x)+0.5rem)]",
-        props.electron ? "top-(--multi-titlebar-control-row-top)" : "top-2",
+        "multi-shell-titlebar-right-toggle pointer-events-none absolute z-30",
+        props.electron ? null : "multi-shell-titlebar-right-toggle--web",
       )}
     >
       <button
@@ -416,7 +419,7 @@ function LeftExpandButton() {
   }
 
   return (
-    <div className="pointer-events-none absolute top-2 left-2 z-10">
+    <div className="multi-shell-titlebar-left-expand pointer-events-none absolute z-10">
       <button
         type="button"
         onClick={() => shellPanelsActions.toggleLeft()}
@@ -444,6 +447,8 @@ export function AppShell(props: {
   const electron = isElectronHost();
   const showRight = props.right !== null;
   const panelPersistenceCwd = props.panelPersistenceCwd ?? props.cwd;
+  const leftOpen = useLeftOpen();
+  const leftWidth = useLeftWidth();
   const storedRightOpen = useRightOpen(panelPersistenceCwd);
   const rightWidth = useRightWidth(panelPersistenceCwd);
   const muted = useIsMuted(panelPersistenceCwd);
@@ -455,6 +460,19 @@ export function AppShell(props: {
       gitFocusId: props.gitFocusId ?? null,
       muted,
     });
+  const shellStyle: ShellRootStyle = {
+    "--multi-shell-left-width": `${leftWidth}px`,
+    "--multi-shell-left-collapsed-width": "0px",
+    "--multi-shell-left-min-width": `${LEFT_LIMITS.min}px`,
+    "--multi-shell-left-max-width": `${LEFT_LIMITS.max}px`,
+    "--multi-shell-right-workbench-width": `${rightWidth}px`,
+    "--multi-shell-right-workbench-collapsed-width": "0px",
+    "--multi-shell-right-workbench-min-width": `${RIGHT_LIMITS.min}px`,
+    "--multi-shell-right-workbench-max-width": `${RIGHT_LIMITS.max}px`,
+    "--multi-shell-titlebar-control-size": "var(--multi-titlebar-control-height)",
+    "--multi-shell-titlebar-control-y": "var(--multi-titlebar-control-row-top)",
+    "--multi-shell-titlebar-gutter": "8px",
+  };
 
   useEffect(() => {
     const previousValue = document.body.getAttribute("data-cursor-glass-mode");
@@ -473,15 +491,13 @@ export function AppShell(props: {
       className="agent-window relative flex h-full min-w-0 flex-1 flex-row bg-transparent"
       data-component="root"
       data-agent-window=""
+      data-shell-left-intent={leftOpen ? "expanded" : "collapsed"}
+      data-shell-right-intent={shellRightOpen ? "expanded" : "collapsed"}
       data-shell-right-panel={showRight ? "true" : "false"}
       data-shell-right-open={shellRightOpen ? "true" : "false"}
-      style={
-        showRight
-          ? ({
-              "--multi-shell-right-workbench-width": shellRightOpen ? `${rightWidth}px` : "0px",
-            } as CSSProperties)
-          : undefined
-      }
+      data-shell-platform={electron ? "electron" : "web"}
+      data-shell-chrome="glass"
+      style={shellStyle}
     >
       <LeftAside>{props.left}</LeftAside>
 

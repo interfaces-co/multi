@@ -1,6 +1,6 @@
 import type { HarnessModelRef, ThinkingLevel } from "~/lib/ui-session-types";
 import { Menu } from "@base-ui/react/menu";
-import { IconLock as LockIcon } from "central-icons";
+import { IconBrain, IconCheckmark1Small, IconChevronRight, IconLock } from "central-icons";
 import {
   workbenchMenuIconSlotClassName,
   workbenchMenuItemClassName,
@@ -8,8 +8,6 @@ import {
   workbenchMenuPrimaryTextClassName,
   workbenchMenuSeparatorClassName,
 } from "@multi/ui/menu";
-import { IconBrain, IconCheckmark1Small, IconChevronRight } from "central-icons";
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { Skeleton } from "@multi/ui/skeleton";
 import { PretextOneLine } from "~/components/pretext-one-line";
 import {
@@ -19,8 +17,7 @@ import {
   type RuntimeModelItem,
 } from "~/lib/runtime-models";
 import { cn } from "~/lib/utils";
-
-/** `thinkingLevel`: `off` disables extended reasoning; other values set depth. */
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 const thinkingOptions: { label: string; value: ThinkingLevel }[] = [
   { label: "Off", value: "off" },
   { label: "Minimal", value: "minimal" },
@@ -203,7 +200,7 @@ export const ModelPicker = forwardRef<
                 </span>
               ) : null}
               {locked ? (
-                <LockIcon className="size-3 shrink-0 text-multi-fg-tertiary" aria-hidden />
+                <IconLock className="size-3 shrink-0 text-multi-fg-tertiary" aria-hidden />
               ) : null}
               <IconChevronRight
                 className="size-3 shrink-0 rotate-90 text-multi-fg-tertiary"

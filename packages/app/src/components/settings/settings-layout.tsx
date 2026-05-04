@@ -1,4 +1,4 @@
-import { IconArrowUndoUp as Undo2Icon } from "central-icons";
+import { IconArrowUndoUp } from "central-icons";
 import { type ReactNode, useEffect, useState } from "react";
 
 import { cn } from "../../lib/utils";
@@ -116,7 +116,7 @@ export function SettingResetButton({ label, onClick }: { label: string; onClick:
               onClick();
             }}
           >
-            <Undo2Icon className="size-3" />
+            <IconArrowUndoUp className="size-3" />
           </Button>
         }
       />

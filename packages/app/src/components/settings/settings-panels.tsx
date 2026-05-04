@@ -1,9 +1,9 @@
 import {
-  IconArchive as ArchiveIcon,
-  IconArchiveJunk as ArchiveX,
-  IconArrowRotateClockwise as RefreshCwIcon,
-  IconLoader as LoaderIcon,
-  IconX as XIcon,
+  IconArchive,
+  IconArchiveJunk,
+  IconArrowRotateClockwise,
+  IconCrossMediumDefault,
+  IconLoader,
 } from "central-icons";
 import { type VariantProps } from "class-variance-authority";
 import { useQueryClient } from "@tanstack/react-query";
@@ -1275,9 +1275,9 @@ export function ModelsSettingsPanel() {
             aria-label="Refresh provider status"
           >
             {isRefreshingProviders ? (
-              <LoaderIcon className="size-3.5 animate-spin" />
+              <IconLoader className="size-3.5 animate-spin" />
             ) : (
-              <RefreshCwIcon className="size-3.5" />
+              <IconArrowRotateClockwise className="size-3.5" />
             )}
           </Button>
         }
@@ -1460,7 +1460,7 @@ export function ModelsSettingsPanel() {
                     aria-label={`Remove ${model.slug}`}
                     onClick={() => removeCustomModel(model.slug)}
                   >
-                    <XIcon className="size-3.5" />
+                    <IconCrossMediumDefault className="size-3.5" />
                   </Button>
                 ) : null}
               </li>
@@ -1554,7 +1554,7 @@ export function ArchivedThreadsPanel() {
         <SettingsSection title="Archived threads">
           <Empty className="min-h-88">
             <EmptyMedia variant="icon">
-              <ArchiveIcon />
+              <IconArchive />
             </EmptyMedia>
             <EmptyHeader>
               <EmptyTitle>No archived threads</EmptyTitle>
@@ -1612,7 +1612,7 @@ export function ArchivedThreadsPanel() {
                     )
                   }
                 >
-                  <ArchiveX className="size-3.5" />
+                  <IconArchiveJunk className="size-3.5" />
                   <span>Unarchive</span>
                 </Button>
               </div>

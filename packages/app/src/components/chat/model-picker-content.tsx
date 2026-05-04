@@ -5,7 +5,7 @@ import {
 } from "@multi/contracts";
 import { resolveSelectableModel } from "@multi/shared/model";
 import { memo, useMemo, useState, useCallback, useEffect, useLayoutEffect, useRef } from "react";
-import { IconMagnifyingGlass as SearchIcon } from "central-icons";
+import { IconMagnifyingGlass } from "central-icons";
 import { ModelListRow } from "./model-list-row";
 import { isModelPickerNewModel } from "./model-picker-model-highlights";
 import { buildModelPickerSearchText, scoreModelPickerSearch } from "./model-picker-search";
@@ -522,7 +522,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
               placeholder="Search models"
               showTrigger={false}
               startAddon={
-                <SearchIcon className="size-3.5 shrink-0 text-[var(--cursor-text-tertiary,var(--multi-fg-tertiary))]" />
+                <IconMagnifyingGlass className="size-3.5 shrink-0 text-[var(--cursor-text-tertiary,var(--multi-fg-tertiary))]" />
               }
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}

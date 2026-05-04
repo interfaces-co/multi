@@ -1,7 +1,7 @@
 "use client";
 
 import { Dialog as SheetPrimitive } from "@base-ui/react/dialog";
-import { IconX as XIcon } from "central-icons";
+import { IconCrossMediumDefault } from "central-icons";
 import { cn } from "./utils";
 import { Button } from "./button";
 import { ScrollArea } from "./scroll-area";
@@ -100,7 +100,7 @@ function SheetPopup({
               className="absolute end-2 top-2"
               render={<Button size="icon" variant="ghost" />}
             >
-              <XIcon />
+              <IconCrossMediumDefault />
             </SheetPrimitive.Close>
           )}
         </SheetPrimitive.Popup>

@@ -1,7 +1,7 @@
 import { type ServerProvider } from "@multi/contracts";
 import { memo } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@multi/ui/alert";
-import { IconExclamationCircle as CircleAlertIcon } from "central-icons";
+import { IconExclamationCircle } from "central-icons";
 import { formatProviderDriverKindLabel } from "../../provider-models";
 
 export const ProviderStatusBanner = memo(function ProviderStatusBanner({
@@ -23,7 +23,7 @@ export const ProviderStatusBanner = memo(function ProviderStatusBanner({
   return (
     <div className="pt-3 mx-auto max-w-3xl">
       <Alert variant={status.status === "error" ? "error" : "warning"}>
-        <CircleAlertIcon />
+        <IconExclamationCircle />
         <AlertTitle>{title}</AlertTitle>
         <AlertDescription className="line-clamp-3" title={status.message ?? defaultMessage}>
           {status.message ?? defaultMessage}

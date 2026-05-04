@@ -5,13 +5,13 @@ import { useEffect, useMemo, type CSSProperties } from "react";
 import { useParams } from "@tanstack/react-router";
 import { type ScopedThreadRef, type ThreadId } from "@multi/contracts";
 import {
-  IconCheckmark1 as CheckIcon,
-  IconCircleCheck as CircleCheckIcon,
-  IconCircleInfo as InfoIcon,
-  IconClipboard as CopyIcon,
-  IconExclamationCircle as CircleAlertIcon,
-  IconExclamationTriangle as TriangleAlertIcon,
-  IconLoader as LoaderCircleIcon,
+  IconCheckmark1,
+  IconCircleCheck,
+  IconCircleInfo,
+  IconClipboard,
+  IconExclamationCircle,
+  IconExclamationTriangle,
+  IconLoader,
 } from "central-icons";
 
 import { cn } from "~/lib/utils";
@@ -39,11 +39,11 @@ type ToastId = ReturnType<typeof toastManager.add>;
 const threadToastVisibleTimeoutRemainingMs = new Map<ToastId, number>();
 
 const TOAST_ICONS = {
-  error: CircleAlertIcon,
-  info: InfoIcon,
-  loading: LoaderCircleIcon,
-  success: CircleCheckIcon,
-  warning: TriangleAlertIcon,
+  error: IconExclamationCircle,
+  info: IconCircleInfo,
+  loading: IconLoader,
+  success: IconCircleCheck,
+  warning: IconExclamationTriangle,
 } as const;
 
 function CopyErrorButton({ text }: { text: string }) {
@@ -57,9 +57,9 @@ function CopyErrorButton({ text }: { text: string }) {
       type="button"
     >
       {isCopied ? (
-        <CheckIcon className="size-3.5 text-success" />
+        <IconCheckmark1 className="size-3.5 text-success" />
       ) : (
-        <CopyIcon className="size-3.5" />
+        <IconClipboard className="size-3.5" />
       )}
     </button>
   );

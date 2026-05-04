@@ -1,9 +1,6 @@
 import { ProviderInteractionMode, RuntimeMode } from "@multi/contracts";
 import { memo, type ReactNode } from "react";
-import {
-  IconDotGrid1x3Horizontal as EllipsisIcon,
-  IconSquareChecklist as ListTodoIcon,
-} from "central-icons";
+import { IconDotGrid1x3Horizontal, IconSquareChecklist } from "central-icons";
 import { Button } from "@multi/ui/button";
 import {
   Menu,
@@ -39,7 +36,7 @@ export const CompactComposerControlsMenu = memo(function CompactComposerControls
           />
         }
       >
-        <EllipsisIcon aria-hidden="true" className="size-4" />
+        <IconDotGrid1x3Horizontal aria-hidden="true" className="size-4" />
       </MenuTrigger>
       <MenuPopup align="start">
         {props.traitsMenuContent ? (
@@ -80,7 +77,7 @@ export const CompactComposerControlsMenu = memo(function CompactComposerControls
           <>
             <MenuDivider />
             <MenuItem onClick={props.onTogglePlanSidebar}>
-              <ListTodoIcon className="size-4 shrink-0" />
+              <IconSquareChecklist className="size-4 shrink-0" />
               {props.planSidebarOpen
                 ? `Hide ${props.planSidebarLabel.toLowerCase()} sidebar`
                 : `Show ${props.planSidebarLabel.toLowerCase()} sidebar`}

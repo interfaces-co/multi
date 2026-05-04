@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useRef } from "react";
+import { type CSSProperties, type ReactNode, useRef } from "react";
 
 import {
   type WorkbenchTab,
@@ -11,6 +11,8 @@ import {
 import { cn } from "~/lib/utils";
 
 import { useColumnResize } from "./use-column-resize";
+
+type SecondaryRailStyle = CSSProperties & Record<`--${string}`, string>;
 
 export function RightWorkbenchLayout(props: {
   cwd: string | null;
@@ -33,17 +35,31 @@ export function RightWorkbenchLayout(props: {
     onCommit: (nextWidth) =>
       shellPanelsActions.setSecondaryRailWidth(props.cwd, props.tab, nextWidth),
   });
+  const railStyle: SecondaryRailStyle = {
+    "--multi-shell-secondary-rail-width": `${railWidth}px`,
+    "--multi-shell-secondary-rail-collapsed-width": "0px",
+    "--multi-shell-secondary-rail-min-width": `${SECONDARY_RAIL_LIMITS.min}px`,
+    "--multi-shell-secondary-rail-max-width": `${SECONDARY_RAIL_LIMITS.max}px`,
+  };
 
   return (
-    <div className="multi-shell-workbench-columns flex min-h-0 min-w-0 flex-1 flex-row overflow-hidden">
+    <div
+      className="multi-shell-workbench-columns flex min-h-0 min-w-0 flex-1 flex-row overflow-hidden"
+      data-shell-panel="secondary"
+      data-state={showRail ? "expanded" : "collapsed"}
+      style={railStyle}
+    >
       {showRail ? (
         <div
           className={cn(
             "multi-shell-secondary-rail relative flex min-h-0 shrink-0",
             props.railHostClassName,
           )}
+          data-shell-panel="secondary"
+          data-side="left"
+          data-state="expanded"
+          data-resizing={resize.dragging ? "true" : "false"}
           ref={railRef}
-          style={{ width: railWidth }}
         >
           <div
             className={cn(

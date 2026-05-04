@@ -1,6 +1,6 @@
 "use client";
 
-import { IconBarsThree as List } from "central-icons";
+import { IconBarsThree } from "central-icons";
 
 import { WorkbenchIconButton } from "../shell/workbench-icon-button";
 
@@ -22,7 +22,7 @@ export function TerminalWorkbenchSubChrome(props: {
         title={props.railOpen ? "Hide sessions list" : "Show sessions list"}
         onClick={props.onToggleRail}
       >
-        <List className="size-[15px]" aria-hidden />
+        <IconBarsThree className="size-[15px]" aria-hidden />
       </WorkbenchIconButton>
       <span className="min-w-0 truncate text-[12px]/[16px] font-medium text-multi-fg-primary">
         {props.shellCaption}

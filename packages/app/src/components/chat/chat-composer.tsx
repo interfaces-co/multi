@@ -93,13 +93,13 @@ import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "@mu
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@multi/ui/tooltip";
 import { toastManager } from "~/app/toast";
 import {
-  IconExclamationCircle as CircleAlertIcon,
-  IconLock as LockIcon,
-  IconPencilLine as PenLineIcon,
-  IconRobot as BotIcon,
-  IconSquareChecklist as ListTodoIcon,
-  IconUnlocked as LockOpenIcon,
-  IconX as XIcon,
+  IconExclamationCircle,
+  IconLock,
+  IconPencilLine,
+  IconRobot,
+  IconSquareChecklist,
+  IconUnlocked,
+  IconCrossMediumDefault,
   type CentralIconBaseProps,
 } from "central-icons";
 type CentralIconComponent = React.ComponentType<CentralIconBaseProps>;
@@ -129,17 +129,17 @@ const runtimeModeConfig: Record<
   "approval-required": {
     label: "Supervised",
     description: "Ask before commands and file changes.",
-    icon: LockIcon,
+    icon: IconLock,
   },
   "auto-accept-edits": {
     label: "Auto-accept edits",
     description: "Auto-approve edits, ask before other actions.",
-    icon: PenLineIcon,
+    icon: IconPencilLine,
   },
   "full-access": {
     label: "Full access",
     description: "Allow commands and edits without prompts.",
-    icon: LockOpenIcon,
+    icon: IconUnlocked,
   },
 };
 
@@ -208,7 +208,7 @@ const ComposerFooterModeControls = memo(function ComposerFooterModeControls(prop
                 : "Default mode — click to enter plan mode"
             }
           >
-            <BotIcon />
+            <IconRobot />
             <span className="sr-only sm:not-sr-only">
               {props.interactionMode === "plan" ? "Plan" : "Build"}
             </span>
@@ -273,7 +273,7 @@ const ComposerFooterModeControls = memo(function ComposerFooterModeControls(prop
                 : `Show ${props.planSidebarLabel.toLowerCase()} sidebar`
             }
           >
-            <ListTodoIcon />
+            <IconSquareChecklist />
             <span className="sr-only sm:not-sr-only">{props.planSidebarLabel}</span>
           </Button>
         </>
@@ -2049,7 +2049,7 @@ export const ChatComposer = memo(
                                   aria-label="Draft attachment may not persist"
                                   className="absolute left-1 top-1 inline-flex items-center justify-center rounded bg-background/85 p-0.5 text-amber-600"
                                 >
-                                  <CircleAlertIcon className="size-3" />
+                                  <IconExclamationCircle className="size-3" />
                                 </span>
                               }
                             />
@@ -2069,7 +2069,7 @@ export const ChatComposer = memo(
                           onClick={() => removeComposerImage(image.id)}
                           aria-label={`Remove ${image.name}`}
                         >
-                          <XIcon />
+                          <IconCrossMediumDefault />
                         </Button>
                       </div>
                     ))}

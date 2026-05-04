@@ -1,6 +1,6 @@
 import { type MessageId } from "@multi/contracts";
 import { memo, type ReactNode } from "react";
-import { IconArrowUndoUp as Undo2Icon } from "central-icons";
+import { IconArrowUndoUp } from "central-icons";
 import { Button } from "@multi/ui/button";
 import { buildExpandedImagePreview, type ExpandedImagePreview } from "./expanded-image-preview";
 import { MessageCopyButton } from "./message-copy-button";
@@ -104,7 +104,7 @@ export const HumanMessage = memo(function HumanMessage({
             onClick={() => onRevertUserMessage(message.id)}
             title="Revert to this message"
           >
-            <Undo2Icon className="size-3" />
+            <IconArrowUndoUp className="size-3" />
           </Button>
         ) : null}
       </CursorMessageActions>

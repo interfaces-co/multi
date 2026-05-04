@@ -124,6 +124,7 @@ export type GitDiscardPathsInput = typeof GitDiscardPathsInput.Type;
 export const GitFilePatchInput = Schema.Struct({
   cwd: TrimmedNonEmptyStringSchema,
   path: TrimmedNonEmptyStringSchema,
+  prevPath: Schema.optional(TrimmedNonEmptyStringSchema),
 });
 export type GitFilePatchInput = typeof GitFilePatchInput.Type;
 
@@ -234,6 +235,7 @@ const GitStatusLocalShape = {
     files: Schema.Array(
       Schema.Struct({
         path: TrimmedNonEmptyStringSchema,
+        prevPath: Schema.optional(TrimmedNonEmptyStringSchema),
         insertions: NonNegativeInt,
         deletions: NonNegativeInt,
         status: GitWorkingTreeFileStatus,

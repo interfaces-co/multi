@@ -1,7 +1,7 @@
 "use client";
 
 import { Autocomplete as AutocompletePrimitive } from "@base-ui/react/autocomplete";
-import { IconSortArrowUpDown as ChevronsUpDownIcon, IconX as XIcon } from "central-icons";
+import { IconCrossMediumDefault, IconSortArrowUpDown } from "central-icons";
 
 import { cn } from "./utils";
 import { Input } from "./input";
@@ -57,7 +57,7 @@ function AutocompleteInput({
           )}
         >
           <AutocompletePrimitive.Icon data-slot="autocomplete-icon">
-            <ChevronsUpDownIcon />
+            <IconSortArrowUpDown />
           </AutocompletePrimitive.Icon>
         </AutocompleteTrigger>
       )}
@@ -68,7 +68,7 @@ function AutocompleteInput({
             sizeValue === "sm" ? "end-0" : "end-0.5",
           )}
         >
-          <XIcon />
+          <IconCrossMediumDefault />
         </AutocompleteClear>
       )}
     </div>
@@ -214,7 +214,7 @@ function AutocompleteClear({ className, ...props }: AutocompletePrimitive.Clear.
       data-slot="autocomplete-clear"
       {...props}
     >
-      <XIcon />
+      <IconCrossMediumDefault />
     </AutocompletePrimitive.Clear>
   );
 }

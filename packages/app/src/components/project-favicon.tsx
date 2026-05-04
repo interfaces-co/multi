@@ -1,5 +1,5 @@
 import type { EnvironmentId } from "@multi/contracts";
-import { IconFolder1 as FolderIcon } from "central-icons";
+import { IconFolder1 } from "central-icons";
 import { useState } from "react";
 import { resolveEnvironmentHttpUrl } from "../environments/runtime";
 
@@ -22,7 +22,7 @@ export function ProjectFavicon(input: {
   return (
     <>
       {status !== "loaded" ? (
-        <FolderIcon
+        <IconFolder1
           className={`size-3.5 shrink-0 text-muted-foreground/50 ${input.className ?? ""}`}
         />
       ) : null}

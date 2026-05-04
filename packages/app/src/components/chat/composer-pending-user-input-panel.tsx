@@ -5,7 +5,7 @@ import {
   derivePendingUserInputProgress,
   type PendingUserInputDraftAnswer,
 } from "../../pending-user-input";
-import { IconCheckmark1 as CheckIcon } from "central-icons";
+import { IconCheckmark1 } from "central-icons";
 import { cn } from "~/lib/utils";
 
 interface PendingUserInputPanelProps {
@@ -179,7 +179,7 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
                   </span>
                 ) : null}
               </div>
-              {isSelected ? <CheckIcon className="size-3.5 shrink-0 text-blue-400" /> : null}
+              {isSelected ? <IconCheckmark1 className="size-3.5 shrink-0 text-blue-400" /> : null}
             </button>
           );
         })}

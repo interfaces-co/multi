@@ -13,15 +13,15 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import {
-  IconArrowCornerLeftUp as CornerLeftUpIcon,
-  IconArrowDown as ArrowDownIcon,
-  IconArrowLeft as ArrowLeftIcon,
-  IconArrowUp as ArrowUpIcon,
-  IconBubbleText as MessageSquareIcon,
-  IconFolder1 as FolderIcon,
-  IconFolderAddRight as FolderPlusIcon,
-  IconPencil as SquarePenIcon,
-  IconSettingsGear2 as SettingsIcon,
+  IconArrowCornerLeftUp,
+  IconArrowDown,
+  IconArrowLeft,
+  IconArrowUp,
+  IconBubbleText,
+  IconFolder1,
+  IconFolderAddRight,
+  IconPencil,
+  IconSettingsGear2,
 } from "central-icons";
 import {
   useCallback,
@@ -536,7 +536,7 @@ function OpenCommandPaletteDialog() {
         ...(activeThreadId ? { activeThreadId } : {}),
         projectTitleById,
         sortOrder: settings.sidebarThreadSortOrder,
-        icon: <MessageSquareIcon className="size-4 text-muted-foreground/80" />,
+        icon: <IconBubbleText className="size-4 text-muted-foreground/80" />,
         runThread: async (thread) => {
           await navigate({
             to: "/$environmentId/$threadId",
@@ -592,7 +592,7 @@ function OpenCommandPaletteDialog() {
     (environmentId: EnvironmentId): void => {
       setAddProjectEnvironmentId(environmentId);
       pushPaletteView({
-        addonIcon: <FolderPlusIcon className="size-4" />,
+        addonIcon: <IconFolderAddRight className="size-4" />,
         groups: [],
         initialQuery: getAddProjectInitialQueryForEnvironment(environmentId),
       });
@@ -607,7 +607,7 @@ function OpenCommandPaletteDialog() {
       searchTerms: [option.label, option.environmentId, option.isPrimary ? "this device" : ""],
       title: option.label,
       description: option.isPrimary ? "This device" : option.environmentId,
-      icon: <FolderPlusIcon className="size-4 text-muted-foreground/80" />,
+      icon: <IconFolderAddRight className="size-4 text-muted-foreground/80" />,
       keepOpen: true,
       run: async () => {
         startAddProjectBrowse(option.environmentId);
@@ -629,7 +629,7 @@ function OpenCommandPaletteDialog() {
   const openAddProjectFlow = useCallback(() => {
     if (addProjectEnvironmentOptions.length > 1) {
       pushPaletteView({
-        addonIcon: <FolderPlusIcon className="size-4" />,
+        addonIcon: <IconFolderAddRight className="size-4" />,
         groups: addProjectEnvironmentGroups,
       });
       return;
@@ -675,7 +675,7 @@ function OpenCommandPaletteDialog() {
             addProjectEnvironmentOptions.length > 1
               ? "Choose an environment and folder"
               : "Choose a folder",
-          icon: <FolderPlusIcon className="size-4 text-muted-foreground/80" />,
+          icon: <IconFolderAddRight className="size-4 text-muted-foreground/80" />,
           keepOpen: true,
           run: async () => {
             openAddProjectFlow();
@@ -688,7 +688,7 @@ function OpenCommandPaletteDialog() {
 
   const openWorkspaceFlow = useCallback(() => {
     pushPaletteView({
-      addonIcon: <FolderIcon className="size-4" />,
+      addonIcon: <IconFolder1 className="size-4" />,
       groups: workspaceGroups,
       placeholder: "Search workspaces...",
     });
@@ -726,7 +726,7 @@ function OpenCommandPaletteDialog() {
             New thread in <span className="font-semibold">{activeProjectTitle}</span>
           </>
         ),
-        icon: <SquarePenIcon className="size-4 text-muted-foreground/80" />,
+        icon: <IconPencil className="size-4 text-muted-foreground/80" />,
         shortcutCommand: "chat.new",
         run: async () => {
           await startNewThreadFromContext({
@@ -745,8 +745,8 @@ function OpenCommandPaletteDialog() {
       value: "action:new-thread-in",
       searchTerms: ["new thread", "project", "pick", "choose", "select"],
       title: "New thread in...",
-      icon: <SquarePenIcon className="size-4 text-muted-foreground/80" />,
-      addonIcon: <SquarePenIcon className="size-4" />,
+      icon: <IconPencil className="size-4 text-muted-foreground/80" />,
+      addonIcon: <IconPencil className="size-4" />,
       groups: [{ value: "projects", label: "Projects", items: projectThreadItems }],
     });
   }
@@ -757,8 +757,8 @@ function OpenCommandPaletteDialog() {
       value: "action:add-project",
       searchTerms: ["add project", "folder", "directory", "browse", "environment"],
       title: "Add project",
-      icon: <FolderPlusIcon className="size-4 text-muted-foreground/80" />,
-      addonIcon: <FolderPlusIcon className="size-4" />,
+      icon: <IconFolderAddRight className="size-4 text-muted-foreground/80" />,
+      addonIcon: <IconFolderAddRight className="size-4" />,
       groups: addProjectEnvironmentGroups,
     });
   } else {
@@ -767,7 +767,7 @@ function OpenCommandPaletteDialog() {
       value: "action:add-project",
       searchTerms: ["add project", "folder", "directory", "browse"],
       title: "Add project",
-      icon: <FolderPlusIcon className="size-4 text-muted-foreground/80" />,
+      icon: <IconFolderAddRight className="size-4 text-muted-foreground/80" />,
       keepOpen: true,
       run: async () => {
         openAddProjectFlow();
@@ -780,7 +780,7 @@ function OpenCommandPaletteDialog() {
     value: "action:settings",
     searchTerms: ["settings", "preferences", "configuration", "keybindings"],
     title: "Open settings",
-    icon: <SettingsIcon className="size-4 text-muted-foreground/80" />,
+    icon: <IconSettingsGear2 className="size-4 text-muted-foreground/80" />,
     run: async () => {
       await navigate({ to: "/settings" });
     },
@@ -926,8 +926,8 @@ function OpenCommandPaletteDialog() {
     browseEntries: filteredBrowseEntries,
     browseQuery: query,
     canBrowseUp,
-    upIcon: <CornerLeftUpIcon className="size-4 text-muted-foreground/80" />,
-    directoryIcon: <FolderIcon className="size-4 text-muted-foreground/80" />,
+    upIcon: <IconArrowCornerLeftUp className="size-4 text-muted-foreground/80" />,
+    directoryIcon: <IconFolder1 className="size-4 text-muted-foreground/80" />,
     browseUp,
     browseTo,
   });
@@ -1094,13 +1094,13 @@ function OpenCommandPaletteDialog() {
                       aria-label="Back"
                       onClick={popView}
                     >
-                      <ArrowLeftIcon />
+                      <IconArrowLeft />
                     </button>
                   ),
                 }
               : isBrowsing && !isSubmenu
                 ? {
-                    startAddon: <FolderPlusIcon />,
+                    startAddon: <IconFolderAddRight />,
                   }
                 : {})}
             onKeyDown={handleKeyDown}
@@ -1154,10 +1154,10 @@ function OpenCommandPaletteDialog() {
           <div className="flex items-center gap-3">
             <KbdGroup className="items-center gap-1.5">
               <Kbd>
-                <ArrowUpIcon />
+                <IconArrowUp />
               </Kbd>
               <Kbd>
-                <ArrowDownIcon />
+                <IconArrowDown />
               </Kbd>
               <span className={cn("text-muted-foreground/80")}>Navigate</span>
             </KbdGroup>

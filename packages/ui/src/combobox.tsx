@@ -1,11 +1,7 @@
 "use client";
 
 import { Combobox as ComboboxPrimitive } from "@base-ui/react/combobox";
-import {
-  IconCheckmark1 as CheckIcon,
-  IconSortArrowUpDown as ChevronsUpDownIcon,
-  IconX as XIcon,
-} from "central-icons";
+import { IconCheckmark1, IconCrossMediumDefault, IconSortArrowUpDown } from "central-icons";
 import * as React from "react";
 
 import { cn } from "./utils";
@@ -113,7 +109,7 @@ function ComboboxInput({
           )}
         >
           <ComboboxPrimitive.Icon data-slot="combobox-icon">
-            <ChevronsUpDownIcon />
+            <IconSortArrowUpDown />
           </ComboboxPrimitive.Icon>
         </ComboboxTrigger>
       )}
@@ -124,7 +120,7 @@ function ComboboxInput({
             sizeValue === "sm" ? "end-0" : "end-0.5",
           )}
         >
-          <XIcon />
+          <IconCrossMediumDefault />
         </ComboboxClear>
       )}
     </div>
@@ -214,7 +210,7 @@ function ComboboxItem({
             className="flex items-center justify-center"
             data-slot="combobox-item-indicator"
           >
-            <CheckIcon />
+            <IconCheckmark1 />
           </ComboboxPrimitive.ItemIndicator>
         </span>
       ) : null}
@@ -379,7 +375,7 @@ function ComboboxChipRemove(props: ComboboxPrimitive.ChipRemove.Props) {
       data-slot="combobox-chip-remove"
       {...props}
     >
-      <XIcon />
+      <IconCrossMediumDefault />
     </ComboboxPrimitive.ChipRemove>
   );
 }

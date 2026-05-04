@@ -1,8 +1,5 @@
 import { memo } from "react";
-import {
-  IconChevronDownSmall as ChevronDownIcon,
-  IconChevronLeft as ChevronLeftIcon,
-} from "central-icons";
+import { IconChevronDownSmall, IconChevronLeft } from "central-icons";
 import { cn } from "~/lib/utils";
 import { Button } from "@multi/ui/button";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@multi/ui/menu";
@@ -75,7 +72,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
               disabled={pendingAction.isResponding}
               aria-label="Previous question"
             >
-              <ChevronLeftIcon className="size-3.5" />
+              <IconChevronLeft className="size-3.5" />
             </Button>
           ) : (
             <Button
@@ -160,7 +157,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
               />
             }
           >
-            <ChevronDownIcon className="size-3.5" />
+            <IconChevronDownSmall className="size-3.5" />
           </MenuTrigger>
           <MenuPopup align="end" side="top">
             <MenuItem
