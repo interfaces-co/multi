@@ -20,6 +20,7 @@ import { Button, buttonVariants } from "@multi/ui/button";
 import {
   Menu,
   MenuGroup,
+  MenuGroupLabel,
   MenuPopup,
   MenuRadioGroup,
   MenuRadioItem,
@@ -283,13 +284,11 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
     <>
       {selectDescriptors.map((descriptor, index) => (
         <div key={descriptor.id}>
-          {index > 0 ? <MenuDivider /> : null}
+          {index > 0 ? <MenuDivider variant="workbench" /> : null}
           <MenuGroup>
-            <div className="px-2 pt-1.5 pb-1 font-medium text-muted-foreground text-xs">
-              {descriptor.label}
-            </div>
+            <MenuGroupLabel variant="workbench">{descriptor.label}</MenuGroupLabel>
             {ultrathinkInBodyText && descriptor.id === primarySelectDescriptor?.id ? (
-              <div className="px-2 pb-1.5 text-muted-foreground/80 text-xs">
+              <div className="px-1 pb-1 text-multi-fg-tertiary text-[11px]/[14px]">
                 Your prompt contains &quot;ultrathink&quot; in the text. Remove it to change this
                 option.
               </div>
@@ -305,6 +304,7 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
               {descriptor.options.map((option) => (
                 <MenuRadioItem
                   key={option.id}
+                  variant="workbench"
                   value={option.id}
                   disabled={ultrathinkInBodyText && descriptor.id === primarySelectDescriptor?.id}
                 >
@@ -318,11 +318,11 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
       ))}
       {booleanDescriptors.map((descriptor, index) => (
         <div key={descriptor.id}>
-          {index > 0 || selectDescriptors.length > 0 ? <MenuDivider /> : null}
+          {index > 0 || selectDescriptors.length > 0 ? (
+            <MenuDivider variant="workbench" />
+          ) : null}
           <MenuGroup>
-            <div className="px-2 py-1.5 font-medium text-muted-foreground text-xs">
-              {descriptor.label}
-            </div>
+            <MenuGroupLabel variant="workbench">{descriptor.label}</MenuGroupLabel>
             <MenuRadioGroup
               value={descriptor.currentValue === true ? "on" : "off"}
               onValueChange={(value) => {
@@ -331,8 +331,12 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
                 );
               }}
             >
-              <MenuRadioItem value="on">On</MenuRadioItem>
-              <MenuRadioItem value="off">Off</MenuRadioItem>
+              <MenuRadioItem variant="workbench" value="on">
+                On
+              </MenuRadioItem>
+              <MenuRadioItem variant="workbench" value="off">
+                Off
+              </MenuRadioItem>
             </MenuRadioGroup>
           </MenuGroup>
         </div>
@@ -428,7 +432,7 @@ export const TraitsPicker = memo(function TraitsPicker({
           </>
         )}
       </MenuTrigger>
-      <MenuPopup align="start">
+      <MenuPopup align="start" variant="workbench">
         <TraitsMenuContent
           provider={provider}
           models={models}

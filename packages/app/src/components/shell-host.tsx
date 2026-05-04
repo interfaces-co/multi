@@ -31,12 +31,12 @@ import {
   useTerminalSessions,
 } from "~/lib/shell-panels-store";
 import { useThreadUnreadStore } from "~/lib/thread-unread-store";
-import { type SessionListSummary } from "~/lib/ui-session-types";
 import { writeStoredWorkspaceCwd } from "~/lib/workspace-state";
 import { inferLoginShellCaption } from "~/lib/terminal-shell-caption";
 import {
   buildWorkspaceChatSections,
   type SidebarDraftSummary,
+  type SidebarThreadSummary as SidebarSectionThreadSummary,
 } from "~/lib/sidebar-chat-view-model";
 import { cn, newCommandId, newMessageId, newThreadId } from "~/lib/utils";
 import { resolveSidebarNewThreadEnvMode, resolveThreadStatusPill } from "~/lib/thread-sidebar";
@@ -51,7 +51,7 @@ import {
   DEFAULT_INTERACTION_MODE,
   DEFAULT_RUNTIME_MODE,
   type Project,
-  type SidebarThreadSummary,
+  type SidebarThreadSummary as StoreSidebarThreadSummary,
   type Thread,
 } from "~/types";
 import { resolveThreadRouteTarget } from "~/thread-routes";
@@ -77,7 +77,7 @@ function sidebarThreadKey(thread: { environmentId: EnvironmentId; id: ThreadId }
   return scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id));
 }
 
-function needsSidebarAttention(sidebarThread: SidebarThreadSummary | undefined): boolean {
+function needsSidebarAttention(sidebarThread: StoreSidebarThreadSummary | undefined): boolean {
   if (!sidebarThread) return false;
   const label = resolveThreadStatusPill({ thread: sidebarThread })?.label;
   return label === "Pending Approval" || label === "Awaiting Input" || label === "Plan Ready";
@@ -85,15 +85,18 @@ function needsSidebarAttention(sidebarThread: SidebarThreadSummary | undefined):
 
 function toSummary(
   thread: Thread,
-  project: Project | undefined,
-  sidebarThread: SidebarThreadSummary | undefined,
-): SessionListSummary {
+  project: Project,
+  sidebarThread: StoreSidebarThreadSummary | undefined,
+): SidebarSectionThreadSummary {
   const firstUserMessage = thread.messages.find((message) => message.role === "user")?.text?.trim();
-  const cwd = thread.worktreePath ?? project?.cwd ?? "";
+  const cwd = thread.worktreePath ?? project.cwd;
   const orchestrationStatus =
     thread.session?.orchestrationStatus ?? sidebarThread?.session?.orchestrationStatus ?? null;
   return {
     id: thread.id,
+    environmentId: thread.environmentId,
+    projectId: thread.projectId,
+    projectCwd: project.cwd,
     harness: toHarness(thread.modelSelection.instanceId),
     path: cwd,
     cwd,
@@ -212,6 +215,9 @@ function ChatShellHost(props: { children?: ReactNode }) {
         const project = projectByScopedKey.get(
           scopedProjectKey(scopeProjectRef(draftThread.environmentId, draftThread.projectId)),
         );
+        if (!project) {
+          return [];
+        }
         const firstAttachment = composerDraft?.images[0] ?? composerDraft?.persistedAttachments[0];
         const attachmentCount =
           (composerDraft?.images.length ?? 0) + (composerDraft?.persistedAttachments.length ?? 0);
@@ -221,7 +227,10 @@ function ChatShellHost(props: { children?: ReactNode }) {
             text: composerDraft?.prompt ?? "",
             attachmentCount,
             firstAttachmentName: firstAttachment?.name ?? null,
-            cwd: draftThread.worktreePath ?? project?.cwd ?? "/",
+            cwd: draftThread.worktreePath ?? project.cwd,
+            environmentId: draftThread.environmentId,
+            projectId: draftThread.projectId,
+            projectCwd: project.cwd,
             updatedAt: draftThread.createdAt,
           },
         ];
@@ -229,19 +238,19 @@ function ChatShellHost(props: { children?: ReactNode }) {
   }, [composerDraftsByThreadKey, draftThreadsByThreadKey, projectByScopedKey]);
 
   const summaries = useMemo(() => {
-    return Object.fromEntries(
-      threads
-        .filter((thread: Thread) => thread.archivedAt === null)
-        .map((thread: Thread) => [
-          thread.id,
-          toSummary(
-            thread,
-            projectById.get(thread.projectId),
-            sidebarThreadByKey.get(sidebarThreadKey(thread)),
-          ),
-        ]),
-    ) as Record<string, SessionListSummary>;
-  }, [projectById, sidebarThreadByKey, threads]);
+    return threads.flatMap((thread: Thread) => {
+      if (thread.archivedAt !== null) {
+        return [];
+      }
+      const project = projectByScopedKey.get(
+        scopedProjectKey(scopeProjectRef(thread.environmentId, thread.projectId)),
+      );
+      if (!project) {
+        return [];
+      }
+      return [toSummary(thread, project, sidebarThreadByKey.get(sidebarThreadKey(thread)))];
+    });
+  }, [projectByScopedKey, sidebarThreadByKey, threads]);
 
   const unreadIds = useMemo(
     () => new Set(Object.keys(unread).filter((id) => unread[id])),
@@ -270,7 +279,11 @@ function ChatShellHost(props: { children?: ReactNode }) {
   const activeCwd =
     activeDraftCwd ??
     (activeThread
-      ? (activeThread.worktreePath ?? projectById.get(activeThread.projectId)?.cwd ?? null)
+      ? (activeThread.worktreePath ??
+        projectByScopedKey.get(
+          scopedProjectKey(scopeProjectRef(activeThread.environmentId, activeThread.projectId)),
+        )?.cwd ??
+        null)
       : (defaultProject?.cwd ?? firstProjectCwd));
   const activeDraftProjectCwd = activeDraftThread
     ? (projectByScopedKey.get(
@@ -280,7 +293,9 @@ function ChatShellHost(props: { children?: ReactNode }) {
       )?.cwd ?? null)
     : null;
   const activeThreadProjectCwd = activeThread
-    ? (projectById.get(activeThread.projectId)?.cwd ?? null)
+    ? (projectByScopedKey.get(
+        scopedProjectKey(scopeProjectRef(activeThread.environmentId, activeThread.projectId)),
+      )?.cwd ?? null)
     : null;
   const rightWorkbenchPersistenceCwd = activeDraftThread
     ? (activeDraftProjectCwd ?? activeDraftThread.worktreePath ?? null)

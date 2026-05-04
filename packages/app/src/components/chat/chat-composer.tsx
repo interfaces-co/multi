@@ -549,6 +549,7 @@ export const ChatComposer = memo(
       onExpandImage,
     } = props;
     const composerVariant = variant === "hero" ? "expanded" : "compact";
+    const modelPickerPlacement = "top-start";
 
     // ------------------------------------------------------------------
     // Store subscriptions (prompt / images / terminal contexts)
@@ -796,6 +797,7 @@ export const ChatComposer = memo(
     const composerEditorRef = useRef<ComposerPromptEditorHandle>(null);
     const composerFormRef = useRef<HTMLFormElement>(null);
     const composerFormHeightRef = useRef(0);
+    const isComposerModelPickerOpenRef = useRef(isComposerModelPickerOpen);
     const composerSelectLockRef = useRef(false);
     const composerMenuOpenRef = useRef(false);
     const composerMenuItemsRef = useRef<ComposerCommandItem[]>([]);
@@ -804,6 +806,7 @@ export const ChatComposer = memo(
     const initialComposerTriggerSuppressionPromptRef = useRef(prompt);
     const dismissedComposerTriggerKeyRef = useRef<string | null>(null);
     const dragDepthRef = useRef(0);
+    isComposerModelPickerOpenRef.current = isComposerModelPickerOpen;
 
     const composerTriggerDismissKey = useCallback(
       (trigger: ComposerTrigger) =>
@@ -1291,6 +1294,9 @@ export const ChatComposer = memo(
         const previousHeight = composerFormHeightRef.current;
         composerFormHeightRef.current = nextHeight;
         if (previousHeight > 0 && Math.abs(nextHeight - previousHeight) < 0.5) return;
+        // The model picker owns a portalled popover whose opening can resize the footer.
+        // Keep the timeline stationary while Base UI is anchoring that popup.
+        if (isComposerModelPickerOpenRef.current) return;
         if (!shouldAutoScrollRef.current) return;
         scheduleStickToBottom();
       });
@@ -1956,7 +1962,7 @@ export const ChatComposer = memo(
       <form
         ref={composerFormRef}
         onSubmit={onSend}
-        className="mx-auto w-full min-w-0 max-w-[var(--composer-max-width)]"
+        className="mx-auto w-full min-w-0 max-w-(--composer-max-width)"
         data-variant={composerVariant}
         data-chat-composer-form="true"
       >
@@ -1983,7 +1989,7 @@ export const ChatComposer = memo(
           isExpanded={isDockComposerExpanded}
           isMenuOpen={composerMenuOpen}
           isRunning={phase === "running"}
-          modelPickerPlacement="bottom-start"
+          modelPickerPlacement={modelPickerPlacement}
           plusMenuPlacement="bottom-start"
           slashMenuAnchor="cursor"
           slashMenuPlacement="top-start"
@@ -2004,10 +2010,9 @@ export const ChatComposer = memo(
             )}
           >
             <div
-              className={cn(
-                "ui-prompt-input-editor relative px-3 pb-2 sm:px-4",
-                hasComposerHeader ? "pt-2.5 sm:pt-3" : "pt-3.5 sm:pt-4",
-              )}
+              className="ui-prompt-input-editor relative"
+              data-expanded={isDockComposerExpanded ? "" : undefined}
+              data-variant={composerVariant}
             >
               {!isComposerApprovalState &&
                 pendingUserInputs.length === 0 &&
@@ -2162,9 +2167,9 @@ export const ChatComposer = memo(
                 <PromptInputToolbarLeft className="-m-1 flex min-w-0 flex-1 items-center gap-1 overflow-x-auto p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   <span
                     className={cn(
-                      "inline-flex min-w-0 max-w-[var(--agent-prompt-model-picker-max-width)] overflow-hidden [--agent-prompt-model-picker-max-width:240px]",
+                      "inline-flex min-w-0 max-w-(--agent-prompt-model-picker-max-width) overflow-hidden [--agent-prompt-model-picker-max-width:240px]",
                       isComposerFooterCompact &&
-                        "order-2 [--agent-prompt-model-picker-max-width:200px]",
+                        "[--agent-prompt-model-picker-max-width:200px]",
                     )}
                     data-compact-visible=""
                   >
@@ -2181,6 +2186,7 @@ export const ChatComposer = memo(
                       terminalOpen={terminalOpen}
                       open={isComposerModelPickerOpen}
                       openSearchSeed={modelPickerOpenSearchSeed}
+                      popoverPlacement={modelPickerPlacement}
                       {...(composerProviderState.ultrathinkActive
                         ? {
                             activeProviderIconClassName:
@@ -2198,7 +2204,7 @@ export const ChatComposer = memo(
                   </span>
 
                   {isComposerFooterCompact ? (
-                    <span data-compact-visible="">
+                    <span className="inline-flex shrink-0" data-compact-visible="">
                       <CompactComposerControlsMenu
                         activePlan={showPlanSidebarToggle}
                         interactionMode={interactionMode}

@@ -21,11 +21,12 @@ import {
   type MessagesTimelineRow,
 } from "./messages-timeline.logic";
 import { cn } from "~/lib/utils";
-import { type TimestampFormat } from "@multi/contracts/settings";
 import { HumanMessage } from "./human-message";
 import { AssistantMessage } from "./assistant-message";
 import { WorkingStatusRow } from "./working-status-row";
 import { ToolCallMessage } from "./tool-call-message";
+
+type UserMessageTimelineRow = Extract<MessagesTimelineRow, { kind: "message" }>;
 
 // ---------------------------------------------------------------------------
 // Context — shared state consumed by every row component via useContext.
@@ -37,32 +38,34 @@ export interface TimelineRowSharedState {
   isWorking: boolean;
   isRevertingCheckpoint: boolean;
   completionSummary: string | null;
-  timestampFormat: TimestampFormat;
   routeThreadKey: string;
   markdownCwd: string | undefined;
   resolvedTheme: "light" | "dark";
   workspaceRoot: string | undefined;
   activeThreadEnvironmentId: EnvironmentId;
-  onRevertUserMessage: (messageId: MessageId) => void;
+  isServerThread: boolean;
+  onBeginEditUserMessage: ((messageId: MessageId) => void) | undefined;
   onImageExpand: (preview: ExpandedImagePreview) => void;
   onOpenTurnDiff: (turnId: TurnId, filePath?: string) => void;
 }
 
 export const TimelineRowCtx = createContext<TimelineRowSharedState>(null!);
 
-const CURSOR_TIMELINE_SCROLLER_STYLE = {
+const CHAT_TIMELINE_SCROLLER_STYLE = {
   paddingTop: 12,
   paddingBottom: 24,
 } satisfies CSSProperties;
 
-const CURSOR_TIMELINE_CONTENT_STYLE = {
+const CHAT_TIMELINE_ROW_GAP = 12;
+
+const CHAT_TIMELINE_CONTENT_STYLE = {
   boxSizing: "border-box",
   margin: "0 auto",
   maxWidth: "var(--composer-max-width, 840px)",
   width: "100%",
-  paddingLeft: "var(--cursor-spacing-4, 16px)",
-  paddingRight: "var(--cursor-spacing-4, 16px)",
-  gap: 12,
+  paddingLeft: "var(--composer-messages-padding-inline, 16px)",
+  paddingRight: "var(--composer-messages-padding-inline, 16px)",
+  gap: CHAT_TIMELINE_ROW_GAP,
 } satisfies CSSProperties;
 
 // ---------------------------------------------------------------------------
@@ -82,14 +85,14 @@ interface MessagesTimelineProps {
   routeThreadKey: string;
   onOpenTurnDiff: (turnId: TurnId, filePath?: string) => void;
   revertTurnCountByUserMessageId: Map<MessageId, number>;
-  onRevertUserMessage: (messageId: MessageId) => void;
   isRevertingCheckpoint: boolean;
   onImageExpand: (preview: ExpandedImagePreview) => void;
   activeThreadEnvironmentId: EnvironmentId;
   markdownCwd: string | undefined;
   resolvedTheme: "light" | "dark";
-  timestampFormat: TimestampFormat;
   workspaceRoot: string | undefined;
+  isServerThread: boolean;
+  onBeginEditUserMessage: ((messageId: MessageId) => void) | undefined;
   onIsAtEndChange: (isAtEnd: boolean) => void;
 }
 
@@ -110,14 +113,14 @@ export const MessagesTimeline = memo(function MessagesTimeline({
   routeThreadKey,
   onOpenTurnDiff,
   revertTurnCountByUserMessageId,
-  onRevertUserMessage,
   isRevertingCheckpoint,
   onImageExpand,
   activeThreadEnvironmentId,
   markdownCwd,
   resolvedTheme,
-  timestampFormat,
   workspaceRoot,
+  isServerThread,
+  onBeginEditUserMessage,
   onIsAtEndChange,
 }: MessagesTimelineProps) {
   const rawRows = useMemo(
@@ -140,15 +143,22 @@ export const MessagesTimeline = memo(function MessagesTimeline({
     ],
   );
   const rows = useStableRows(rawRows);
+  const stickyUserRowIndices = useMemo(
+    () => rows.flatMap((row, index) => (isUserMessageRow(row) ? [index] : [])),
+    [rows],
+  );
   const isAtEndRef = useRef(true);
 
-  const handleScroll = useCallback(() => {
-    const state = listRef.current?.getState?.();
-    if (state) {
-      isAtEndRef.current = state.isAtEnd;
-      onIsAtEndChange(state.isAtEnd);
-    }
-  }, [listRef, onIsAtEndChange]);
+  const handleScroll = useCallback(
+    () => {
+      const state = listRef.current?.getState?.();
+      if (state) {
+        isAtEndRef.current = state.isAtEnd;
+        onIsAtEndChange(state.isAtEnd);
+      }
+    },
+    [listRef, onIsAtEndChange],
+  );
 
   const previousRowCountRef = useRef(rows.length);
   useEffect(() => {
@@ -192,13 +202,13 @@ export const MessagesTimeline = memo(function MessagesTimeline({
       isWorking,
       isRevertingCheckpoint,
       completionSummary,
-      timestampFormat,
       routeThreadKey,
       markdownCwd,
       resolvedTheme,
       workspaceRoot,
       activeThreadEnvironmentId,
-      onRevertUserMessage,
+      isServerThread,
+      onBeginEditUserMessage,
       onImageExpand,
       onOpenTurnDiff,
     }),
@@ -208,13 +218,13 @@ export const MessagesTimeline = memo(function MessagesTimeline({
       isWorking,
       isRevertingCheckpoint,
       completionSummary,
-      timestampFormat,
       routeThreadKey,
       markdownCwd,
       resolvedTheme,
       workspaceRoot,
       activeThreadEnvironmentId,
-      onRevertUserMessage,
+      isServerThread,
+      onBeginEditUserMessage,
       onImageExpand,
       onOpenTurnDiff,
     ],
@@ -237,21 +247,30 @@ export const MessagesTimeline = memo(function MessagesTimeline({
 
   return (
     <TimelineRowCtx.Provider value={sharedState}>
-      <div className="agent-panel-meta-agent-chat-shell ui-imsg-thread h-full min-h-0">
+      <div
+        className={cn(
+          "agent-panel-meta-agent-chat-shell ui-imsg-thread relative flex h-full min-h-0 flex-1 flex-col gap-0 overflow-hidden",
+          "[--meta-agent-thread-stack-gap:8px]",
+          "[--meta-agent-thread-stack-horizontal-inset:20px]",
+          "[--meta-agent-thread-stack-bottom-inset:24px]",
+          "[--meta-agent-thread-stack-top-inset:16px]",
+        )}
+      >
         <LegendList<MessagesTimelineRow>
           ref={listRef}
           data={rows}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
+          stickyHeaderIndices={stickyUserRowIndices}
           estimatedItemSize={90}
           initialScrollAtEnd
           maintainScrollAtEnd
           maintainScrollAtEndThreshold={0.1}
           maintainVisibleContentPosition
           onScroll={handleScroll}
-          className="agent-panel-meta-agent-chat h-full overflow-x-hidden overscroll-y-contain"
-          style={CURSOR_TIMELINE_SCROLLER_STYLE}
-          contentContainerStyle={CURSOR_TIMELINE_CONTENT_STYLE}
+          className="agent-panel-meta-agent-chat h-full min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain"
+          style={CHAT_TIMELINE_SCROLLER_STYLE}
+          contentContainerStyle={CHAT_TIMELINE_CONTENT_STYLE}
           ListHeaderComponent={<div />}
           ListFooterComponent={<div />}
         />
@@ -262,6 +281,10 @@ export const MessagesTimeline = memo(function MessagesTimeline({
 
 function keyExtractor(item: MessagesTimelineRow) {
   return item.id;
+}
+
+function isUserMessageRow(row: MessagesTimelineRow): row is UserMessageTimelineRow {
+  return row.kind === "message" && row.message.role === "user";
 }
 
 // ---------------------------------------------------------------------------
@@ -276,7 +299,7 @@ function TimelineRowContent({ row }: { row: TimelineRow }) {
   return (
     <div
       className={cn(
-        "ui-imsg-thread__entry agent-panel-meta-agent-chat__message-entry overflow-x-hidden",
+        "agent-panel-meta-agent-chat__message-entry flex w-full min-w-0 flex-col gap-1 overflow-x-hidden [content-visibility:auto] [contain-intrinsic-size:96px]",
         row.kind === "message" && row.message.role === "assistant" ? "group/assistant" : null,
       )}
       data-meta-agent-chat-bubble-id={row.id}
@@ -288,30 +311,27 @@ function TimelineRowContent({ row }: { row: TimelineRow }) {
       data-message-role={row.kind === "message" ? row.message.role : undefined}
     >
       {row.kind === "work" && (
-        <div className="agent-panel-meta-agent-chat__row agent-panel-meta-agent-chat__row--tool-call">
+        <div className="agent-panel-meta-agent-chat__row agent-panel-meta-agent-chat__row--tool-call flex w-full min-w-0">
           <WorkGroupSection groupedEntries={row.groupedEntries} />
         </div>
       )}
 
       {row.kind === "message" && row.message.role === "user" && (
-        <div className="agent-panel-meta-agent-chat__row agent-panel-meta-agent-chat__row--human">
+        <div className="agent-panel-meta-agent-chat__row agent-panel-meta-agent-chat__row--human box-border flex w-full min-w-0 px-0">
           <HumanMessage
             message={row.message}
             revertTurnCount={row.revertTurnCount}
-            isRevertingCheckpoint={ctx.isRevertingCheckpoint}
-            isWorking={ctx.isWorking}
-            timestampFormat={ctx.timestampFormat}
+            isServerThread={ctx.isServerThread}
             onImageExpand={ctx.onImageExpand}
-            onRevertUserMessage={ctx.onRevertUserMessage}
+            onBeginEditUserMessage={ctx.onBeginEditUserMessage}
           />
         </div>
       )}
 
       {row.kind === "message" && row.message.role === "assistant" && (
-        <div className="agent-panel-meta-agent-chat__row agent-panel-meta-agent-chat__row--assistant">
+        <div className="agent-panel-meta-agent-chat__row agent-panel-meta-agent-chat__row--assistant box-border flex w-full min-w-0 px-0">
           <AssistantMessage
             message={row.message}
-            durationStart={row.durationStart}
             showCompletionDivider={row.showCompletionDivider}
             showAssistantCopyButton={row.showAssistantCopyButton}
             assistantTurnDiffSummary={row.assistantTurnDiffSummary}
@@ -321,14 +341,13 @@ function TimelineRowContent({ row }: { row: TimelineRow }) {
             routeThreadKey={ctx.routeThreadKey}
             markdownCwd={ctx.markdownCwd}
             resolvedTheme={ctx.resolvedTheme}
-            timestampFormat={ctx.timestampFormat}
             onOpenTurnDiff={ctx.onOpenTurnDiff}
           />
         </div>
       )}
 
       {row.kind === "proposed-plan" && (
-        <div className="min-w-0 px-1 py-0.5">
+        <div className="agent-panel-meta-agent-chat__row agent-panel-meta-agent-chat__row--tool-call min-w-0 px-1 py-0.5">
           <ProposedPlanCard
             planMarkdown={row.proposedPlan.planMarkdown}
             environmentId={ctx.activeThreadEnvironmentId}
@@ -339,7 +358,7 @@ function TimelineRowContent({ row }: { row: TimelineRow }) {
       )}
 
       {row.kind === "working" && (
-        <div className="agent-panel-meta-agent-chat__row agent-panel-meta-agent-chat__row--loading">
+        <div className="agent-panel-meta-agent-chat__row agent-panel-meta-agent-chat__row--loading flex w-full min-w-0 opacity-75">
           <WorkingStatusRow createdAt={row.createdAt} />
         </div>
       )}
@@ -359,9 +378,9 @@ const WorkGroupSection = memo(function WorkGroupSection({
   const { workspaceRoot } = use(TimelineRowCtx);
 
   return (
-    <div className="ui-imsg-thread__bubble-shell">
-      <div className="agent-panel-meta-agent-chat__tool-call-row">
-        <div className="flex w-fit max-w-[min(100%,var(--composer-max-width))] flex-col gap-[var(--cursor-spacing-1-5)]">
+    <div>
+      <div className="w-full">
+        <div className="flex w-fit max-w-[min(100%,var(--composer-max-width))] flex-col gap-1.5">
           {groupedEntries.map((workEntry) => (
             <ToolCallMessage
               key={`work-row:${workEntry.toolCallId ?? workEntry.id}`}

@@ -67,7 +67,7 @@ export function SettingsRow({
   return (
     <div
       className={cn(
-        "border-t border-[var(--multi-stroke-quaternary)] px-2.5 first:border-t-0 sm:px-3",
+        "border-t border-(color:--multi-stroke-quaternary) px-2.5 first:border-t-0 sm:px-3",
         children ? "pt-3 pb-0" : "py-2.5",
       )}
     >

@@ -20,6 +20,37 @@ import {
 import { setModelPickerOpen } from "../../model-picker-open-state";
 import type { ProviderInstanceEntry } from "../../provider-instances";
 
+type ModelPickerPopoverPlacement =
+  | "top"
+  | "top-start"
+  | "top-end"
+  | "bottom"
+  | "bottom-start"
+  | "bottom-end";
+
+type ResolvedModelPickerPopoverPlacement = {
+  side: "top" | "bottom";
+  align: "start" | "center" | "end";
+};
+
+const MODEL_PICKER_POPOVER_PLACEMENTS: Record<
+  ModelPickerPopoverPlacement,
+  ResolvedModelPickerPopoverPlacement
+> = {
+  top: { side: "top", align: "center" },
+  "top-start": { side: "top", align: "start" },
+  "top-end": { side: "top", align: "end" },
+  bottom: { side: "bottom", align: "center" },
+  "bottom-start": { side: "bottom", align: "start" },
+  "bottom-end": { side: "bottom", align: "end" },
+};
+
+const MODEL_PICKER_EXPLICIT_PLACEMENT_COLLISION_AVOIDANCE = {
+  side: "shift",
+  align: "shift",
+  fallbackAxisSide: "none",
+} as const;
+
 export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   /**
    * The instance currently selected in the composer. Drives the trigger
@@ -43,6 +74,7 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
    * `undefined` keeps the previous search query from the last open.
    */
   openSearchSeed?: string | undefined;
+  popoverPlacement?: ModelPickerPopoverPlacement;
   triggerVariant?: VariantProps<typeof buttonVariants>["variant"];
   triggerClassName?: string;
   onOpenChange?: (open: boolean) => void;
@@ -72,6 +104,7 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   const triggerTitle = selectedModel ? getTriggerDisplayModelName(selectedModel) : props.model;
   const triggerSubtitle = selectedModel?.subProvider;
   const triggerLabel = selectedModel ? getTriggerDisplayModelLabel(selectedModel) : props.model;
+  const popoverPlacement = MODEL_PICKER_POPOVER_PLACEMENTS[props.popoverPlacement ?? "bottom-start"];
   const duplicateDriverCount = props.instanceEntries.filter(
     (entry) => activeEntry !== null && entry.driverKind === activeEntry.driverKind,
   ).length;
@@ -115,7 +148,7 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
             variant={props.triggerVariant ?? "ghost"}
             data-chat-provider-model-picker="true"
             className={cn(
-              "max-w-full min-w-0 justify-start overflow-hidden rounded-[var(--cursor-radius-full,var(--multi-radius-full))] px-[var(--cursor-spacing-1-5,6px)] py-[var(--cursor-spacing-2-5,10px)] text-muted-foreground/70 whitespace-nowrap hover:text-foreground/80 [&_svg]:mx-0",
+              "max-w-full min-w-0 justify-start overflow-hidden rounded-full px-1.5 py-2.5 text-muted-foreground/70 whitespace-nowrap hover:text-foreground/80 [&_svg]:mx-0",
               props.compact ? "max-w-42 shrink-0" : "max-w-48 shrink sm:max-w-56 sm:px-3",
               props.triggerClassName,
             )}
@@ -155,11 +188,13 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
             >
               {triggerSubtitle ? (
                 <>
-                  <span className="min-w-0 truncate">{triggerSubtitle}</span>
+                  <span className="min-w-0 truncate">{triggerTitle}</span>
                   <span aria-hidden="true" className="shrink-0 opacity-60">
                     ·
                   </span>
-                  <span className="min-w-0 truncate">{triggerTitle}</span>
+                  <span className="min-w-0 truncate text-muted-foreground/85">
+                    {triggerSubtitle}
+                  </span>
                 </>
               ) : (
                 triggerTitle
@@ -171,7 +206,17 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
         </span>
       </PopoverTrigger>
       <PopoverPopup
-        align="start"
+        align={popoverPlacement.align}
+        instant
+        initialFocus={false}
+        positionMethod="fixed"
+        side={popoverPlacement.side}
+        sticky
+        collisionAvoidance={
+          props.popoverPlacement
+            ? MODEL_PICKER_EXPLICIT_PLACEMENT_COLLISION_AVOIDANCE
+            : undefined
+        }
         className="z-[70] border-0 bg-transparent p-0 opacity-100 shadow-none before:hidden data-starting-style:scale-100 data-starting-style:opacity-100 [--viewport-inline-padding:0] *:data-[slot=popover-viewport]:p-0"
       >
         <ModelPickerContent

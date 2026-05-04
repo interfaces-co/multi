@@ -1,9 +1,9 @@
 import { ProviderDriverKind } from "@multi/contracts";
-import { ClaudeAI, CursorIcon, Icon, OpenAI, OpenCodeIcon } from "../icons";
+import { ClaudeAI, CodexIcon, CursorIcon, Icon, OpenCodeIcon } from "../icons";
 import { PROVIDER_OPTIONS } from "../../session-logic";
 
 export const PROVIDER_ICON_BY_PROVIDER: Partial<Record<ProviderDriverKind, Icon>> = {
-  [ProviderDriverKind.make("codex")]: OpenAI,
+  [ProviderDriverKind.make("codex")]: CodexIcon,
   [ProviderDriverKind.make("claudeAgent")]: ClaudeAI,
   [ProviderDriverKind.make("opencode")]: OpenCodeIcon,
   [ProviderDriverKind.make("cursor")]: CursorIcon,

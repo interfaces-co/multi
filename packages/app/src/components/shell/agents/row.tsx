@@ -1,13 +1,10 @@
-import { scopeThreadRef } from "@multi/client-runtime";
 import { StatusDot as UiStatusDot } from "@multi/ui/status-dot";
-import type { ThreadId } from "@multi/contracts";
 import {
   type ComponentProps,
   type KeyboardEvent,
   memo,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -19,7 +16,6 @@ import { useThreadActions } from "~/hooks/use-thread-actions";
 import type { SidebarChatItem } from "~/lib/sidebar-chat-view-model";
 import { useThreadUnreadStore } from "~/lib/thread-unread-store";
 import { cn } from "~/lib/utils";
-import { selectThreadsAcrossEnvironments, useStore } from "~/store";
 
 type UiStatusDotState = NonNullable<ComponentProps<typeof UiStatusDot>["state"]>;
 
@@ -71,19 +67,7 @@ export const AgentRow = memo(
     onPrefetchAgent?: (id: string) => void;
   }) {
     const { commitRename, archiveThread } = useThreadActions();
-    const environmentId = useStore((state) =>
-      props.item.kind === "thread"
-        ? (selectThreadsAcrossEnvironments(state).find((item) => item.id === props.item.id)
-            ?.environmentId ?? null)
-        : null,
-    );
-    const targetThreadRef = useMemo(
-      () =>
-        environmentId && props.item.kind === "thread"
-          ? scopeThreadRef(environmentId, props.item.id as ThreadId)
-          : null,
-      [environmentId, props.item.kind, props.item.id],
-    );
+    const targetThreadRef = props.item.kind === "thread" ? props.item.threadRef : null;
     const mark = useThreadUnreadStore((s) => s.mark);
     const [renaming, setRenaming] = useState(false);
     const [renameValue, setRenameValue] = useState("");

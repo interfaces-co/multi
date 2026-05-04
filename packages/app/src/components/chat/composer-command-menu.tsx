@@ -295,15 +295,15 @@ const ComposerCommandMenuItem = memo(function ComposerCommandMenuItem(props: {
         </span>
       ) : null}
       <span className="ui-slash-menu__item-title-wrap flex min-w-0 flex-1 items-baseline gap-2">
-        <span className="ui-slash-menu__item-title min-w-0 flex-none truncate text-[12px]/[18px] font-medium text-[var(--cursor-text-primary,var(--multi-fg-primary))]">
+        <span className="ui-slash-menu__item-title min-w-0 flex-none truncate text-[12px]/[18px] font-medium text-multi-fg-primary">
           {props.item.label}
         </span>
-        <span className="ui-menu__item-description ui-slash-menu__item-inline-description min-w-0 flex-1 truncate text-[11px]/[16px] text-[var(--cursor-text-tertiary,var(--multi-fg-tertiary))]">
+        <span className="ui-menu__item-description ui-slash-menu__item-inline-description min-w-0 flex-1 truncate text-[11px]/[16px] text-multi-fg-tertiary">
           {props.item.description}
         </span>
       </span>
       {tertiaryText ? (
-        <span className="ui-slash-menu__item-tertiary-text flex-none whitespace-nowrap pl-2 text-[11px]/[16px] text-[var(--cursor-text-tertiary,var(--multi-fg-tertiary))]">
+        <span className="ui-slash-menu__item-tertiary-text flex-none whitespace-nowrap pl-2 text-[11px]/[16px] text-multi-fg-tertiary">
           {tertiaryText}
         </span>
       ) : null}

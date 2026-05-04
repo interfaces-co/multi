@@ -4,6 +4,8 @@ import { IconDotGrid1x3Horizontal, IconSquareChecklist } from "central-icons";
 import { Button } from "@multi/ui/button";
 import {
   Menu,
+  MenuGroup,
+  MenuGroupLabel,
   MenuItem,
   MenuPopup,
   MenuRadioGroup,
@@ -38,45 +40,59 @@ export const CompactComposerControlsMenu = memo(function CompactComposerControls
       >
         <IconDotGrid1x3Horizontal aria-hidden="true" className="size-4" />
       </MenuTrigger>
-      <MenuPopup align="start">
+      <MenuPopup align="start" variant="workbench">
         {props.traitsMenuContent ? (
           <>
             {props.traitsMenuContent}
-            <MenuDivider />
+            <MenuDivider variant="workbench" />
           </>
         ) : null}
         {props.showInteractionModeToggle ? (
           <>
-            <div className="px-2 py-1.5 font-medium text-muted-foreground text-xs">Mode</div>
-            <MenuRadioGroup
-              value={props.interactionMode}
-              onValueChange={(value) => {
-                if (!value || value === props.interactionMode) return;
-                props.onToggleInteractionMode();
-              }}
-            >
-              <MenuRadioItem value="default">Chat</MenuRadioItem>
-              <MenuRadioItem value="plan">Plan</MenuRadioItem>
-            </MenuRadioGroup>
-            <MenuDivider />
+            <MenuGroup>
+              <MenuGroupLabel variant="workbench">Mode</MenuGroupLabel>
+              <MenuRadioGroup
+                value={props.interactionMode}
+                onValueChange={(value) => {
+                  if (!value || value === props.interactionMode) return;
+                  props.onToggleInteractionMode();
+                }}
+              >
+                <MenuRadioItem variant="workbench" value="default">
+                  Chat
+                </MenuRadioItem>
+                <MenuRadioItem variant="workbench" value="plan">
+                  Plan
+                </MenuRadioItem>
+              </MenuRadioGroup>
+            </MenuGroup>
+            <MenuDivider variant="workbench" />
           </>
         ) : null}
-        <div className="px-2 py-1.5 font-medium text-muted-foreground text-xs">Access</div>
-        <MenuRadioGroup
-          value={props.runtimeMode}
-          onValueChange={(value) => {
-            if (!value || value === props.runtimeMode) return;
-            props.onRuntimeModeChange(value as RuntimeMode);
-          }}
-        >
-          <MenuRadioItem value="approval-required">Supervised</MenuRadioItem>
-          <MenuRadioItem value="auto-accept-edits">Auto-accept edits</MenuRadioItem>
-          <MenuRadioItem value="full-access">Full access</MenuRadioItem>
-        </MenuRadioGroup>
+        <MenuGroup>
+          <MenuGroupLabel variant="workbench">Access</MenuGroupLabel>
+          <MenuRadioGroup
+            value={props.runtimeMode}
+            onValueChange={(value) => {
+              if (!value || value === props.runtimeMode) return;
+              props.onRuntimeModeChange(value as RuntimeMode);
+            }}
+          >
+            <MenuRadioItem variant="workbench" value="approval-required">
+              Supervised
+            </MenuRadioItem>
+            <MenuRadioItem variant="workbench" value="auto-accept-edits">
+              Auto-accept edits
+            </MenuRadioItem>
+            <MenuRadioItem variant="workbench" value="full-access">
+              Full access
+            </MenuRadioItem>
+          </MenuRadioGroup>
+        </MenuGroup>
         {props.activePlan ? (
           <>
-            <MenuDivider />
-            <MenuItem onClick={props.onTogglePlanSidebar}>
+            <MenuDivider variant="workbench" />
+            <MenuItem variant="workbench" onClick={props.onTogglePlanSidebar}>
               <IconSquareChecklist className="size-4 shrink-0" />
               {props.planSidebarOpen
                 ? `Hide ${props.planSidebarLabel.toLowerCase()} sidebar`

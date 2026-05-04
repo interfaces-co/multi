@@ -1,6 +1,6 @@
 import { type ProviderDriverKind, type ProviderInstanceId } from "@multi/contracts";
 import { memo } from "react";
-import { IconCheckmark1Small } from "central-icons";
+import { IconCheckmark1Small, IconStar } from "central-icons";
 import {
   getDisplayModelName,
   getTriggerDisplayModelLabel,
@@ -30,6 +30,9 @@ export const ModelListRow = memo(function ModelListRow(props: {
   useTriggerLabel?: boolean;
   showNewBadge?: boolean;
   jumpLabel?: string | null;
+  showFavoriteToggle?: boolean;
+  isFavorite?: boolean;
+  onFavoriteClick?: () => void;
 }) {
   const ProviderIcon = PROVIDER_ICON_BY_PROVIDER[props.driverKind] ?? null;
   const providerLabel = props.model.subProvider
@@ -46,7 +49,7 @@ export const ModelListRow = memo(function ModelListRow(props: {
     >
       <span
         aria-hidden="true"
-        className="mt-px flex size-4 shrink-0 items-center justify-center text-[var(--cursor-text-secondary,var(--multi-fg-secondary))]"
+        className="mt-px flex size-4 shrink-0 items-center justify-center text-multi-fg-secondary"
       >
         <IconCheckmark1Small
           className={props.isSelected ? "size-3.5 opacity-100" : "size-3.5 opacity-0"}
@@ -73,11 +76,40 @@ export const ModelListRow = memo(function ModelListRow(props: {
               </span>
             ) : null}
           </div>
-          {props.jumpLabel ? (
-            <Kbd className="h-4 min-w-0 shrink-0 rounded-[3px] px-1 text-[10px]/[12px]">
-              {props.jumpLabel}
-            </Kbd>
-          ) : null}
+          <span className="flex shrink-0 items-center gap-0.5">
+            {props.showFavoriteToggle ? (
+              <button
+                type="button"
+                aria-label={
+                  props.isFavorite ? "Remove from favorites" : "Add to favorites"
+                }
+                aria-pressed={props.isFavorite}
+                className="inline-flex size-6 shrink-0 items-center justify-center rounded-[4px] text-multi-fg-tertiary opacity-85 transition-colors hover:bg-multi-bg-active hover:text-amber-700 hover:opacity-100 dark:text-multi-fg-secondary dark:hover:text-amber-300"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  props.onFavoriteClick?.();
+                }}
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                }}
+              >
+                <IconStar
+                  aria-hidden
+                  className={
+                    props.isFavorite
+                      ? "size-3.5 shrink-0 fill-amber-500 text-amber-500"
+                      : "size-3.5 shrink-0 opacity-95"
+                  }
+                />
+              </button>
+            ) : null}
+            {props.jumpLabel ? (
+              <Kbd className="h-4 min-w-0 shrink-0 rounded-[3px] px-1 text-[10px]/[12px]">
+                {props.jumpLabel}
+              </Kbd>
+            ) : null}
+          </span>
         </div>
         {props.showProvider && (
           <div className="mt-0.5 flex items-center gap-1">
@@ -89,7 +121,7 @@ export const ModelListRow = memo(function ModelListRow(props: {
                 aria-hidden
               />
             ) : null}
-            <span className="truncate text-[11px]/[14px] font-normal text-[var(--cursor-text-tertiary,var(--multi-fg-tertiary))]">
+            <span className="truncate text-[11px]/[14px] font-normal text-multi-fg-tertiary">
               {providerLabel}
             </span>
           </div>

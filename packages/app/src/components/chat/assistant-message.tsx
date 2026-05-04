@@ -1,7 +1,6 @@
 import { type TurnId } from "@multi/contracts";
-import { memo, useEffect, useState } from "react";
-import { formatElapsed } from "../../session-logic";
-import { type TurnDiffSummary } from "../../types";
+import { memo } from "react";
+import { type TurnDiffSummary, type ChatMessage } from "../../types";
 import { summarizeTurnDiffStats } from "../../lib/turn-diff-tree";
 import ChatMarkdown from "../chat-markdown";
 import { Button } from "@multi/ui/button";
@@ -10,14 +9,11 @@ import { DiffStatLabel, hasNonZeroStat } from "./diff-stat-label";
 import { MessageCopyButton } from "./message-copy-button";
 import { resolveAssistantMessageCopyState } from "./messages-timeline.logic";
 import { useUiStateStore } from "~/ui-state-store";
-import { type TimestampFormat } from "@multi/contracts/settings";
-import { formatTimestamp } from "../../timestamp-format";
-import { type ChatMessage } from "../../types";
-import { CursorMessageBubble, CursorMessageMeta, CursorMessageMetaRow } from "./cursor-chat-bundle";
+import { ChatMessageBubble, MessageMetaRow } from "./message-surface";
+import { cn } from "~/lib/utils";
 
 interface AssistantMessageProps {
   message: ChatMessage;
-  durationStart: string;
   showCompletionDivider: boolean;
   showAssistantCopyButton: boolean;
   assistantTurnDiffSummary: TurnDiffSummary | undefined;
@@ -27,13 +23,11 @@ interface AssistantMessageProps {
   routeThreadKey: string;
   markdownCwd: string | undefined;
   resolvedTheme: "light" | "dark";
-  timestampFormat: TimestampFormat;
   onOpenTurnDiff: (turnId: TurnId, filePath?: string) => void;
 }
 
 export const AssistantMessage = memo(function AssistantMessage({
   message,
-  durationStart,
   showCompletionDivider,
   showAssistantCopyButton,
   assistantTurnDiffSummary,
@@ -43,7 +37,6 @@ export const AssistantMessage = memo(function AssistantMessage({
   routeThreadKey,
   markdownCwd,
   resolvedTheme,
-  timestampFormat,
   onOpenTurnDiff,
 }: AssistantMessageProps) {
   const messageText = message.text || (message.streaming ? "" : "(empty response)");
@@ -58,39 +51,25 @@ export const AssistantMessage = memo(function AssistantMessage({
     streaming: message.streaming || assistantTurnStillInProgress,
   });
 
-  const footer = (
-    <CursorMessageMetaRow>
-      <CursorMessageMeta>
-        {message.streaming ? (
-          <LiveMessageMeta
-            createdAt={message.createdAt}
-            durationStart={durationStart}
-            timestampFormat={timestampFormat}
-          />
-        ) : (
-          formatMessageMeta(
-            message.createdAt,
-            formatElapsed(durationStart, message.completedAt),
-            timestampFormat,
-          )
-        )}
-      </CursorMessageMeta>
-      {assistantCopyState.visible ? (
-        <div className="flex items-center opacity-0 transition-opacity duration-200 group-hover/assistant:opacity-100">
-          <MessageCopyButton
-            text={assistantCopyState.text ?? ""}
-            size="icon-xs"
-            variant="outline"
-            className="border-border/50 bg-background/35 text-muted-foreground/45 shadow-none hover:border-border/70 hover:bg-background/55 hover:text-muted-foreground/70"
-          />
-        </div>
-      ) : null}
-    </CursorMessageMetaRow>
-  );
+  const footer = assistantCopyState.visible ? (
+    <MessageMetaRow>
+      <div className="flex items-center opacity-0 transition-opacity duration-200 group-hover/assistant:opacity-100">
+        <MessageCopyButton
+          text={assistantCopyState.text ?? ""}
+          size="icon-xs"
+          variant="outline"
+          className={cn(
+            "border-border/50 bg-background/35 text-muted-foreground/45 shadow-none",
+            "hover:border-border/70 hover:bg-background/55 hover:text-muted-foreground/70",
+          )}
+        />
+      </div>
+    </MessageMetaRow>
+  ) : undefined;
 
   const body = (
     <>
-      <div className="agent-panel-meta-agent-chat__assistant-markdown">
+      <div className="select-text [&_*]:select-text">
         <ChatMarkdown
           text={messageText}
           cwd={markdownCwd}
@@ -111,13 +90,18 @@ export const AssistantMessage = memo(function AssistantMessage({
       {showCompletionDivider && (
         <div className="my-3 flex items-center gap-3">
           <span className="h-px flex-1 bg-border" />
-          <span className="rounded-full border border-border bg-background px-2.5 py-1 text-[10px]/3 tracking-[0.14em] text-muted-foreground/80 uppercase">
+          <span
+            className={cn(
+              "rounded-full border border-border bg-background px-2.5 py-1",
+              "text-[10px]/3 tracking-[0.14em] text-muted-foreground/80 uppercase",
+            )}
+          >
             {completionSummary ? `Response \u2022 ${completionSummary}` : "Response"}
           </span>
           <span className="h-px flex-1 bg-border" />
         </div>
       )}
-      <CursorMessageBubble role="assistant" body={body} footer={footer} />
+      <ChatMessageBubble role="assistant" body={body} footer={footer} />
     </div>
   );
 });
@@ -220,35 +204,3 @@ function AssistantChangedFilesSectionInner({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function LiveMessageMeta({
-  createdAt,
-  durationStart,
-  timestampFormat,
-}: {
-  createdAt: string;
-  durationStart: string | null | undefined;
-  timestampFormat: TimestampFormat;
-}) {
-  const [nowMs, setNowMs] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNowMs(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, [durationStart]);
-  const elapsed = durationStart
-    ? formatElapsed(durationStart, new Date(nowMs).toISOString())
-    : null;
-  return <>{formatMessageMeta(createdAt, elapsed, timestampFormat)}</>;
-}
-
-function formatMessageMeta(
-  createdAt: string,
-  duration: string | null,
-  timestampFormat: TimestampFormat,
-): string {
-  if (!duration) return formatTimestamp(createdAt, timestampFormat);
-  return `${formatTimestamp(createdAt, timestampFormat)} \u2022 ${duration}`;
-}

@@ -1,4 +1,13 @@
-import type { SessionListSummary } from "~/lib/ui-session-types";
+import { scopedProjectKey, scopeProjectRef, scopeThreadRef } from "@multi/client-runtime";
+import type {
+  EnvironmentId,
+  OrchestrationSessionStatus,
+  ProjectId,
+  ScopedThreadRef,
+  ThreadId,
+} from "@multi/contracts";
+
+import type { HarnessKind } from "~/lib/ui-session-types";
 
 import { shortWorkspacePathLabel } from "./path-label";
 
@@ -8,25 +17,68 @@ export interface SidebarDraftSummary {
   attachmentCount: number;
   firstAttachmentName: string | null;
   cwd: string;
+  environmentId: EnvironmentId;
+  projectId: ProjectId;
+  projectCwd: string;
   updatedAt: string;
 }
 
-export interface SidebarChatItem {
-  id: string;
-  kind: "draft" | "thread";
+export interface SidebarThreadSummary {
+  id: ThreadId;
+  environmentId: EnvironmentId;
+  projectId: ProjectId;
+  projectCwd: string;
+  harness?: HarnessKind;
+  path: string;
+  cwd: string;
+  name: string | null;
+  createdAt: string;
+  modifiedAt: string;
+  messageCount: number;
+  firstMessage: string;
+  allMessagesText: string;
+  isStreaming: boolean;
+  orchestrationStatus?: OrchestrationSessionStatus | null;
+  needsAttention?: boolean;
+}
+
+type SidebarThreadState = "idle" | "running" | "needs_attention" | "error";
+
+interface SidebarChatItemBase {
   title: string;
-  state: "draft" | "idle" | "running" | "needs_attention" | "error";
-  unread: boolean;
   updatedAt: string;
   ago: string;
   cwd: string;
+  environmentId: EnvironmentId;
+  projectId: ProjectId;
+  projectCwd: string;
 }
+
+export type SidebarChatItem =
+  | (SidebarChatItemBase & {
+      id: ThreadId;
+      kind: "thread";
+      state: SidebarThreadState;
+      unread: boolean;
+      threadRef: ScopedThreadRef;
+    })
+  | (SidebarChatItemBase & {
+      id: string;
+      kind: "draft";
+      state: "draft";
+      unread: false;
+    });
 
 export interface SidebarSectionModel {
   id: string;
   label: string;
   cwd: string;
   active: boolean;
+  environmentId?: EnvironmentId;
+  projectId?: ProjectId;
+  projectCwd?: string;
+  sectionThreadRefs: readonly ScopedThreadRef[];
+  threadRefs: readonly ScopedThreadRef[];
   items: readonly SidebarChatItem[];
 }
 
@@ -55,7 +107,7 @@ function draftTitle(draft: SidebarDraftSummary) {
   return `${head} +${draft.attachmentCount - 1}`;
 }
 
-function buildThreadChat(sum: SessionListSummary, unreadIds?: ReadonlySet<string>) {
+function buildThreadChat(sum: SidebarThreadSummary, unreadIds?: ReadonlySet<string>) {
   return {
     id: sum.id,
     kind: "thread",
@@ -65,10 +117,14 @@ function buildThreadChat(sum: SessionListSummary, unreadIds?: ReadonlySet<string
     updatedAt: sum.modifiedAt,
     ago: timeAgo(sum.modifiedAt),
     cwd: sum.cwd || "/",
+    environmentId: sum.environmentId,
+    projectId: sum.projectId,
+    projectCwd: sum.projectCwd,
+    threadRef: scopeThreadRef(sum.environmentId, sum.id),
   } satisfies SidebarChatItem;
 }
 
-function threadState(sum: SessionListSummary): SidebarChatItem["state"] {
+function threadState(sum: SidebarThreadSummary): SidebarThreadState {
   if (sum.orchestrationStatus === "error") return "error";
   if (sum.needsAttention === true) return "needs_attention";
   if (
@@ -91,19 +147,22 @@ function buildDraftChat(draft: SidebarDraftSummary) {
     updatedAt: draft.updatedAt,
     ago: timeAgo(draft.updatedAt),
     cwd: draft.cwd || "/",
+    environmentId: draft.environmentId,
+    projectId: draft.projectId,
+    projectCwd: draft.projectCwd,
   } satisfies SidebarChatItem;
 }
 
 export function buildWorkspaceChatSections(
-  sums: Record<string, SessionListSummary>,
+  threadSummaries: readonly SidebarThreadSummary[],
   drafts: readonly SidebarDraftSummary[],
   cwd: string | null,
   home: string | null,
   unreadIds?: ReadonlySet<string>,
 ) {
   const list = [
-    ...Object.values(sums).map((sum) => buildThreadChat(sum, unreadIds)),
-    ...drafts.map((draft) => buildDraftChat(draft)),
+    ...threadSummaries.map((sum) => buildThreadChat(sum, unreadIds)),
+    ...drafts.map(buildDraftChat),
   ];
   if (list.length === 0) return [];
 
@@ -129,11 +188,59 @@ export function buildWorkspaceChatSections(
     return left.dir.localeCompare(right.dir);
   });
 
-  return groups.map((group) => ({
-    id: `ws:${group.dir}`,
-    label: group.label,
-    cwd: group.dir,
-    active: group.dir === cwd,
-    items: group.sorted,
-  })) satisfies SidebarSectionModel[];
+  const threadRefsByProjectKey = new Map<string, ScopedThreadRef[]>();
+  for (const sum of threadSummaries) {
+    const key = scopedProjectKey(scopeProjectRef(sum.environmentId, sum.projectId));
+    const refs = threadRefsByProjectKey.get(key) ?? [];
+    refs.push(scopeThreadRef(sum.environmentId, sum.id));
+    threadRefsByProjectKey.set(key, refs);
+  }
+
+  return groups.map((group) => {
+    const sectionThreadRefs = group.sorted.flatMap((item) =>
+      item.kind === "thread" ? [item.threadRef] : [],
+    );
+    const rootProjectsByKey = new Map(
+      group.sorted.flatMap((item) => {
+        if (item.projectCwd !== group.dir) {
+          return [];
+        }
+        return [
+          [
+            scopedProjectKey(scopeProjectRef(item.environmentId, item.projectId)),
+            {
+              environmentId: item.environmentId,
+              projectId: item.projectId,
+              projectCwd: group.dir,
+            },
+          ] as const,
+        ];
+      }),
+    );
+    const rootProject =
+      rootProjectsByKey.size === 1 ? ([...rootProjectsByKey.values()][0] ?? null) : null;
+    const rootProjectKey = rootProject
+      ? scopedProjectKey(scopeProjectRef(rootProject.environmentId, rootProject.projectId))
+      : null;
+    const threadRefs = rootProjectKey
+      ? (threadRefsByProjectKey.get(rootProjectKey) ?? [])
+      : sectionThreadRefs;
+
+    return {
+      id: `ws:${group.dir}`,
+      label: group.label,
+      cwd: group.dir,
+      active: group.dir === cwd,
+      ...(rootProject
+        ? {
+            environmentId: rootProject.environmentId,
+            projectId: rootProject.projectId,
+            projectCwd: rootProject.projectCwd,
+          }
+        : {}),
+      sectionThreadRefs,
+      threadRefs,
+      items: group.sorted,
+    } satisfies SidebarSectionModel;
+  });
 }

@@ -914,7 +914,40 @@ describe("deriveWorkLogEntries", () => {
     const [entry] = deriveWorkLogEntries(activities, undefined);
     expect(entry).toMatchObject({
       command: "bun run dev",
-      detail: '{ "dev": "vite dev --port 3000" }',
+      output: '{ "dev": "vite dev --port 3000" }',
+      itemType: "command_execution",
+      toolTitle: "bash",
+    });
+  });
+
+  it("falls back to structured tool result content when detail is missing", () => {
+    const activities: OrchestrationThreadActivity[] = [
+      makeActivity({
+        id: "tool-with-structured-result-only",
+        kind: "tool.completed",
+        summary: "bash",
+        payload: {
+          itemType: "command_execution",
+          title: "bash",
+          status: "completed",
+          data: {
+            item: {
+              command: ["/bin/zsh", "-lc", "sed -n '1,220p' CONTEXT.md"],
+              result: {
+                content: "first line\nsecond line <exited with exit code 0>",
+                exitCode: 0,
+              },
+            },
+          },
+        },
+      }),
+    ];
+
+    const [entry] = deriveWorkLogEntries(activities, undefined);
+    expect(entry).toMatchObject({
+      command: "sed -n '1,220p' CONTEXT.md",
+      output: "first line\nsecond line",
+      rawCommand: "/bin/zsh -lc \"sed -n '1,220p' CONTEXT.md\"",
       itemType: "command_execution",
       toolTitle: "bash",
     });

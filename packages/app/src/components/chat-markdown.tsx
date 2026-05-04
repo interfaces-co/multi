@@ -438,7 +438,7 @@ const MarkdownFileLink = memo(function MarkdownFileLink({
           <a
             href={href}
             className={cn(
-              "chat-markdown-file-link relative top-[2px] max-w-full no-underline",
+              "chat-markdown-file-link inline-flex max-w-full min-w-0 items-center gap-1 align-middle no-underline",
               className,
             )}
             onClick={(event) => {
@@ -454,7 +454,7 @@ const MarkdownFileLink = memo(function MarkdownFileLink({
               theme={theme}
               className="chat-markdown-file-link-icon size-3.5 shrink-0 text-current"
             />
-            <span className="chat-markdown-file-link-label truncate">{label}</span>
+            <span className="chat-markdown-file-link-label min-w-0 truncate">{label}</span>
           </a>
         }
       />
@@ -602,7 +602,13 @@ function ChatMarkdown({ text, cwd, isStreaming = false }: ChatMarkdownProps) {
   );
 
   return (
-    <div className="chat-markdown w-full min-w-0 text-sm/6 text-foreground/80">
+    <div
+      className={cn(
+        "chat-markdown w-full min-w-0 whitespace-normal",
+        "text-[length:var(--conversation-text-font-size,var(--conversation-font-size,13px))]/[1.5]",
+        "text-multi-fg-primary",
+      )}
+    >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={markdownComponents}

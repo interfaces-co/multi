@@ -159,8 +159,9 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
           >
             <IconChevronDownSmall className="size-3.5" />
           </MenuTrigger>
-          <MenuPopup align="end" side="top">
+          <MenuPopup align="end" side="top" variant="workbench">
             <MenuItem
+              variant="workbench"
               disabled={isSendBusy || isConnecting}
               onClick={() => void onImplementPlanInNewThread()}
             >

@@ -1,60 +1,46 @@
 import { type MessageId } from "@multi/contracts";
 import { memo, type ReactNode } from "react";
-import { IconArrowUndoUp } from "central-icons";
-import { Button } from "@multi/ui/button";
 import { buildExpandedImagePreview, type ExpandedImagePreview } from "./expanded-image-preview";
-import { MessageCopyButton } from "./message-copy-button";
 import { TerminalContextInlineChip } from "./terminal-context-inline-chip";
 import {
   deriveDisplayedUserMessageState,
   type ParsedTerminalContextEntry,
 } from "~/lib/terminal-context";
-import { type TimestampFormat } from "@multi/contracts/settings";
-import { formatTimestamp } from "../../timestamp-format";
 import {
   buildInlineTerminalContextText,
   formatInlineTerminalContextLabel,
   textContainsInlineTerminalContextLabels,
 } from "./user-message-terminal-contexts";
 import { type ChatMessage } from "../../types";
-import {
-  CursorMessageActions,
-  CursorMessageBubble,
-  CursorMessageMeta,
-  CursorMessageMetaRow,
-} from "./cursor-chat-bundle";
+import { ChatMessageBubble } from "./message-surface";
+import { HumanMessageCollapsible } from "./human-message-collapse";
 
 interface HumanMessageProps {
   message: ChatMessage;
   revertTurnCount: number | undefined;
-  isRevertingCheckpoint: boolean;
-  isWorking: boolean;
-  timestampFormat: TimestampFormat;
+  isServerThread: boolean;
   onImageExpand: (preview: ExpandedImagePreview) => void;
-  onRevertUserMessage: (messageId: MessageId) => void;
+  onBeginEditUserMessage: ((messageId: MessageId) => void) | undefined;
 }
 
 export const HumanMessage = memo(function HumanMessage({
   message,
   revertTurnCount,
-  isRevertingCheckpoint,
-  isWorking,
-  timestampFormat,
+  isServerThread,
   onImageExpand,
-  onRevertUserMessage,
+  onBeginEditUserMessage,
 }: HumanMessageProps) {
   const userImages = message.attachments ?? [];
   const displayedUserMessage = deriveDisplayedUserMessageState(message.text);
   const terminalContexts = displayedUserMessage.contexts;
-  const canRevertAgentWork = typeof revertTurnCount === "number";
 
   const media =
     userImages.length > 0 ? (
-      <div className="mb-[var(--cursor-spacing-2)] grid max-w-[420px] grid-cols-2 gap-[var(--cursor-spacing-2)]">
+      <div className="mb-2 grid max-w-[420px] grid-cols-2 gap-2">
         {userImages.map((image) => (
           <div
             key={image.id}
-            className="overflow-hidden rounded-[var(--cursor-radius-md)] border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-editor)]"
+            className="overflow-hidden rounded-multi-control border border-multi-stroke-secondary bg-multi-editor"
           >
             {image.previewUrl ? (
               <button
@@ -70,11 +56,11 @@ export const HumanMessage = memo(function HumanMessage({
                 <img
                   src={image.previewUrl}
                   alt={image.name}
-                  className="block max-h-[220px] w-full object-cover"
+                  className="block h-8 w-full object-cover"
                 />
               </button>
             ) : (
-              <div className="flex min-h-[72px] items-center justify-center px-[var(--cursor-spacing-3)] py-[var(--cursor-spacing-2)] text-center text-[11px]/[14px] text-[var(--cursor-text-tertiary)]">
+              <div className="flex min-h-8 items-center justify-center px-2 py-1 text-center text-[11px]/[14px] text-multi-fg-tertiary">
                 {image.name}
               </div>
             )}
@@ -82,37 +68,26 @@ export const HumanMessage = memo(function HumanMessage({
         ))}
       </div>
     ) : null;
-  const body =
-    displayedUserMessage.visibleText.trim().length > 0 || terminalContexts.length > 0 ? (
-      <UserMessageBody
-        text={displayedUserMessage.visibleText}
-        terminalContexts={terminalContexts}
-      />
-    ) : null;
-  const footer = (
-    <CursorMessageMetaRow alignEnd>
-      <CursorMessageActions>
-        {displayedUserMessage.copyText ? (
-          <MessageCopyButton text={displayedUserMessage.copyText} />
-        ) : null}
-        {canRevertAgentWork ? (
-          <Button
-            type="button"
-            size="xs"
-            variant="outline"
-            disabled={isRevertingCheckpoint || isWorking}
-            onClick={() => onRevertUserMessage(message.id)}
-            title="Revert to this message"
-          >
-            <IconArrowUndoUp className="size-3" />
-          </Button>
-        ) : null}
-      </CursorMessageActions>
-      <CursorMessageMeta>{formatTimestamp(message.createdAt, timestampFormat)}</CursorMessageMeta>
-    </CursorMessageMetaRow>
-  );
 
-  return <CursorMessageBubble role="user" body={body} media={media} footer={footer} />;
+  const bodyInner =
+    displayedUserMessage.visibleText.trim().length > 0 || terminalContexts.length > 0 ? (
+      <UserMessageBody text={displayedUserMessage.visibleText} terminalContexts={terminalContexts} />
+    ) : null;
+
+  const body = bodyInner ? <HumanMessageCollapsible>{bodyInner}</HumanMessageCollapsible> : null;
+
+  const canEdit =
+    isServerThread && typeof onBeginEditUserMessage === "function";
+
+  return (
+    <ChatMessageBubble
+      role="user"
+      body={body}
+      media={media}
+      interactive={canEdit}
+      onClick={canEdit ? () => onBeginEditUserMessage(message.id) : undefined}
+    />
+  );
 });
 
 const UserMessageTerminalContextInlineLabel = memo(
@@ -174,7 +149,7 @@ const UserMessageBody = memo(function UserMessageBody(props: {
         }
 
         return (
-          <div className="agent-panel-meta-agent-chat__human-message-content">{inlineNodes}</div>
+          <div className="max-w-full min-w-0 break-words wrap-anywhere">{inlineNodes}</div>
         );
       }
     }
@@ -199,12 +174,12 @@ const UserMessageBody = memo(function UserMessageBody(props: {
       return null;
     }
 
-    return <div className="agent-panel-meta-agent-chat__human-message-content">{inlineNodes}</div>;
+    return <div className="max-w-full min-w-0 break-words wrap-anywhere">{inlineNodes}</div>;
   }
 
   if (props.text.length === 0) {
     return null;
   }
 
-  return <div className="agent-panel-meta-agent-chat__human-message-content">{props.text}</div>;
+  return <div className="max-w-full min-w-0 break-words wrap-anywhere">{props.text}</div>;
 });

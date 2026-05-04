@@ -1,7 +1,14 @@
+import { scopeProjectRef } from "@multi/client-runtime";
 import { IconChevronRightMedium } from "central-icons";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
+import { SidebarSectionContextMenu } from "~/components/shell/sidebar/thread-context-menu";
+import { resolveAndPersistPreferredEditor } from "~/editor-preferences";
+import { useThreadActions } from "~/hooks/use-thread-actions";
 import type { SidebarSectionModel } from "~/lib/sidebar-chat-view-model";
+import { useThreadUnreadStore } from "~/lib/thread-unread-store";
+import { readLocalApi } from "~/local-api";
 import { AgentRow } from "./row";
 
 const initialMaxVisible = 5;
@@ -38,6 +45,8 @@ function Section(props: {
   onPrefetchAgent?: (id: string) => void;
 }) {
   const { onPrefetchAgent, section } = props;
+  const { archiveThreads, removeProjectFromSidebar } = useThreadActions();
+  const clearThreadUnread = useThreadUnreadStore((store) => store.clear);
   const [open, setOpen] = useState(true);
   const [extra, setExtra] = useState(0);
   const labelId = `agent-section-label-${section.id}`;
@@ -65,6 +74,62 @@ function Section(props: {
   const showMore =
     section.items.length > Math.min(section.items.length, initialMaxVisible) &&
     visible < section.items.length;
+  const canRemoveProject =
+    section.environmentId !== undefined &&
+    section.projectId !== undefined &&
+    section.projectCwd !== undefined;
+
+  const openSectionInEditor = useCallback(() => {
+    const localApi = readLocalApi();
+    if (!localApi) {
+      toast.error("Local API unavailable.");
+      return;
+    }
+
+    void localApi.server
+      .getConfig()
+      .then((config) => {
+        const editor = resolveAndPersistPreferredEditor(
+          config.availableEditors.filter((editorId) => editorId !== "file-manager"),
+        );
+        if (!editor) {
+          throw new Error("No available code editor found.");
+        }
+        return localApi.shell.openInEditor(section.projectCwd ?? section.cwd, editor);
+      })
+      .catch((error) => {
+        toast.error("Failed to open project", {
+          description: error instanceof Error ? error.message : "An error occurred.",
+        });
+      });
+  }, [section.cwd, section.projectCwd]);
+
+  const markSectionRead = useCallback(() => {
+    for (const threadRef of section.threadRefs) {
+      clearThreadUnread(threadRef.threadId);
+    }
+  }, [clearThreadUnread, section.threadRefs]);
+
+  const archiveSectionThreads = useCallback(() => {
+    void archiveThreads(section.threadRefs).catch((error) => {
+      toast.error("Failed to archive threads", {
+        description: error instanceof Error ? error.message : "An error occurred.",
+      });
+    });
+  }, [archiveThreads, section.threadRefs]);
+
+  const removeSectionProject = useCallback(() => {
+    if (!section.environmentId || !section.projectId) {
+      return;
+    }
+    void removeProjectFromSidebar(scopeProjectRef(section.environmentId, section.projectId)).catch(
+      (error) => {
+        toast.error("Failed to remove project", {
+          description: error instanceof Error ? error.message : "An error occurred.",
+        });
+      },
+    );
+  }, [removeProjectFromSidebar, section.environmentId, section.projectId]);
 
   useEffect(() => {
     if (!open || !onPrefetchAgent) {
@@ -80,38 +145,47 @@ function Section(props: {
       className="multi-agent-sidebar-section agent-sidebar-section min-w-0 w-full"
       data-agent-sidebar-section=""
     >
-      <div className="multi-agent-sidebar-section-title agent-sidebar-section-heading agent-sidebar-section-title collapsible flex min-w-0 w-full items-center gap-0">
-        <button
-          id={labelId}
-          type="button"
-          aria-expanded={open}
-          aria-controls={open ? panelId : undefined}
-          onClick={() => setOpen((value) => !value)}
-          className="agent-sidebar-section-collapsible-trigger relative touch-manipulation font-multi"
-        >
-          <span className="agent-sidebar-section-title-text">{section.label}</span>
-          <IconChevronRightMedium
-            size={14}
-            className={`agent-sidebar-section-chevron shrink-0 ${open ? "rotate-90" : ""}`}
-            aria-hidden
-          />
-        </button>
-        {props.onNewAgent ? (
+      <SidebarSectionContextMenu
+        hasThreads={section.threadRefs.length > 0}
+        canRemoveProject={canRemoveProject}
+        onOpenInEditor={openSectionInEditor}
+        onMarkAllRead={markSectionRead}
+        onArchiveAll={archiveSectionThreads}
+        onRemoveFromSidebar={removeSectionProject}
+      >
+        <div className="multi-agent-sidebar-section-title agent-sidebar-section-heading agent-sidebar-section-title collapsible flex min-w-0 w-full items-center gap-0">
           <button
+            id={labelId}
             type="button"
-            onClick={() => props.onNewAgent?.(section.cwd)}
-            aria-label={`New agent in ${section.label}`}
-            title={`New agent in ${section.label}`}
-            className={`agent-sidebar-section-new relative flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-multi-control border border-transparent outline-none touch-manipulation transition-[color,background-color] duration-100 ease-out motion-reduce:transition-none pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 ${
-              section.active
-                ? "text-multi-fg-secondary [@media(hover:hover)]:hover:bg-multi-bg-quaternary [@media(hover:hover)]:hover:text-multi-fg-primary"
-                : "text-multi-fg-tertiary [@media(hover:hover)]:hover:bg-multi-bg-quaternary [@media(hover:hover)]:hover:text-multi-fg-primary"
-            }`}
+            aria-expanded={open}
+            aria-controls={open ? panelId : undefined}
+            onClick={() => setOpen((value) => !value)}
+            className="agent-sidebar-section-collapsible-trigger relative touch-manipulation font-multi"
           >
-            <span aria-hidden>+</span>
+            <span className="agent-sidebar-section-title-text">{section.label}</span>
+            <IconChevronRightMedium
+              size={14}
+              className={`agent-sidebar-section-chevron shrink-0 ${open ? "rotate-90" : ""}`}
+              aria-hidden
+            />
           </button>
-        ) : null}
-      </div>
+          {props.onNewAgent ? (
+            <button
+              type="button"
+              onClick={() => props.onNewAgent?.(section.cwd)}
+              aria-label={`New agent in ${section.label}`}
+              title={`New agent in ${section.label}`}
+              className={`agent-sidebar-section-new relative flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-multi-control border border-transparent outline-none touch-manipulation transition-[color,background-color] duration-100 ease-out motion-reduce:transition-none pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 ${
+                section.active
+                  ? "text-multi-fg-secondary [@media(hover:hover)]:hover:bg-multi-bg-quaternary [@media(hover:hover)]:hover:text-multi-fg-primary"
+                  : "text-multi-fg-tertiary [@media(hover:hover)]:hover:bg-multi-bg-quaternary [@media(hover:hover)]:hover:text-multi-fg-primary"
+              }`}
+            >
+              <span aria-hidden>+</span>
+            </button>
+          ) : null}
+        </div>
+      </SidebarSectionContextMenu>
       {open ? (
         <div
           id={panelId}
@@ -152,14 +226,14 @@ function SkeletonRows() {
       {[0, 1].map((i) => (
         <div className="flex flex-col gap-2" key={i}>
           <div
-            className="h-3 w-16 animate-pulse rounded-multi-control bg-[var(--multi-bg-tertiary)]"
+            className="h-3 w-16 animate-pulse rounded-multi-control bg-(--multi-bg-tertiary)"
             data-skeleton={i}
           />
           <div className="agent-sidebar-list flex flex-col">
             {[0, 1, 2].map((j) => (
               <div
                 key={j}
-                className="h-7 w-full animate-pulse rounded-[6px] bg-[var(--multi-bg-tertiary)]"
+                className="h-7 w-full animate-pulse rounded-[6px] bg-(--multi-bg-tertiary)"
                 data-skeleton={j}
               />
             ))}

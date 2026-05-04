@@ -4,6 +4,8 @@ import "../../../styles/shell.css";
 
 import { createRoot } from "react-dom/client";
 import type { ComponentProps, ReactNode } from "react";
+import { EnvironmentId, ProjectId, ThreadId } from "@multi/contracts";
+import { scopeThreadRef } from "@multi/client-runtime";
 import { page } from "vitest/browser";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -11,6 +13,7 @@ import type { SidebarSectionModel } from "~/lib/sidebar-chat-view-model";
 import { AgentList } from "./list";
 
 vi.mock("~/components/shell/sidebar/thread-context-menu", () => ({
+  SidebarSectionContextMenu: (props: { children: ReactNode }) => <div>{props.children}</div>,
   ThreadContextMenu: (props: { children: ReactNode; onRename: () => void }) => (
     <div>
       <button type="button" onClick={props.onRename}>
@@ -23,20 +26,23 @@ vi.mock("~/components/shell/sidebar/thread-context-menu", () => ({
 
 vi.mock("~/hooks/use-thread-actions", () => ({
   useThreadActions: () => ({
+    archiveThreads: vi.fn(async () => undefined),
     archiveThread: vi.fn(async () => undefined),
     commitRename: vi.fn(async () => undefined),
+    removeProjectFromSidebar: vi.fn(async () => undefined),
   }),
 }));
 
 vi.mock("~/lib/thread-unread-store", () => ({
-  useThreadUnreadStore: (selector: (state: { mark: (id: string) => void }) => unknown) =>
-    selector({ mark: vi.fn() }),
+  useThreadUnreadStore: (
+    selector: (state: { clear: (id: string) => void; mark: (id: string) => void }) => unknown,
+  ) =>
+    selector({ clear: vi.fn(), mark: vi.fn() }),
 }));
 
-vi.mock("~/store", () => ({
-  selectThreadsAcrossEnvironments: () => [{ id: "thread-1", environmentId: "env-1" }],
-  useStore: (selector: (state: object) => unknown) => selector({}),
-}));
+const ENVIRONMENT_ID = EnvironmentId.make("env-1");
+const PROJECT_ID = ProjectId.make("project-1");
+const THREAD_ID = ThreadId.make("thread-1");
 
 const sections: SidebarSectionModel[] = [
   {
@@ -44,9 +50,14 @@ const sections: SidebarSectionModel[] = [
     label: "project",
     cwd: "/tmp/project",
     active: true,
+    environmentId: ENVIRONMENT_ID,
+    projectId: PROJECT_ID,
+    projectCwd: "/tmp/project",
+    sectionThreadRefs: [scopeThreadRef(ENVIRONMENT_ID, THREAD_ID)],
+    threadRefs: [scopeThreadRef(ENVIRONMENT_ID, THREAD_ID)],
     items: [
       {
-        id: "thread-1",
+        id: THREAD_ID,
         kind: "thread",
         title: "Implement compact sidebar rows",
         state: "running",
@@ -54,6 +65,10 @@ const sections: SidebarSectionModel[] = [
         updatedAt: "2026-04-29T12:00:00.000Z",
         ago: "4m",
         cwd: "/tmp/project",
+        environmentId: ENVIRONMENT_ID,
+        projectId: PROJECT_ID,
+        projectCwd: "/tmp/project",
+        threadRef: scopeThreadRef(ENVIRONMENT_ID, THREAD_ID),
       },
       {
         id: "draft-1",
@@ -64,6 +79,9 @@ const sections: SidebarSectionModel[] = [
         updatedAt: "2026-04-29T12:01:00.000Z",
         ago: "now",
         cwd: "/tmp/project",
+        environmentId: ENVIRONMENT_ID,
+        projectId: PROJECT_ID,
+        projectCwd: "/tmp/project",
       },
     ],
   },

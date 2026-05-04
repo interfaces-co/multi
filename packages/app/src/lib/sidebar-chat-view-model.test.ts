@@ -1,11 +1,24 @@
-import type { SessionListSummary } from "~/lib/ui-session-types";
+import { EnvironmentId, ProjectId, ThreadId } from "@multi/contracts";
 import { assert, it } from "vitest";
 
-import { buildWorkspaceChatSections } from "./sidebar-chat-view-model";
+import { buildWorkspaceChatSections, type SidebarThreadSummary } from "./sidebar-chat-view-model";
 
-function sum(id: string, cwd: string, modifiedAt: string): SessionListSummary {
+const ENVIRONMENT_ID = EnvironmentId.make("environment-local");
+const PROJECT_A_ID = ProjectId.make("project-a");
+const PROJECT_B_ID = ProjectId.make("project-b");
+
+function sum(
+  id: ThreadId,
+  projectId: ProjectId,
+  projectCwd: string,
+  cwd: string,
+  modifiedAt: string,
+): SidebarThreadSummary {
   return {
     id,
+    environmentId: ENVIRONMENT_ID,
+    projectId,
+    projectCwd,
     harness: "codex",
     path: cwd,
     cwd,
@@ -20,10 +33,10 @@ function sum(id: string, cwd: string, modifiedAt: string): SessionListSummary {
 }
 
 it("buildWorkspaceChatSections does not reorder workspace sections when cwd changes", () => {
-  const sums = {
-    a: sum("a", "/ws/a", "2026-04-08T10:00:00.000Z"),
-    b: sum("b", "/ws/b", "2026-04-08T09:00:00.000Z"),
-  };
+  const sums = [
+    sum(ThreadId.make("thread-a"), PROJECT_A_ID, "/ws/a", "/ws/a", "2026-04-08T10:00:00.000Z"),
+    sum(ThreadId.make("thread-b"), PROJECT_B_ID, "/ws/b", "/ws/b", "2026-04-08T09:00:00.000Z"),
+  ];
 
   const first = buildWorkspaceChatSections(sums, [], "/ws/a", "/Users/workgyver");
   const second = buildWorkspaceChatSections(sums, [], "/ws/b", "/Users/workgyver");

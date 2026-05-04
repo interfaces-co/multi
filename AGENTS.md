@@ -16,6 +16,7 @@
 - Always ask before removing functionality or code that appears to be intentional
 - Do not preserve backward compatibility unless the user explicitly asks for it
 - Never hardcode key checks with, eg. `matchesKey(keyData, "ctrl+x")`. All keybindings must be configurable. Add default to matching object (`DEFAULT_EDITOR_KEYBINDINGS` or `DEFAULT_APP_KEYBINDINGS`)
+- **Tailwind `className`**: No decorative kebab-case labels or constants (including `AGENT_*_CLASSNAME`) used only as utility buckets unless the string is a required CSS or test selector; put Tailwind on the element or use `cva` (`class-variance-authority`) for variants and conditionals.
 
 ## Commands
 
@@ -27,8 +28,8 @@
 - If you create or modify a test file, you MUST run that test file and iterate until it passes.
 - When writing tests, run them, identify issues in either the test or implementation, and iterate until fixed.
 - NEVER commit unless user asks
-- for tailwind, use component inline or create a reusable component, do not ever use `const NEW_CLASS = "..."` as a tailwind class name.
-  Multiple agents may work on different files in the same worktree simultaneously. You MUST follow these rules:
+
+Multiple agents may work on different files in the same worktree simultaneously. You MUST follow these rules:
 
 ### Committing
 

@@ -32,6 +32,9 @@ const workbenchMenuLabelClassName =
 
 const workbenchMenuSeparatorClassName = "mx-0 my-1 h-px shrink-0 bg-multi-stroke-tertiary";
 
+const workbenchMenuRadioItemClassName =
+  "grid min-h-6 cursor-pointer grid-cols-[1rem_1fr] items-center gap-1.5 rounded-[4px] py-[3px] ps-1 pe-2 text-[12px]/[16px] text-multi-fg-secondary outline-none transition-colors hover:bg-multi-bg-quaternary hover:text-multi-fg-primary data-disabled:pointer-events-none data-highlighted:bg-multi-bg-tertiary data-highlighted:text-multi-fg-primary data-disabled:opacity-40 [&_svg]:pointer-events-none [&_svg]:shrink-0";
+
 /**
  * For custom triggers (e.g. `Button`), pass `render={<Button … />}` and put the
  * visible label in `children` so props/ref merge correctly. See Base UI composition:
@@ -70,7 +73,7 @@ function MenuPopup({
         align={align}
         alignOffset={alignOffset}
         anchor={anchor}
-        className="z-50"
+        className={variant === "workbench" ? "z-[70]" : "z-50"}
         data-slot="menu-positioner"
         side={side}
         sideOffset={sideOffset}
@@ -156,7 +159,7 @@ function MenuCheckboxItem({
             className="inset-shadow-[0_1px_--theme(--color-black/4%)] inline-flex h-[calc(var(--thumb-size)+2px)] w-[calc(var(--thumb-size)*2-2px)] shrink-0 items-center rounded-full p-px outline-none transition-[background-color,box-shadow] duration-200 [--thumb-size:--spacing(4)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background data-checked:bg-primary data-unchecked:bg-input data-disabled:opacity-64 sm:[--thumb-size:--spacing(3)]"
             keepMounted
           >
-            <span className="pointer-events-none block aspect-square h-full in-[[data-slot=menu-checkbox-item][data-checked]]:origin-[var(--thumb-size)_50%] origin-left in-[[data-slot=menu-checkbox-item][data-checked]]:translate-x-[calc(var(--thumb-size)-4px)] in-[[data-slot=menu-checkbox-item]:active]:not-data-disabled:scale-x-110 in-[[data-slot=menu-checkbox-item]:active]:rounded-[var(--thumb-size)/calc(var(--thumb-size)*1.10)] rounded-(--thumb-size) bg-background shadow-sm/5 will-change-transform [transition:translate_.15s,border-radius_.15s,scale_.1s_.1s,transform-origin_.15s]" />
+            <span className="pointer-events-none block aspect-square h-full in-[[data-slot=menu-checkbox-item][data-checked]]:origin-(--thumb-size_50%) origin-left in-[[data-slot=menu-checkbox-item][data-checked]]:translate-x-[calc(var(--thumb-size)-4px)] in-[[data-slot=menu-checkbox-item]:active]:not-data-disabled:scale-x-110 in-[[data-slot=menu-checkbox-item]:active]:rounded-[var(--thumb-size)/calc(var(--thumb-size)*1.10)] rounded-(--thumb-size) bg-background shadow-sm/5 will-change-transform [transition:translate_.15s,border-radius_.15s,scale_.1s_.1s,transform-origin_.15s]" />
           </MenuPrimitive.CheckboxItemIndicator>
         </>
       ) : (
@@ -187,17 +190,29 @@ function MenuRadioGroup(props: MenuPrimitive.RadioGroup.Props) {
   return <MenuPrimitive.RadioGroup data-slot="menu-radio-group" {...props} />;
 }
 
-function MenuRadioItem({ className, children, ...props }: MenuPrimitive.RadioItem.Props) {
+function MenuRadioItem({
+  className,
+  children,
+  variant = "default",
+  ...props
+}: MenuPrimitive.RadioItem.Props & { variant?: "default" | "workbench" }) {
   return (
     <MenuPrimitive.RadioItem
       className={cn(
-        "grid min-h-8 in-data-[side=none]:min-w-[calc(var(--anchor-width)+1.25rem)] cursor-default grid-cols-[1rem_1fr] items-center gap-2 rounded-sm py-1 ps-2 pe-4 text-base text-foreground outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:opacity-64 sm:min-h-7 sm:text-sm [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+        variant === "workbench"
+          ? workbenchMenuRadioItemClassName
+          : "grid min-h-8 in-data-[side=none]:min-w-[calc(var(--anchor-width)+1.25rem)] cursor-default grid-cols-[1rem_1fr] items-center gap-2 rounded-sm py-1 ps-2 pe-4 text-base text-foreground outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:opacity-64 sm:min-h-7 sm:text-sm [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
         className,
       )}
       data-slot="menu-radio-item"
       {...props}
     >
-      <MenuPrimitive.RadioItemIndicator className="col-start-1">
+      <MenuPrimitive.RadioItemIndicator
+        className={cn(
+          "col-start-1",
+          variant === "workbench" && "[&_svg:not([class*='size-'])]:size-3",
+        )}
+      >
         <svg
           fill="none"
           height="24"

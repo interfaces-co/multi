@@ -1,5 +1,10 @@
-import { parseScopedThreadKey, scopeProjectRef, scopeThreadRef } from "@multi/client-runtime";
-import { type ScopedThreadRef, ThreadId } from "@multi/contracts";
+import {
+  parseScopedThreadKey,
+  scopedThreadKey,
+  scopeProjectRef,
+  scopeThreadRef,
+} from "@multi/client-runtime";
+import { type ScopedProjectRef, type ScopedThreadRef, ThreadId } from "@multi/contracts";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { useCallback, useRef } from "react";
@@ -13,12 +18,13 @@ import { newCommandId } from "../lib/utils";
 import { readLocalApi } from "../local-api";
 import {
   selectProjectByRef,
+  selectProjectsAcrossEnvironments,
   selectThreadByRef,
   selectThreadsForEnvironment,
   useStore,
 } from "../store";
 import { useTerminalStateStore } from "../terminal-state-store";
-import { buildThreadRouteParams, resolveThreadRouteRef } from "../thread-routes";
+import { buildThreadRouteParams, resolveThreadRouteTarget } from "../thread-routes";
 import {
   formatWorktreePathForDisplay,
   getOrphanedWorktreePathForThread,
@@ -55,10 +61,14 @@ export function useThreadActions() {
       threadRef: target,
     };
   }, []);
-  const getCurrentRouteThreadRef = useCallback(() => {
+  const getCurrentRouteTarget = useCallback(() => {
     const currentRouteParams = router.state.matches[router.state.matches.length - 1]?.params ?? {};
-    return resolveThreadRouteRef(currentRouteParams);
+    return resolveThreadRouteTarget(currentRouteParams);
   }, [router]);
+  const getCurrentRouteThreadRef = useCallback(() => {
+    const target = getCurrentRouteTarget();
+    return target?.kind === "server" ? target.threadRef : null;
+  }, [getCurrentRouteTarget]);
 
   const commitRename = useCallback(
     async (target: ScopedThreadRef, newTitle: string, originalTitle: string) => {
@@ -92,9 +102,6 @@ export function useThreadActions() {
       const resolved = resolveThreadTarget(target);
       if (!resolved) return;
       const { thread, threadRef } = resolved;
-      if (thread.session?.status === "running" && thread.session.activeTurnId != null) {
-        throw new Error("Cannot archive a running thread.");
-      }
 
       await api.orchestration.dispatchCommand({
         type: "thread.archive",
@@ -111,6 +118,149 @@ export function useThreadActions() {
       }
     },
     [getCurrentRouteThreadRef, resolveThreadTarget],
+  );
+
+  const archiveThreads = useCallback(
+    async (targets: readonly ScopedThreadRef[]) => {
+      const state = useStore.getState();
+      const targetByKey = new Map<string, ScopedThreadRef>();
+      for (const target of targets) {
+        const thread = selectThreadByRef(state, target);
+        if (!thread || thread.archivedAt !== null) {
+          continue;
+        }
+        targetByKey.set(scopedThreadKey(target), target);
+      }
+      const archiveTargets = [...targetByKey.values()];
+      if (archiveTargets.length === 0) {
+        return;
+      }
+
+      const currentRouteThreadRef = getCurrentRouteThreadRef();
+      const currentRouteThreadKey = currentRouteThreadRef
+        ? scopedThreadKey(currentRouteThreadRef)
+        : null;
+      const shouldNavigateToFallback =
+        currentRouteThreadKey !== null && targetByKey.has(currentRouteThreadKey);
+      const currentThread = currentRouteThreadRef
+        ? selectThreadByRef(state, currentRouteThreadRef)
+        : undefined;
+      const fallbackProjectRef =
+        shouldNavigateToFallback && currentThread
+          ? scopeProjectRef(currentThread.environmentId, currentThread.projectId)
+          : null;
+      const archivedIds =
+        shouldNavigateToFallback && currentRouteThreadRef
+          ? new Set<ThreadId>(
+              archiveTargets.flatMap((target) =>
+                target.environmentId === currentRouteThreadRef.environmentId
+                  ? [target.threadId]
+                  : [],
+              ),
+            )
+          : undefined;
+      const fallbackThreadId =
+        shouldNavigateToFallback && currentRouteThreadRef && archivedIds
+          ? getFallbackThreadIdAfterDelete({
+              threads: selectThreadsForEnvironment(
+                state,
+                currentRouteThreadRef.environmentId,
+              ).filter((thread) => thread.archivedAt === null),
+              deletedThreadId: currentRouteThreadRef.threadId,
+              deletedThreadIds: archivedIds,
+              sortOrder: sidebarThreadSortOrder,
+            })
+          : null;
+      const fallbackThreadRef =
+        fallbackThreadId && currentRouteThreadRef
+          ? scopeThreadRef(currentRouteThreadRef.environmentId, fallbackThreadId)
+          : null;
+
+      for (const target of archiveTargets) {
+        const api = readEnvironmentApi(target.environmentId);
+        if (!api) {
+          continue;
+        }
+        await api.orchestration.dispatchCommand({
+          type: "thread.archive",
+          commandId: newCommandId(),
+          threadId: target.threadId,
+        });
+      }
+
+      if (!shouldNavigateToFallback) {
+        return;
+      }
+
+      if (fallbackThreadRef) {
+        await router.navigate({
+          to: "/$environmentId/$threadId",
+          params: buildThreadRouteParams(fallbackThreadRef),
+          replace: true,
+        });
+        return;
+      }
+
+      if (fallbackProjectRef) {
+        await handleNewThreadRef.current(fallbackProjectRef);
+        return;
+      }
+
+      await router.navigate({ to: "/", replace: true });
+    },
+    [getCurrentRouteThreadRef, router, sidebarThreadSortOrder],
+  );
+
+  const removeProjectFromSidebar = useCallback(
+    async (target: ScopedProjectRef) => {
+      const api = readEnvironmentApi(target.environmentId);
+      if (!api) return;
+
+      const state = useStore.getState();
+      const routeTarget = getCurrentRouteTarget();
+      const shouldNavigateToFallback =
+        routeTarget?.kind === "server"
+          ? (() => {
+              const thread = selectThreadByRef(state, routeTarget.threadRef);
+              return (
+                thread?.environmentId === target.environmentId &&
+                thread.projectId === target.projectId
+              );
+            })()
+          : routeTarget?.kind === "draft"
+            ? (() => {
+                const draft = useComposerDraftStore.getState().getDraftSession(routeTarget.draftId);
+                return (
+                  draft?.environmentId === target.environmentId &&
+                  draft.projectId === target.projectId
+                );
+              })()
+            : false;
+      const fallbackProject = selectProjectsAcrossEnvironments(state).find(
+        (project) =>
+          project.environmentId !== target.environmentId || project.id !== target.projectId,
+      );
+
+      await api.orchestration.dispatchCommand({
+        type: "project.delete",
+        commandId: newCommandId(),
+        projectId: target.projectId,
+      });
+
+      if (!shouldNavigateToFallback) {
+        return;
+      }
+
+      if (fallbackProject) {
+        await handleNewThreadRef.current(
+          scopeProjectRef(fallbackProject.environmentId, fallbackProject.id),
+        );
+        return;
+      }
+
+      await router.navigate({ to: "/", replace: true });
+    },
+    [getCurrentRouteTarget, router],
   );
 
   const unarchiveThread = useCallback(async (target: ScopedThreadRef) => {
@@ -301,8 +451,10 @@ export function useThreadActions() {
   return {
     commitRename,
     archiveThread,
+    archiveThreads,
     unarchiveThread,
     deleteThread,
     confirmAndDeleteThread,
+    removeProjectFromSidebar,
   };
 }

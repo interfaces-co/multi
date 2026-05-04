@@ -1,12 +1,12 @@
 import { memo } from "react";
-import { type WorkLogEntry } from "../../session-logic";
+import { type WorkLogEntry, type WorkLogSubagent } from "../../session-logic";
 import { normalizeCompactToolLabel } from "./messages-timeline.logic";
 import { formatWorkspaceRelativePath } from "../../file-path-display";
 import {
-  CursorThinkingStatus,
-  CursorToolCallRenderer,
-  type CursorToolCallModel,
-} from "./cursor-chat-bundle";
+  ThinkingStatus,
+  ToolCallRenderer,
+  type ToolCallModel,
+} from "./tool-call-renderer";
 
 type ToolCallStatus = "loading" | "completed" | "error";
 
@@ -21,25 +21,56 @@ export const ToolCallMessage = memo(function ToolCallMessage({
 }: ToolCallMessageProps) {
   const status = resolveStatus(workEntry);
   const isLoading = status === "loading";
+  const subagents = workEntry.subagents ?? [];
 
   if (workEntry.tone === "thinking" && !isToolLikeWorkEntry(workEntry)) {
-    return <CursorThinkingStatus task={resolveThinkingTask(workEntry)} active={isLoading} />;
+    return <ThinkingStatus task={resolveThinkingTask(workEntry)} active={isLoading} />;
   }
 
-  const toolCall = toCursorToolCall(workEntry, workspaceRoot);
+  const toolCall = toToolCall(workEntry, workspaceRoot);
+  const hasSubagents = subagents.length > 0;
 
   return (
-    <CursorToolCallRenderer
-      toolCall={toolCall}
-      callId={workEntry.toolCallId ?? workEntry.id}
-      loading={isLoading}
-      startedAtMs={Date.parse(workEntry.createdAt)}
-      hasError={status === "error"}
-      defaultExpanded={false}
-      conversationDensity="minimal"
-    />
+    <div className="min-w-0 max-w-full">
+      <ToolCallRenderer
+        toolCall={toolCall}
+        callId={workEntry.toolCallId ?? workEntry.id}
+        loading={isLoading}
+        startedAtMs={Date.parse(workEntry.createdAt)}
+        hasError={status === "error"}
+        defaultExpanded={false}
+        conversationDensity="minimal"
+      />
+      {hasSubagents ? <SubagentStatusSurface subagents={subagents} /> : null}
+    </div>
   );
 });
+
+function SubagentStatusSurface({ subagents }: { subagents: ReadonlyArray<WorkLogSubagent> }) {
+  return (
+    <div className="mt-1 max-h-80 w-full overflow-x-hidden overflow-y-auto pl-5">
+      {subagents.map((subagent) => (
+        <div
+          key={subagent.providerThreadId ?? subagent.threadId ?? subagent.agentId}
+          className="group/subagent flex w-fit max-w-full items-center gap-1.5 overflow-hidden"
+        >
+          <div className="min-w-0">
+            <div className="inline-flex min-w-0 items-baseline gap-1.5">
+              <span className="min-w-0 text-[12px]/4 text-multi-fg-secondary">
+                {subagent.title ?? subagent.nickname ?? subagent.role ?? "Subagent"}
+              </span>
+              {subagent.statusLabel || subagent.latestUpdate ? (
+                <span className="min-w-0 overflow-hidden text-[11px]/[15px] text-ellipsis whitespace-nowrap text-multi-fg-tertiary">
+                  {subagent.latestUpdate ?? subagent.statusLabel}
+                </span>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function isToolLikeWorkEntry(workEntry: WorkLogEntry): boolean {
   return Boolean(
@@ -56,13 +87,13 @@ function resolveThinkingTask(workEntry: WorkLogEntry): string {
   return resolveTitle(workEntry);
 }
 
-function toCursorToolCall(
+function toToolCall(
   workEntry: WorkLogEntry,
   workspaceRoot: string | undefined,
-): CursorToolCallModel {
+): ToolCallModel {
   const toolCase = resolveToolCase(workEntry);
   const action = resolveTitle(workEntry);
-  const details = resolveCursorDetails(workEntry, workspaceRoot);
+  const details = resolveToolDetails(workEntry, workspaceRoot);
   const command = workEntry.command ?? null;
   const output = resolveOutput(workEntry, toolCase);
   const firstChangedFile = workEntry.changedFiles?.[0] ?? null;
@@ -84,7 +115,7 @@ function toCursorToolCall(
   };
 }
 
-function resolveToolCase(workEntry: WorkLogEntry): CursorToolCallModel["tool"]["case"] {
+function resolveToolCase(workEntry: WorkLogEntry): ToolCallModel["tool"]["case"] {
   if (workEntry.requestKind === "command" || workEntry.itemType === "command_execution") {
     return "shellToolCall";
   }
@@ -137,13 +168,23 @@ function resolveSummary(workEntry: WorkLogEntry, workspaceRoot: string | undefin
 
 function resolveOutput(
   workEntry: WorkLogEntry,
-  toolCase: CursorToolCallModel["tool"]["case"],
+  toolCase: ToolCallModel["tool"]["case"],
 ): string | null {
   if (toolCase === "shellToolCall") {
-    return workEntry.detail ?? resolveRawCommand(workEntry);
+    return workEntry.output ?? null;
   }
   if (toolCase === "editToolCall") {
     return workEntry.detail ?? null;
+  }
+  if (
+    toolCase === "readToolCall" ||
+    toolCase === "grepToolCall" ||
+    toolCase === "globToolCall" ||
+    toolCase === "mcpToolCall" ||
+    toolCase === "imageViewToolCall" ||
+    toolCase === "unknownToolCall"
+  ) {
+    return workEntry.output ?? null;
   }
   return resolveRawCommand(workEntry);
 }
@@ -156,7 +197,7 @@ function resolveRawCommand(workEntry: WorkLogEntry): string | null {
   return null;
 }
 
-function resolveCursorDetails(
+function resolveToolDetails(
   workEntry: WorkLogEntry,
   workspaceRoot: string | undefined,
 ): string | null {

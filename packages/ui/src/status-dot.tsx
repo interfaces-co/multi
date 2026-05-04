@@ -7,7 +7,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "./utils";
 
 const statusDotVariants = cva(
-  "relative inline-flex shrink-0 items-center justify-center after:block after:size-[var(--multi-status-dot-size,5.5px)] after:rounded-full after:content-['']",
+  "relative inline-flex shrink-0 items-center justify-center after:block after:size-(--multi-status-dot-size,5.5px) after:rounded-full after:content-['']",
   {
     defaultVariants: {
       state: "draft",

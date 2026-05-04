@@ -20,6 +20,11 @@ import type {
   ThreadSession,
   TurnDiffSummary,
 } from "./types";
+import {
+  decodeSubagentAgentStates,
+  decodeSubagentReceiverAgents,
+  decodeSubagentReceiverThreadIds,
+} from "@multi/shared/subagents";
 
 export type ProviderPickerKind = ProviderDriverKind;
 
@@ -62,6 +67,7 @@ export interface WorkLogEntry {
   createdAt: string;
   label: string;
   detail?: string;
+  output?: string;
   command?: string;
   rawCommand?: string;
   changedFiles?: ReadonlyArray<string>;
@@ -608,8 +614,7 @@ export function deriveWorkLogEntries(
   const ordered = [...activities].toSorted(compareActivitiesByOrder);
   const entries = ordered
     .filter((activity) => (latestTurnId ? activity.turnId === latestTurnId : true))
-    .filter((activity) => activity.kind !== "tool.started")
-    .filter((activity) => !isCollabAgentToolActivity(activity))
+    .filter((activity) => activity.kind !== "tool.started" || isCollabAgentToolActivity(activity))
     .filter((activity) => activity.kind !== "task.started")
     .filter((activity) => activity.kind !== "account.rate-limits.updated")
     .filter((activity) => activity.kind !== "context-window.updated")
@@ -641,6 +646,7 @@ function toDerivedWorkLogEntry(activity: OrchestrationThreadActivity): DerivedWo
   const commandPreview = extractToolCommand(payload);
   const changedFiles = extractChangedFiles(payload);
   const title = extractToolTitle(payload);
+  const subagents = extractWorkLogSubagents(payload);
   const isTaskActivity = activity.kind === "task.progress" || activity.kind === "task.completed";
   const taskSummary =
     isTaskActivity && typeof payload?.summary === "string" && payload.summary.length > 0
@@ -676,9 +682,18 @@ function toDerivedWorkLogEntry(activity: OrchestrationThreadActivity): DerivedWo
     typeof payload.detail === "string" &&
     payload.detail.length > 0
   ) {
-    const detail = stripTrailingExitCode(payload.detail).output;
-    if (detail) {
-      entry.detail = detail;
+    const normalized = stripTrailingExitCode(payload.detail).output;
+    if (normalized) {
+      if (itemType === "command_execution") {
+        entry.output = normalized;
+      } else {
+        entry.detail = normalized;
+      }
+    }
+  } else if (!taskDetailAsLabel) {
+    const resultText = extractToolResultText(payload);
+    if (resultText) {
+      entry.output = resultText;
     }
   }
   if (commandPreview.command) {
@@ -704,6 +719,13 @@ function toDerivedWorkLogEntry(activity: OrchestrationThreadActivity): DerivedWo
   }
   if (toolCallId) {
     entry.toolCallId = toolCallId;
+  }
+  if (subagents.length > 0) {
+    entry.subagents = subagents;
+  }
+  const subagentAction = extractSubagentAction(payload, entry);
+  if (subagentAction) {
+    entry.subagentAction = subagentAction;
   }
   const collapseKey = deriveToolLifecycleCollapseKey(entry);
   if (collapseKey) {
@@ -749,6 +771,7 @@ function mergeDerivedWorkLogEntries(
 ): DerivedWorkLogEntry {
   const changedFiles = mergeChangedFiles(previous.changedFiles, next.changedFiles);
   const detail = next.detail ?? previous.detail;
+  const output = next.output ?? previous.output;
   const command = next.command ?? previous.command;
   const rawCommand = next.rawCommand ?? previous.rawCommand;
   const toolTitle = next.toolTitle ?? previous.toolTitle;
@@ -756,11 +779,14 @@ function mergeDerivedWorkLogEntries(
   const requestKind = next.requestKind ?? previous.requestKind;
   const status = next.status ?? previous.status;
   const toolCallId = next.toolCallId ?? previous.toolCallId;
+  const subagents = mergeSubagents(previous.subagents, next.subagents);
+  const subagentAction = next.subagentAction ?? previous.subagentAction;
   const collapseKey = next.collapseKey ?? previous.collapseKey;
   return {
     ...previous,
     ...next,
     ...(detail ? { detail } : {}),
+    ...(output ? { output } : {}),
     ...(command ? { command } : {}),
     ...(rawCommand ? { rawCommand } : {}),
     ...(changedFiles.length > 0 ? { changedFiles } : {}),
@@ -769,8 +795,23 @@ function mergeDerivedWorkLogEntries(
     ...(requestKind ? { requestKind } : {}),
     ...(status ? { status } : {}),
     ...(toolCallId ? { toolCallId } : {}),
+    ...(subagents.length > 0 ? { subagents } : {}),
+    ...(subagentAction ? { subagentAction } : {}),
     ...(collapseKey ? { collapseKey } : {}),
   };
+}
+
+function mergeSubagents(
+  previous: ReadonlyArray<WorkLogSubagent> | undefined,
+  next: ReadonlyArray<WorkLogSubagent> | undefined,
+): WorkLogSubagent[] {
+  const merged = new Map<string, WorkLogSubagent>();
+  for (const subagent of [...(previous ?? []), ...(next ?? [])]) {
+    const key = subagent.providerThreadId ?? subagent.threadId ?? subagent.agentId;
+    const existing = merged.get(key);
+    merged.set(key, existing ? { ...existing, ...subagent } : subagent);
+  }
+  return [...merged.values()];
 }
 
 function mergeChangedFiles(
@@ -785,7 +826,11 @@ function mergeChangedFiles(
 }
 
 function deriveToolLifecycleCollapseKey(entry: DerivedWorkLogEntry): string | undefined {
-  if (entry.activityKind !== "tool.updated" && entry.activityKind !== "tool.completed") {
+  if (
+    entry.activityKind !== "tool.started" &&
+    entry.activityKind !== "tool.updated" &&
+    entry.activityKind !== "tool.completed"
+  ) {
     return undefined;
   }
   if (entry.toolCallId) {
@@ -820,6 +865,8 @@ function resolveWorkLogStatus(
 
   switch (activity.kind) {
     case "tool.updated":
+      return "running";
+    case "tool.started":
       return "running";
     case "tool.completed":
       return "completed";
@@ -1035,6 +1082,29 @@ function extractToolCommand(payload: Record<string, unknown> | null): {
   };
 }
 
+function extractToolResultText(payload: Record<string, unknown> | null): string | null {
+  const data = asRecord(payload?.data);
+  const item = asRecord(data?.item);
+  const itemResult = asRecord(item?.result);
+  const directResult = asRecord(data?.result);
+  const candidates: unknown[] = [
+    itemResult?.content,
+    itemResult?.output,
+    directResult?.content,
+    directResult?.output,
+  ];
+
+  for (const candidate of candidates) {
+    const text = asTrimmedString(candidate);
+    if (!text) {
+      continue;
+    }
+    return stripTrailingExitCode(text).output;
+  }
+
+  return null;
+}
+
 function extractToolTitle(payload: Record<string, unknown> | null): string | null {
   return asTrimmedString(payload?.title);
 }
@@ -1067,6 +1137,117 @@ function extractWorkLogItemType(
     return payload.itemType;
   }
   return undefined;
+}
+
+function extractWorkLogSubagents(
+  payload: Record<string, unknown> | null,
+): ReadonlyArray<WorkLogSubagent> {
+  const item = extractPayloadItem(payload);
+  if (!item) {
+    return [];
+  }
+
+  const threadIds = decodeSubagentReceiverThreadIds(item);
+  const agents = decodeSubagentReceiverAgents(item, threadIds);
+  const states = decodeSubagentAgentStates(item);
+  const byThreadId = new Map<string, WorkLogSubagent>();
+
+  for (const agent of agents) {
+    byThreadId.set(agent.providerThreadId, {
+      threadId: agent.providerThreadId,
+      providerThreadId: agent.providerThreadId,
+      agentId: agent.agentId,
+      nickname: agent.nickname,
+      role: agent.role,
+      model: agent.model,
+      prompt: agent.prompt,
+      title: resolveSubagentTitle(agent.nickname, agent.role),
+      statusLabel: "Started",
+      isActive: true,
+    });
+  }
+
+  for (const state of Object.values(states)) {
+    const existing = byThreadId.get(state.threadId);
+    const statusLabel = resolveSubagentStatusLabel(state.status);
+    byThreadId.set(state.threadId, {
+      ...existing,
+      threadId: state.threadId,
+      providerThreadId: existing?.providerThreadId ?? state.threadId,
+      agentId: state.agentId ?? existing?.agentId,
+      nickname: state.nickname ?? existing?.nickname,
+      role: state.role ?? existing?.role,
+      model: state.model ?? existing?.model,
+      prompt: state.prompt ?? existing?.prompt,
+      rawStatus: state.status ?? existing?.rawStatus,
+      latestUpdate: state.message ?? existing?.latestUpdate,
+      title: resolveSubagentTitle(
+        state.nickname ?? existing?.nickname,
+        state.role ?? existing?.role,
+      ),
+      statusLabel,
+      isActive: statusLabel !== "Completed" && statusLabel !== "Failed",
+    });
+  }
+
+  return [...byThreadId.values()];
+}
+
+function extractSubagentAction(
+  payload: Record<string, unknown> | null,
+  entry: WorkLogEntry,
+): WorkLogSubagentAction | null {
+  if (entry.itemType !== "collab_agent_tool_call") {
+    return null;
+  }
+  const item = extractPayloadItem(payload);
+  const prompt = asTrimmedString(item?.prompt ?? item?.task ?? item?.message);
+  const model = asTrimmedString(item?.model ?? item?.modelName ?? item?.model_name);
+  return {
+    tool: asTrimmedString(payload?.title) ?? "Task",
+    status: entry.status ?? "running",
+    summaryText: entry.detail ?? entry.label,
+    ...(model ? { model } : {}),
+    ...(prompt ? { prompt } : {}),
+  };
+}
+
+function extractPayloadItem(
+  payload: Record<string, unknown> | null,
+): Record<string, unknown> | null {
+  if (!payload) {
+    return null;
+  }
+  const data =
+    payload.data && typeof payload.data === "object"
+      ? (payload.data as Record<string, unknown>)
+      : null;
+  const item =
+    data?.item && typeof data.item === "object" ? (data.item as Record<string, unknown>) : null;
+  return item ?? payload;
+}
+
+function resolveSubagentTitle(
+  nickname: string | undefined,
+  role: string | undefined,
+): string | undefined {
+  return nickname ?? role;
+}
+
+function resolveSubagentStatusLabel(status: string | undefined): string | undefined {
+  switch (status) {
+    case "completed":
+    case "success":
+      return "Completed";
+    case "failed":
+    case "error":
+      return "Failed";
+    case "running":
+    case "in_progress":
+      return "Running";
+    default:
+      return status;
+  }
 }
 
 function extractWorkLogRequestKind(

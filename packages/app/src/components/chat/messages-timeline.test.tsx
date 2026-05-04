@@ -3,6 +3,7 @@ import { createRef } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { LegendListRef } from "@legendapp/list/react";
+import { ToolCallRenderer, type ToolCallModel } from "./tool-call-renderer";
 
 vi.mock("@legendapp/list/react", async () => {
   const React = await import("react");
@@ -126,13 +127,13 @@ function buildProps() {
     routeThreadKey: "environment-local:thread-1",
     onOpenTurnDiff: () => {},
     revertTurnCountByUserMessageId: new Map(),
-    onRevertUserMessage: () => {},
+    isServerThread: true,
+    onBeginEditUserMessage: () => {},
     isRevertingCheckpoint: false,
     onImageExpand: () => {},
     activeThreadEnvironmentId: ACTIVE_THREAD_ENVIRONMENT_ID,
     markdownCwd: undefined,
     resolvedTheme: "light" as const,
-    timestampFormat: "locale" as const,
     workspaceRoot: undefined,
     onIsAtEndChange: () => {},
   };
@@ -170,7 +171,7 @@ describe("messages-timeline", () => {
     );
 
     expect(markup).toContain("Terminal 1 lines 1-5");
-    expect(markup).toContain("lucide-terminal");
+    expect(markup).toContain("viewBox=\"0 0 24 24\"");
     expect(markup).toContain("yoo what&#x27;s ");
   }, 20_000);
 
@@ -195,8 +196,8 @@ describe("messages-timeline", () => {
       />,
     );
 
-    expect(markup).toContain("Context compacted");
     expect(markup).toContain('data-timeline-row-kind="work"');
+    expect(markup).toContain("Ran tool");
   });
 
   it("formats changed file paths from the workspace root", async () => {
@@ -224,5 +225,26 @@ describe("messages-timeline", () => {
 
     expect(markup).toContain("multi/packages/app/src/session-logic.ts");
     expect(markup).not.toContain("C:/Users/mike/dev-stuff/multi/packages/app/src/session-logic.ts");
+  });
+
+  it("renders shell tool output instead of repeating the raw wrapped command", () => {
+    const toolCall: ToolCallModel = {
+      tool: {
+        case: "shellToolCall",
+        value: {
+          action: "Ran",
+          details: "sed -n '1,220p' CONTEXT.md",
+          command: "sed -n '1,220p' CONTEXT.md",
+          output: "first line\nsecond line",
+        },
+      },
+    };
+
+    const markup = renderToStaticMarkup(
+      <ToolCallRenderer toolCall={toolCall} defaultExpanded />,
+    );
+
+    expect(markup).toContain("first line");
+    expect(markup).not.toContain("/bin/zsh -lc");
   });
 });

@@ -79,12 +79,16 @@ export function resolveInitialChatTarget(input: {
     if (thread.environmentId !== activeEnvironmentId || thread.archivedAt !== null) {
       return [];
     }
+    const projectCwd = projectCwdByProjectId.get(thread.projectId);
+    if (!projectCwd) {
+      return [];
+    }
     return [
       {
         kind: "server",
         environmentId: thread.environmentId,
         threadId: thread.id,
-        cwd: thread.worktreePath ?? projectCwdByProjectId.get(thread.projectId) ?? null,
+        cwd: thread.worktreePath ?? projectCwd,
         updatedAt: thread.updatedAt || thread.createdAt,
       } satisfies Candidate,
     ];
@@ -94,11 +98,15 @@ export function resolveInitialChatTarget(input: {
     if (draft.environmentId !== activeEnvironmentId || draft.promotedTo != null) {
       return [];
     }
+    const projectCwd = projectCwdByProjectId.get(draft.projectId);
+    if (!projectCwd) {
+      return [];
+    }
     return [
       {
         kind: "draft",
         draftId: draft.draftId,
-        cwd: draft.worktreePath ?? projectCwdByProjectId.get(draft.projectId) ?? null,
+        cwd: draft.worktreePath ?? projectCwd,
         updatedAt: draft.createdAt,
       } satisfies Candidate,
     ];

@@ -1,3 +1,4 @@
+import { IconBrain } from "central-icons";
 import { forwardRef, useEffect, useState, type HTMLAttributes } from "react";
 import { cn } from "~/lib/utils";
 
@@ -35,20 +36,10 @@ const ThinkingIndicator = forwardRef<HTMLDivElement, ThinkingIndicatorProps>(
         )}
         {...props}
       >
-        <svg
+        <IconBrain
           aria-hidden="true"
-          className="shrink-0 opacity-80 [&_path]:animate-thinking-glyph [&_path]:[stroke-dasharray:30_18] [&_path]:[transform-box:fill-box] [&_path]:[transform-origin:center] [&_path]:will-change-[transform,opacity] motion-reduce:[&_path]:animate-none"
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="1.5"
-        >
-          <path d="M12 12c2-3.5 7-3.5 7 0s-5 3.5-7 0-7-3.5-7 0 5 3.5 7 0Z" />
-        </svg>
+          className="size-5 shrink-0 animate-thinking-glyph opacity-80 will-change-[transform,opacity] motion-reduce:animate-none"
+        />
         <span className="inline-flex items-baseline gap-1 text-body font-medium" aria-hidden="true">
           <span className="inline-grid overflow-hidden">
             <span className="col-start-1 row-start-1 invisible">{longestWord}</span>

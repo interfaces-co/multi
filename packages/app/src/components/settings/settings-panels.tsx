@@ -547,7 +547,7 @@ function SettingsSlider(props: {
     <div className="flex w-full items-center justify-end gap-2 sm:w-34">
       <input
         aria-label={props.label}
-        className="h-4 w-full accent-[var(--multi-hue-blue)]"
+        className="h-4 w-full accent-(--multi-hue-blue)"
         max={props.max}
         min={props.min}
         type="range"
@@ -1446,7 +1446,7 @@ export function ModelsSettingsPanel() {
             {models.map((model) => (
               <li
                 key={`codex:${model.slug}`}
-                className="flex min-h-7 items-center gap-2 border-t border-[var(--multi-stroke-quaternary)] first:border-t-0"
+                className="flex min-h-7 items-center gap-2 border-t border-(color:--multi-stroke-quaternary) first:border-t-0"
               >
                 <Text size="sm" tone="primary" truncate className="min-w-0 flex-1">
                   {model.name}
@@ -1572,7 +1572,7 @@ export function ArchivedThreadsPanel() {
             {projectThreads.map((thread) => (
               <div
                 key={thread.id}
-                className="flex items-center justify-between gap-3 border-t border-[var(--multi-stroke-quaternary)] px-4 py-3 first:border-t-0 sm:px-5"
+                className="flex items-center justify-between gap-3 border-t border-(color:--multi-stroke-quaternary) px-4 py-3 first:border-t-0 sm:px-5"
                 onContextMenu={(event) => {
                   event.preventDefault();
                   void handleArchivedThreadContextMenu(

@@ -95,13 +95,13 @@ Embedded CSS documents **two user message layouts**:
 - `.ui-edit-tool-call` + **`--minimal`** (collapsed filename row, additions/deletions colors, expand chevron).
 - `.ui-shell-tool-call` + **`--pending`** (pending state on card).
 
-**Cross-cutting tokens:** heavy use of **`var(--cursor-*)`** and conversation fallbacks like `--conversation-font-size` / `--conversation-text-font-size`.
+**Cross-cutting tokens:** Cursor’s embedded stylesheet uses **`var(--cursor-*)`** heavily, plus conversation fallbacks like `--conversation-font-size` / `--conversation-text-font-size`. Multi’s app theme uses **`--multi-*`** tokens instead; we do not ship **`--cursor-*`** compatibility aliases in `tokens.css`.
 
 ---
 
 ## Multi implementation note
 
-- `packages/app/src/components/chat/cursor-chat-bundle.tsx` emits the durable Cursor class contracts for transcript bubbles and tool rows (`ui-meta-agent-*`, `ui-tool-call-*`, `ui-edit-tool-call*`, `ui-shell-tool-call*`).
+- Transcript bubbles and tool rows emit the durable Cursor class hooks (`ui-meta-agent-*`, `ui-tool-call-*`, `ui-edit-tool-call*`, `ui-shell-tool-call*`) from focused components (for example `human-message.tsx`, `assistant-message.tsx`, `message-surface.tsx`, `tool-call-renderer.tsx`) rather than a single legacy bundle module.
 - `packages/app/src/components/chat/messages-timeline.tsx` now uses Cursor row/list hooks (`ui-imsg-thread__messages`, `agent-panel-meta-agent-chat__message-entry`, `agent-panel-meta-agent-chat__row--human|assistant|tool-call|loading`) instead of wrapping every row in a `multi-message-thread` shell.
 - Bubble sizing, padding, hover, tool-line shimmer, edit minimal rows, shell cards, and meta-agent cards live in the scoped chat CSS contract in `packages/app/src/styles/shell.css`, so the JSX emits canonical hooks rather than a parallel Tailwind-only clone.
 - Multi-specific classes remain only for behavior that is not represented by the Cursor bubble contract: media attachments, footer metadata, and hover action visibility.

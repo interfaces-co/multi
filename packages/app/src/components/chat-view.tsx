@@ -215,10 +215,10 @@ function HeroComposerActionCard(props: HeroComposerActionCardProps) {
       className="group flex h-24 min-h-24 flex-col justify-between rounded-[8px] border border-[color-mix(in_srgb,var(--hero-action-accent)_20%,var(--multi-stroke-tertiary))] bg-[color-mix(in_srgb,var(--hero-action-accent)_6%,var(--multi-color-bubble))] p-3 text-left shadow-sm transition-colors hover:border-[color-mix(in_srgb,var(--hero-action-accent)_42%,var(--multi-stroke-secondary))] hover:bg-[color-mix(in_srgb,var(--hero-action-accent)_10%,var(--multi-color-bubble))] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
     >
       <span className="flex items-center justify-between gap-2">
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-[7px] border border-[color-mix(in_srgb,var(--hero-action-accent)_28%,transparent)] bg-[color-mix(in_srgb,var(--hero-action-accent)_13%,transparent)] text-[var(--hero-action-accent)]">
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-[7px] border border-[color-mix(in_srgb,var(--hero-action-accent)_28%,transparent)] bg-[color-mix(in_srgb,var(--hero-action-accent)_13%,transparent)] text-(color:--hero-action-accent)">
           <Icon className="size-3.5" />
         </span>
-        <IconChevronRight className="size-4 shrink-0 text-muted-foreground/42 transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--hero-action-accent)]" />
+        <IconChevronRight className="size-4 shrink-0 text-muted-foreground/42 transition-transform group-hover:translate-x-0.5 group-hover:text-(color:--hero-action-accent)" />
       </span>
       <span className="grid gap-0.5">
         <span className="truncate text-body/[1.25] font-medium text-foreground">{props.title}</span>
@@ -743,6 +743,8 @@ export default function ChatView(props: ChatViewProps) {
   const composerTerminalContextsRef = useRef<TerminalContextDraft[]>([]);
   const localComposerRef = useRef<ChatComposerHandle | null>(null);
   const composerRef = useComposerHandleContext() ?? localComposerRef;
+  /** When set, the next send runs this checkpoint revert before `thread.turn.start` (edit-from-history). */
+  const pendingEditRevertTurnRef = useRef<number | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [expandedImage, setExpandedImage] = useState<ExpandedImagePreview | null>(null);
   const [optimisticUserMessages, setOptimisticUserMessages] = useState<ChatMessage[]>([]);
@@ -1405,6 +1407,45 @@ export default function ChatView(props: ChatViewProps) {
 
     return byUserMessageId;
   }, [inferredCheckpointTurnCountByTurnId, timelineEntries, turnDiffSummaryByAssistantMessageId]);
+
+  const onBeginEditUserMessage = useCallback(
+    (messageId: MessageId) => {
+      if (!isServerThread) {
+        return;
+      }
+      const revertTurn = revertTurnCountByUserMessageId.get(messageId);
+      const msg = timelineMessages.find((entry) => entry.id === messageId && entry.role === "user");
+      if (!msg) {
+        return;
+      }
+
+      pendingEditRevertTurnRef.current = typeof revertTurn === "number" ? revertTurn : null;
+      clearComposerDraftContent(composerDraftTarget);
+      setComposerDraftPrompt(composerDraftTarget, msg.text, null);
+      setComposerDraftTerminalContexts(composerDraftTarget, []);
+
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          composerRef.current?.resetCursorState({
+            prompt: msg.text,
+            cursor: msg.text.length,
+            detectTrigger: true,
+          });
+          composerRef.current?.focusAtEnd();
+        });
+      });
+    },
+    [
+      clearComposerDraftContent,
+      composerDraftTarget,
+      composerRef,
+      isServerThread,
+      revertTurnCountByUserMessageId,
+      setComposerDraftPrompt,
+      setComposerDraftTerminalContexts,
+      timelineMessages,
+    ],
+  );
 
   const completionSummary = useMemo(() => {
     if (!latestTurnSettled) return null;
@@ -2299,27 +2340,19 @@ export default function ChatView(props: ChatViewProps) {
     toggleTerminalVisibility,
   ]);
 
-  const onRevertToTurnCount = useCallback(
-    async (turnCount: number) => {
+  const revertThreadToTurnCountSilent = useCallback(
+    async (turnCount: number): Promise<boolean> => {
       const api = readEnvironmentApi(environmentId);
-      const localApi = readLocalApi();
-      if (!api || !localApi || !activeThread || isRevertingCheckpoint) return;
-
+      if (!api || !activeThread || isRevertingCheckpoint) {
+        return false;
+      }
       if (phase === "running" || isSendBusy || isConnecting) {
-        setThreadError(activeThread.id, "Interrupt the current turn before reverting checkpoints.");
-        return;
+        setThreadError(
+          activeThread.id,
+          "Interrupt the current turn before editing earlier messages.",
+        );
+        return false;
       }
-      const confirmed = await localApi.dialogs.confirm(
-        [
-          `Revert this thread to checkpoint ${turnCount}?`,
-          "This will discard newer messages and turn diffs in this thread.",
-          "This action cannot be undone.",
-        ].join("\n"),
-      );
-      if (!confirmed) {
-        return;
-      }
-
       setIsRevertingCheckpoint(true);
       setThreadError(activeThread.id, null);
       try {
@@ -2330,13 +2363,16 @@ export default function ChatView(props: ChatViewProps) {
           turnCount,
           createdAt: new Date().toISOString(),
         });
+        return true;
       } catch (err) {
         setThreadError(
           activeThread.id,
           err instanceof Error ? err.message : "Failed to revert thread state.",
         );
+        return false;
+      } finally {
+        setIsRevertingCheckpoint(false);
       }
-      setIsRevertingCheckpoint(false);
     },
     [
       activeThread,
@@ -2434,6 +2470,16 @@ export default function ChatView(props: ChatViewProps) {
     if (shouldCreateWorktree && !activeThreadBranch) {
       setThreadError(threadIdForSend, "Select a base branch before sending in New worktree mode.");
       return;
+    }
+
+    const pendingRevertTurn = pendingEditRevertTurnRef.current;
+    pendingEditRevertTurnRef.current = null;
+    if (pendingRevertTurn !== null) {
+      const reverted = await revertThreadToTurnCountSilent(pendingRevertTurn);
+      if (!reverted) {
+        pendingEditRevertTurnRef.current = pendingRevertTurn;
+        return;
+      }
     }
 
     sendInFlightRef.current = true;
@@ -2646,10 +2692,13 @@ export default function ChatView(props: ChatViewProps) {
   const onInterrupt = async () => {
     const api = readEnvironmentApi(environmentId);
     if (!api || !activeThread) return;
+    const activeTurnId =
+      activeThread.session?.activeTurnId ?? activeThread.latestTurn?.turnId ?? undefined;
     await api.orchestration.dispatchCommand({
       type: "thread.turn.interrupt",
       commandId: newCommandId(),
       threadId: activeThread.id,
+      ...(activeTurnId !== undefined ? { turnId: activeTurnId } : {}),
       createdAt: new Date().toISOString(),
     });
   };
@@ -3154,19 +3203,6 @@ export default function ChatView(props: ChatViewProps) {
     },
     [environmentId, isServerThread, navigate, onDiffPanelOpen, threadId],
   );
-  // Both the Map and the revert handler are read from refs at call-time so
-  // the callback reference is fully stable and never busts context identity.
-  const revertTurnCountRef = useRef(revertTurnCountByUserMessageId);
-  revertTurnCountRef.current = revertTurnCountByUserMessageId;
-  const onRevertToTurnCountRef = useRef(onRevertToTurnCount);
-  onRevertToTurnCountRef.current = onRevertToTurnCount;
-  const onRevertUserMessage = useCallback((messageId: MessageId) => {
-    const targetTurnCount = revertTurnCountRef.current.get(messageId);
-    if (typeof targetTurnCount !== "number") {
-      return;
-    }
-    void onRevertToTurnCountRef.current(targetTurnCount);
-  }, []);
 
   if (!activeThread) {
     traceBrowserEvent(
@@ -3263,13 +3299,13 @@ export default function ChatView(props: ChatViewProps) {
                 routeThreadKey={routeThreadKey}
                 onOpenTurnDiff={onOpenTurnDiff}
                 revertTurnCountByUserMessageId={revertTurnCountByUserMessageId}
-                onRevertUserMessage={onRevertUserMessage}
                 isRevertingCheckpoint={isRevertingCheckpoint}
                 onImageExpand={onExpandTimelineImage}
                 markdownCwd={gitCwd ?? undefined}
                 resolvedTheme={resolvedTheme}
-                timestampFormat={timestampFormat}
                 workspaceRoot={activeWorkspaceRoot}
+                isServerThread={isServerThread}
+                onBeginEditUserMessage={onBeginEditUserMessage}
                 onIsAtEndChange={onIsAtEndChange}
               />
 
@@ -3293,7 +3329,7 @@ export default function ChatView(props: ChatViewProps) {
           <div
             className={cn(
               "agent-panel-followup-input",
-              isHeroComposer ? "agent-panel-empty-state-shell" : "px-3 pt-1.5 sm:px-5 sm:pt-2",
+              isHeroComposer ? "agent-panel-empty-state-shell" : "pt-1.5 sm:pt-2",
               isHeroComposer ? undefined : isGitRepo ? "pb-1" : "pb-3 sm:pb-4",
               isConnecting ? "agent-panel-followup-input--disabled" : undefined,
               !showScrollToBottom ? "agent-panel-followup-input--conversation-overlay" : undefined,
