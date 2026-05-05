@@ -1,62 +1,31 @@
 # Multi
 
-Multi is a minimal web GUI for coding agents (currently Codex and Claude, more coming soon).
+Minimal web UI for coding agents (Codex and Claude today; more providers later).
 
-## Installation
+Install desktop builds from [GitHub Releases](https://github.com/interfaces-co/Multi/releases). Stable shipping is automated: push a semver tag matching `v*.*.*` (for example `v0.0.1`) and the [Release workflow](https://github.com/interfaces-co/Multi/actions/workflows/release.yml) builds artifacts, publishes the `usemulti` CLI to npm, and opens a GitHub release.
 
-> [!WARNING]
-> Multi currently supports Codex and Claude.
-> Install and authenticate at least one provider before use:
->
-> - Codex: install [Codex CLI](https://github.com/openai/codex) and run `codex login`
-> - Claude: install Claude Code and run `claude auth login`
+## Install
 
-### Run without installing
+Authenticate at least one backend before running:
+
+- **Codex:** [Codex CLI](https://github.com/openai/codex), then `codex login`
+- **Claude:** Claude Code, then `claude auth login`
 
 ```bash
 npx usemulti
 ```
 
-### Desktop app
+### Desktop
 
-Install the latest version of the desktop app from [GitHub Releases](https://github.com/interfaces-co/Multi/releases), or from your favorite package registry:
+**Windows** (`winget`): `winget install InterfacesCo.Multi`  
+**macOS** (Homebrew): `brew install --cask multi`  
+**Arch** (AUR): `yay -S multi-bin`
 
-#### Windows (`winget`)
+## Develop
 
-```bash
-winget install InterfacesCo.Multi
-```
-
-#### macOS (Homebrew)
+See [CONTRIBUTING.md](./CONTRIBUTING.md). Observability: [docs/observability.md](./docs/observability.md). Support: [Discord](https://discord.gg/jn4EGJjrvv).
 
 ```bash
-brew install --cask multi
-```
-
-#### Arch Linux (AUR)
-
-```bash
-yay -S multi-bin
-```
-
-## Some notes
-
-We are very very early in this project. Expect bugs.
-
-We are not accepting contributions yet.
-
-Observability guide: [docs/observability.md](./docs/observability.md)
-
-## If you REALLY want to contribute still.... read this first
-
-Before local development, prepare the environment and install dependencies:
-
-```bash
-# Optional: only needed if you use mise for dev tool management.
-mise install
+mise install   # optional
 bun install .
 ```
-
-Read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening an issue or PR.
-
-Need support? Join the [Discord](https://discord.gg/jn4EGJjrvv).

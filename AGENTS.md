@@ -18,7 +18,7 @@
 - Never hardcode key checks with, eg. `matchesKey(keyData, "ctrl+x")`. All keybindings must be configurable. Add default to matching object (`DEFAULT_EDITOR_KEYBINDINGS` or `DEFAULT_APP_KEYBINDINGS`)
 - **Tailwind `className`**: No decorative kebab-case labels or constants (including `AGENT_*_CLASSNAME`) used only as utility buckets unless the string is a required CSS or test selector; put Tailwind on the element or use `cva` (`class-variance-authority`) for variants and conditionals.
 
-t## Icons
+## Icons
 
 UI icons use **Central Icons** (`central-icons`, resolved to `@central-icons-react/round-outlined-radius-2-stroke-1.5`). Do not add Lucide or import from `lucide-react`.
 
@@ -82,8 +82,11 @@ git pull --rebase && git push
 
 ### User override
 
-If the user instructions co
-nflict with rules set out here, ask for confirmation that they want to override the rules. Only then execute their instructions.
+If the user instructions conflict with rules set out here, ask for confirmation that they want to override the rules. Only then execute their instructions.
+
+## Releases
+
+Published versions for `usemulti`, `@multi/app`, `@multi/desktop`, and `@multi/contracts` are kept in sync via `scripts/update-release-package-versions.ts`. Releasing is automated in GitHub Actions (`.github/workflows/release.yml`): push a tag matching `v*.*.*`, or dispatch the workflow with a stable version string. See [README.md](./README.md#releases).
 
 ## Docs
 
