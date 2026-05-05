@@ -228,7 +228,7 @@ export const ToolCallRenderer = memo(function ToolCallRenderer({
           action={displayState.action}
           details={
             loading && startedAtMs ? (
-        <AwaitDetails details={displayState.details} startedAtMs={startedAtMs} />
+              <AwaitDetails details={displayState.details} startedAtMs={startedAtMs} />
             ) : (
               displayState.details
             )
@@ -802,11 +802,7 @@ function EditToolCall({
         >
           <IconFileEdit className="size-3.5 shrink-0 text-multi-fg-tertiary" />
           <span className={toolCallLineActionVariants()}>{action}</span>
-          <span
-            className={editToolCallFilenameVariants({ loading, isDelete })}
-          >
-            {path}
-          </span>
+          <span className={editToolCallFilenameVariants({ loading, isDelete })}>{path}</span>
         </div>
         <EditStats stats={stats} />
         {hasContent ? (
@@ -851,23 +847,15 @@ function EditToolCall({
   );
 }
 
-function EditStats({
-  stats,
-}: {
-  stats: ToolCallModel["tool"]["value"]["stats"] | undefined;
-}) {
+function EditStats({ stats }: { stats: ToolCallModel["tool"]["value"]["stats"] | undefined }) {
   const additions = stats?.additions ?? 0;
   const deletions = stats?.deletions ?? 0;
   if (additions === 0 && deletions === 0) return null;
 
   return (
     <span className="ml-1 inline-flex shrink-0 gap-1">
-      {additions > 0 ? (
-        <span className="text-multi-fg-green-primary">+{additions}</span>
-      ) : null}
-      {deletions > 0 ? (
-        <span className="text-multi-fg-red-primary">-{deletions}</span>
-      ) : null}
+      {additions > 0 ? <span className="text-multi-fg-green-primary">+{additions}</span> : null}
+      {deletions > 0 ? <span className="text-multi-fg-red-primary">-{deletions}</span> : null}
     </span>
   );
 }
@@ -994,20 +982,22 @@ function iconForToolCase(toolCase: ToolCase): CentralIconComponent {
   }
 }
 
-const TOOL_ACTION_LABELS: Record<
-  ToolCase,
-  { loading: string; completed: string; error: string }
-> = {
-  awaitToolCall: { loading: "Waiting", completed: "Waited", error: "Wait" },
-  readToolCall: { loading: "Reading", completed: "Read", error: "Read" },
-  grepToolCall: { loading: "Grepping", completed: "Grepped", error: "Grep" },
-  globToolCall: { loading: "Searching files", completed: "Searched files", error: "Search files" },
-  shellToolCall: { loading: "Running", completed: "Ran", error: "Run" },
-  editToolCall: { loading: "Editing", completed: "Edited", error: "Edit" },
-  deleteToolCall: { loading: "Deleting", completed: "Deleted", error: "Delete" },
-  mcpToolCall: { loading: "Running MCP", completed: "Ran MCP", error: "Run MCP" },
-  taskToolCall: { loading: "Task", completed: "Task", error: "Task" },
-  webSearchToolCall: { loading: "Searching web", completed: "Searched web", error: "Search web" },
-  imageViewToolCall: { loading: "Viewing image", completed: "Viewed image", error: "View image" },
-  unknownToolCall: { loading: "Running tool", completed: "Ran tool", error: "Run tool" },
-};
+const TOOL_ACTION_LABELS: Record<ToolCase, { loading: string; completed: string; error: string }> =
+  {
+    awaitToolCall: { loading: "Waiting", completed: "Waited", error: "Wait" },
+    readToolCall: { loading: "Reading", completed: "Read", error: "Read" },
+    grepToolCall: { loading: "Grepping", completed: "Grepped", error: "Grep" },
+    globToolCall: {
+      loading: "Searching files",
+      completed: "Searched files",
+      error: "Search files",
+    },
+    shellToolCall: { loading: "Running", completed: "Ran", error: "Run" },
+    editToolCall: { loading: "Editing", completed: "Edited", error: "Edit" },
+    deleteToolCall: { loading: "Deleting", completed: "Deleted", error: "Delete" },
+    mcpToolCall: { loading: "Running MCP", completed: "Ran MCP", error: "Run MCP" },
+    taskToolCall: { loading: "Task", completed: "Task", error: "Task" },
+    webSearchToolCall: { loading: "Searching web", completed: "Searched web", error: "Search web" },
+    imageViewToolCall: { loading: "Viewing image", completed: "Viewed image", error: "View image" },
+    unknownToolCall: { loading: "Running tool", completed: "Ran tool", error: "Run tool" },
+  };

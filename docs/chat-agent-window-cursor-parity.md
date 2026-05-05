@@ -88,16 +88,16 @@ Binary evidence:
 
 Concrete style differences:
 
-| Surface | Cursor binary | Multi current code |
-| --- | --- | --- |
-| Base expanded radius | `--prompt-input-border-radius-expanded: 12px` | `8px` in `tokens.css` |
-| Editor padding | `8px 12px` | `10px 12px 6px` in `tokens.css`, plus wrapper `px-3 pb-2 sm:px-4` / `pt-*` in `chat-composer.tsx` |
-| Placeholder | ProseMirror pseudo-element: `content: attr(data-placeholder)`, `var(--cursor-text-quaternary)`, nowrap ellipsis | Separate absolutely positioned `.composer-prompt-placeholder` div, `var(--multi-fg-tertiary)`, same text visible outside ProseMirror |
-| Follow-up overlay | Absolute bottom overlay with full-viewport `:before` chrome mask and `:after` gradient | Relative overlay, no full-viewport mask/gradient |
-| Compact toolbar | Cursor base compact toolbar participates through prompt-input selectors and has compact-specific display rules; model picker has explicit `glass-model-picker-wrapper` order/margins | Multi keeps `ui-prompt-input-toolbar`, left, and right as real flex wrappers with additional Tailwind classes |
-| Root/container styling split | Cursor styles `.ui-prompt-input` as root and `.ui-prompt-input__container` as the actual bordered surface | Multi maps `chat-composer-shell` onto `.ui-prompt-input__container` and layers most visual rules there |
-| Disabled follow-up | Cursor disables pointer events on `.ui-prompt-input` and all descendants, and applies opacity to status area/editor/toolbar | Multi disables `.ui-prompt-input`; opacity only targets editor input and toolbar descendants |
-| Dock inset | Cursor follow-up wrapper has bottom padding only; chat content has `padding-left/right: var(--cursor-spacing-4)` | Multi timeline uses `--composer-messages-padding-inline: 16px`; `chat-view.tsx` adds top/bottom classes and no longer adds horizontal padding here |
+| Surface                      | Cursor binary                                                                                                                                                                        | Multi current code                                                                                                                                 |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Base expanded radius         | `--prompt-input-border-radius-expanded: 12px`                                                                                                                                        | `8px` in `tokens.css`                                                                                                                              |
+| Editor padding               | `8px 12px`                                                                                                                                                                           | `10px 12px 6px` in `tokens.css`, plus wrapper `px-3 pb-2 sm:px-4` / `pt-*` in `chat-composer.tsx`                                                  |
+| Placeholder                  | ProseMirror pseudo-element: `content: attr(data-placeholder)`, `var(--cursor-text-quaternary)`, nowrap ellipsis                                                                      | Separate absolutely positioned `.composer-prompt-placeholder` div, `var(--multi-fg-tertiary)`, same text visible outside ProseMirror               |
+| Follow-up overlay            | Absolute bottom overlay with full-viewport `:before` chrome mask and `:after` gradient                                                                                               | Relative overlay, no full-viewport mask/gradient                                                                                                   |
+| Compact toolbar              | Cursor base compact toolbar participates through prompt-input selectors and has compact-specific display rules; model picker has explicit `glass-model-picker-wrapper` order/margins | Multi keeps `ui-prompt-input-toolbar`, left, and right as real flex wrappers with additional Tailwind classes                                      |
+| Root/container styling split | Cursor styles `.ui-prompt-input` as root and `.ui-prompt-input__container` as the actual bordered surface                                                                            | Multi maps `chat-composer-shell` onto `.ui-prompt-input__container` and layers most visual rules there                                             |
+| Disabled follow-up           | Cursor disables pointer events on `.ui-prompt-input` and all descendants, and applies opacity to status area/editor/toolbar                                                          | Multi disables `.ui-prompt-input`; opacity only targets editor input and toolbar descendants                                                       |
+| Dock inset                   | Cursor follow-up wrapper has bottom padding only; chat content has `padding-left/right: var(--cursor-spacing-4)`                                                                     | Multi timeline uses `--composer-messages-padding-inline: 16px`; `chat-view.tsx` adds top/bottom classes and no longer adds horizontal padding here |
 
 Important non-differences:
 
@@ -258,9 +258,7 @@ Incorrect pattern:
 ```tsx
 const COMPOSER_ROW_CLASSNAME = "flex items-center gap-2 px-3";
 
-<div className="composer-row">
-  ...
-</div>
+<div className="composer-row">...</div>;
 ```
 
 The first constant is banned by the project rule. The second selector is decorative unless CSS or tests depend on it.
@@ -511,4 +509,4 @@ Manual visual checks:
 
 ---
 
-*Written from chat exploration 2026-05-04; code references may drift—verify against current `session-logic`, `messages-timeline`, `chat-view`, and `tool-call-message`.*
+_Written from chat exploration 2026-05-04; code references may drift—verify against current `session-logic`, `messages-timeline`, `chat-view`, and `tool-call-message`._

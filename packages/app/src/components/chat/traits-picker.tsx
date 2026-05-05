@@ -47,7 +47,9 @@ type TraitsPersistence =
 const ULTRATHINK_PROMPT_PREFIX = "Ultrathink:\n";
 
 /** Cursor labels the codex/agent fast preset as "Fast" in the Composer overflow menu. */
-function workbenchTraitSectionLabel(descriptor: Extract<ProviderOptionDescriptor, { type: "boolean" }>) {
+function workbenchTraitSectionLabel(
+  descriptor: Extract<ProviderOptionDescriptor, { type: "boolean" }>,
+) {
   return descriptor.id === "fastMode" ? "Fast" : descriptor.label;
 }
 
@@ -63,7 +65,9 @@ function WorkbenchBooleanTraitMenuGroup(props: {
       <MenuRadioGroup
         value={descriptor.currentValue === true ? "on" : "off"}
         onValueChange={(value) => {
-          updateDescriptors(replaceDescriptorCurrentValue(descriptors, descriptor.id, value === "on"));
+          updateDescriptors(
+            replaceDescriptorCurrentValue(descriptors, descriptor.id, value === "on"),
+          );
         }}
       >
         <MenuRadioItem variant="workbench" value="on">
@@ -316,8 +320,7 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
   };
 
   const fastModeDescriptor =
-    booleanDescriptors.find((descriptor) => descriptor.id === "fastMode") ??
-    null;
+    booleanDescriptors.find((descriptor) => descriptor.id === "fastMode") ?? null;
   const booleansExceptFastMode = booleanDescriptors.filter(
     (descriptor) => descriptor.id !== "fastMode",
   );
@@ -326,9 +329,7 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
     showFastMode &&
     Boolean(fastModeDescriptor);
 
-  const rendersRestSections =
-    traitsScope === "all" ||
-    traitsScope === "except-fast";
+  const rendersRestSections = traitsScope === "all" || traitsScope === "except-fast";
 
   const hasRenderableRest =
     rendersRestSections && (selectDescriptors.length > 0 || booleansExceptFastMode.length > 0);
@@ -366,8 +367,7 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
 
       {selectDescriptors.map((descriptor, index) => (
         <div key={descriptor.id}>
-          {(index > 0 || (traitsScope === "all" && rendersFastLeading)) &&
-          rendersRestSections ? (
+          {(index > 0 || (traitsScope === "all" && rendersFastLeading)) && rendersRestSections ? (
             <MenuDivider variant="workbench" />
           ) : null}
           <MenuGroup>
@@ -404,7 +404,9 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
       {rendersRestSections
         ? booleansExceptFastMode.map((descriptor, index) => (
             <div key={descriptor.id}>
-              {(index > 0 || selectDescriptors.length > 0 || (traitsScope === "all" && rendersFastLeading)) ? (
+              {index > 0 ||
+              selectDescriptors.length > 0 ||
+              (traitsScope === "all" && rendersFastLeading) ? (
                 <MenuDivider variant="workbench" />
               ) : null}
               <WorkbenchBooleanTraitMenuGroup

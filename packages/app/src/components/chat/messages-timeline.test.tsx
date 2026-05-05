@@ -171,7 +171,7 @@ describe("messages-timeline", () => {
     );
 
     expect(markup).toContain("Terminal 1 lines 1-5");
-    expect(markup).toContain("viewBox=\"0 0 24 24\"");
+    expect(markup).toContain('viewBox="0 0 24 24"');
     expect(markup).toContain("yoo what&#x27;s ");
   }, 20_000);
 
@@ -240,9 +240,7 @@ describe("messages-timeline", () => {
       },
     };
 
-    const markup = renderToStaticMarkup(
-      <ToolCallRenderer toolCall={toolCall} defaultExpanded />,
-    );
+    const markup = renderToStaticMarkup(<ToolCallRenderer toolCall={toolCall} defaultExpanded />);
 
     expect(markup).toContain("first line");
     expect(markup).not.toContain("/bin/zsh -lc");

@@ -71,13 +71,15 @@ export const HumanMessage = memo(function HumanMessage({
 
   const bodyInner =
     displayedUserMessage.visibleText.trim().length > 0 || terminalContexts.length > 0 ? (
-      <UserMessageBody text={displayedUserMessage.visibleText} terminalContexts={terminalContexts} />
+      <UserMessageBody
+        text={displayedUserMessage.visibleText}
+        terminalContexts={terminalContexts}
+      />
     ) : null;
 
   const body = bodyInner ? <HumanMessageCollapsible>{bodyInner}</HumanMessageCollapsible> : null;
 
-  const canEdit =
-    isServerThread && typeof onBeginEditUserMessage === "function";
+  const canEdit = isServerThread && typeof onBeginEditUserMessage === "function";
 
   return (
     <ChatMessageBubble
@@ -148,9 +150,7 @@ const UserMessageBody = memo(function UserMessageBody(props: {
           );
         }
 
-        return (
-          <div className="max-w-full min-w-0 break-words wrap-anywhere">{inlineNodes}</div>
-        );
+        return <div className="max-w-full min-w-0 break-words wrap-anywhere">{inlineNodes}</div>;
       }
     }
 

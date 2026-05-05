@@ -146,7 +146,7 @@ sequenceDiagram
 **Direction**
 
 - **Apply Principles** (spacing/padding coherence) — derive any new timeline bubble inset from **`tokens.css`** vocabulary (reuse conversation row gap tokens if present); avoid introducing a stray `px` only in JSX.
-- Prefer **single adjustment point** (delete speculative multi-wrapper churn): modestly bump **`AssistantMessage` top inset** (`pt-*`) **or** add **`pb`** on[`HumanMessage` bubble surface]([`packages/app/src/components/chat/message-surface.tsx`](packages/app/src/components/chat/message-surface.tsx)) only for **`role="user"`** if padding belongs to user chrome.
+- Prefer **single adjustment point** (delete speculative multi-wrapper churn): modestly bump **`AssistantMessage` top inset** (`pt-*`) **or** add **`pb`** on[`HumanMessage` bubble surface](<[`packages/app/src/components/chat/message-surface.tsx`](packages/app/src/components/chat/message-surface.tsx)>) only for **`role="user"`** if padding belongs to user chrome.
 - Keep change **one-sided** — avoid widening all timeline gaps (`CHAT_TIMELINE_ROW_GAP`) unless screenshots show global looseness regression.
 
 ---
@@ -157,7 +157,7 @@ sequenceDiagram
 
 - [`CommandDialogViewport`](packages/ui/src/command.tsx) uses **`fixed inset-0 z-[91] flex flex-col items-center justify-center`** while canonical modals [`DialogViewport`](packages/ui/src/dialog.tsx) uses **`grid grid-rows-[1fr_auto_3fr] justify-items-center`** with popup **`row-start-2`** for consistent vertical framing.
 - [`CommandDialogPopup`](packages/ui/src/command.tsx) inherits **nested-dialog scale/translate** formulas (`var(--nested-dialogs)`) aligned with **`dialog.tsx`**, but viewport geometry differs — easy source of subtle “floating high/low”.
-- Footer uses **`CommandFooter`** + ghost **`Button`** for filesystem action — typography/height mismatches [`KbdGroup`]([`packages/ui/src/kbd.tsx`](packages/ui/src/kbd.tsx)).
+- Footer uses **`CommandFooter`** + ghost **`Button`** for filesystem action — typography/height mismatches [`KbdGroup`](<[`packages/ui/src/kbd.tsx`](packages/ui/src/kbd.tsx)>).
 
 **Direction**
 
@@ -196,7 +196,7 @@ sequenceDiagram
 1. **`tokens.css`**: Introduce **`--composer-messages-scroll-bottom-inset`** as a **`calc(...)` from existing knobs** (`--multi-composer-editor-min-height`, toolbar padding, **`--prompt-input-section-gap`**, shell follow-up **`padding-bottom`**, `pt` from [`chat-view` follow-up wrappers]([`packages/app/src/components/chat-view.tsx`](packages/app/src/components/chat-view.tsx) ~3336–3340)) so one formula tracks layout changes. Optionally add **`safe-area`** term for iOS notch if shell already exposes it.
 2. **`messages-timeline.tsx`**: Set **`LegendList`** `paddingBottom` (and/or a non-empty **`ListFooterComponent`** min-height wired to that var if library requires block sizing) — **single consumer** instead of brittle magic **`24`**.
 3. **`shell.css` / overlay**: Revisit **`::before`** / **`::after`** gradient extents only after scroll inset proves sufficient — avoid layering “fixes” that mask the underlying clearance bug.
-4. **Dead-variable cleanup**: The shell sets **`--meta-agent-thread-stack-*`** on **`agent-panel-meta-agent-chat-shell`** in [`messages-timeline.tsx`](packages/app/src/components/chat/messages-timeline.tsx) (~253–256) with **no other references** repo-wide — **confirm and delete** that block (*high delete/add*) **or** rewire exactly one inset through it (**pick one canonical variable**, not five).
+4. **Dead-variable cleanup**: The shell sets **`--meta-agent-thread-stack-*`** on **`agent-panel-meta-agent-chat-shell`** in [`messages-timeline.tsx`](packages/app/src/components/chat/messages-timeline.tsx) (~253–256) with **no other references** repo-wide — **confirm and delete** that block (_high delete/add_) **or** rewire exactly one inset through it (**pick one canonical variable**, not five).
 
 **Escalation only if constants fail**
 

@@ -727,12 +727,7 @@ export const ChatComposer = memo(
         return normalized;
       }
       return currentOptions[0]?.slug ?? derivedComposerModel;
-    }, [
-      derivedComposerModel,
-      modelOptionsByInstance,
-      selectedInstanceId,
-      selectedProvider,
-    ]);
+    }, [derivedComposerModel, modelOptionsByInstance, selectedInstanceId, selectedProvider]);
 
     // Resolve the active instance's snapshot by `instanceId` so a custom
     // instance gets its own slash commands, skills, and model list — not
@@ -786,11 +781,7 @@ export const ChatComposer = memo(
           instanceCoherentSelectedModel,
           selectedModelOptionsForDispatch,
         ),
-      [
-        selectedInstanceId,
-        instanceCoherentSelectedModel,
-        selectedModelOptionsForDispatch,
-      ],
+      [selectedInstanceId, instanceCoherentSelectedModel, selectedModelOptionsForDispatch],
     );
 
     // ------------------------------------------------------------------
@@ -1010,9 +1001,7 @@ export const ChatComposer = memo(
 
     const isDockComposerExpanded =
       composerVariant === "compact" &&
-      (hasComposerHeader ||
-        composerImages.length > 0 ||
-        activePendingProgress !== null);
+      (hasComposerHeader || composerImages.length > 0 || activePendingProgress !== null);
 
     const composerFooterHasWideActions = showPlanFollowUpPrompt || activePendingProgress !== null;
     const showPlanSidebarToggle = Boolean(activePlan || sidebarProposedPlan || planSidebarOpen);
@@ -2054,7 +2043,9 @@ export const ChatComposer = memo(
                 "shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]",
             )}
           >
-            {composerVariant === "compact" && !isDockComposerExpanded && !isComposerApprovalState ? (
+            {composerVariant === "compact" &&
+            !isDockComposerExpanded &&
+            !isComposerApprovalState ? (
               <>
                 <input
                   ref={composerImageInputRef}
@@ -2245,8 +2236,7 @@ export const ChatComposer = memo(
                   <span
                     className={cn(
                       "inline-flex min-w-0 max-w-(--agent-prompt-model-picker-max-width) overflow-hidden [--agent-prompt-model-picker-max-width:240px]",
-                      isComposerFooterCompact &&
-                        "[--agent-prompt-model-picker-max-width:200px]",
+                      isComposerFooterCompact && "[--agent-prompt-model-picker-max-width:200px]",
                     )}
                     data-compact-visible=""
                   >

@@ -23,12 +23,7 @@ import { sortModelsForProviderInstance } from "../../model-ordering";
 import { MAX_CUSTOM_MODEL_LENGTH } from "../../model-selection";
 import { Button } from "@multi/ui/button";
 import { Input } from "@multi/ui/input";
-import {
-  Tooltip,
-  TooltipPopup,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@multi/ui/tooltip";
+import { Tooltip, TooltipPopup, TooltipProvider, TooltipTrigger } from "@multi/ui/tooltip";
 
 /**
  * Placeholder text for the "add a custom model" input, keyed by driver
@@ -141,9 +136,7 @@ const ProviderModelRow = memo(function ProviderModelRow({
           </Tooltip>
         ) : null}
         {isHidden ? <span className="text-[10px] text-muted-foreground">hidden</span> : null}
-        {model.isCustom ? (
-          <span className="text-[10px] text-muted-foreground">custom</span>
-        ) : null}
+        {model.isCustom ? <span className="text-[10px] text-muted-foreground">custom</span> : null}
       </div>
       <div className="flex shrink-0 items-center gap-0.5">
         <Tooltip>
@@ -332,7 +325,14 @@ export function ProviderModelsSection({
       onFavoriteModelsChange(favoriteModels.filter((model) => model !== slug));
       setError(null);
     },
-    [customModels, favoriteModels, modelOrder, onChange, onFavoriteModelsChange, onModelOrderChange],
+    [
+      customModels,
+      favoriteModels,
+      modelOrder,
+      onChange,
+      onFavoriteModelsChange,
+      onModelOrderChange,
+    ],
   );
 
   const handleToggleHidden = useCallback(
@@ -433,7 +433,8 @@ export function ProviderModelsSection({
             const previousModel = orderedModels[index - 1];
             const nextModel = orderedModels[index + 1];
             const canMoveUp =
-              previousModel !== undefined && favoriteModelSet.has(previousModel.slug) === isFavorite;
+              previousModel !== undefined &&
+              favoriteModelSet.has(previousModel.slug) === isFavorite;
             const canMoveDown =
               nextModel !== undefined && favoriteModelSet.has(nextModel.slug) === isFavorite;
 

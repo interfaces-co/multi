@@ -80,9 +80,7 @@ export const ModelListRow = memo(function ModelListRow(props: {
             {props.showFavoriteToggle ? (
               <button
                 type="button"
-                aria-label={
-                  props.isFavorite ? "Remove from favorites" : "Add to favorites"
-                }
+                aria-label={props.isFavorite ? "Remove from favorites" : "Add to favorites"}
                 aria-pressed={props.isFavorite}
                 className="inline-flex size-6 shrink-0 items-center justify-center rounded-[4px] text-multi-fg-tertiary opacity-85 transition-colors hover:bg-multi-bg-active hover:text-amber-700 hover:opacity-100 dark:text-multi-fg-secondary dark:hover:text-amber-300"
                 onClick={(event) => {

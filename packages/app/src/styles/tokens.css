@@ -36,10 +36,7 @@
   --multi-composer-max-width: 840px;
   --multi-composer-column-padding-inline: 16px;
   --multi-composer-section-gap: 8px;
-  --multi-composer-surface-bg: var(
-    --glass-chat-bubble-background,
-    var(--multi-color-bubble)
-  );
+  --multi-composer-surface-bg: var(--glass-chat-bubble-background, var(--multi-color-bubble));
   --multi-composer-surface-border: var(--multi-stroke-tertiary);
   --multi-composer-surface-border-hover: var(--multi-stroke-secondary);
   --multi-composer-radius-expanded: 12px;
@@ -58,9 +55,7 @@
   /* Dock pill: Cursor parity compact surface padding 8px 10px (chat-agent-window-cursor-parity.md). */
   --multi-composer-compact-control-size: 28px;
   --multi-composer-compact-surface-padding: 8px 10px;
-  --multi-composer-compact-row-min-height: calc(
-    var(--multi-composer-compact-control-size) + 16px
-  );
+  --multi-composer-compact-row-min-height: calc(var(--multi-composer-compact-control-size) + 16px);
   --multi-composer-compact-editor-line-height: 20px;
   /*
    * Docked composer stack reserve: editor floor + toolbar row + gaps + shell follow-up
@@ -526,8 +521,7 @@ html.multi-reduce-transparency {
   --multi-color-active: oklch(0.94 0.028 252 / 0.8);
   --multi-chat-bubble-border: color-mix(in oklch, var(--foreground) 9%, transparent);
   --multi-chat-bubble-shadow:
-    0 1px 1px oklch(0 0 0 / 0.035),
-    0 12px 30px -24px oklch(0.256 0.006 270 / 0.38);
+    0 1px 1px oklch(0 0 0 / 0.035), 0 12px 30px -24px oklch(0.256 0.006 270 / 0.38);
 
   --multi-hue-green: var(--multi-diff-addition);
   --multi-hue-red: var(--multi-diff-deletion);
@@ -620,9 +614,7 @@ html.multi-reduce-transparency {
   --multi-color-hover: oklch(0.268 0.045 261 / 0.35);
   --multi-color-active: oklch(0.268 0.045 261 / 0.6);
   --multi-chat-bubble-border: color-mix(in oklch, var(--foreground) 13%, transparent);
-  --multi-chat-bubble-shadow:
-    0 1px 1px oklch(0 0 0 / 0.22),
-    0 14px 34px -24px oklch(0 0 0 / 0.72);
+  --multi-chat-bubble-shadow: 0 1px 1px oklch(0 0 0 / 0.22), 0 14px 34px -24px oklch(0 0 0 / 0.72);
 
   --multi-hue-green: var(--multi-diff-addition);
   --multi-hue-red: var(--multi-diff-deletion);

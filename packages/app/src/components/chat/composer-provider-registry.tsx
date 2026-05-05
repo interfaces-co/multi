@@ -86,8 +86,7 @@ function renderTraitsControl(
     onPromptChange,
     traitsScope: traitsScopeRequested = "all",
   } = input;
-  const traitsScopeForComponent =
-    Component === TraitsPicker ? "all" : traitsScopeRequested;
+  const traitsScopeForComponent = Component === TraitsPicker ? "all" : traitsScopeRequested;
 
   const hasTarget = threadRef !== undefined || draftId !== undefined;
   if (!hasTarget) {
@@ -112,8 +111,7 @@ function renderTraitsControl(
     const booleansExceptFastMode = visibility.booleanDescriptors.filter(
       (descriptor) => descriptor.id !== "fastMode",
     );
-    const hasRest =
-      visibility.selectDescriptors.length > 0 || booleansExceptFastMode.length > 0;
+    const hasRest = visibility.selectDescriptors.length > 0 || booleansExceptFastMode.length > 0;
     if (!hasRest) {
       return null;
     }

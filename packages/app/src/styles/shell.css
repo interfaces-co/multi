@@ -1284,7 +1284,9 @@ body {
   z-index: 4;
 }
 
-.agent-window .ui-prompt-input__container[data-variant="compact"]:not([data-expanded]) > .chat-composer-surface {
+.agent-window
+  .ui-prompt-input__container[data-variant="compact"]:not([data-expanded])
+  > .chat-composer-surface {
   align-items: center;
   box-sizing: border-box;
   border-radius: inherit;
@@ -1295,11 +1297,15 @@ body {
   padding: var(--multi-composer-compact-surface-padding);
 }
 
-.agent-window .ui-prompt-input__container[data-variant="compact"]:not([data-expanded]) .ui-prompt-input-attachment-button {
+.agent-window
+  .ui-prompt-input__container[data-variant="compact"]:not([data-expanded])
+  .ui-prompt-input-attachment-button {
   order: 0;
 }
 
-.agent-window .ui-prompt-input__container[data-variant="compact"]:not([data-expanded]) .ui-prompt-input-editor {
+.agent-window
+  .ui-prompt-input__container[data-variant="compact"]:not([data-expanded])
+  .ui-prompt-input-editor {
   align-self: center;
   display: flex;
   flex: 1 1 auto;

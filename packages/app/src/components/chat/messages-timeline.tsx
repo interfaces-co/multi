@@ -147,16 +147,13 @@ export const MessagesTimeline = memo(function MessagesTimeline({
   );
   const isAtEndRef = useRef(true);
 
-  const handleScroll = useCallback(
-    () => {
-      const state = listRef.current?.getState?.();
-      if (state) {
-        isAtEndRef.current = state.isAtEnd;
-        onIsAtEndChange(state.isAtEnd);
-      }
-    },
-    [listRef, onIsAtEndChange],
-  );
+  const handleScroll = useCallback(() => {
+    const state = listRef.current?.getState?.();
+    if (state) {
+      isAtEndRef.current = state.isAtEnd;
+      onIsAtEndChange(state.isAtEnd);
+    }
+  }, [listRef, onIsAtEndChange]);
 
   const previousRowCountRef = useRef(rows.length);
   useEffect(() => {

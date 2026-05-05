@@ -322,9 +322,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
     const trimmedSearch = searchQuery.trim();
     if (!trimmedSearch) {
       if (railSelection === "favorites") {
-        result = result.filter((m) =>
-          favoritesSet.has(providerModelKey(m.instanceId, m.slug)),
-        );
+        result = result.filter((m) => favoritesSet.has(providerModelKey(m.instanceId, m.slug)));
       } else {
         result = result.filter((m) => m.instanceId === railSelection);
       }
@@ -538,85 +536,87 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
               handleModelSelect(slug, instanceId);
             }}
           >
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-multi-bg-elevated">
-            <div className="bg-multi-bg-elevated px-1.5 pt-1.5 pb-1">
-              <ComboboxInput
-                ref={searchInputRef}
-                className="[&_input]:font-sans"
-                inputClassName="h-7 rounded-[6px] border-0 bg-multi-editor px-2 text-[12px]/[16px] shadow-none ring-0 placeholder:text-multi-fg-tertiary focus-visible:ring-0"
-                placeholder="Search models..."
-                showTrigger={false}
-                startAddon={
-                  <IconMagnifyingGlass className="size-3.5 shrink-0 text-multi-fg-tertiary" />
-                }
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape") {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    props.onRequestClose?.();
-                    return;
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-multi-bg-elevated">
+              <div className="bg-multi-bg-elevated px-1.5 pt-1.5 pb-1">
+                <ComboboxInput
+                  ref={searchInputRef}
+                  className="[&_input]:font-sans"
+                  inputClassName="h-7 rounded-[6px] border-0 bg-multi-editor px-2 text-[12px]/[16px] shadow-none ring-0 placeholder:text-multi-fg-tertiary focus-visible:ring-0"
+                  placeholder="Search models..."
+                  showTrigger={false}
+                  startAddon={
+                    <IconMagnifyingGlass className="size-3.5 shrink-0 text-multi-fg-tertiary" />
                   }
-                  if (e.key === "Enter" && highlightedModelKeyRef.current) {
-                    (e as typeof e & { preventBaseUIHandler?: () => void }).preventBaseUIHandler?.();
-                    e.preventDefault();
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      props.onRequestClose?.();
+                      return;
+                    }
+                    if (e.key === "Enter" && highlightedModelKeyRef.current) {
+                      (
+                        e as typeof e & { preventBaseUIHandler?: () => void }
+                      ).preventBaseUIHandler?.();
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const { instanceId, slug } = splitInstanceModelKey(
+                        highlightedModelKeyRef.current,
+                      );
+                      handleModelSelect(slug, instanceId);
+                      return;
+                    }
                     e.stopPropagation();
-                    const { instanceId, slug } = splitInstanceModelKey(
-                      highlightedModelKeyRef.current,
-                    );
-                    handleModelSelect(slug, instanceId);
-                    return;
-                  }
-                  e.stopPropagation();
-                }}
-                onMouseDown={(e) => e.stopPropagation()}
-                onTouchStart={(e) => e.stopPropagation()}
-                size="sm"
-              />
-            </div>
+                  }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
+                  size="sm"
+                />
+              </div>
 
-            <div ref={listRegionRef} className="relative min-h-0 flex-1">
-              <ComboboxList
-                className="model-picker-list size-full px-1 pb-1"
-                data-model-picker-list="true"
-              >
-                {filteredModelKeys.map((modelKey, index) => {
-                  const model = filteredModelByKey.get(modelKey);
-                  if (!model) {
-                    return null;
-                  }
-                  const fk = providerModelKey(model.instanceId, model.slug);
-                  return (
-                    <ModelListRow
-                      key={modelKey}
-                      index={index}
-                      model={model}
-                      instanceId={model.instanceId}
-                      driverKind={model.driverKind}
-                      providerDisplayName={model.instanceDisplayName}
-                      providerAccentColor={model.instanceAccentColor}
-                      isSelected={
-                        model.instanceId === props.activeInstanceId && model.slug === props.model
-                      }
-                      showProvider
-                      preferShortName={!isLocked}
-                      useTriggerLabel={isLocked}
-                      showNewBadge={isModelPickerNewModel(model.driverKind, model.slug)}
-                      jumpLabel={modelJumpLabelByKey.get(modelKey) ?? null}
-                      showFavoriteToggle
-                      isFavorite={favoritesSet.has(fk)}
-                      onFavoriteClick={() => toggleModelFavorite(model.instanceId, model.slug)}
-                    />
-                  );
-                })}
-              </ComboboxList>
+              <div ref={listRegionRef} className="relative min-h-0 flex-1">
+                <ComboboxList
+                  className="model-picker-list size-full px-1 pb-1"
+                  data-model-picker-list="true"
+                >
+                  {filteredModelKeys.map((modelKey, index) => {
+                    const model = filteredModelByKey.get(modelKey);
+                    if (!model) {
+                      return null;
+                    }
+                    const fk = providerModelKey(model.instanceId, model.slug);
+                    return (
+                      <ModelListRow
+                        key={modelKey}
+                        index={index}
+                        model={model}
+                        instanceId={model.instanceId}
+                        driverKind={model.driverKind}
+                        providerDisplayName={model.instanceDisplayName}
+                        providerAccentColor={model.instanceAccentColor}
+                        isSelected={
+                          model.instanceId === props.activeInstanceId && model.slug === props.model
+                        }
+                        showProvider
+                        preferShortName={!isLocked}
+                        useTriggerLabel={isLocked}
+                        showNewBadge={isModelPickerNewModel(model.driverKind, model.slug)}
+                        jumpLabel={modelJumpLabelByKey.get(modelKey) ?? null}
+                        showFavoriteToggle
+                        isFavorite={favoritesSet.has(fk)}
+                        onFavoriteClick={() => toggleModelFavorite(model.instanceId, model.slug)}
+                      />
+                    );
+                  })}
+                </ComboboxList>
+              </div>
+              <ComboboxEmpty className="not-empty:py-5 empty:h-0 text-xs/4 font-normal text-multi-fg-tertiary">
+                No models found
+              </ComboboxEmpty>
             </div>
-            <ComboboxEmpty className="not-empty:py-5 empty:h-0 text-xs/4 font-normal text-multi-fg-tertiary">
-              No models found
-            </ComboboxEmpty>
-          </div>
-        </Combobox>
+          </Combobox>
         </div>
       </div>
     </div>

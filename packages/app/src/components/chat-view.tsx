@@ -737,7 +737,9 @@ export default function ChatView(props: ChatViewProps) {
   );
   const clearComposerDraftContent = useComposerDraftStore((store) => store.clearComposerContent);
   const markDraftThreadPromoting = useComposerDraftStore((store) => store.markDraftThreadPromoting);
-  const cancelDraftThreadPromotion = useComposerDraftStore((store) => store.cancelDraftThreadPromotion);
+  const cancelDraftThreadPromotion = useComposerDraftStore(
+    (store) => store.cancelDraftThreadPromotion,
+  );
   const setDraftThreadContext = useComposerDraftStore((store) => store.setDraftThreadContext);
   const getDraftSessionByLogicalProjectKey = useComposerDraftStore(
     (store) => store.getDraftSessionByLogicalProjectKey,
@@ -1066,9 +1068,7 @@ export default function ChatView(props: ChatViewProps) {
   });
   const primaryServerConfig = useServerConfig();
   const providerConfigEnvironmentId =
-    routeKind === "server"
-      ? environmentId
-      : (draftThread?.environmentId ?? environmentId);
+    routeKind === "server" ? environmentId : (draftThread?.environmentId ?? environmentId);
   const activeEnvRuntimeState = useSavedEnvironmentRuntimeStore((s) =>
     providerConfigEnvironmentId ? s.byId[providerConfigEnvironmentId] : null,
   );

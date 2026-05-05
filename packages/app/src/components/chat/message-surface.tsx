@@ -77,12 +77,7 @@ export const MessageMetaRow = memo(function MessageMetaRow(props: {
   children: ReactNode;
 }) {
   return (
-    <div
-      className={cn(
-        "flex items-center gap-2",
-        props.alignEnd && "justify-end",
-      )}
-    >
+    <div className={cn("flex items-center gap-2", props.alignEnd && "justify-end")}>
       {props.children}
     </div>
   );

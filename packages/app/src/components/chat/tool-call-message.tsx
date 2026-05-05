@@ -2,11 +2,7 @@ import { memo } from "react";
 import { type WorkLogEntry, type WorkLogSubagent } from "../../session-logic";
 import { normalizeCompactToolLabel } from "./messages-timeline.logic";
 import { formatWorkspaceRelativePath } from "../../file-path-display";
-import {
-  ThinkingStatus,
-  ToolCallRenderer,
-  type ToolCallModel,
-} from "./tool-call-renderer";
+import { ThinkingStatus, ToolCallRenderer, type ToolCallModel } from "./tool-call-renderer";
 
 type ToolCallStatus = "loading" | "completed" | "error";
 

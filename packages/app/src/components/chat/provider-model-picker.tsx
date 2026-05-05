@@ -104,7 +104,8 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   const triggerTitle = selectedModel ? getTriggerDisplayModelName(selectedModel) : props.model;
   const triggerSubtitle = selectedModel?.subProvider;
   const triggerLabel = selectedModel ? getTriggerDisplayModelLabel(selectedModel) : props.model;
-  const popoverPlacement = MODEL_PICKER_POPOVER_PLACEMENTS[props.popoverPlacement ?? "bottom-start"];
+  const popoverPlacement =
+    MODEL_PICKER_POPOVER_PLACEMENTS[props.popoverPlacement ?? "bottom-start"];
   const duplicateDriverCount = props.instanceEntries.filter(
     (entry) => activeEntry !== null && entry.driverKind === activeEntry.driverKind,
   ).length;
@@ -224,9 +225,7 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
         side={popoverPlacement.side}
         sticky
         collisionAvoidance={
-          props.popoverPlacement
-            ? MODEL_PICKER_EXPLICIT_PLACEMENT_COLLISION_AVOIDANCE
-            : undefined
+          props.popoverPlacement ? MODEL_PICKER_EXPLICIT_PLACEMENT_COLLISION_AVOIDANCE : undefined
         }
         className="z-[70] border-0 bg-transparent p-0 opacity-100 shadow-none before:hidden data-starting-style:scale-100 data-starting-style:opacity-100 [--viewport-inline-padding:0] *:data-[slot=popover-viewport]:p-0"
       >
