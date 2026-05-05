@@ -24,6 +24,7 @@
   },
   "type": "module",
   "scripts": {
+    "prepare": "effect-language-service patch",
     "dev": "node scripts/dev-runner.ts dev",
     "dev:server": "node scripts/dev-runner.ts dev:server",
     "dev:app": "node scripts/dev-runner.ts dev:app",
@@ -56,6 +57,7 @@
     "central-icons": "npm:@central-icons-react/round-outlined-radius-2-stroke-1.5@^1.1.224"
   },
   "devDependencies": {
+    "@effect/language-service": "catalog:",
     "@types/node": "catalog:",
     "knip": "^6.11.0",
     "oxfmt": "^0.47.0",
@@ -63,6 +65,7 @@
     "stylelint": "^17.10.0",
     "stylelint-config-standard": "^40.0.0",
     "turbo": "^2.9.9",
+    "typescript": "catalog:",
     "vitest": "catalog:"
   },
   "overrides": {
