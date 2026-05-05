@@ -53,16 +53,16 @@
     "sync:vscode-icons": "node scripts/sync-vscode-icons.mjs"
   },
   "dependencies": {
-    "central-icons": "npm:@central-icons-react/round-outlined-radius-2-stroke-1.5@^1.1.215"
+    "central-icons": "npm:@central-icons-react/round-outlined-radius-2-stroke-1.5@^1.1.224"
   },
   "devDependencies": {
     "@types/node": "catalog:",
-    "knip": "^6.9.0",
+    "knip": "^6.11.0",
     "oxfmt": "^0.47.0",
     "oxlint": "^1.62.0",
-    "stylelint": "^17.9.1",
+    "stylelint": "^17.10.0",
     "stylelint-config-standard": "^40.0.0",
-    "turbo": "^2.9.6",
+    "turbo": "^2.9.9",
     "vitest": "catalog:"
   },
   "overrides": {

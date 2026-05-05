@@ -10,6 +10,7 @@ import {
   useRef,
 } from "react";
 import { LegendList, type LegendListRef } from "@legendapp/list/react";
+import { Spinner } from "@multi/ui/spinner";
 import { deriveTimelineEntries } from "../../session-logic";
 import { type TurnDiffSummary } from "../../types";
 import { type ExpandedImagePreview } from "./expanded-image-preview";
@@ -51,11 +52,6 @@ export interface TimelineRowSharedState {
 
 export const TimelineRowCtx = createContext<TimelineRowSharedState>(null!);
 
-const CHAT_TIMELINE_SCROLLER_STYLE = {
-  paddingTop: "var(--chat-timeline-padding-block-start)",
-  paddingBottom: "var(--composer-messages-scroll-bottom-inset)",
-} satisfies CSSProperties;
-
 const CHAT_TIMELINE_CONTENT_STYLE = {
   boxSizing: "border-box",
   margin: "0 auto",
@@ -91,6 +87,8 @@ interface MessagesTimelineProps {
   workspaceRoot: string | undefined;
   isServerThread: boolean;
   onBeginEditUserMessage: ((messageId: MessageId) => void) | undefined;
+  showEmptyState?: boolean | undefined;
+  awaitingServerThreadDetail?: boolean | undefined;
   onIsAtEndChange: (isAtEnd: boolean) => void;
 }
 
@@ -119,6 +117,8 @@ export const MessagesTimeline = memo(function MessagesTimeline({
   workspaceRoot,
   isServerThread,
   onBeginEditUserMessage,
+  showEmptyState = true,
+  awaitingServerThreadDetail = false,
   onIsAtEndChange,
 }: MessagesTimelineProps) {
   const rawRows = useMemo(
@@ -233,7 +233,15 @@ export const MessagesTimeline = memo(function MessagesTimeline({
     [],
   );
 
-  if (rows.length === 0 && !isWorking) {
+  if (rows.length === 0 && !isWorking && awaitingServerThreadDetail) {
+    return (
+      <div className="flex h-full items-center justify-center" aria-busy="true">
+        <Spinner className="size-6 text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (rows.length === 0 && !isWorking && showEmptyState) {
     return (
       <div className="flex h-full items-center justify-center">
         <p className="text-sm text-muted-foreground/30">
@@ -248,6 +256,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
       <div
         className={cn(
           "agent-panel-meta-agent-chat-shell ui-imsg-thread relative flex h-full min-h-0 flex-1 flex-col gap-0 overflow-hidden",
+          "pt-[var(--chat-timeline-padding-block-start)] pb-[var(--composer-messages-scroll-bottom-inset)]",
           "[--meta-agent-thread-stack-gap:8px]",
           "[--meta-agent-thread-stack-horizontal-inset:20px]",
           "[--meta-agent-thread-stack-bottom-inset:24px]",
@@ -264,10 +273,9 @@ export const MessagesTimeline = memo(function MessagesTimeline({
           initialScrollAtEnd
           maintainScrollAtEnd
           maintainScrollAtEndThreshold={0.1}
-          maintainVisibleContentPosition
+          maintainVisibleContentPosition={{ data: false, size: true }}
           onScroll={handleScroll}
           className="agent-panel-meta-agent-chat h-full min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain"
-          style={CHAT_TIMELINE_SCROLLER_STYLE}
           contentContainerStyle={CHAT_TIMELINE_CONTENT_STYLE}
           ListHeaderComponent={<div />}
           ListFooterComponent={<div />}

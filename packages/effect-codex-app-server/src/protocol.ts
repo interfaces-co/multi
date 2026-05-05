@@ -11,6 +11,8 @@ import * as Stream from "effect/Stream";
 import * as CodexError from "./errors.ts";
 import { JsonRpcId, JsonRpcResponseEnvelope } from "./_internal/shared.ts";
 
+const WireJsonMessage = Schema.fromJsonString(Schema.Unknown);
+
 export interface CodexAppServerProtocolLogEvent {
   readonly direction: "incoming" | "outgoing";
   readonly stage: "raw" | "decoded" | "decode_failed";
@@ -86,14 +88,29 @@ function isIncomingResponse(value: unknown): value is typeof JsonRpcResponseEnve
 const encodeWireMessage = (
   message: Record<string, unknown>,
 ): Effect.Effect<string, CodexError.CodexAppServerProtocolParseError> =>
-  Effect.try({
-    try: () => `${JSON.stringify(message)}\n`,
-    catch: (cause) =>
-      new CodexError.CodexAppServerProtocolParseError({
-        detail: "Failed to encode Codex App Server message",
-        cause,
-      }),
-  });
+  Schema.encodeEffect(WireJsonMessage)(message).pipe(
+    Effect.map((encoded) => `${encoded}\n`),
+    Effect.mapError(
+      (cause) =>
+        new CodexError.CodexAppServerProtocolParseError({
+          detail: "Failed to encode Codex App Server message",
+          cause,
+        }),
+    ),
+  );
+
+const decodeWireMessage = (
+  line: string,
+): Effect.Effect<unknown, CodexError.CodexAppServerProtocolParseError> =>
+  Schema.decodeUnknownEffect(WireJsonMessage)(line).pipe(
+    Effect.mapError(
+      (cause) =>
+        new CodexError.CodexAppServerProtocolParseError({
+          detail: "Failed to decode Codex App Server wire message",
+          cause,
+        }),
+    ),
+  );
 
 const normalizeIncomingError = (error: unknown, detail: string): CodexError.CodexAppServerError =>
   Schema.is(CodexError.CodexAppServerError)(error)
@@ -284,16 +301,7 @@ export const makeCodexAppServerPatchedProtocol = Effect.fn("makeCodexAppServerPa
         stage: "raw",
         payload: line,
       }).pipe(
-        Effect.flatMap(() =>
-          Effect.try({
-            try: () => JSON.parse(line),
-            catch: (cause) =>
-              new CodexError.CodexAppServerProtocolParseError({
-                detail: "Failed to decode Codex App Server wire message",
-                cause,
-              }),
-          }),
-        ),
+        Effect.flatMap(() => decodeWireMessage(line)),
         Effect.tap((decoded) =>
           logProtocol({
             direction: "incoming",

@@ -1050,7 +1050,9 @@ body {
 }
 
 .agent-panel-followup-input {
+  box-sizing: border-box;
   padding-bottom: var(--multi-composer-followup-padding-block-end);
+  padding-inline: var(--composer-messages-padding-inline, 16px);
   position: relative;
 }
 
@@ -1282,29 +1284,27 @@ body {
   z-index: 4;
 }
 
-.agent-window
-  .ui-prompt-input__container[data-variant="compact"]:not([data-expanded])
-  > .chat-composer-surface {
-  display: flex;
+.agent-window .ui-prompt-input__container[data-variant="compact"]:not([data-expanded]) > .chat-composer-surface {
   align-items: center;
-  gap: 4px;
-  min-height: 52px;
-  padding: 6px 8px;
-  border-radius: inherit;
-  min-width: 0;
   box-sizing: border-box;
+  border-radius: inherit;
+  display: flex;
+  gap: 4px;
+  min-height: var(--multi-composer-compact-row-min-height);
+  min-width: 0;
+  padding: var(--multi-composer-compact-surface-padding);
 }
 
-.agent-window
-  .ui-prompt-input__container[data-variant="compact"]:not([data-expanded])
-  .ui-prompt-input-attachment-button {
+.agent-window .ui-prompt-input__container[data-variant="compact"]:not([data-expanded]) .ui-prompt-input-attachment-button {
   order: 0;
 }
 
-.agent-window
-  .ui-prompt-input__container[data-variant="compact"]:not([data-expanded])
-  .ui-prompt-input-editor {
+.agent-window .ui-prompt-input__container[data-variant="compact"]:not([data-expanded]) .ui-prompt-input-editor {
+  align-self: center;
+  display: flex;
   flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: center;
   order: 1;
   min-width: 0;
   padding: 0;
@@ -1314,12 +1314,21 @@ body {
 .agent-window
   .ui-prompt-input__container[data-variant="compact"]:not([data-expanded])
   .ui-prompt-input-editor
+  .composer-prompt-editor {
+  align-items: center;
+  display: flex;
+  min-height: 0;
+  width: 100%;
+}
+
+.agent-window
+  .ui-prompt-input__container[data-variant="compact"]:not([data-expanded])
   [data-testid="composer-editor"] {
-  min-height: 20px !important;
-  max-height: 20px !important;
-  overflow: hidden;
   font-size: 13px;
   line-height: 1.5;
+  max-height: var(--multi-composer-compact-editor-line-height) !important;
+  min-height: var(--multi-composer-compact-editor-line-height) !important;
+  overflow: hidden;
   padding: 0 0 0 4px;
 }
 
@@ -1386,10 +1395,10 @@ body {
   .ui-prompt-input__container[data-variant="compact"]:not([data-expanded])
   .ui-prompt-input-submit-button {
   flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  min-height: 32px;
+  width: var(--multi-composer-compact-control-size);
+  height: var(--multi-composer-compact-control-size);
+  min-width: var(--multi-composer-compact-control-size);
+  min-height: var(--multi-composer-compact-control-size);
   padding: 0;
   border-radius: var(--multi-radius-full, 9999px);
   box-shadow: none;

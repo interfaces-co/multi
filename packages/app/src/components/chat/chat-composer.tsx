@@ -284,6 +284,7 @@ const ComposerFooterModeControls = memo(function ComposerFooterModeControls(prop
 
 const ComposerFooterPrimaryActions = memo(function ComposerFooterPrimaryActions(props: {
   compact: boolean;
+  dockSingleRow: boolean;
   activeContextWindow: ReturnType<typeof deriveLatestContextWindowSnapshot>;
   isPreparingWorktree: boolean;
   pendingAction: {
@@ -311,6 +312,7 @@ const ComposerFooterPrimaryActions = memo(function ComposerFooterPrimaryActions(
       ) : null}
       <ComposerPrimaryActions
         compact={props.compact}
+        dockSingleRow={props.dockSingleRow}
         pendingAction={props.pendingAction}
         isRunning={props.isRunning}
         showPlanFollowUpPrompt={props.showPlanFollowUpPrompt}
@@ -2065,12 +2067,12 @@ export const ChatComposer = memo(
                 />
                 <button
                   type="button"
-                  className="ui-prompt-input-attachment-button flex size-10 shrink-0 items-center justify-center rounded-full text-multi-icon-tertiary transition-colors duration-150 hover:bg-multi-bg-tertiary hover:text-multi-icon-secondary disabled:pointer-events-none disabled:opacity-35"
+                  className="ui-prompt-input-attachment-button flex h-(--multi-composer-compact-control-size) w-(--multi-composer-compact-control-size) shrink-0 items-center justify-center rounded-full text-multi-icon-tertiary transition-colors duration-150 hover:bg-multi-bg-tertiary hover:text-multi-icon-secondary disabled:pointer-events-none disabled:opacity-35"
                   aria-label="Attach images"
                   disabled={pendingUserInputs.length > 0 || isConnecting}
                   onClick={() => composerImageInputRef.current?.click()}
                 >
-                  <span className="relative size-4" aria-hidden="true">
+                  <span className="relative size-3.5" aria-hidden="true">
                     <span className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 rounded bg-current" />
                     <span className="absolute left-0 top-1/2 h-px w-full -translate-y-1/2 rounded bg-current" />
                   </span>
@@ -2078,7 +2080,12 @@ export const ChatComposer = memo(
               </>
             ) : null}
             <div
-              className="ui-prompt-input-editor relative min-h-(--prompt-input-editor-min-height)"
+              className={cn(
+                "ui-prompt-input-editor relative",
+                composerVariant === "compact" && !isDockComposerExpanded
+                  ? "min-h-0"
+                  : "min-h-(--prompt-input-editor-min-height)",
+              )}
               data-expanded={isDockComposerExpanded ? "" : undefined}
               data-variant={composerVariant}
             >
@@ -2329,6 +2336,7 @@ export const ChatComposer = memo(
                 >
                   <ComposerFooterPrimaryActions
                     compact={isComposerPrimaryActionsCompact}
+                    dockSingleRow={composerVariant === "compact" && !isDockComposerExpanded}
                     activeContextWindow={activeContextWindow}
                     pendingAction={pendingPrimaryAction}
                     isRunning={phase === "running"}

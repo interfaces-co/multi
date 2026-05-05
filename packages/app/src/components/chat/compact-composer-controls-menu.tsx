@@ -41,7 +41,7 @@ export const CompactComposerControlsMenu = memo(function CompactComposerControls
           />
         }
       >
-        <IconDotGrid1x3Horizontal aria-hidden="true" className="size-4" />
+        <IconDotGrid1x3Horizontal aria-hidden="true" className="size-3.5" />
       </MenuTrigger>
       <MenuPopup align="start" variant="workbench">
         {props.traitsFastMenuContent ? (
@@ -102,7 +102,7 @@ export const CompactComposerControlsMenu = memo(function CompactComposerControls
           <>
             <MenuDivider variant="workbench" />
             <MenuItem variant="workbench" onClick={props.onTogglePlanSidebar}>
-              <IconSquareChecklist className="size-4 shrink-0" />
+              <IconSquareChecklist className="size-3.5 shrink-0" />
               {props.planSidebarOpen
                 ? `Hide ${props.planSidebarLabel.toLowerCase()} sidebar`
                 : `Show ${props.planSidebarLabel.toLowerCase()} sidebar`}

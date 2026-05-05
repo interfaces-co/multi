@@ -67,7 +67,7 @@ import {
   togglePendingUserInputOptionSelection,
   type PendingUserInputDraftAnswer,
 } from "../pending-user-input";
-import { selectThreadsAcrossEnvironments, useStore } from "../store";
+import { selectEnvironmentState, selectThreadsAcrossEnvironments, useStore } from "../store";
 import { createProjectSelectorByRef, createThreadSelectorByRef } from "../store-selectors";
 import { useUiStateStore } from "../ui-state-store";
 import {
@@ -682,6 +682,21 @@ export default function ChatView(props: ChatViewProps) {
       [routeKind, routeThreadRef],
     ),
   );
+  const serverThreadDetailLoaded = useStore(
+    useMemo(
+      () => (store) => {
+        if (routeKind !== "server") {
+          return true;
+        }
+        const environmentState = selectEnvironmentState(store, environmentId);
+        return Object.prototype.hasOwnProperty.call(
+          environmentState.messageIdsByThreadId,
+          threadId,
+        );
+      },
+      [environmentId, routeKind, threadId],
+    ),
+  );
   const setStoreThreadError = useStore((store) => store.setError);
   const markThreadVisited = useUiStateStore((store) => store.markThreadVisited);
   const activeThreadLastVisitedAt = useUiStateStore((store) =>
@@ -867,6 +882,7 @@ export default function ChatView(props: ChatViewProps) {
   );
   const isServerThread = routeKind === "server" && serverThread !== undefined;
   const activeThread = isServerThread ? serverThread : localDraftThread;
+  const showTimelineEmptyState = !isServerThread || serverThreadDetailLoaded;
   const runtimeMode = composerRuntimeMode ?? activeThread?.runtimeMode ?? DEFAULT_RUNTIME_MODE;
   const interactionMode =
     composerInteractionMode ?? activeThread?.interactionMode ?? DEFAULT_INTERACTION_MODE;
@@ -1049,14 +1065,18 @@ export default function ChatView(props: ChatViewProps) {
     threadProvider,
   });
   const primaryServerConfig = useServerConfig();
+  const providerConfigEnvironmentId =
+    routeKind === "server"
+      ? environmentId
+      : (draftThread?.environmentId ?? environmentId);
   const activeEnvRuntimeState = useSavedEnvironmentRuntimeStore((s) =>
-    activeThread?.environmentId ? s.byId[activeThread.environmentId] : null,
+    providerConfigEnvironmentId ? s.byId[providerConfigEnvironmentId] : null,
   );
   // Use the server config for the thread's environment.  For the primary
   // environment fall back to the global atom; for remote environments use
   // the runtime state stored by the environment manager.
   const serverConfig =
-    primaryEnvironmentId && activeThread?.environmentId === primaryEnvironmentId
+    primaryEnvironmentId && providerConfigEnvironmentId === primaryEnvironmentId
       ? primaryServerConfig
       : (activeEnvRuntimeState?.serverConfig ?? primaryServerConfig);
   const providerStatuses = serverConfig?.providers ?? EMPTY_PROVIDERS;
@@ -3325,6 +3345,8 @@ export default function ChatView(props: ChatViewProps) {
                 workspaceRoot={activeWorkspaceRoot}
                 isServerThread={isServerThread}
                 onBeginEditUserMessage={onBeginEditUserMessage}
+                showEmptyState={showTimelineEmptyState}
+                awaitingServerThreadDetail={isServerThread && !serverThreadDetailLoaded}
                 onIsAtEndChange={onIsAtEndChange}
               />
 

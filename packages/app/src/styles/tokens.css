@@ -55,6 +55,13 @@
   --multi-composer-overlay-height: 24px;
   --multi-composer-overlay-bg: var(--multi-color-editor);
   --multi-composer-followup-padding-block-end: 16px;
+  /* Dock pill: Cursor parity compact surface padding 8px 10px (chat-agent-window-cursor-parity.md). */
+  --multi-composer-compact-control-size: 28px;
+  --multi-composer-compact-surface-padding: 8px 10px;
+  --multi-composer-compact-row-min-height: calc(
+    var(--multi-composer-compact-control-size) + 16px
+  );
+  --multi-composer-compact-editor-line-height: 20px;
   /*
    * Docked composer stack reserve: editor floor + toolbar row + gaps + shell follow-up
    * padding + safe area (Cursor thread scroll vs overlay pattern).
@@ -66,7 +73,7 @@
   --chat-timeline-assistant-top-inset: 8px;
   --composer-messages-scroll-bottom-inset: calc(
     var(--multi-composer-editor-min-height) + var(--multi-composer-overlay-height) +
-      (var(--multi-composer-section-gap) * 3) + 52px +
+      (var(--multi-composer-section-gap) * 3) + var(--multi-composer-compact-row-min-height) +
       var(--multi-composer-followup-padding-block-end) + env(safe-area-inset-bottom, 0px)
   );
   --prompt-input-section-gap: var(--multi-composer-section-gap);
@@ -117,7 +124,7 @@
   --multi-radius-chip: var(--multi-radius-chip-user, 20px);
   --multi-radius-pill: var(--multi-radius-chip-user, 20px);
   /* Composer toolbar icons */
-  --multi-composer-icon-size: var(--multi-composer-icon-size-user, 1rem);
+  --multi-composer-icon-size: var(--multi-composer-icon-size-user, 0.875rem);
   --primary: oklch(0.488 0.217 var(--multi-user-hue, 264));
   --primary-foreground: var(--color-white);
   --ring: oklch(0.68 0.04 var(--multi-user-hue, 264) / 0.2);

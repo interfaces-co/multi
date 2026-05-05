@@ -14,6 +14,7 @@ interface PendingActionState {
 
 interface ComposerPrimaryActionsProps {
   compact: boolean;
+  dockSingleRow: boolean;
   pendingAction: PendingActionState | null;
   isRunning: boolean;
   showPlanFollowUpPrompt: boolean;
@@ -47,6 +48,7 @@ export const formatPendingPrimaryActionLabel = (input: {
 
 export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
   compact,
+  dockSingleRow,
   pendingAction,
   isRunning,
   showPlanFollowUpPrompt,
@@ -59,6 +61,10 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
   onInterrupt,
   onImplementPlanInNewThread,
 }: ComposerPrimaryActionsProps) {
+  const circularControlClass = dockSingleRow
+    ? "h-(--multi-composer-compact-control-size) w-(--multi-composer-compact-control-size)"
+    : "h-9 w-9 sm:h-8 sm:w-8";
+
   if (pendingAction) {
     return (
       <div className={cn("flex items-center justify-end", compact ? "gap-1.5" : "gap-2")}>
@@ -110,13 +116,22 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
     return (
       <button
         type="button"
-        className="multi-composer-bar-control-button ui-prompt-input-submit-button flex size-8 cursor-pointer items-center justify-center rounded-full bg-rose-500/90 text-white transition-[background-color,color,opacity,transform] duration-150 hover:bg-rose-500 motion-reduce:transition-colors motion-reduce:active:scale-100 active:scale-[0.96] sm:h-8 sm:w-8"
+        className={cn(
+          "multi-composer-bar-control-button ui-prompt-input-submit-button flex cursor-pointer items-center justify-center rounded-full bg-rose-500/90 text-white transition-[background-color,color,opacity,transform] duration-150 hover:bg-rose-500 motion-reduce:transition-colors motion-reduce:active:scale-100 active:scale-[0.96]",
+          circularControlClass,
+        )}
         onClick={onInterrupt}
         aria-label="Stop generation"
       >
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
-          <rect x="2" y="2" width="8" height="8" rx="1.5" />
-        </svg>
+        {dockSingleRow ? (
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true">
+            <rect x="2" y="2" width="6" height="6" rx="1.25" />
+          </svg>
+        ) : (
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+            <rect x="2" y="2" width="8" height="8" rx="1.5" />
+          </svg>
+        )}
       </button>
     );
   }
@@ -176,7 +191,10 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
   return (
     <button
       type="submit"
-      className="multi-composer-bar-control-button ui-prompt-input-submit-button flex h-9 w-9 enabled:cursor-pointer items-center justify-center rounded-full bg-foreground text-background transition-[color,opacity,transform] duration-150 hover:opacity-90 motion-reduce:transition-opacity motion-reduce:active:scale-100 active:scale-[0.96] disabled:pointer-events-none disabled:opacity-30 disabled:hover:opacity-30 sm:h-8 sm:w-8"
+      className={cn(
+        "multi-composer-bar-control-button ui-prompt-input-submit-button flex enabled:cursor-pointer items-center justify-center rounded-full bg-foreground text-background transition-[color,opacity,transform] duration-150 hover:opacity-90 motion-reduce:transition-opacity motion-reduce:active:scale-100 active:scale-[0.96] disabled:pointer-events-none disabled:opacity-30 disabled:hover:opacity-30",
+        circularControlClass,
+      )}
       disabled={isSendBusy || isConnecting || !hasSendableContent}
       aria-label={
         isConnecting
@@ -189,22 +207,53 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
       }
     >
       {isConnecting || isSendBusy ? (
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 14 14"
-          fill="none"
-          className="animate-spin"
-          aria-hidden="true"
-        >
-          <circle
-            cx="7"
-            cy="7"
-            r="5.5"
+        dockSingleRow ? (
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            fill="none"
+            className="animate-spin"
+            aria-hidden="true"
+          >
+            <circle
+              cx="6"
+              cy="6"
+              r="4.5"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeDasharray="17 10"
+            />
+          </svg>
+        ) : (
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            fill="none"
+            className="animate-spin"
+            aria-hidden="true"
+          >
+            <circle
+              cx="7"
+              cy="7"
+              r="5.5"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeDasharray="20 12"
+            />
+          </svg>
+        )
+      ) : dockSingleRow ? (
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+          <path
+            d="M6 9.5V2.5M6 2.5L2.5 6M6 2.5L9.5 6"
             stroke="currentColor"
-            strokeWidth="1.5"
+            strokeWidth="1.65"
             strokeLinecap="round"
-            strokeDasharray="20 12"
+            strokeLinejoin="round"
           />
         </svg>
       ) : (

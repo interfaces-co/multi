@@ -17,6 +17,7 @@ import { PIERRE_WORKBENCH_CODE_UNSAFE_CSS } from "~/lib/pierre-workbench-code-cs
 import { projectReadFileQueryOptions } from "~/lib/project-react-query";
 import { resolveDiffThemeName } from "~/lib/diff-rendering";
 import { useTheme } from "~/hooks/use-theme";
+import { shellPanelsActions, useSecondaryRail } from "~/lib/shell-panels-store";
 import { WorkspaceFileTree } from "./workspace-file-tree";
 import { WorkbenchIconButton } from "../shell/workbench-icon-button";
 import { RightWorkbenchLayout } from "../shell/right-workbench-layout";
@@ -197,6 +198,7 @@ export function WorkspaceFilesPanel(props: {
 }) {
   const [mode, setMode] = useState<FilePaneMode>("browse");
   const [history, setHistory] = useState<PreviewHistory>(EMPTY_PREVIEW_HISTORY);
+  const { open: fileRailOpen } = useSecondaryRail(props.cwd, "files");
   const selectedPath = history.index >= 0 ? (history.paths[history.index] ?? null) : null;
   const canGoBack = history.index > 0;
   const canGoForward = history.index >= 0 && history.index < history.paths.length - 1;
@@ -238,18 +240,28 @@ export function WorkspaceFilesPanel(props: {
     <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
       <div className="multi-workbench-panel-title-row gap-(--multi-workbench-chrome-action-gap)">
         <ModeButton
-          active={mode === "browse"}
+          active={fileRailOpen && mode === "browse"}
           chrome="panel"
-          label="Browse Files"
-          onClick={() => setMode("browse")}
+          label={fileRailOpen && mode === "browse" ? "Hide file sidebar" : "Browse Files"}
+          onClick={() => {
+            if (mode === "browse" && fileRailOpen) {
+              shellPanelsActions.setSecondaryRailOpen(props.cwd, "files", false);
+              return;
+            }
+            setMode("browse");
+            shellPanelsActions.setSecondaryRailOpen(props.cwd, "files", true);
+          }}
         >
-          <IconBarsThree className="size-3.5" />
+          <IconBarsThree className="size-[15px]" aria-hidden />
         </ModeButton>
         <ModeButton
           active={mode === "search"}
           chrome="panel"
           label="Search Files"
-          onClick={() => setMode("search")}
+          onClick={() => {
+            setMode("search");
+            shellPanelsActions.setSecondaryRailOpen(props.cwd, "files", true);
+          }}
         >
           <IconMagnifyingGlass className="size-3.5" />
         </ModeButton>
@@ -272,7 +284,7 @@ export function WorkspaceFilesPanel(props: {
         <div className="min-w-0 flex-1" />
       </div>
 
-      <RightWorkbenchLayout cwd={props.cwd} tab="files" rail={tree} railOpen>
+      <RightWorkbenchLayout cwd={props.cwd} tab="files" rail={tree}>
         <div className="editor-panel-inner flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-(--glass-editor-surface-background)">
           <div className="flex min-h-0 flex-1 flex-col">
             {selectedPath ? (
@@ -283,7 +295,12 @@ export function WorkspaceFilesPanel(props: {
                 wordWrap
               />
             ) : (
-              <EmptyFilePreview onOpenFile={() => setMode("search")} />
+              <EmptyFilePreview
+                onOpenFile={() => {
+                  setMode("search");
+                  shellPanelsActions.setSecondaryRailOpen(props.cwd, "files", true);
+                }}
+              />
             )}
           </div>
         </div>
