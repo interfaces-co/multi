@@ -20,7 +20,7 @@ const makeProjectSetupScriptRunner = Effect.gen(function* () {
           ? readModel.projects.find((entry) => entry.id === input.projectId)
           : null) ??
         (input.projectCwd
-          ? readModel.projects.find((entry) => entry.workspaceRoot === input.projectCwd)
+          ? readModel.projects.find((entry) => entry.projectRoot === input.projectCwd)
           : null) ??
         null;
 
@@ -38,7 +38,7 @@ const makeProjectSetupScriptRunner = Effect.gen(function* () {
       const terminalId = input.preferredTerminalId ?? `setup-${script.id}`;
       const cwd = input.worktreePath;
       const env = projectScriptRuntimeEnv({
-        project: { cwd: project.workspaceRoot },
+        project: { cwd: project.projectRoot },
         worktreePath: input.worktreePath,
       });
 

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { resolveShellCwd } from "./use-shell-cwd";
 
 describe("resolveShellCwd", () => {
-  it("prefers the active thread project over a stale stored workspace", () => {
+  it("prefers the active thread project over a stale stored project", () => {
     const cwd = resolveShellCwd({
       projects: [
         { id: "project-a", cwd: "/repo/a" },
@@ -28,7 +28,7 @@ describe("resolveShellCwd", () => {
     expect(cwd).toBe("/repo/a-worktree");
   });
 
-  it("falls back to the stored workspace when no thread is active", () => {
+  it("falls back to the stored project when no thread is active", () => {
     const cwd = resolveShellCwd({
       projects: [
         { id: "project-a", cwd: "/repo/a" },

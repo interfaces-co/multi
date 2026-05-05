@@ -47,7 +47,7 @@ import {
 import { type EventNdjsonLogger, makeEventNdjsonLogger } from "./EventNdjsonLogger.ts";
 import { AnalyticsService } from "../telemetry/AnalyticsService.service.ts";
 import { ServerConfig } from "../config.ts";
-import { coerceAccessibleWorkspaceCwd } from "../workspace/AccessibleWorkspaceCwd.ts";
+import { coerceAccessibleProjectCwd } from "../project/AccessibleProjectCwd.ts";
 
 export interface ProviderServiceLiveOptions {
   readonly canonicalEventLogPath?: string;
@@ -179,7 +179,7 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
   }) =>
     input.cwd === undefined
       ? Effect.sync(() => undefined)
-      : coerceAccessibleWorkspaceCwd({
+      : coerceAccessibleProjectCwd({
           operation: input.operation,
           candidates: [{ label: "provider.cwd", cwd: input.cwd }],
           fallbackCwds: providerCwdFallbacks,

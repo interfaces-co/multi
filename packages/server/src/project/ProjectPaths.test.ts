@@ -2,11 +2,11 @@ import * as NodeServices from "@effect/platform-node/NodeServices";
 import { it, describe, expect } from "@effect/vitest";
 import { Effect, FileSystem, Layer, Path } from "effect";
 
-import { WorkspacePaths } from "./WorkspacePaths.service.ts";
-import { WorkspacePathsLive } from "./WorkspacePaths.ts";
+import { ProjectPaths } from "./ProjectPaths.service.ts";
+import { ProjectPathsLive } from "./ProjectPaths.ts";
 
 const TestLayer = Layer.empty.pipe(
-  Layer.provideMerge(WorkspacePathsLive),
+  Layer.provideMerge(ProjectPathsLive),
   Layer.provideMerge(NodeServices.layer),
 );
 
@@ -31,14 +31,14 @@ const writeTextFile = Effect.fn("writeTextFile")(function* (
   yield* fileSystem.writeFileString(absolutePath, contents).pipe(Effect.orDie);
 });
 
-it.layer(TestLayer)("WorkspacePathsLive", (it) => {
-  describe("normalizeWorkspaceRoot", () => {
+it.layer(TestLayer)("ProjectPathsLive", (it) => {
+  describe("normalizeProjectRoot", () => {
     it.effect("resolves an existing directory", () =>
       Effect.gen(function* () {
-        const workspacePaths = yield* WorkspacePaths;
+        const projectPaths = yield* ProjectPaths;
         const cwd = yield* makeTempDir();
 
-        const resolved = yield* workspacePaths.normalizeWorkspaceRoot(cwd);
+        const resolved = yield* projectPaths.normalizeProjectRoot(cwd);
 
         expect(resolved).toBe(cwd);
       }),
@@ -46,27 +46,27 @@ it.layer(TestLayer)("WorkspacePathsLive", (it) => {
 
     it.effect("rejects missing directories", () =>
       Effect.gen(function* () {
-        const workspacePaths = yield* WorkspacePaths;
+        const projectPaths = yield* ProjectPaths;
         const cwd = yield* makeTempDir();
         const path = yield* Path.Path;
 
-        const error = yield* workspacePaths
-          .normalizeWorkspaceRoot(path.join(cwd, "missing"))
+        const error = yield* projectPaths
+          .normalizeProjectRoot(path.join(cwd, "missing"))
           .pipe(Effect.flip);
 
-        expect(error.message).toContain("Workspace root does not exist:");
+        expect(error.message).toContain("Project root does not exist:");
       }),
     );
 
     it.effect("creates missing directories when createIfMissing is enabled", () =>
       Effect.gen(function* () {
-        const workspacePaths = yield* WorkspacePaths;
+        const projectPaths = yield* ProjectPaths;
         const fileSystem = yield* FileSystem.FileSystem;
         const cwd = yield* makeTempDir();
         const path = yield* Path.Path;
         const missingPath = path.join(cwd, "nested", "new-project");
 
-        const resolved = yield* workspacePaths.normalizeWorkspaceRoot(missingPath, {
+        const resolved = yield* projectPaths.normalizeProjectRoot(missingPath, {
           createIfMissing: true,
         });
         const stat = yield* fileSystem.stat(resolved);
@@ -78,28 +78,28 @@ it.layer(TestLayer)("WorkspacePathsLive", (it) => {
 
     it.effect("rejects file paths", () =>
       Effect.gen(function* () {
-        const workspacePaths = yield* WorkspacePaths;
+        const projectPaths = yield* ProjectPaths;
         const cwd = yield* makeTempDir();
         const path = yield* Path.Path;
         const filePath = path.join(cwd, "README.md");
         yield* writeTextFile(cwd, "README.md", "# hi\n");
 
-        const error = yield* workspacePaths.normalizeWorkspaceRoot(filePath).pipe(Effect.flip);
+        const error = yield* projectPaths.normalizeProjectRoot(filePath).pipe(Effect.flip);
 
-        expect(error.message).toContain("Workspace root is not a directory:");
+        expect(error.message).toContain("Project root is not a directory:");
       }),
     );
   });
 
   describe("resolveRelativePathWithinRoot", () => {
-    it.effect("resolves relative paths inside the workspace root", () =>
+    it.effect("resolves relative paths inside the project root", () =>
       Effect.gen(function* () {
-        const workspacePaths = yield* WorkspacePaths;
+        const projectPaths = yield* ProjectPaths;
         const cwd = yield* makeTempDir();
         const path = yield* Path.Path;
 
-        const resolved = yield* workspacePaths.resolveRelativePathWithinRoot({
-          workspaceRoot: cwd,
+        const resolved = yield* projectPaths.resolveRelativePathWithinRoot({
+          projectRoot: cwd,
           relativePath: "plans/effect-rpc.md",
         });
 
@@ -110,20 +110,20 @@ it.layer(TestLayer)("WorkspacePathsLive", (it) => {
       }),
     );
 
-    it.effect("rejects paths that escape the workspace root", () =>
+    it.effect("rejects paths that escape the project root", () =>
       Effect.gen(function* () {
-        const workspacePaths = yield* WorkspacePaths;
+        const projectPaths = yield* ProjectPaths;
         const cwd = yield* makeTempDir();
 
-        const error = yield* workspacePaths
+        const error = yield* projectPaths
           .resolveRelativePathWithinRoot({
-            workspaceRoot: cwd,
+            projectRoot: cwd,
             relativePath: "../escape.md",
           })
           .pipe(Effect.flip);
 
         expect(error.message).toContain(
-          "Workspace file path must be relative to the project root: ../escape.md",
+          "Project file path must be relative to the project root: ../escape.md",
         );
       }),
     );

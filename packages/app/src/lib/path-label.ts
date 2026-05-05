@@ -1,7 +1,7 @@
 /** Short labels: GitHub `owner/repo`, under home use last two segments or `~/…`, else last two segments. */
-export function shortWorkspacePathLabel(path: string, home: string | null): string {
+export function shortProjectPathLabel(path: string, home: string | null): string {
   const p = path.replace(/\\/g, "/").replace(/\/+$/, "");
-  if (!p) return "Workspace";
+  if (!p) return "Project";
 
   const gitSsh = p.match(/git@github\.com:([^/]+)\/([^/]+?)(?:\.git)?$/i);
   if (gitSsh) return `${gitSsh[1]}/${gitSsh[2]}`;
@@ -24,5 +24,5 @@ export function shortWorkspacePathLabel(path: string, home: string | null): stri
 
   const seg = p.split("/").filter(Boolean);
   if (seg.length >= 2) return `${seg[seg.length - 2]}/${seg[seg.length - 1]}`;
-  return seg[0] ?? "Workspace";
+  return seg[0] ?? "Project";
 }

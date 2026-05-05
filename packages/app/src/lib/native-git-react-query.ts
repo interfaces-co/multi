@@ -58,7 +58,7 @@ export function gitPatchQueryOptions(input: {
       input.prevPath,
     ),
     queryFn: async () => {
-      if (!input.cwd) throw new Error("No workspace");
+      if (!input.cwd) throw new Error("No project");
       const api = readNativeGitApi(input.environmentId);
       if (!api) {
         throw new Error("Git patch API not available");

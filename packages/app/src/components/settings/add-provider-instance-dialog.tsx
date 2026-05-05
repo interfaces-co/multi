@@ -168,7 +168,7 @@ export function AddProviderInstanceDialog({ open, onOpenChange }: AddProviderIns
   );
   const instanceIdError = validateInstanceId(instanceId, existingIds);
   const showInstanceIdError = hasAttemptedSubmit && instanceIdError !== null;
-  const previewLabel = label.trim() || `${driverOption.label} Workspace`;
+  const previewLabel = label.trim() || `${driverOption.label} Project`;
   const wizardSteps = ["Driver", "Identity", "Config"] as const;
   const wizardStepSummaries = [driverOption.label, previewLabel, null] as const;
 
@@ -248,7 +248,7 @@ export function AddProviderInstanceDialog({ open, onOpenChange }: AddProviderIns
             <DialogTitle>Add provider instance</DialogTitle>
             <DialogDescription>
               Configure an additional provider instance — for example, a second Codex install
-              pointed at a different workspace.
+              pointed at a different project.
             </DialogDescription>
             <div className="grid grid-cols-3 gap-2">
               {wizardSteps.map((step, index) => (

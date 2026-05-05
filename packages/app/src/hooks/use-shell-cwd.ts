@@ -2,7 +2,7 @@ import { useMemo, useSyncExternalStore } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import { SHELL_LAYOUT_CHANGED_EVENT } from "../lib/shell-runtime-constants";
-import { readStoredWorkspaceCwd } from "../lib/workspace-state";
+import { readStoredProjectCwd } from "../lib/project-state";
 import { useServerAvailableEditors } from "../rpc/server-state";
 import {
   selectProjectsAcrossEnvironments,
@@ -46,7 +46,7 @@ export function useShellState() {
   const routeThreadId = useRouteThreadId();
   const projects = useStore(useShallow(selectProjectsAcrossEnvironments));
   const threads = useStore(useShallow(selectThreadsAcrossEnvironments));
-  const stored = useSyncExternalStore(subscribe, readStoredWorkspaceCwd, () => null);
+  const stored = useSyncExternalStore(subscribe, readStoredProjectCwd, () => null);
 
   return useMemo(() => {
     const cwd = resolveShellCwd({ projects, threads, routeThreadId, stored });

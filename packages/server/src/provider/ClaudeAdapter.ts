@@ -562,6 +562,7 @@ const SUPPORTED_CLAUDE_IMAGE_MIME_TYPES = new Set([
   "image/png",
   "image/webp",
 ]);
+// Claude SDK setting source names are external API literals; "project" is intentional.
 const CLAUDE_SETTING_SOURCES = [
   "user",
   "project",

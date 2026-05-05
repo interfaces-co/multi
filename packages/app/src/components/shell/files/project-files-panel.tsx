@@ -18,7 +18,7 @@ import { projectReadFileQueryOptions } from "~/lib/project-react-query";
 import { resolveDiffThemeName } from "~/lib/diff-rendering";
 import { useTheme } from "~/hooks/use-theme";
 import { shellPanelsActions, useSecondaryRail } from "~/lib/shell-panels-store";
-import { WorkspaceFileTree } from "./workspace-file-tree";
+import { ProjectFileTree } from "./project-file-tree";
 import { WorkbenchIconButton } from "../shell/workbench-icon-button";
 import { RightWorkbenchLayout } from "../shell/right-workbench-layout";
 
@@ -178,12 +178,12 @@ function SourcePreview(props: {
         </div>
       ) : null}
       {fileContents ? (
-        <div className="workspace-file-preview min-h-0 flex-1 overflow-hidden bg-background text-[12px]/[18px] text-foreground">
+        <div className="project-file-preview min-h-0 flex-1 overflow-hidden bg-background text-[12px]/[18px] text-foreground">
           <File
             key={`${fileQuery.data.relativePath}:${props.wordWrap ? "wrap" : "scroll"}:${resolvedTheme}`}
             file={fileContents}
             options={fileOptions}
-            className="workspace-file-preview-code min-h-0 h-full overflow-auto"
+            className="project-file-preview-code min-h-0 h-full overflow-auto"
           />
         </div>
       ) : null}
@@ -191,7 +191,7 @@ function SourcePreview(props: {
   );
 }
 
-export function WorkspaceFilesPanel(props: {
+export function ProjectFilesPanel(props: {
   cwd: string | null;
   environmentId: EnvironmentId | null;
   availableEditors: readonly EditorId[];
@@ -225,7 +225,7 @@ export function WorkspaceFilesPanel(props: {
   }, [props.cwd, props.environmentId]);
 
   const tree = (
-    <WorkspaceFileTree
+    <ProjectFileTree
       cwd={props.cwd}
       environmentId={props.environmentId}
       availableEditors={props.availableEditors}

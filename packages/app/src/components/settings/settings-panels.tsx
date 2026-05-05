@@ -953,7 +953,7 @@ export function AgentsSettingsPanel() {
         />
         <SettingsRow
           title="New threads"
-          description="Pick the default workspace mode for newly created draft threads."
+          description="Pick the default project mode for newly created draft threads."
           resetAction={
             settings.defaultThreadEnvMode !== DEFAULT_UNIFIED_SETTINGS.defaultThreadEnvMode ? (
               <SettingResetButton

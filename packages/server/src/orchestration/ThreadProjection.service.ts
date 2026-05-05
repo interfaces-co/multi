@@ -1,10 +1,10 @@
 /**
- * ProjectionSnapshotQuery - Read-model snapshot query service interface.
+ * ThreadProjection - Read-model snapshot query service interface.
  *
- * Exposes the current orchestration projection snapshot for read-only API
+ * Exposes the current orchestration thread projection for read-only API
  * access.
  *
- * @module ProjectionSnapshotQuery
+ * @module ThreadProjection
  */
 import type {
   OrchestrationCheckpointSummary,
@@ -23,25 +23,25 @@ import type { Effect } from "effect";
 
 import type { ProjectionRepositoryError } from "../persistence/Errors.ts";
 
-export interface ProjectionSnapshotCounts {
+export interface ThreadProjectionCounts {
   readonly projectCount: number;
   readonly threadCount: number;
 }
 
-export interface ProjectionThreadCheckpointContext {
+export interface ThreadCheckpointContext {
   readonly threadId: ThreadId;
   readonly projectId: ProjectId;
-  readonly workspaceRoot: string;
+  readonly projectRoot: string;
   readonly worktreePath: string | null;
   readonly checkpoints: ReadonlyArray<OrchestrationCheckpointSummary>;
 }
 
 /**
- * ProjectionSnapshotQueryShape - Service API for read-model snapshots.
+ * ThreadProjectionShape - Service API for read-model snapshots.
  */
-export interface ProjectionSnapshotQueryShape {
+export interface ThreadProjectionShape {
   /**
-   * Read the latest orchestration projection snapshot.
+   * Read the latest orchestration thread projection.
    *
    * Rehydrates from projection tables and derives snapshot sequence from
    * projector cursor state.
@@ -62,13 +62,13 @@ export interface ProjectionSnapshotQueryShape {
   /**
    * Read aggregate projection counts without hydrating the full read model.
    */
-  readonly getCounts: () => Effect.Effect<ProjectionSnapshotCounts, ProjectionRepositoryError>;
+  readonly getCounts: () => Effect.Effect<ThreadProjectionCounts, ProjectionRepositoryError>;
 
   /**
-   * Read the active project for an exact workspace root match.
+   * Read the active project for an exact project root match.
    */
-  readonly getActiveProjectByWorkspaceRoot: (
-    workspaceRoot: string,
+  readonly getActiveProjectByProjectRoot: (
+    projectRoot: string,
   ) => Effect.Effect<Option.Option<OrchestrationProject>, ProjectionRepositoryError>;
 
   /**
@@ -90,7 +90,7 @@ export interface ProjectionSnapshotQueryShape {
    */
   readonly getThreadCheckpointContext: (
     threadId: ThreadId,
-  ) => Effect.Effect<Option.Option<ProjectionThreadCheckpointContext>, ProjectionRepositoryError>;
+  ) => Effect.Effect<Option.Option<ThreadCheckpointContext>, ProjectionRepositoryError>;
 
   /**
    * Read a single active thread shell row by id.
@@ -108,9 +108,9 @@ export interface ProjectionSnapshotQueryShape {
 }
 
 /**
- * ProjectionSnapshotQuery - Service tag for projection snapshot queries.
+ * ThreadProjection - Service tag for thread projection queries.
  */
-export class ProjectionSnapshotQuery extends Context.Service<
-  ProjectionSnapshotQuery,
-  ProjectionSnapshotQueryShape
->()("multi/orchestration/ProjectionSnapshotQuery.service") {}
+export class ThreadProjection extends Context.Service<
+  ThreadProjection,
+  ThreadProjectionShape
+>()("multi/orchestration/ThreadProjection.service") {}

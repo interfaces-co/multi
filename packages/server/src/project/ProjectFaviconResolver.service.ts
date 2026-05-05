@@ -1,7 +1,7 @@
 /**
  * ProjectFaviconResolver - Effect service contract for project icon discovery.
  *
- * Resolves a representative favicon or app icon file for a workspace by
+ * Resolves a representative favicon or app icon file for a project by
  * checking common file locations and project source metadata.
  *
  * @module ProjectFaviconResolver
@@ -14,7 +14,7 @@ import type { Effect } from "effect";
  */
 export interface ProjectFaviconResolverShape {
   /**
-   * Resolve a favicon or icon file path for the provided workspace root.
+   * Resolve a favicon or icon file path for the provided project root.
    *
    * Returns `null` when no candidate icon file can be found.
    */

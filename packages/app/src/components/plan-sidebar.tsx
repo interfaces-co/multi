@@ -57,7 +57,7 @@ interface PlanSidebarProps {
   label?: string;
   environmentId: EnvironmentId;
   markdownCwd: string | undefined;
-  workspaceRoot: string | undefined;
+  projectRoot: string | undefined;
   timestampFormat: TimestampFormat;
   onClose: () => void;
 }
@@ -68,12 +68,12 @@ const PlanSidebar = memo(function PlanSidebar({
   label = "Plan",
   environmentId,
   markdownCwd,
-  workspaceRoot,
+  projectRoot,
   timestampFormat,
   onClose,
 }: PlanSidebarProps) {
   const [proposedPlanExpanded, setProposedPlanExpanded] = useState(false);
-  const [isSavingToWorkspace, setIsSavingToWorkspace] = useState(false);
+  const [isSavingToProject, setIsSavingToProject] = useState(false);
   const { copyToClipboard, isCopied } = useCopyToClipboard();
 
   const planMarkdown = activeProposedPlan?.planMarkdown ?? null;
@@ -91,14 +91,14 @@ const PlanSidebar = memo(function PlanSidebar({
     downloadPlanAsTextFile(filename, normalizePlanMarkdownForExport(planMarkdown));
   }, [planMarkdown]);
 
-  const handleSaveToWorkspace = useCallback(() => {
+  const handleSaveToProject = useCallback(() => {
     const api = readEnvironmentApi(environmentId);
-    if (!api || !workspaceRoot || !planMarkdown) return;
+    if (!api || !projectRoot || !planMarkdown) return;
     const filename = buildProposedPlanMarkdownFilename(planMarkdown);
-    setIsSavingToWorkspace(true);
+    setIsSavingToProject(true);
     void api.projects
       .writeFile({
-        cwd: workspaceRoot,
+        cwd: projectRoot,
         relativePath: filename,
         contents: normalizePlanMarkdownForExport(planMarkdown),
       })
@@ -117,10 +117,10 @@ const PlanSidebar = memo(function PlanSidebar({
         });
       })
       .then(
-        () => setIsSavingToWorkspace(false),
-        () => setIsSavingToWorkspace(false),
+        () => setIsSavingToProject(false),
+        () => setIsSavingToProject(false),
       );
-  }, [environmentId, planMarkdown, workspaceRoot]);
+  }, [environmentId, planMarkdown, projectRoot]);
 
   return (
     <div className="flex h-full w-[340px] shrink-0 flex-col border-l border-border/70 bg-card/50">
@@ -160,10 +160,10 @@ const PlanSidebar = memo(function PlanSidebar({
                 </MenuItem>
                 <MenuItem onClick={handleDownload}>Download as markdown</MenuItem>
                 <MenuItem
-                  onClick={handleSaveToWorkspace}
-                  disabled={!workspaceRoot || isSavingToWorkspace}
+                  onClick={handleSaveToProject}
+                  disabled={!projectRoot || isSavingToProject}
                 >
-                  Save to workspace
+                  Save to project
                 </MenuItem>
               </MenuPopup>
             </Menu>

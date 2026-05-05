@@ -26,7 +26,7 @@ describe("ProviderSessionStartInput", () => {
       threadId: "thread-1",
       provider: "codex",
       providerInstanceId: "codex",
-      cwd: "/tmp/workspace",
+      cwd: "/tmp/project",
       modelSelection: {
         instanceId: "codex",
         model: "gpt-5.3-codex",
@@ -63,7 +63,7 @@ describe("ProviderSessionStartInput", () => {
       threadId: "thread-1",
       provider: "claudeAgent",
       providerInstanceId: "claudeAgent",
-      cwd: "/tmp/workspace",
+      cwd: "/tmp/project",
       modelSelection: {
         instanceId: "claudeAgent",
         model: "claude-sonnet-4-6",
@@ -94,7 +94,7 @@ describe("ProviderSessionStartInput", () => {
       threadId: "thread-1",
       provider: "cursor",
       providerInstanceId: "cursor",
-      cwd: "/tmp/workspace",
+      cwd: "/tmp/project",
       runtimeMode: "full-access",
       modelSelection: {
         instanceId: "cursor",
@@ -118,7 +118,7 @@ describe("ProviderSessionStartInput", () => {
       threadId: "thread-1",
       provider: "ollama",
       providerInstanceId: "ollama_local",
-      cwd: "/tmp/workspace",
+      cwd: "/tmp/project",
       runtimeMode: "full-access",
       modelSelection: {
         instanceId: "ollama_local",

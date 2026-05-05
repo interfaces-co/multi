@@ -29,7 +29,7 @@ describe("decider project scripts", () => {
           commandId: CommandId.make("cmd-project-create-scripts"),
           projectId: asProjectId("project-scripts"),
           title: "Scripts",
-          workspaceRoot: "/tmp/scripts",
+          projectRoot: "/tmp/scripts",
           createdAt: now,
         },
         readModel,
@@ -59,7 +59,7 @@ describe("decider project scripts", () => {
         payload: {
           projectId: asProjectId("project-scripts"),
           title: "Scripts",
-          workspaceRoot: "/tmp/scripts",
+          projectRoot: "/tmp/scripts",
           defaultModelSelection: null,
           scripts: [],
           createdAt: now,
@@ -113,7 +113,7 @@ describe("decider project scripts", () => {
         payload: {
           projectId: asProjectId("project-1"),
           title: "Project",
-          workspaceRoot: "/tmp/project",
+          projectRoot: "/tmp/project",
           defaultModelSelection: null,
           scripts: [],
           createdAt: now,
@@ -214,7 +214,7 @@ describe("decider project scripts", () => {
         payload: {
           projectId: asProjectId("project-1"),
           title: "Project",
-          workspaceRoot: "/tmp/project",
+          projectRoot: "/tmp/project",
           defaultModelSelection: null,
           scripts: [],
           createdAt: now,
@@ -296,7 +296,7 @@ describe("decider project scripts", () => {
         payload: {
           projectId: asProjectId("project-1"),
           title: "Project",
-          workspaceRoot: "/tmp/project",
+          projectRoot: "/tmp/project",
           defaultModelSelection: null,
           scripts: [],
           createdAt: now,

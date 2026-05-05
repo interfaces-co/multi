@@ -24,13 +24,13 @@ import {
 import { RepositoryIdentityResolverLive } from "../project/RepositoryIdentityResolver.ts";
 import { OrchestrationEngineLive } from "./OrchestrationEngine.ts";
 import { OrchestrationProjectionPipelineLive } from "./ProjectionPipeline.ts";
-import { OrchestrationProjectionSnapshotQueryLive } from "./ProjectionSnapshotQuery.ts";
+import { ThreadProjectionLive } from "./ThreadProjection.ts";
 import { OrchestrationEngineService } from "./OrchestrationEngine.service.ts";
 import {
   OrchestrationProjectionPipeline,
   type OrchestrationProjectionPipelineShape,
 } from "./ProjectionPipeline.service.ts";
-import { ProjectionSnapshotQuery } from "./ProjectionSnapshotQuery.service.ts";
+import { ThreadProjection } from "./ThreadProjection.service.ts";
 import { ServerConfig } from "../config.ts";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 
@@ -44,7 +44,7 @@ async function createOrchestrationSystem() {
     prefix: "t3-orchestration-engine-test-",
   });
   const orchestrationLayer = OrchestrationEngineLive.pipe(
-    Layer.provide(OrchestrationProjectionSnapshotQueryLive),
+    Layer.provide(ThreadProjectionLive),
     Layer.provide(OrchestrationProjectionPipelineLive),
     Layer.provide(OrchestrationEventStoreLive),
     Layer.provide(OrchestrationCommandReceiptRepositoryLive),
@@ -104,7 +104,7 @@ describe("OrchestrationEngine", () => {
         {
           id: asProjectId("project-bootstrap"),
           title: "Bootstrap Project",
-          workspaceRoot: "/tmp/project-bootstrap",
+          projectRoot: "/tmp/project-bootstrap",
           defaultModelSelection: {
             instanceId: "codex",
             model: "gpt-5-codex",
@@ -144,7 +144,7 @@ describe("OrchestrationEngine", () => {
 
     const layer = OrchestrationEngineLive.pipe(
       Layer.provide(
-        Layer.succeed(ProjectionSnapshotQuery, {
+        Layer.succeed(ThreadProjection, {
           getSnapshot: () => Effect.succeed(projectionSnapshot),
           getShellSnapshot: () =>
             Effect.succeed({
@@ -154,7 +154,7 @@ describe("OrchestrationEngine", () => {
               updatedAt: projectionSnapshot.updatedAt,
             }),
           getCounts: () => Effect.succeed({ projectCount: 1, threadCount: 1 }),
-          getActiveProjectByWorkspaceRoot: () => Effect.succeed(Option.none()),
+          getActiveProjectByProjectRoot: () => Effect.succeed(Option.none()),
           getProjectShellById: () => Effect.succeed(Option.none()),
           getFirstActiveThreadIdByProjectId: () => Effect.succeed(Option.none()),
           getThreadCheckpointContext: () => Effect.succeed(Option.none()),
@@ -198,7 +198,7 @@ describe("OrchestrationEngine", () => {
         commandId: CommandId.make("cmd-project-1-create"),
         projectId: asProjectId("project-1"),
         title: "Project 1",
-        workspaceRoot: "/tmp/project-1",
+        projectRoot: "/tmp/project-1",
         defaultModelSelection: {
           instanceId: "codex",
           model: "gpt-5-codex",
@@ -258,7 +258,7 @@ describe("OrchestrationEngine", () => {
         commandId: CommandId.make("cmd-project-archive-create"),
         projectId: asProjectId("project-archive"),
         title: "Project Archive",
-        workspaceRoot: "/tmp/project-archive",
+        projectRoot: "/tmp/project-archive",
         defaultModelSelection: {
           instanceId: "codex",
           model: "gpt-5-codex",
@@ -325,7 +325,7 @@ describe("OrchestrationEngine", () => {
         commandId: CommandId.make("cmd-project-replay-create"),
         projectId: asProjectId("project-replay"),
         title: "Replay Project",
-        workspaceRoot: "/tmp/project-replay",
+        projectRoot: "/tmp/project-replay",
         defaultModelSelection: {
           instanceId: "codex",
           model: "gpt-5-codex",
@@ -383,7 +383,7 @@ describe("OrchestrationEngine", () => {
         commandId: CommandId.make("cmd-project-stream-create"),
         projectId: asProjectId("project-stream"),
         title: "Stream Project",
-        workspaceRoot: "/tmp/project-stream",
+        projectRoot: "/tmp/project-stream",
         defaultModelSelection: {
           instanceId: "codex",
           model: "gpt-5-codex",
@@ -444,7 +444,7 @@ describe("OrchestrationEngine", () => {
         commandId: CommandId.make("cmd-project-ack-create"),
         projectId: asProjectId("project-ack"),
         title: "Ack Project",
-        workspaceRoot: "/tmp/project-ack",
+        projectRoot: "/tmp/project-ack",
         defaultModelSelection: {
           instanceId: "codex",
           model: "gpt-5-codex",
@@ -533,7 +533,7 @@ describe("OrchestrationEngine", () => {
         commandId: CommandId.make("cmd-project-turn-diff-create"),
         projectId: asProjectId("project-turn-diff"),
         title: "Turn Diff Project",
-        workspaceRoot: "/tmp/project-turn-diff",
+        projectRoot: "/tmp/project-turn-diff",
         defaultModelSelection: {
           instanceId: "codex",
           model: "gpt-5-codex",
@@ -633,7 +633,7 @@ describe("OrchestrationEngine", () => {
 
     const runtime = ManagedRuntime.make(
       OrchestrationEngineLive.pipe(
-        Layer.provide(OrchestrationProjectionSnapshotQueryLive),
+        Layer.provide(ThreadProjectionLive),
         Layer.provide(OrchestrationProjectionPipelineLive),
         Layer.provide(Layer.succeed(OrchestrationEventStore, flakyStore)),
         Layer.provide(OrchestrationCommandReceiptRepositoryLive),
@@ -652,7 +652,7 @@ describe("OrchestrationEngine", () => {
         commandId: CommandId.make("cmd-project-flaky-create"),
         projectId: asProjectId("project-flaky"),
         title: "Flaky Project",
-        workspaceRoot: "/tmp/project-flaky",
+        projectRoot: "/tmp/project-flaky",
         defaultModelSelection: {
           instanceId: "codex",
           model: "gpt-5-codex",
@@ -730,7 +730,7 @@ describe("OrchestrationEngine", () => {
 
     const runtime = ManagedRuntime.make(
       OrchestrationEngineLive.pipe(
-        Layer.provide(OrchestrationProjectionSnapshotQueryLive),
+        Layer.provide(ThreadProjectionLive),
         Layer.provide(Layer.succeed(OrchestrationProjectionPipeline, flakyProjectionPipeline)),
         Layer.provide(OrchestrationEventStoreLive),
         Layer.provide(OrchestrationCommandReceiptRepositoryLive),
@@ -747,7 +747,7 @@ describe("OrchestrationEngine", () => {
         commandId: CommandId.make("cmd-project-atomic-create"),
         projectId: asProjectId("project-atomic"),
         title: "Atomic Project",
-        workspaceRoot: "/tmp/project-atomic",
+        projectRoot: "/tmp/project-atomic",
         defaultModelSelection: {
           instanceId: "codex",
           model: "gpt-5-codex",
@@ -873,7 +873,7 @@ describe("OrchestrationEngine", () => {
 
     const runtime = ManagedRuntime.make(
       OrchestrationEngineLive.pipe(
-        Layer.provide(OrchestrationProjectionSnapshotQueryLive),
+        Layer.provide(ThreadProjectionLive),
         Layer.provide(Layer.succeed(OrchestrationProjectionPipeline, flakyProjectionPipeline)),
         Layer.provide(Layer.succeed(OrchestrationEventStore, nonTransactionalStore)),
         Layer.provide(OrchestrationCommandReceiptRepositoryLive),
@@ -890,7 +890,7 @@ describe("OrchestrationEngine", () => {
         commandId: CommandId.make("cmd-project-sync-create"),
         projectId: asProjectId("project-sync"),
         title: "Sync Project",
-        workspaceRoot: "/tmp/project-sync",
+        projectRoot: "/tmp/project-sync",
         defaultModelSelection: {
           instanceId: "codex",
           model: "gpt-5-codex",
@@ -975,7 +975,7 @@ describe("OrchestrationEngine", () => {
         commandId: CommandId.make("cmd-project-duplicate-create"),
         projectId: asProjectId("project-duplicate"),
         title: "Duplicate Project",
-        workspaceRoot: "/tmp/project-duplicate",
+        projectRoot: "/tmp/project-duplicate",
         defaultModelSelection: {
           instanceId: "codex",
           model: "gpt-5-codex",

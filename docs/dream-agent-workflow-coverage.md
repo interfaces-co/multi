@@ -31,7 +31,7 @@ The tweet describes a higher-level "stop babysitting agent runs" system:
 
 | Workflow area                                      | Multi coverage                                       | Evidence                                                                                                                                                                                                                      |
 | -------------------------------------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Agent workbench over saved codebases               | Covered                                              | `README.md`; `CONTEXT.md`; `OrchestrationProject`, `OrchestrationThread` in `packages/contracts/src/orchestration.ts`; shell sidebar models in `packages/app/src/lib/sidebar-chat-view-model.ts`                              |
+| Agent workbench over saved codebases               | Covered                                              | `README.md`; `CONTEXT.md`; `OrchestrationProject`, `OrchestrationThread` in `packages/contracts/src/orchestration.ts`; shell sidebar models in `packages/app/src/lib/sidebar-chat-view-model.ts`                            |
 | Harness/provider agnostic agent execution          | Partial to strong                                    | Built-in providers include Codex, Claude, OpenCode, Cursor in `packages/server/src/provider/builtInProviderCatalog.ts`; common `ProviderService` and adapter layer; Codex app-server path is still the deepest implementation |
 | Active task/status overview                        | Covered for threads, not tickets                     | Sidebar derives `running`, `needs_attention`, `error`, `idle` from session/projection state in `sidebar-chat-view-model.ts`; `AgentRow` renders status dots                                                                   |
 | Agent chat visibility                              | Opposite default                                     | Multi's primary object is a Thread/chat timeline. The tweet wants ticket output views where users do not inspect running agent chat by default. Multi has shell panels, but selecting a thread still opens the conversation   |
@@ -39,8 +39,8 @@ The tweet describes a higher-level "stop babysitting agent runs" system:
 | Planning mode                                      | Partial                                              | `ProviderInteractionMode` has `plan`; Codex plan-mode developer instructions exist in `codex-app-server-manager.ts`; proposed plans are stored/rendered via `OrchestrationProposedPlan` and `ProposedPlanCard`                |
 | Plan -> implementation handoff                     | Partial                                              | Composer has plan follow-up/implement behavior and `implementationThreadId`; `CONTEXT.md` defines Proposed Plan implementation, not general handoff                                                                           |
 | MVP concept workflow                               | Missing as explicit workflow                         | Plan mode can ask for a prototype, but there is no product state that separates MVP exploration from production implementation                                                                                                |
-| Run dev server/tests from task/ticket              | Partial                                              | Project scripts exist (`ProjectScript`, `ProjectScriptsControl`) with icons for play/test/lint/build/debug and terminal execution; no ticket-scoped command runner and no first-class test result view                        |
-| Saved commands                                     | Partial                                              | Project scripts are saved per workspace and can run in terminals; t3code-style saved commands are not a distinct feature                                                                                                      |
+| Run dev server/tests from task/ticket              | Partial                                              | Project scripts exist (`ProjectScript`, `ProjectScriptsControl`) with icons for play/test/lint/build/debug and terminal execution; no ticket-scoped command runner and no first-class test result view                  |
+| Saved commands                                     | Partial                                              | Project scripts are saved per project and can run in terminals; t3code-style saved commands are not a distinct feature                                                                                                    |
 | Run multiple dev servers on the same port          | Missing                                              | No portless integration or named `.localhost` routing found; terminals/scripts can run servers manually                                                                                                                       |
 | Diff view                                          | Covered for git working tree; partial for turn diffs | Git panel uses `@pierre/diffs` and lazy patch loading; contracts expose `getTurnDiff` and `getFullThreadDiff`; Diffity-style review comments are missing                                                                      |
 | PR/local review flow                               | Partial                                              | GitHub PR resolution and PR checkout into local/worktree threads exist; local diff viewing exists; no inline review comments that feed ticket refinement or skill creation                                                    |
@@ -59,7 +59,7 @@ The tweet describes a higher-level "stop babysitting agent runs" system:
 
 ### 1. Local agent workbench
 
-Multi already models the core local workbench around Workspaces, Threads, Agents, Providers, Sessions, Worktrees, Proposed Plans, Activities, Approvals, and Checkpoints. The domain language in `CONTEXT.md` is aligned with a durable orchestration layer rather than a one-off chat wrapper.
+Multi already models the core local workbench around Projects, Threads, Agents, Providers, Sessions, Worktrees, Proposed Plans, Activities, Approvals, and Checkpoints. The domain language in `CONTEXT.md` is aligned with a durable orchestration layer rather than a one-off chat wrapper.
 
 The server has an event/projection pipeline:
 
@@ -116,7 +116,7 @@ This is not Diffity's full local PR-review loop, but the raw review surface exis
 
 Project scripts cover a large part of "run dev server, tests, saved commands":
 
-- Scripts are stored on the workspace/project
+- Scripts are stored on the project/project
 - Icons include play, test, lint, configure, build, debug
 - Scripts can be run from UI controls
 - Setup scripts can run automatically for worktrees
@@ -141,7 +141,7 @@ This supports "agent helps plan, then implement" but stops short of "break into 
 
 ### 1. No Linear or ticket domain
 
-The spec's core unit is a Linear ticket. Multi's core unit is a Thread inside a Workspace. There is no:
+The spec's core unit is a Linear ticket. Multi's core unit is a Thread inside a Project. There is no:
 
 - Linear MCP integration
 - Issue/ticket schema

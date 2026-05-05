@@ -223,7 +223,7 @@ it.layer(TestLayer)("git integration", (it) => {
     );
   });
 
-  describe("workspace helpers", () => {
+  describe("project helpers", () => {
     it.effect("filterIgnoredPaths chunks large path lists and preserves kept paths", () =>
       Effect.gen(function* () {
         const cwd = "/virtual/repo";
@@ -274,7 +274,7 @@ it.layer(TestLayer)("git integration", (it) => {
       }),
     );
 
-    it.effect("listWorkspaceFiles disables fsmonitor and untracked cache helpers", () =>
+    it.effect("listProjectFiles disables fsmonitor and untracked cache helpers", () =>
       Effect.gen(function* () {
         const core = yield* makeIsolatedGitCore((input) => {
           expect(input.args).toEqual([
@@ -297,7 +297,7 @@ it.layer(TestLayer)("git integration", (it) => {
           });
         });
 
-        const result = yield* core.listWorkspaceFiles("/virtual/repo");
+        const result = yield* core.listProjectFiles("/virtual/repo");
         expect(result.paths).toEqual(["src/index.ts", "README.md"]);
         expect(result.truncated).toBe(false);
       }),

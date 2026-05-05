@@ -652,7 +652,7 @@ routing.layer("ProviderServiceLive routing", (it) => {
         threadId: session.threadId,
         requestId: asRequestId("req-user-input-1"),
         answers: {
-          sandbox_mode: "workspace-write",
+          sandbox_mode: "project-write",
         },
       });
       assert.deepEqual(routing.codex.respondToUserInput.mock.calls, [
@@ -660,7 +660,7 @@ routing.layer("ProviderServiceLive routing", (it) => {
           session.threadId,
           asRequestId("req-user-input-1"),
           {
-            sandbox_mode: "workspace-write",
+            sandbox_mode: "project-write",
           },
         ],
       ]);
@@ -1382,7 +1382,7 @@ fanout.layer("ProviderServiceLive fanout", (it) => {
         threadId: session.threadId,
         requestId: asRequestId("req-metrics-2"),
         answers: {
-          sandbox_mode: "workspace-write",
+          sandbox_mode: "project-write",
         },
       });
       yield* provider.rollbackConversation({

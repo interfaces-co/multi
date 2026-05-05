@@ -30,9 +30,9 @@ import {
 } from "./ProviderCommandReactor.service.ts";
 import { ServerSettingsService } from "../server-settings.ts";
 import {
-  coerceAccessibleWorkspaceCwd,
-  coerceThreadWorkspaceCwd,
-} from "../workspace/AccessibleWorkspaceCwd.ts";
+  coerceAccessibleProjectCwd,
+  coerceThreadProjectCwd,
+} from "../project/AccessibleProjectCwd.ts";
 
 type ProviderIntentEvent = Extract<
   OrchestrationEvent,
@@ -256,7 +256,7 @@ const make = Effect.gen(function* () {
       });
     }
     const desiredModelSelection = requestedModelSelection ?? thread.modelSelection;
-    const effectiveCwd = yield* coerceThreadWorkspaceCwd({
+    const effectiveCwd = yield* coerceThreadProjectCwd({
       operation: "ProviderCommandReactor.ensureSessionForThread",
       thread: {
         id: thread.id,
@@ -445,7 +445,7 @@ const make = Effect.gen(function* () {
     const oldBranch = input.branch;
     const attachments = input.attachments ?? [];
     yield* Effect.gen(function* () {
-      const cwd = yield* coerceAccessibleWorkspaceCwd({
+      const cwd = yield* coerceAccessibleProjectCwd({
         operation: "ProviderCommandReactor.generateWorktreeBranchName",
         candidates: [{ label: "thread.worktreePath", cwd: input.worktreePath }],
         threadId: input.threadId,
@@ -563,7 +563,7 @@ const make = Effect.gen(function* () {
     if (isFirstUserMessageTurn) {
       const readModel = yield* orchestrationEngine.getReadModel();
       const generationCwd =
-        (yield* coerceThreadWorkspaceCwd({
+        (yield* coerceThreadProjectCwd({
           operation: "ProviderCommandReactor.generateThreadTitle",
           thread: {
             id: thread.id,

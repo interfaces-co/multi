@@ -10,7 +10,7 @@ import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstab
 import { ServerAuth } from "../auth/ServerAuth.service.ts";
 import { normalizeDispatchCommand } from "./Normalizer.ts";
 import { OrchestrationEngineService } from "./OrchestrationEngine.service.ts";
-import { ProjectionSnapshotQuery } from "./ProjectionSnapshotQuery.service.ts";
+import { ThreadProjection } from "./ThreadProjection.service.ts";
 
 const respondToOrchestrationHttpError = (
   error: OrchestrationDispatchCommandError | OrchestrationGetSnapshotError,
@@ -44,8 +44,8 @@ export const orchestrationSnapshotRouteLayer = HttpRouter.add(
   "/api/orchestration/snapshot",
   Effect.gen(function* () {
     yield* authenticateOwnerSession;
-    const projectionSnapshotQuery = yield* ProjectionSnapshotQuery;
-    const snapshot = yield* projectionSnapshotQuery.getSnapshot().pipe(
+    const threadProjection = yield* ThreadProjection;
+    const snapshot = yield* threadProjection.getSnapshot().pipe(
       Effect.mapError(
         (cause) =>
           new OrchestrationGetSnapshotError({

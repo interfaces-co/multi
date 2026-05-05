@@ -53,7 +53,7 @@ import {
 } from "./cli-auth-format";
 import { AuthControlPlane, AuthControlPlaneShape } from "./auth/AuthControlPlane.service.ts";
 import { OrchestrationEngineService } from "./orchestration/OrchestrationEngine.service.ts";
-import { ProjectionSnapshotQuery } from "./orchestration/ProjectionSnapshotQuery.service.ts";
+import { ThreadProjection } from "./orchestration/ThreadProjection.service.ts";
 import { OrchestrationLayerLive } from "./orchestration/runtime-layer";
 import { layerConfig as SqlitePersistenceLayerLive } from "./persistence/Sqlite.ts";
 import { RepositoryIdentityResolverLive } from "./project/RepositoryIdentityResolver.ts";
@@ -62,8 +62,8 @@ import {
   clearPersistedServerRuntimeState,
   readPersistedServerRuntimeState,
 } from "./server-runtime-state";
-import { WorkspacePaths } from "./workspace/WorkspacePaths.service";
-import { WorkspacePathsLive } from "./workspace/WorkspacePaths";
+import { ProjectPaths } from "./project/ProjectPaths.service";
+import { ProjectPathsLive } from "./project/ProjectPaths";
 
 const PortSchema = Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 65535 }));
 
@@ -483,7 +483,7 @@ const runWithAuthControlPlane = <A, E>(
 type ProjectMutationTarget = {
   readonly id: ProjectId;
   readonly title: string;
-  readonly workspaceRoot: string;
+  readonly projectRoot: string;
 };
 
 type ProjectCommandExecutionMode = "live" | "offline";
@@ -493,7 +493,7 @@ type ProjectCliDispatchCommand = Extract<
 >;
 
 const ProjectCliRuntimeLive = Layer.mergeAll(
-  WorkspacePathsLive,
+  ProjectPathsLive,
   OrchestrationLayerLive.pipe(
     Layer.provideMerge(RepositoryIdentityResolverLive),
     Layer.provideMerge(SqlitePersistenceLayerLive),
@@ -546,15 +546,15 @@ const readErrorMessageFromResponse = (response: HttpClientResponse.HttpClientRes
     }),
   );
 
-const normalizeWorkspaceRootForProjectCommand = Effect.fn(
-  "normalizeWorkspaceRootForProjectCommand",
-)(function* (workspaceRoot: string) {
-  const workspacePaths = yield* WorkspacePaths;
-  return yield* workspacePaths.normalizeWorkspaceRoot(workspaceRoot);
+const normalizeProjectRootForProjectCommand = Effect.fn(
+  "normalizeProjectRootForProjectCommand",
+)(function* (projectRoot: string) {
+  const projectPaths = yield* ProjectPaths;
+  return yield* projectPaths.normalizeProjectRoot(projectRoot);
 });
 
 const resolveProjectTitle = Effect.fn("resolveProjectTitle")(function* (
-  workspaceRoot: string,
+  projectRoot: string,
   explicitTitle?: string,
 ) {
   if (explicitTitle !== undefined) {
@@ -566,7 +566,7 @@ const resolveProjectTitle = Effect.fn("resolveProjectTitle")(function* (
   }
 
   const path = yield* Path.Path;
-  const basename = path.basename(workspaceRoot).trim();
+  const basename = path.basename(projectRoot).trim();
   return basename.length > 0 ? basename : "project";
 });
 
@@ -585,29 +585,29 @@ const findActiveProjectTarget = Effect.fn("findActiveProjectTarget")(function* (
     return {
       id: exactIdMatch.id,
       title: exactIdMatch.title,
-      workspaceRoot: exactIdMatch.workspaceRoot,
+      projectRoot: exactIdMatch.projectRoot,
     } satisfies ProjectMutationTarget;
   }
 
-  const normalizedWorkspaceRootResult = yield* Effect.exit(
-    normalizeWorkspaceRootForProjectCommand(trimmedIdentifier),
+  const normalizedProjectRootResult = yield* Effect.exit(
+    normalizeProjectRootForProjectCommand(trimmedIdentifier),
   );
-  const normalizedWorkspaceRoot = Exit.isSuccess(normalizedWorkspaceRootResult)
-    ? normalizedWorkspaceRootResult.value
+  const normalizedProjectRoot = Exit.isSuccess(normalizedProjectRootResult)
+    ? normalizedProjectRootResult.value
     : null;
   const path = yield* Path.Path;
   const resolvedIdentifier = path.resolve(yield* expandHomePath(trimmedIdentifier));
 
-  const exactWorkspaceMatch =
-    normalizedWorkspaceRoot === null
-      ? activeProjects.find((project) => project.workspaceRoot === resolvedIdentifier)
+  const exactProjectMatch =
+    normalizedProjectRoot === null
+      ? activeProjects.find((project) => project.projectRoot === resolvedIdentifier)
       : activeProjects.find(
           (project) =>
-            project.workspaceRoot === normalizedWorkspaceRoot ||
-            project.workspaceRoot === resolvedIdentifier,
+            project.projectRoot === normalizedProjectRoot ||
+            project.projectRoot === resolvedIdentifier,
         );
 
-  const resolved = exactWorkspaceMatch;
+  const resolved = exactProjectMatch;
   if (!resolved) {
     return yield* Effect.fail(new Error(`No active project found for '${trimmedIdentifier}'.`));
   }
@@ -615,7 +615,7 @@ const findActiveProjectTarget = Effect.fn("findActiveProjectTarget")(function* (
   return {
     id: resolved.id,
     title: resolved.title,
-    workspaceRoot: resolved.workspaceRoot,
+    projectRoot: resolved.projectRoot,
   } satisfies ProjectMutationTarget;
 });
 
@@ -658,8 +658,8 @@ const dispatchLiveOrchestrationCommand = (
   );
 
 const getOfflineSnapshot = Effect.fn("getOfflineSnapshot")(function* () {
-  const projectionSnapshotQuery = yield* ProjectionSnapshotQuery;
-  return yield* projectionSnapshotQuery.getSnapshot();
+  const threadProjection = yield* ThreadProjection;
+  return yield* threadProjection.getSnapshot();
 });
 
 const tryResolveLiveProjectExecutionMode = Effect.fn("tryResolveLiveProjectExecutionMode")(
@@ -698,7 +698,7 @@ const runProjectMutation = Effect.fn("runProjectMutation")(function* (
   }) => Effect.Effect<
     string,
     Error,
-    FileSystem.FileSystem | HttpClient.HttpClient | Path.Path | WorkspacePaths
+    FileSystem.FileSystem | HttpClient.HttpClient | Path.Path | ProjectPaths
   >,
 ) {
   const logLevel = yield* GlobalFlag.LogLevel;
@@ -741,7 +741,7 @@ const runProjectMutation = Effect.fn("runProjectMutation")(function* (
     }).pipe(Effect.provide(offlineRuntimeLayer));
   }).pipe(
     Effect.provide(
-      Layer.mergeAll(AuthControlPlaneRuntimeLive, WorkspacePathsLive).pipe(
+      Layer.mergeAll(AuthControlPlaneRuntimeLive, ProjectPathsLive).pipe(
         Layer.provideMerge(FetchHttpClient.layer),
         Layer.provide(Layer.succeed(ServerConfig, config)),
         Layer.provide(Layer.succeed(References.MinimumLogLevel, minimumLogLevel)),
@@ -978,8 +978,8 @@ const authCommand = Command.make("auth").pipe(
 
 const projectAddCommand = Command.make("add", {
   ...projectLocationFlags,
-  workspaceRoot: Argument.string("path").pipe(
-    Argument.withDescription("Workspace root to add as a project."),
+  projectRoot: Argument.string("path").pipe(
+    Argument.withDescription("Project root to add as a project."),
   ),
   title: Flag.string("title").pipe(Flag.withDescription("Optional project title."), Flag.optional),
 }).pipe(
@@ -996,28 +996,28 @@ const projectAddCommand = Command.make("add", {
           command: ProjectCliDispatchCommand,
         ) => Effect.Effect<void, Error, FileSystem.FileSystem | HttpClient.HttpClient | Path.Path>;
       }) {
-        const workspaceRoot = yield* normalizeWorkspaceRootForProjectCommand(flags.workspaceRoot);
+        const projectRoot = yield* normalizeProjectRootForProjectCommand(flags.projectRoot);
         const existingProject = snapshot.projects.find(
-          (project) => project.deletedAt === null && project.workspaceRoot === workspaceRoot,
+          (project) => project.deletedAt === null && project.projectRoot === projectRoot,
         );
         if (existingProject) {
           return yield* Effect.fail(
-            new Error(`An active project already exists for '${workspaceRoot}'.`),
+            new Error(`An active project already exists for '${projectRoot}'.`),
           );
         }
 
-        const title = yield* resolveProjectTitle(workspaceRoot, Option.getOrUndefined(flags.title));
+        const title = yield* resolveProjectTitle(projectRoot, Option.getOrUndefined(flags.title));
         const projectId = ProjectId.make(crypto.randomUUID());
         yield* dispatch({
           type: "project.create",
           commandId: CommandId.make(crypto.randomUUID()),
           projectId,
           title,
-          workspaceRoot,
+          projectRoot,
           defaultModelSelection: getAutoBootstrapDefaultModelSelection(),
           createdAt: new Date().toISOString(),
         });
-        return `Added project ${projectId} (${title}) at ${workspaceRoot}.`;
+        return `Added project ${projectId} (${title}) at ${projectRoot}.`;
       }),
     ),
   ),
@@ -1026,7 +1026,7 @@ const projectAddCommand = Command.make("add", {
 const projectRemoveCommand = Command.make("remove", {
   ...projectLocationFlags,
   project: Argument.string("project").pipe(
-    Argument.withDescription("Project id or workspace root to remove."),
+    Argument.withDescription("Project id or project root to remove."),
   ),
 }).pipe(
   Command.withDescription("Remove a project."),
@@ -1060,7 +1060,7 @@ const projectRemoveCommand = Command.make("remove", {
 const projectRenameCommand = Command.make("rename", {
   ...projectLocationFlags,
   project: Argument.string("project").pipe(
-    Argument.withDescription("Project id or workspace root to rename."),
+    Argument.withDescription("Project id or project root to rename."),
   ),
   title: Argument.string("title").pipe(Argument.withDescription("New project title.")),
 }).pipe(
@@ -1081,7 +1081,7 @@ const projectRenameCommand = Command.make("rename", {
           snapshot,
           identifier: flags.project,
         });
-        const nextTitle = yield* resolveProjectTitle(project.workspaceRoot, flags.title);
+        const nextTitle = yield* resolveProjectTitle(project.projectRoot, flags.title);
         if (nextTitle === project.title) {
           return `Project ${project.id} is already named ${nextTitle}.`;
         }
@@ -1101,13 +1101,13 @@ const projectRenameCommand = Command.make("rename", {
 const projectRelocateCommand = Command.make("relocate", {
   ...projectLocationFlags,
   project: Argument.string("project").pipe(
-    Argument.withDescription("Project id or current workspace root to relocate."),
+    Argument.withDescription("Project id or current project root to relocate."),
   ),
-  workspaceRoot: Argument.string("path").pipe(
-    Argument.withDescription("New workspace root for the project."),
+  projectRoot: Argument.string("path").pipe(
+    Argument.withDescription("New project root for the project."),
   ),
 }).pipe(
-  Command.withDescription("Relocate a project to a new workspace root."),
+  Command.withDescription("Relocate a project to a new project root."),
   Command.withHandler((flags) =>
     runProjectMutation(
       flags,
@@ -1124,20 +1124,20 @@ const projectRelocateCommand = Command.make("relocate", {
           snapshot,
           identifier: flags.project,
         });
-        const nextWorkspaceRoot = yield* normalizeWorkspaceRootForProjectCommand(
-          flags.workspaceRoot,
+        const nextProjectRoot = yield* normalizeProjectRootForProjectCommand(
+          flags.projectRoot,
         );
-        if (nextWorkspaceRoot === project.workspaceRoot) {
-          return `Project ${project.id} is already located at ${nextWorkspaceRoot}.`;
+        if (nextProjectRoot === project.projectRoot) {
+          return `Project ${project.id} is already located at ${nextProjectRoot}.`;
         }
 
         yield* dispatch({
           type: "project.meta.update",
           commandId: CommandId.make(crypto.randomUUID()),
           projectId: project.id,
-          workspaceRoot: nextWorkspaceRoot,
+          projectRoot: nextProjectRoot,
         });
-        return `Relocated project ${project.id} (${project.title}) from ${project.workspaceRoot} to ${nextWorkspaceRoot}.`;
+        return `Relocated project ${project.id} (${project.title}) from ${project.projectRoot} to ${nextProjectRoot}.`;
       }),
     ),
   ),

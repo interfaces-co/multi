@@ -9,23 +9,23 @@ The interactive Multi shell where a user works with threads, files, terminals, g
 _Avoid_: Workspace
 
 **Environment**:
-A local or remote Multi server that hosts Workspaces and controls Agent execution.
+A local or remote Multi server that hosts Projects and controls Agent execution.
 _Avoid_: Workspace, Worktree, Provider
 
-**Workspace**:
+**Project**:
 A user-configured code root in Multi that owns codebase-scoped defaults, scripts, and threads.
-_Avoid_: Project
+_Avoid_: Workspace
 
-**Workspace Root**:
-The filesystem path attached to a Workspace.
-_Avoid_: Project path, workspace
+**Project Root**:
+The filesystem path attached to a Project.
+_Avoid_: Workspace path, workspace
 
 **Settings**:
 User and server preferences that configure Multi itself rather than a specific codebase.
-_Avoid_: Workspace config
+_Avoid_: Project config when describing global preferences
 
 **Thread**:
-A conversation with a coding agent inside one Workspace.
+A conversation with a coding agent inside one Project.
 _Avoid_: Chat, session, conversation as a named concept
 
 **Agent**:
@@ -69,19 +69,19 @@ An internal execution cycle for one user request and the Agent work that follows
 _Avoid_: User-facing message
 
 **Checkpoint**:
-An internal saved Workspace state used for diffing and reverting Thread work.
+An internal saved Project state used for diffing and reverting Thread work.
 _Avoid_: User-facing object
 
 **Changes**:
-User-facing modifications produced by Agent work in a Workspace.
+User-facing modifications produced by Agent work in a Project.
 _Avoid_: Diff when writing product UI
 
 **Diff**:
-A developer-facing patch comparison between Workspace states.
+A developer-facing patch comparison between Project states.
 _Avoid_: Changes when describing patch mechanics
 
 **Worktree**:
-A Git worktree used to isolate Thread work from the Workspace Root.
+A Git worktree used to isolate Thread work from the Project Root.
 _Avoid_: Workspace
 
 **Message**:
@@ -106,15 +106,15 @@ _Avoid_: Approval
 
 ## Relationships
 
-- An **Environment** hosts zero or more **Workspaces**
-- A **Workspace** belongs to one configured code root through its **Workspace Root**
-- A **Workspace** owns zero or more **Threads**
-- A **Thread** belongs to exactly one **Workspace**
+- An **Environment** hosts zero or more **Projects**
+- A **Project** belongs to one configured code root through its **Project Root**
+- A **Project** owns zero or more **Threads**
+- A **Thread** belongs to exactly one **Project**
 - A **Thread** can contain zero or more **Proposed Plans**
 - A **Thread** contains user-visible messages and internal **Turns**
 - A **Turn** can have an internal **Checkpoint**
-- A **Diff** compares **Changes** between Workspace states
-- A **Thread** may run in a **Worktree** separate from the **Workspace Root**, but the **Workspace** remains its owner
+- A **Diff** compares **Changes** between Project states
+- A **Thread** may run in a **Worktree** separate from the **Project Root**, but the **Project** remains its owner
 - A **Thread** contains **Messages**, **Proposed Plans**, and **Activity**
 - A **Thread** timeline presents **Messages**, **Proposed Plans**, and **Activity** as **Timeline Rows**
 - A **Thread** is run by one **Agent** at a time
@@ -129,23 +129,23 @@ _Avoid_: Approval
 - An **Agent** is backed by exactly one **Provider**
 - A **Provider** offers one or more **Models**
 - A **Session** produces user-visible status text for its **Thread**
-- The **Workbench** displays the active **Workspace**, **Thread**, and supporting panels
-- **Settings** configure Multi globally, while a **Workspace** configures one codebase
+- The **Workbench** displays the active **Project**, **Thread**, and supporting panels
+- **Settings** configure Multi globally, while a **Project** configures one codebase
 
 ## Example dialogue
 
-> **Dev:** "Should this provider binary path live on the **Workspace**?"
-> **Domain expert:** "No — provider binaries are **Settings**. The **Workspace** can store codebase defaults like its model choice and scripts."
+> **Dev:** "Should this provider binary path live on the **Project**?"
+> **Domain expert:** "No — provider binaries are **Settings**. The **Project** can store codebase defaults like its model choice and scripts."
 > **Dev:** "Can a **Thread** start in Codex and continue in Claude?"
-> **Domain expert:** "No — create another **Thread** in the same **Workspace** and link it to the original work."
+> **Domain expert:** "No — create another **Thread** in the same **Project** and link it to the original work."
 > **Dev:** "Is implementing a **Proposed Plan** a general handoff?"
 > **Domain expert:** "No — the transferable unit is the **Proposed Plan**, not the whole previous **Thread**."
 
 ## Flagged Ambiguities
 
-- "workspace" was used to mean both the product shell and a configured code root — resolved: use **Workbench** for the shell and **Workspace** for the code root.
+- "workspace" was used to mean both the product shell and a configured code root — resolved: use **Workbench** for the shell and **Project** for the code root.
 - "environment" was considered as generic execution language — resolved: **Environment** means a local or remote Multi server used for remote control.
-- "project" was used for the persisted code root container — resolved: **Project** is retired product/domain language; use **Workspace** instead. Existing implementation surfaces may still use project terminology until they are migrated with compatibility for persisted events, SQLite projections, RPC contracts, local storage, and CLI flags.
+- "project" was used for the persisted code root container — resolved: **Project** is the canonical product/domain language. Do not replace it with Workspace for current interfaces.
 - "agent" was used for sidebar conversation entries — resolved: use **Thread** for the durable conversation and **Agent** for the runtime performing work inside it.
 - "agent" was considered as the primary user-facing provider abstraction — resolved: users mostly see concrete **Provider** names like Codex and Claude.
 - "model" was considered interchangeable with provider — resolved: a **Provider** offers multiple **Models**.
@@ -161,6 +161,6 @@ _Avoid_: Approval
 - "turn" was considered for user-facing conversation structure — resolved: **Turn** is internal; users see messages and work output.
 - "checkpoint" was considered for product vocabulary — resolved: **Checkpoint** is implementation language; users see changes, diffs, and revert affordances.
 - "diff" was considered for user-facing UI — resolved: users see **Changes**; developers use **Diff** for patch comparison mechanics.
-- "worktree" was considered as generic workspace language — resolved: **Worktree** means Git worktree.
+- "worktree" was considered as generic project language — resolved: **Worktree** means Git worktree.
 - "message" was used for both conversation content and UI display rows — resolved: **Message** is content, **Timeline Row** is presentation.
 - Tool executions, approvals, file reads, command output, progress, warnings, and errors are **Activity**, not **Messages**.

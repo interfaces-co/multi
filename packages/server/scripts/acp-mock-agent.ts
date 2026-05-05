@@ -474,7 +474,7 @@ const program = Effect.gen(function* () {
               id: "scope",
               prompt: "Which scope?",
               options: [
-                { id: "workspace", label: "Workspace" },
+                { id: "project", label: "Project" },
                 { id: "session", label: "Session" },
               ],
             },

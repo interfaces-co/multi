@@ -219,8 +219,8 @@ describe("derivePendingUserInputs", () => {
               question: "Which mode should be used?",
               options: [
                 {
-                  label: "workspace-write",
-                  description: "Allow workspace writes only",
+                  label: "project-write",
+                  description: "Allow project writes only",
                 },
               ],
               multiSelect: true,
@@ -237,7 +237,7 @@ describe("derivePendingUserInputs", () => {
         payload: {
           requestId: "req-user-input-2",
           answers: {
-            sandbox_mode: "workspace-write",
+            sandbox_mode: "project-write",
           },
         },
       }),
@@ -278,8 +278,8 @@ describe("derivePendingUserInputs", () => {
             question: "Which mode should be used?",
             options: [
               {
-                label: "workspace-write",
-                description: "Allow workspace writes only",
+                label: "project-write",
+                description: "Allow project writes only",
               },
             ],
             multiSelect: true,
@@ -306,8 +306,8 @@ describe("derivePendingUserInputs", () => {
               question: "Which mode should be used?",
               options: [
                 {
-                  label: "workspace-write",
-                  description: "Allow workspace writes only",
+                  label: "project-write",
+                  description: "Allow project writes only",
                 },
               ],
               multiSelect: false,

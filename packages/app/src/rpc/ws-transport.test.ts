@@ -565,8 +565,8 @@ describe("WsTransport", () => {
           serverVersion: "0.0.0-test",
           capabilities: { repositoryIdentity: true },
         },
-        cwd: "/tmp/workspace",
-        projectName: "workspace",
+        cwd: "/tmp/project",
+        projectName: "project",
       },
     };
 

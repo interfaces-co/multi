@@ -1,8 +1,8 @@
 /**
- * CheckpointStore - Repository interface for filesystem-backed workspace checkpoints.
+ * CheckpointStore - Repository interface for filesystem-backed project checkpoints.
  *
  * Owns hidden Git-ref checkpoint capture/restore and diff computation for a
- * workspace thread timeline. It does not store user-facing checkpoint metadata
+ * project thread timeline. It does not store user-facing checkpoint metadata
  * and does not coordinate provider conversation rollback.
  *
  * Uses Effect `Context.Service` for dependency injection and exposes typed
@@ -65,7 +65,7 @@ export interface CheckpointStoreShape {
   ) => Effect.Effect<boolean, CheckpointStoreError>;
 
   /**
-   * Restore workspace/staging state to a checkpoint.
+   * Restore project/staging state to a checkpoint.
    *
    * Optionally falls back to current `HEAD` when the checkpoint ref is missing.
    */

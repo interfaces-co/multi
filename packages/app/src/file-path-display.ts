@@ -21,34 +21,34 @@ function stripRelativePrefixes(path: string): string {
   return path.replace(/^\.\/+/, "").replace(/^\/+/, "");
 }
 
-export function formatWorkspaceRelativePath(
+export function formatProjectRelativePath(
   pathWithPosition: string,
-  workspaceRoot: string | undefined,
+  projectRoot: string | undefined,
 ): string {
   const { path, line, column } = splitPathAndPosition(pathWithPosition);
   const normalizedPath = canonicalizeWindowsDrivePath(normalizePathSeparators(path));
 
   let displayPath = normalizedPath;
-  if (workspaceRoot) {
-    const normalizedWorkspaceRoot = canonicalizeWindowsDrivePath(
-      normalizePathSeparators(trimTrailingPathSeparators(workspaceRoot)),
+  if (projectRoot) {
+    const normalizedProjectRoot = canonicalizeWindowsDrivePath(
+      normalizePathSeparators(trimTrailingPathSeparators(projectRoot)),
     );
-    const workspaceLabel = basenameOfPath(normalizedWorkspaceRoot);
+    const projectLabel = basenameOfPath(normalizedProjectRoot);
     const pathForCompare = normalizedPath.toLowerCase();
-    const workspaceForCompare = normalizedWorkspaceRoot.toLowerCase();
-    const workspaceWithSeparator = `${workspaceForCompare}/`;
-    const workspaceLabelWithSeparator = `${workspaceLabel.toLowerCase()}/`;
+    const projectForCompare = normalizedProjectRoot.toLowerCase();
+    const projectWithSeparator = `${projectForCompare}/`;
+    const projectLabelWithSeparator = `${projectLabel.toLowerCase()}/`;
 
-    if (pathForCompare === workspaceForCompare) {
-      displayPath = workspaceLabel;
-    } else if (pathForCompare.startsWith(workspaceWithSeparator)) {
-      const relativeSuffix = normalizedPath.slice(normalizedWorkspaceRoot.length + 1);
-      displayPath = `${workspaceLabel}/${relativeSuffix}`;
+    if (pathForCompare === projectForCompare) {
+      displayPath = projectLabel;
+    } else if (pathForCompare.startsWith(projectWithSeparator)) {
+      const relativeSuffix = normalizedPath.slice(normalizedProjectRoot.length + 1);
+      displayPath = `${projectLabel}/${relativeSuffix}`;
     } else if (!normalizedPath.startsWith("/")) {
       const relativePath = stripRelativePrefixes(normalizedPath);
-      displayPath = pathForCompare.startsWith(workspaceLabelWithSeparator)
+      displayPath = pathForCompare.startsWith(projectLabelWithSeparator)
         ? normalizedPath
-        : `${workspaceLabel}/${relativePath}`;
+        : `${projectLabel}/${relativePath}`;
     }
   }
 

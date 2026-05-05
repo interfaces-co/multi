@@ -25,7 +25,7 @@ import { RepositoryIdentityResolverLive } from "../project/RepositoryIdentityRes
 import { CheckpointReactorLive } from "./CheckpointReactor.ts";
 import { OrchestrationEngineLive } from "./OrchestrationEngine.ts";
 import { OrchestrationProjectionPipelineLive } from "./ProjectionPipeline.ts";
-import { OrchestrationProjectionSnapshotQueryLive } from "./ProjectionSnapshotQuery.ts";
+import { ThreadProjectionLive } from "./ThreadProjection.ts";
 import { RuntimeReceiptBusLive } from "./RuntimeReceiptBus.ts";
 import { OrchestrationEventStoreLive } from "../persistence/OrchestrationEventStore.ts";
 import { OrchestrationCommandReceiptRepositoryLive } from "../persistence/OrchestrationCommandReceipts.ts";
@@ -38,8 +38,8 @@ import { CheckpointReactor } from "./CheckpointReactor.service.ts";
 import { ProviderService, type ProviderServiceShape } from "../provider/ProviderService.service.ts";
 import { checkpointRefForThreadTurn } from "../checkpointing/Utils.ts";
 import { ServerConfig } from "../config.ts";
-import { WorkspaceEntriesLive } from "../workspace/WorkspaceEntries.ts";
-import { WorkspacePathsLive } from "../workspace/WorkspacePaths.ts";
+import { ProjectEntriesLive } from "../project/ProjectEntries.ts";
+import { ProjectPathsLive } from "../project/ProjectPaths.ts";
 
 const asProjectId = (value: string): ProjectId => ProjectId.make(value);
 const asTurnId = (value: string): TurnId => TurnId.make(value);
@@ -238,7 +238,7 @@ describe("CheckpointReactor", () => {
   async function createHarness(options?: {
     readonly hasSession?: boolean;
     readonly seedFilesystemCheckpoints?: boolean;
-    readonly projectWorkspaceRoot?: string;
+    readonly projectProjectRoot?: string;
     readonly threadWorktreePath?: string | null;
     readonly providerSessionCwd?: string;
     readonly providerName?: ProviderDriverKind;
@@ -253,7 +253,7 @@ describe("CheckpointReactor", () => {
       options?.providerName ?? "codex",
     );
     const orchestrationLayer = OrchestrationEngineLive.pipe(
-      Layer.provide(OrchestrationProjectionSnapshotQueryLive),
+      Layer.provide(ThreadProjectionLive),
       Layer.provide(OrchestrationProjectionPipelineLive),
       Layer.provide(OrchestrationEventStoreLive),
       Layer.provide(OrchestrationCommandReceiptRepositoryLive),
@@ -289,8 +289,8 @@ describe("CheckpointReactor", () => {
       Layer.provideMerge(Layer.succeed(ProviderService, provider.service)),
       Layer.provideMerge(gitStatusBroadcasterLayer),
       Layer.provideMerge(CheckpointStoreLive),
-      Layer.provideMerge(WorkspaceEntriesLive.pipe(Layer.provide(WorkspacePathsLive))),
-      Layer.provideMerge(WorkspacePathsLive),
+      Layer.provideMerge(ProjectEntriesLive.pipe(Layer.provide(ProjectPathsLive))),
+      Layer.provideMerge(ProjectPathsLive),
       Layer.provideMerge(GitCoreLive),
       Layer.provideMerge(ServerConfigLayer),
       Layer.provideMerge(NodeServices.layer),
@@ -311,7 +311,7 @@ describe("CheckpointReactor", () => {
         commandId: CommandId.make("cmd-project-create"),
         projectId: asProjectId("project-1"),
         title: "Test Project",
-        workspaceRoot: options?.projectWorkspaceRoot ?? cwd,
+        projectRoot: options?.projectProjectRoot ?? cwd,
         defaultModelSelection: {
           instanceId: "codex",
           model: "gpt-5-codex",
@@ -647,7 +647,7 @@ describe("CheckpointReactor", () => {
     ).toBe(true);
   });
 
-  it("captures pre-turn baseline from project workspace root when thread worktree is unset", async () => {
+  it("captures pre-turn baseline from project project root when thread worktree is unset", async () => {
     const harness = await createHarness({
       hasSession: false,
       seedFilesystemCheckpoints: false,
@@ -684,7 +684,7 @@ describe("CheckpointReactor", () => {
     ).toBe("v1\n");
   });
 
-  it("captures turn completion checkpoint from project workspace root when provider session cwd is unavailable", async () => {
+  it("captures turn completion checkpoint from project project root when provider session cwd is unavailable", async () => {
     const harness = await createHarness({
       hasSession: false,
       seedFilesystemCheckpoints: false,

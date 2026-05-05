@@ -123,7 +123,7 @@ describe("GitStatusBroadcasterLive", () => {
     return Effect.gen(function* () {
       const broadcaster = yield* GitStatusBroadcaster;
 
-      const status = yield* broadcaster.getStatus({ cwd: "/missing-workspace-root" });
+      const status = yield* broadcaster.getStatus({ cwd: "/missing-project-root" });
 
       assert.deepStrictEqual(status, {
         ...nonRepoLocalStatus,

@@ -65,7 +65,7 @@ import {
 } from "../lib/project-paths";
 import { isTerminalFocused } from "../lib/terminal-focus";
 import { getLatestThreadForProject } from "../lib/thread-sort";
-import { writeStoredWorkspaceCwd } from "../lib/workspace-state";
+import { writeStoredProjectCwd } from "../lib/project-state";
 import { cn, isMacPlatform, isWindowsPlatform, newCommandId, newProjectId } from "../lib/utils";
 import {
   selectProjectsAcrossEnvironments,
@@ -463,7 +463,7 @@ function OpenCommandPaletteDialog() {
       }),
     [openProjectFromSearch, projects],
   );
-  const workspaceProjectItems = useMemo<CommandPaletteActionItem[]>(
+  const projectProjectItems = useMemo<CommandPaletteActionItem[]>(
     () =>
       [...projects]
         .toSorted((left, right) => {
@@ -476,7 +476,7 @@ function OpenCommandPaletteDialog() {
         })
         .map((project) => ({
           kind: "action",
-          value: `workspace:${project.environmentId}:${project.id}`,
+          value: `project:${project.environmentId}:${project.id}`,
           searchTerms: [project.name, project.cwd],
           title: project.name,
           description: project.cwd === currentProjectCwd ? `Current • ${project.cwd}` : project.cwd,
@@ -653,24 +653,24 @@ function OpenCommandPaletteDialog() {
     startAddProjectBrowse,
   ]);
 
-  const workspaceGroups = useMemo<CommandPaletteView["groups"]>(() => {
+  const projectGroups = useMemo<CommandPaletteView["groups"]>(() => {
     const groups: CommandPaletteGroup[] = [];
-    if (workspaceProjectItems.length > 0) {
+    if (projectProjectItems.length > 0) {
       groups.push({
-        value: "workspaces",
-        label: "Workspaces",
-        items: workspaceProjectItems,
+        value: "projects",
+        label: "Projects",
+        items: projectProjectItems,
       });
     }
     groups.push({
-      value: "workspace-actions",
+      value: "project-actions",
       label: "Actions",
       items: [
         {
           kind: "action",
-          value: "workspace:add-project",
-          searchTerms: ["add workspace", "add project", "folder", "directory", "browse"],
-          title: "Add Workspace",
+          value: "project:add-project",
+          searchTerms: ["add project", "add project", "folder", "directory", "browse"],
+          title: "Add Project",
           description:
             addProjectEnvironmentOptions.length > 1
               ? "Choose an environment and folder"
@@ -684,15 +684,15 @@ function OpenCommandPaletteDialog() {
       ],
     });
     return groups;
-  }, [addProjectEnvironmentOptions.length, openAddProjectFlow, workspaceProjectItems]);
+  }, [addProjectEnvironmentOptions.length, openAddProjectFlow, projectProjectItems]);
 
-  const openWorkspaceFlow = useCallback(() => {
+  const openProjectFlow = useCallback(() => {
     pushPaletteView({
       addonIcon: <IconFolder1 className="size-4" />,
-      groups: workspaceGroups,
-      placeholder: "Search workspaces...",
+      groups: projectGroups,
+      placeholder: "Search projects...",
     });
-  }, [workspaceGroups]);
+  }, [projectGroups]);
 
   useEffect(() => {
     if (!openIntent) {
@@ -706,8 +706,8 @@ function OpenCommandPaletteDialog() {
       return;
     }
 
-    openWorkspaceFlow();
-  }, [clearOpenIntent, openAddProjectFlow, openIntent, openWorkspaceFlow]);
+    openProjectFlow();
+  }, [clearOpenIntent, openAddProjectFlow, openIntent, openProjectFlow]);
 
   const actionItems: Array<CommandPaletteActionItem | CommandPaletteSubmenuItem> = [];
 
@@ -829,7 +829,7 @@ function OpenCommandPaletteDialog() {
         cwd,
       );
       if (existing) {
-        writeStoredWorkspaceCwd(cwd);
+        writeStoredProjectCwd(cwd);
         const latestThread = getLatestThreadForProject(
           threads.filter((thread) => thread.environmentId === existing.environmentId),
           existing.id,
@@ -858,15 +858,15 @@ function OpenCommandPaletteDialog() {
           commandId: newCommandId(),
           projectId,
           title: inferProjectTitleFromPath(cwd),
-          workspaceRoot: cwd,
-          createWorkspaceRootIfMissing: true,
+          projectRoot: cwd,
+          createProjectRootIfMissing: true,
           defaultModelSelection: {
             instanceId: defaultInstanceIdForDriver(ProviderDriverKind.make("codex")),
             model: DEFAULT_MODEL_BY_PROVIDER[ProviderDriverKind.make("codex")] ?? DEFAULT_MODEL,
           },
           createdAt: new Date().toISOString(),
         });
-        writeStoredWorkspaceCwd(cwd);
+        writeStoredProjectCwd(cwd);
         await handleNewThread(scopeProjectRef(browseEnvironmentId, projectId), {
           envMode: settings.defaultThreadEnvMode,
         }).catch(() => undefined);

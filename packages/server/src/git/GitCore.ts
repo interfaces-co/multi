@@ -46,9 +46,9 @@ const PREPARED_COMMIT_PATCH_MAX_OUTPUT_BYTES = 49_000;
 const RANGE_COMMIT_SUMMARY_MAX_OUTPUT_BYTES = 19_000;
 const RANGE_DIFF_SUMMARY_MAX_OUTPUT_BYTES = 19_000;
 const RANGE_DIFF_PATCH_MAX_OUTPUT_BYTES = 59_000;
-const WORKSPACE_FILES_MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
+const PROJECT_FILES_MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
 const GIT_CHECK_IGNORE_MAX_STDIN_BYTES = 256 * 1024;
-const WORKSPACE_GIT_HARDENED_CONFIG_ARGS = [
+const PROJECT_GIT_HARDENED_CONFIG_ARGS = [
   "-c",
   "core.fsmonitor=false",
   "-c",
@@ -1858,12 +1858,12 @@ export const makeGitCore = Effect.fn("makeGitCore")(function* (options?: {
       maxOutputBytes: 4_096,
     }).pipe(Effect.map((result) => result.code === 0 && result.stdout.trim() === "true"));
 
-  const listWorkspaceFiles: GitCoreShape["listWorkspaceFiles"] = (cwd) =>
+  const listProjectFiles: GitCoreShape["listProjectFiles"] = (cwd) =>
     executeGit(
-      "GitCore.listWorkspaceFiles",
+      "GitCore.listProjectFiles",
       cwd,
       [
-        ...WORKSPACE_GIT_HARDENED_CONFIG_ARGS,
+        ...PROJECT_GIT_HARDENED_CONFIG_ARGS,
         "ls-files",
         "--cached",
         "--others",
@@ -1873,7 +1873,7 @@ export const makeGitCore = Effect.fn("makeGitCore")(function* (options?: {
       {
         allowNonZeroExit: true,
         timeoutMs: 20_000,
-        maxOutputBytes: WORKSPACE_FILES_MAX_OUTPUT_BYTES,
+        maxOutputBytes: PROJECT_FILES_MAX_OUTPUT_BYTES,
         truncateOutputAtMaxBytes: true,
       },
     ).pipe(
@@ -1885,10 +1885,10 @@ export const makeGitCore = Effect.fn("makeGitCore")(function* (options?: {
             })
           : Effect.fail(
               createGitCommandError(
-                "GitCore.listWorkspaceFiles",
+                "GitCore.listProjectFiles",
                 cwd,
                 [
-                  ...WORKSPACE_GIT_HARDENED_CONFIG_ARGS,
+                  ...PROJECT_GIT_HARDENED_CONFIG_ARGS,
                   "ls-files",
                   "--cached",
                   "--others",
@@ -1914,12 +1914,12 @@ export const makeGitCore = Effect.fn("makeGitCore")(function* (options?: {
         const result = yield* executeGit(
           "GitCore.filterIgnoredPaths",
           cwd,
-          [...WORKSPACE_GIT_HARDENED_CONFIG_ARGS, "check-ignore", "--no-index", "-z", "--stdin"],
+          [...PROJECT_GIT_HARDENED_CONFIG_ARGS, "check-ignore", "--no-index", "-z", "--stdin"],
           {
             stdin: `${chunk.join("\0")}\0`,
             allowNonZeroExit: true,
             timeoutMs: 20_000,
-            maxOutputBytes: WORKSPACE_FILES_MAX_OUTPUT_BYTES,
+            maxOutputBytes: PROJECT_FILES_MAX_OUTPUT_BYTES,
             truncateOutputAtMaxBytes: true,
           },
         );
@@ -1928,7 +1928,7 @@ export const makeGitCore = Effect.fn("makeGitCore")(function* (options?: {
           return yield* createGitCommandError(
             "GitCore.filterIgnoredPaths",
             cwd,
-            [...WORKSPACE_GIT_HARDENED_CONFIG_ARGS, "check-ignore", "--no-index", "-z", "--stdin"],
+            [...PROJECT_GIT_HARDENED_CONFIG_ARGS, "check-ignore", "--no-index", "-z", "--stdin"],
             result.stderr.trim().length > 0 ? result.stderr.trim() : "git check-ignore failed",
           );
         }
@@ -2405,7 +2405,7 @@ export const makeGitCore = Effect.fn("makeGitCore")(function* (options?: {
     readRangeContext,
     readConfigValue,
     isInsideWorkTree,
-    listWorkspaceFiles,
+    listProjectFiles,
     filterIgnoredPaths,
     listBranches,
     createWorktree,

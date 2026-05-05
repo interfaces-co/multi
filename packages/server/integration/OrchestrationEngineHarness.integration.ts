@@ -50,7 +50,7 @@ import { CheckpointReactorLive } from "../src/orchestration/CheckpointReactor.ts
 import { RepositoryIdentityResolverLive } from "../src/project/RepositoryIdentityResolver.ts";
 import { OrchestrationEngineLive } from "../src/orchestration/OrchestrationEngine.ts";
 import { OrchestrationProjectionPipelineLive } from "../src/orchestration/ProjectionPipeline.ts";
-import { OrchestrationProjectionSnapshotQueryLive } from "../src/orchestration/ProjectionSnapshotQuery.ts";
+import { ThreadProjectionLive } from "../src/orchestration/ThreadProjection.ts";
 import { RuntimeReceiptBusTest } from "../src/orchestration/RuntimeReceiptBus.ts";
 import { OrchestrationReactorLive } from "../src/orchestration/OrchestrationReactor.ts";
 import { ProviderCommandReactorLive } from "../src/orchestration/ProviderCommandReactor.ts";
@@ -60,7 +60,7 @@ import {
   type OrchestrationEngineShape,
 } from "../src/orchestration/OrchestrationEngine.service.ts";
 import { OrchestrationReactor } from "../src/orchestration/OrchestrationReactor.service.ts";
-import { ProjectionSnapshotQuery } from "../src/orchestration/ProjectionSnapshotQuery.service.ts";
+import { ThreadProjection } from "../src/orchestration/ThreadProjection.service.ts";
 import {
   RuntimeReceiptBus,
   type OrchestrationRuntimeReceipt,
@@ -71,8 +71,8 @@ import {
   type TestProviderAdapterHarness,
 } from "./TestProviderAdapter.integration.ts";
 import { deriveServerPaths, ServerConfig } from "../src/config.ts";
-import { WorkspaceEntriesLive } from "../src/workspace/WorkspaceEntries.ts";
-import { WorkspacePathsLive } from "../src/workspace/WorkspacePaths.ts";
+import { ProjectEntriesLive } from "../src/project/ProjectEntries.ts";
+import { ProjectPathsLive } from "../src/project/ProjectPaths.ts";
 
 function runGit(cwd: string, args: ReadonlyArray<string>) {
   return execFileSync("git", args, {
@@ -82,7 +82,7 @@ function runGit(cwd: string, args: ReadonlyArray<string>) {
   });
 }
 
-const initializeGitWorkspace = Effect.fn(function* (cwd: string) {
+const initializeGitProject = Effect.fn(function* (cwd: string) {
   runGit(cwd, ["init", "--initial-branch=main"]);
   runGit(cwd, ["config", "user.email", "test@example.com"]);
   runGit(cwd, ["config", "user.name", "Test User"]);
@@ -166,11 +166,11 @@ const tryRuntimePromise = <A>(operation: string, run: () => Promise<A>) =>
 
 export interface OrchestrationIntegrationHarness {
   readonly rootDir: string;
-  readonly workspaceDir: string;
+  readonly projectDir: string;
   readonly dbPath: string;
   readonly adapterHarness: TestProviderAdapterHarness | null;
   readonly engine: OrchestrationEngineShape;
-  readonly snapshotQuery: ProjectionSnapshotQuery["Service"];
+  readonly threadProjection: ThreadProjection["Service"];
   readonly providerService: ProviderService["Service"];
   readonly checkpointStore: CheckpointStore["Service"];
   readonly checkpointRepository: ProjectionCheckpointRepository["Service"];
@@ -275,13 +275,13 @@ export const makeOrchestrationIntegrationHarness = (
     const rootDir = yield* fileSystem.makeTempDirectoryScoped({
       prefix: "t3-orchestration-integration-",
     });
-    const workspaceDir = path.join(rootDir, "workspace");
+    const projectDir = path.join(rootDir, "project");
     const { stateDir, dbPath } = yield* deriveServerPaths(rootDir, undefined).pipe(
       Effect.provideService(Path.Path, path),
     );
-    yield* fileSystem.makeDirectory(workspaceDir, { recursive: true });
+    yield* fileSystem.makeDirectory(projectDir, { recursive: true });
     yield* fileSystem.makeDirectory(stateDir, { recursive: true });
-    yield* initializeGitWorkspace(workspaceDir);
+    yield* initializeGitProject(projectDir);
 
     const persistenceLayer = makeSqlitePersistenceLive(dbPath);
     const orchestrationLayer = OrchestrationEngineLive.pipe(
@@ -322,7 +322,7 @@ export const makeOrchestrationIntegrationHarness = (
       }),
     ).pipe(
       Layer.provide(makeCodexAdapterLive()),
-      Layer.provideMerge(ServerConfig.layerTest(workspaceDir, rootDir)),
+      Layer.provideMerge(ServerConfig.layerTest(projectDir, rootDir)),
       Layer.provideMerge(NodeServices.layer),
       Layer.provideMerge(providerSessionDirectoryLayer),
     );
@@ -339,10 +339,10 @@ export const makeOrchestrationIntegrationHarness = (
         );
 
     const checkpointStoreLayer = CheckpointStoreLive.pipe(Layer.provide(GitCoreLive));
-    const projectionSnapshotQueryLayer = OrchestrationProjectionSnapshotQueryLive;
+    const threadProjectionLayer = ThreadProjectionLive;
     const runtimeServicesLayer = Layer.mergeAll(
-      projectionSnapshotQueryLayer,
-      orchestrationLayer.pipe(Layer.provide(projectionSnapshotQueryLayer)),
+      threadProjectionLayer,
+      orchestrationLayer.pipe(Layer.provide(threadProjectionLayer)),
       ProjectionCheckpointRepositoryLive,
       ProjectionPendingApprovalRepositoryLive,
       checkpointStoreLayer,
@@ -387,13 +387,13 @@ export const makeOrchestrationIntegrationHarness = (
         }),
       ),
       Layer.provideMerge(
-        WorkspaceEntriesLive.pipe(
-          Layer.provide(WorkspacePathsLive),
+        ProjectEntriesLive.pipe(
+          Layer.provide(ProjectPathsLive),
           Layer.provideMerge(gitCoreLayer),
           Layer.provide(NodeServices.layer),
         ),
       ),
-      Layer.provideMerge(WorkspacePathsLive),
+      Layer.provideMerge(ProjectPathsLive),
     );
     const orchestrationReactorLayer = OrchestrationReactorLive.pipe(
       Layer.provideMerge(runtimeIngestionLayer),
@@ -406,7 +406,7 @@ export const makeOrchestrationIntegrationHarness = (
       Layer.provide(persistenceLayer),
       Layer.provideMerge(RepositoryIdentityResolverLive),
       Layer.provideMerge(ServerSettingsService.layerTest()),
-      Layer.provideMerge(ServerConfig.layerTest(workspaceDir, rootDir)),
+      Layer.provideMerge(ServerConfig.layerTest(projectDir, rootDir)),
       Layer.provideMerge(NodeServices.layer),
     );
 
@@ -417,8 +417,8 @@ export const makeOrchestrationIntegrationHarness = (
     const reactor = yield* tryRuntimePromise("load OrchestrationReactor service", () =>
       runtime.runPromise(Effect.service(OrchestrationReactor)),
     ).pipe(Effect.orDie);
-    const snapshotQuery = yield* tryRuntimePromise("load ProjectionSnapshotQuery service", () =>
-      runtime.runPromise(Effect.service(ProjectionSnapshotQuery)),
+    const threadProjection = yield* tryRuntimePromise("load ThreadProjection service", () =>
+      runtime.runPromise(Effect.service(ThreadProjection)),
     ).pipe(Effect.orDie);
     const providerService = yield* tryRuntimePromise("load ProviderService service", () =>
       runtime.runPromise(Effect.service(ProviderService)),
@@ -454,7 +454,7 @@ export const makeOrchestrationIntegrationHarness = (
       timeoutMs,
     ) =>
       waitFor(
-        snapshotQuery
+        threadProjection
           .getSnapshot()
           .pipe(
             Effect.map(
@@ -568,11 +568,11 @@ export const makeOrchestrationIntegrationHarness = (
 
     return {
       rootDir,
-      workspaceDir,
+      projectDir,
       dbPath,
       adapterHarness,
       engine,
-      snapshotQuery,
+      threadProjection,
       providerService,
       checkpointStore,
       checkpointRepository,

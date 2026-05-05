@@ -4,15 +4,15 @@ import path from "node:path";
 import { Effect } from "effect";
 import type { ProjectId, ThreadId } from "@multi/contracts";
 
-export interface WorkspaceCwdCandidate {
+export interface ProjectCwdCandidate {
   readonly label: string;
   readonly cwd: string | null | undefined;
 }
 
-export interface CoerceAccessibleWorkspaceCwdInput {
+export interface CoerceAccessibleProjectCwdInput {
   readonly operation: string;
-  readonly candidates: ReadonlyArray<WorkspaceCwdCandidate>;
-  readonly fallbackCwds?: ReadonlyArray<WorkspaceCwdCandidate>;
+  readonly candidates: ReadonlyArray<ProjectCwdCandidate>;
+  readonly fallbackCwds?: ReadonlyArray<ProjectCwdCandidate>;
   readonly threadId?: ThreadId | string;
   readonly projectId?: ProjectId | string;
 }
@@ -23,7 +23,7 @@ interface NormalizedCandidate {
 }
 
 function normalizeCandidates(
-  candidates: ReadonlyArray<WorkspaceCwdCandidate>,
+  candidates: ReadonlyArray<ProjectCwdCandidate>,
 ): ReadonlyArray<NormalizedCandidate> {
   const normalized: NormalizedCandidate[] = [];
   const seen = new Set<string>();
@@ -57,8 +57,8 @@ function directoryFailure(cwd: string): string | undefined {
   }
 }
 
-export const coerceAccessibleWorkspaceCwd = Effect.fn("coerceAccessibleWorkspaceCwd")(function* (
-  input: CoerceAccessibleWorkspaceCwdInput,
+export const coerceAccessibleProjectCwd = Effect.fn("coerceAccessibleProjectCwd")(function* (
+  input: CoerceAccessibleProjectCwdInput,
 ): Effect.fn.Return<string | undefined> {
   const candidates = normalizeCandidates([...input.candidates, ...(input.fallbackCwds ?? [])]);
   const skipped: Array<{ readonly label: string; readonly cwd: string; readonly reason: string }> =
@@ -68,7 +68,7 @@ export const coerceAccessibleWorkspaceCwd = Effect.fn("coerceAccessibleWorkspace
     const failure = directoryFailure(candidate.cwd);
     if (!failure) {
       if (index > 0) {
-        yield* Effect.logWarning("workspace cwd fallback selected", {
+        yield* Effect.logWarning("project cwd fallback selected", {
           operation: input.operation,
           selectedLabel: candidate.label,
           selectedCwd: candidate.cwd,
@@ -87,7 +87,7 @@ export const coerceAccessibleWorkspaceCwd = Effect.fn("coerceAccessibleWorkspace
     });
   }
 
-  yield* Effect.logWarning("workspace cwd unavailable", {
+  yield* Effect.logWarning("project cwd unavailable", {
     operation: input.operation,
     skipped,
     ...(input.threadId !== undefined ? { threadId: String(input.threadId) } : {}),
@@ -99,9 +99,9 @@ export const coerceAccessibleWorkspaceCwd = Effect.fn("coerceAccessibleWorkspace
 export const pickAccessibleDirectory = (
   candidate: string | undefined,
   fallbacks: readonly string[],
-  operation = "workspace.pickAccessibleDirectory",
+  operation = "project.pickAccessibleDirectory",
 ): Effect.Effect<string | undefined> =>
-  coerceAccessibleWorkspaceCwd({
+  coerceAccessibleProjectCwd({
     operation,
     candidates: [{ label: "candidate", cwd: candidate }],
     fallbackCwds: fallbacks.map((cwd, index) => ({
@@ -110,7 +110,7 @@ export const pickAccessibleDirectory = (
     })),
   });
 
-export const coerceThreadWorkspaceCwd = Effect.fn("coerceThreadWorkspaceCwd")(function* (input: {
+export const coerceThreadProjectCwd = Effect.fn("coerceThreadProjectCwd")(function* (input: {
   readonly operation: string;
   readonly thread: {
     readonly id?: ThreadId | string;
@@ -119,16 +119,16 @@ export const coerceThreadWorkspaceCwd = Effect.fn("coerceThreadWorkspaceCwd")(fu
   };
   readonly projects: ReadonlyArray<{
     readonly id: ProjectId;
-    readonly workspaceRoot: string;
+    readonly projectRoot: string;
   }>;
-  readonly fallbackCwds: ReadonlyArray<WorkspaceCwdCandidate>;
+  readonly fallbackCwds: ReadonlyArray<ProjectCwdCandidate>;
 }): Effect.fn.Return<string | undefined> {
   const project = input.projects.find((entry) => entry.id === input.thread.projectId);
-  return yield* coerceAccessibleWorkspaceCwd({
+  return yield* coerceAccessibleProjectCwd({
     operation: input.operation,
     candidates: [
       { label: "thread.worktreePath", cwd: input.thread.worktreePath },
-      { label: "project.workspaceRoot", cwd: project?.workspaceRoot },
+      { label: "project.projectRoot", cwd: project?.projectRoot },
     ],
     fallbackCwds: input.fallbackCwds,
     ...(input.thread.id !== undefined ? { threadId: input.thread.id } : {}),

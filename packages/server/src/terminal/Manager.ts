@@ -42,9 +42,9 @@ import {
   type PtyProcess,
 } from "./PTY.service";
 import {
-  coerceAccessibleWorkspaceCwd,
-  type WorkspaceCwdCandidate,
-} from "../workspace/AccessibleWorkspaceCwd.ts";
+  coerceAccessibleProjectCwd,
+  type ProjectCwdCandidate,
+} from "../project/AccessibleProjectCwd.ts";
 
 const DEFAULT_HISTORY_LINE_LIMIT = 5_000;
 const DEFAULT_PERSIST_DEBOUNCE_MS = 40;
@@ -683,7 +683,7 @@ async function resolveGitWorkTreeRoot(cwd: string): Promise<string | null> {
 
 interface TerminalManagerOptions {
   logsDir: string;
-  fallbackCwds?: ReadonlyArray<WorkspaceCwdCandidate>;
+  fallbackCwds?: ReadonlyArray<ProjectCwdCandidate>;
   historyLineLimit?: number;
   ptyAdapter: PtyAdapterShape;
   shellResolver?: () => string | undefined;
@@ -1088,7 +1088,7 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
     const resolveTerminalCwd = Effect.fn("terminal.resolveTerminalCwd")(function* (cwd: string) {
       const accessibleCwd =
         options.fallbackCwds && options.fallbackCwds.length > 0
-          ? yield* coerceAccessibleWorkspaceCwd({
+          ? yield* coerceAccessibleProjectCwd({
               operation: "terminal.resolveTerminalCwd",
               candidates: [{ label: "terminal.cwd", cwd }],
               fallbackCwds: options.fallbackCwds,

@@ -41,7 +41,7 @@ function projectEntryToTreePath(entry: ProjectEntry): string {
   return entry.kind === "directory" ? `${p}/` : p;
 }
 
-function joinWorkspacePath(cwd: string, relativePath: string): string {
+function joinProjectPath(cwd: string, relativePath: string): string {
   const separator = cwd.includes("\\") && !cwd.includes("/") ? "\\" : "/";
   return `${cwd.replace(/[\\/]+$/, "")}${separator}${relativePath.replace(/^[\\/]+/, "")}`;
 }
@@ -85,7 +85,7 @@ function toGitStatusEntries(status: ReturnType<typeof useGitStatus>["data"]): Gi
   }));
 }
 
-export function WorkspaceFileTree(props: {
+export function ProjectFileTree(props: {
   cwd: string | null;
   environmentId: EnvironmentId | null;
   availableEditors: readonly EditorId[];
@@ -119,7 +119,7 @@ export function WorkspaceFileTree(props: {
       return;
     }
 
-    const targetPath = joinWorkspacePath(cwd, relativePath);
+    const targetPath = joinProjectPath(cwd, relativePath);
     try {
       void ensureNativeApi()
         .shell.openInEditor(targetPath, editor)
@@ -248,7 +248,7 @@ export function WorkspaceFileTree(props: {
   return (
     <section
       className={cn(
-        "workspace-file-tree flex min-h-0 min-h-36 shrink-0 flex-col overflow-hidden bg-multi-bg-quinary text-multi-fg-primary",
+        "project-file-tree flex min-h-0 min-h-36 shrink-0 flex-col overflow-hidden bg-multi-bg-quinary text-multi-fg-primary",
         props.className,
       )}
     >
@@ -299,7 +299,7 @@ export function WorkspaceFileTree(props: {
           />
         ) : (
           <div className="px-3 py-2 text-[11px]/[14px] text-muted-foreground/55">
-            Add a project workspace to browse files.
+            Add a project project to browse files.
           </div>
         )}
 

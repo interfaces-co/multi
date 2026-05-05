@@ -17,7 +17,7 @@ describe("resolveInitialChatTarget", () => {
       resolveInitialChatTarget({
         activeEnvironmentId: ENVIRONMENT_ID,
         bootstrapComplete: false,
-        storedWorkspaceCwd: null,
+        storedProjectCwd: null,
         projects: [],
         threads: [],
         drafts: [],
@@ -25,12 +25,12 @@ describe("resolveInitialChatTarget", () => {
     ).toBeNull();
   });
 
-  it("prefers the most recent existing thread in the stored workspace", () => {
+  it("prefers the most recent existing thread in the stored project", () => {
     expect(
       resolveInitialChatTarget({
         activeEnvironmentId: ENVIRONMENT_ID,
         bootstrapComplete: true,
-        storedWorkspaceCwd: "/repo/a",
+        storedProjectCwd: "/repo/a",
         projects: [
           { id: PROJECT_ID, environmentId: ENVIRONMENT_ID, cwd: "/repo/a" },
           { id: OTHER_PROJECT_ID, environmentId: ENVIRONMENT_ID, cwd: "/repo/b" },
@@ -64,12 +64,12 @@ describe("resolveInitialChatTarget", () => {
     });
   });
 
-  it("falls back to the most recent thread when no stored workspace matches", () => {
+  it("falls back to the most recent thread when no stored project matches", () => {
     expect(
       resolveInitialChatTarget({
         activeEnvironmentId: ENVIRONMENT_ID,
         bootstrapComplete: true,
-        storedWorkspaceCwd: "/repo/missing",
+        storedProjectCwd: "/repo/missing",
         projects: [{ id: PROJECT_ID, environmentId: ENVIRONMENT_ID, cwd: "/repo/a" }],
         threads: [
           {
@@ -105,7 +105,7 @@ describe("resolveInitialChatTarget", () => {
       resolveInitialChatTarget({
         activeEnvironmentId: ENVIRONMENT_ID,
         bootstrapComplete: true,
-        storedWorkspaceCwd: null,
+        storedProjectCwd: null,
         projects: [{ id: PROJECT_ID, environmentId: ENVIRONMENT_ID, cwd: "/repo/a" }],
         threads: [],
         drafts: [
@@ -130,7 +130,7 @@ describe("resolveInitialChatTarget", () => {
       resolveInitialChatTarget({
         activeEnvironmentId: ENVIRONMENT_ID,
         bootstrapComplete: true,
-        storedWorkspaceCwd: null,
+        storedProjectCwd: null,
         projects: [
           { id: PROJECT_ID, environmentId: ENVIRONMENT_ID, cwd: "/repo/a" },
           { id: OTHER_PROJECT_ID, environmentId: OTHER_ENVIRONMENT_ID, cwd: "/repo/b" },

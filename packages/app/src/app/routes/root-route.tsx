@@ -51,7 +51,7 @@ import { traceBrowserEvent } from "~/observability/browserDebug";
 import { updatePrimaryEnvironmentDescriptor } from "~/environments/primary";
 import { RouterDevtoolsPanel } from "~/dev/router-devtools";
 import { deriveLogicalProjectKey, derivePhysicalProjectKeyFromPath } from "~/logical-project";
-import { readStoredWorkspaceCwd } from "~/lib/workspace-state";
+import { readStoredProjectCwd } from "~/lib/project-state";
 import { buildDraftThreadRouteParams, buildThreadRouteParams } from "~/thread-routes";
 
 import { resolveInitialChatTarget } from "./chat-index-route.logic";
@@ -403,7 +403,7 @@ function EventRouter() {
     const target = resolveInitialChatTarget({
       activeEnvironmentId,
       bootstrapComplete,
-      storedWorkspaceCwd: readStoredWorkspaceCwd(),
+      storedProjectCwd: readStoredProjectCwd(),
       projects: projects.map((project) => ({
         id: project.id,
         environmentId: project.environmentId,

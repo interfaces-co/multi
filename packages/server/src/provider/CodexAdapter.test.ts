@@ -804,8 +804,8 @@ lifecycleLayer("CodexAdapterLive lifecycle", (it) => {
                 question: "Which mode should be used?",
                 options: [
                   {
-                    label: "workspace-write",
-                    description: "Allow workspace writes only",
+                    label: "project-write",
+                    description: "Allow project writes only",
                   },
                 ],
               },
@@ -824,7 +824,7 @@ lifecycleLayer("CodexAdapterLive lifecycle", (it) => {
           payload: {
             answers: {
               sandbox_mode: {
-                answers: ["workspace-write"],
+                answers: ["project-write"],
               },
             },
           },
@@ -842,7 +842,7 @@ lifecycleLayer("CodexAdapterLive lifecycle", (it) => {
         if (events[1]?.type === "user-input.resolved") {
           assert.equal(events[1].requestId, "req-user-input-1");
           assert.deepEqual(events[1].payload.answers, {
-            sandbox_mode: "workspace-write",
+            sandbox_mode: "project-write",
           });
         }
       }),

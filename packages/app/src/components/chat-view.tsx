@@ -230,16 +230,16 @@ function HeroComposerActions(props: {
   activeProjectName: string | null;
   onAddProject: () => void;
   onOpenAppearance: () => void;
-  onOpenWorkspaces: () => void;
+  onOpenProjects: () => void;
 }) {
   return (
     <div className="mt-3 grid w-full gap-2.5 sm:grid-cols-3">
       <HeroComposerActionCard
-        title="Workspaces"
+        title="Projects"
         detail={props.activeProjectName ?? "Browse projects"}
         icon={IconFolderOpen}
         tone="blue"
-        onClick={props.onOpenWorkspaces}
+        onClick={props.onOpenProjects}
       />
       <HeroComposerActionCard
         title="Add project"
@@ -709,7 +709,7 @@ export default function ChatView(props: ChatViewProps) {
   const timestampFormat = settings.timestampFormat;
   const navigate = useNavigate();
   const openAddProject = useCommandPaletteStore((store) => store.openAddProject);
-  const openWorkspace = useCommandPaletteStore((store) => store.openWorkspace);
+  const openProject = useCommandPaletteStore((store) => store.openProject);
   const rawSearch = useSearch({
     strict: false,
     select: (params) => parseDiffRouteSearch(params),
@@ -1501,7 +1501,7 @@ export default function ChatView(props: ChatViewProps) {
   );
   const activeProjectCwd = activeProject?.cwd ?? null;
   const activeThreadWorktreePath = activeThread?.worktreePath ?? null;
-  const activeWorkspaceRoot = activeThreadWorktreePath ?? activeProjectCwd ?? undefined;
+  const activeProjectRoot = activeThreadWorktreePath ?? activeProjectCwd ?? undefined;
   const activeTerminalLaunchContext =
     terminalLaunchContext?.threadId === activeThreadId
       ? terminalLaunchContext
@@ -3342,7 +3342,7 @@ export default function ChatView(props: ChatViewProps) {
                 onImageExpand={onExpandTimelineImage}
                 markdownCwd={gitCwd ?? undefined}
                 resolvedTheme={resolvedTheme}
-                workspaceRoot={activeWorkspaceRoot}
+                projectRoot={activeProjectRoot}
                 isServerThread={isServerThread}
                 onBeginEditUserMessage={onBeginEditUserMessage}
                 showEmptyState={showTimelineEmptyState}
@@ -3452,7 +3452,7 @@ export default function ChatView(props: ChatViewProps) {
                 activeProjectName={activeProject?.name ?? null}
                 onAddProject={openAddProject}
                 onOpenAppearance={openAppearanceSettings}
-                onOpenWorkspaces={openWorkspace}
+                onOpenProjects={openProject}
               />
             ) : null}
           </div>
@@ -3484,7 +3484,7 @@ export default function ChatView(props: ChatViewProps) {
             label={planSidebarLabel}
             environmentId={environmentId}
             markdownCwd={gitCwd ?? undefined}
-            workspaceRoot={activeWorkspaceRoot}
+            projectRoot={activeProjectRoot}
             timestampFormat={timestampFormat}
             onClose={() => {
               setPlanSidebarOpen(false);

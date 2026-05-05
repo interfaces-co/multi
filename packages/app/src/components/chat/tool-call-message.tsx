@@ -1,19 +1,19 @@
 import { memo } from "react";
 import { type WorkLogEntry, type WorkLogSubagent } from "../../session-logic";
 import { normalizeCompactToolLabel } from "./messages-timeline.logic";
-import { formatWorkspaceRelativePath } from "../../file-path-display";
+import { formatProjectRelativePath } from "../../file-path-display";
 import { ThinkingStatus, ToolCallRenderer, type ToolCallModel } from "./tool-call-renderer";
 
 type ToolCallStatus = "loading" | "completed" | "error";
 
 interface ToolCallMessageProps {
   workEntry: WorkLogEntry;
-  workspaceRoot: string | undefined;
+  projectRoot: string | undefined;
 }
 
 export const ToolCallMessage = memo(function ToolCallMessage({
   workEntry,
-  workspaceRoot,
+  projectRoot,
 }: ToolCallMessageProps) {
   const status = resolveStatus(workEntry);
   const isLoading = status === "loading";
@@ -23,7 +23,7 @@ export const ToolCallMessage = memo(function ToolCallMessage({
     return <ThinkingStatus task={resolveThinkingTask(workEntry)} active={isLoading} />;
   }
 
-  const toolCall = toToolCall(workEntry, workspaceRoot);
+  const toolCall = toToolCall(workEntry, projectRoot);
   const hasSubagents = subagents.length > 0;
 
   return (
@@ -93,7 +93,7 @@ function resolveThinkingTask(workEntry: WorkLogEntry): string {
   return resolveTitle(workEntry);
 }
 
-function toToolCall(workEntry: WorkLogEntry, workspaceRoot: string | undefined): ToolCallModel {
+function toToolCall(workEntry: WorkLogEntry, projectRoot: string | undefined): ToolCallModel {
   const toolCase = resolveToolCase(workEntry);
   const action =
     toolCase === "taskToolCall"
@@ -105,12 +105,12 @@ function toToolCall(workEntry: WorkLogEntry, workspaceRoot: string | undefined):
         workEntry.subagentAction?.prompt?.trim() ||
         workEntry.detail?.trim() ||
         "subagent"
-      : resolveToolDetails(workEntry, workspaceRoot);
+      : resolveToolDetails(workEntry, projectRoot);
   const command = workEntry.command ?? null;
   const output = resolveOutput(workEntry, toolCase);
   const firstChangedFile = workEntry.changedFiles?.[0] ?? null;
   const path = firstChangedFile
-    ? formatWorkspaceRelativePath(firstChangedFile, workspaceRoot)
+    ? formatProjectRelativePath(firstChangedFile, projectRoot)
     : null;
 
   return {
@@ -166,13 +166,13 @@ function resolveTitle(workEntry: WorkLogEntry): string {
   return `${trimmed.charAt(0).toUpperCase()}${trimmed.slice(1)}`;
 }
 
-function resolveSummary(workEntry: WorkLogEntry, workspaceRoot: string | undefined): string | null {
+function resolveSummary(workEntry: WorkLogEntry, projectRoot: string | undefined): string | null {
   if (workEntry.command) return workEntry.command;
   if (workEntry.detail) return workEntry.detail;
   if ((workEntry.changedFiles?.length ?? 0) === 0) return null;
   const [firstPath] = workEntry.changedFiles ?? [];
   if (!firstPath) return null;
-  const displayPath = formatWorkspaceRelativePath(firstPath, workspaceRoot);
+  const displayPath = formatProjectRelativePath(firstPath, projectRoot);
   return workEntry.changedFiles!.length === 1
     ? displayPath
     : `${displayPath} +${workEntry.changedFiles!.length - 1} more`;
@@ -211,14 +211,14 @@ function resolveRawCommand(workEntry: WorkLogEntry): string | null {
 
 function resolveToolDetails(
   workEntry: WorkLogEntry,
-  workspaceRoot: string | undefined,
+  projectRoot: string | undefined,
 ): string | null {
   const toolCase = resolveToolCase(workEntry);
   if (toolCase === "shellToolCall" && workEntry.command) return workEntry.command;
   if (toolCase === "editToolCall" && (workEntry.changedFiles?.length ?? 0) > 0) {
-    return resolveSummary(workEntry, workspaceRoot);
+    return resolveSummary(workEntry, projectRoot);
   }
-  return resolveSummary(workEntry, workspaceRoot);
+  return resolveSummary(workEntry, projectRoot);
 }
 
 function resolveStatus(workEntry: WorkLogEntry): ToolCallStatus {

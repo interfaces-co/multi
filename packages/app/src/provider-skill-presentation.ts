@@ -36,7 +36,7 @@ export function formatProviderSkillInstallSource(
   }
   if (
     normalizedScope === "project" ||
-    normalizedScope === "workspace" ||
+    normalizedScope === "project" ||
     normalizedScope === "local"
   ) {
     return "Project";

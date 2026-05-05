@@ -784,7 +784,7 @@ body {
 
 .agent-window .agent-sidebar-section-new:hover,
 .agent-window .agent-sidebar-more:hover,
-.agent-window .agent-window-open-workspace:hover {
+.agent-window .agent-window-open-project:hover {
   background: var(--multi-bg-quaternary);
   color: var(--multi-fg-primary);
 }
@@ -909,7 +909,7 @@ body {
   color: var(--multi-icon-primary);
 }
 
-.agent-window-open-workspace {
+.agent-window-open-project {
   color: var(--multi-fg-tertiary);
   min-height: 24px;
 }

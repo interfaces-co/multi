@@ -8,7 +8,7 @@ import {
   OrchestrationEngineService,
   type OrchestrationEngineShape,
 } from "./orchestration/OrchestrationEngine.service.ts";
-import { ProjectionSnapshotQuery } from "./orchestration/ProjectionSnapshotQuery.service.ts";
+import { ThreadProjection } from "./orchestration/ThreadProjection.service.ts";
 import { AnalyticsService } from "./telemetry/AnalyticsService.service.ts";
 import {
   getAutoBootstrapDefaultModelSelection,
@@ -76,7 +76,7 @@ it.effect("launchStartupHeartbeat does not block the caller while counts are loa
       const releaseCounts = yield* Deferred.make<void, never>();
 
       yield* launchStartupHeartbeat.pipe(
-        Effect.provideService(ProjectionSnapshotQuery, {
+        Effect.provideService(ThreadProjection, {
           getSnapshot: () => Effect.die("unused"),
           getShellSnapshot: () => Effect.die("unused"),
           getCounts: () =>
@@ -86,7 +86,7 @@ it.effect("launchStartupHeartbeat does not block the caller while counts are loa
                 threadCount: 3,
               }),
             ),
-          getActiveProjectByWorkspaceRoot: () => Effect.succeed(Option.none()),
+          getActiveProjectByProjectRoot: () => Effect.succeed(Option.none()),
           getProjectShellById: () => Effect.succeed(Option.none()),
           getFirstActiveThreadIdByProjectId: () => Effect.succeed(Option.none()),
           getThreadCheckpointContext: () => Effect.succeed(Option.none()),
@@ -128,16 +128,16 @@ it.effect("resolveAutoBootstrapWelcomeTargets returns existing project and threa
         cwd: "/tmp/startup-project",
         autoBootstrapProjectFromCwd: true,
       } as never),
-      Effect.provideService(ProjectionSnapshotQuery, {
+      Effect.provideService(ThreadProjection, {
         getSnapshot: () => Effect.die("unused"),
         getShellSnapshot: () => Effect.die("unused"),
         getCounts: () => Effect.die("unused"),
-        getActiveProjectByWorkspaceRoot: () =>
+        getActiveProjectByProjectRoot: () =>
           Effect.succeed(
             Option.some({
               id: bootstrapProjectId,
               title: "Startup Project",
-              workspaceRoot: "/tmp/startup-project",
+              projectRoot: "/tmp/startup-project",
               defaultModelSelection: getAutoBootstrapDefaultModelSelection(),
               scripts: [],
               createdAt: "2026-01-01T00:00:00.000Z",
@@ -179,11 +179,11 @@ it.effect("resolveAutoBootstrapWelcomeTargets creates a project and thread when 
         cwd: "/tmp/startup-project",
         autoBootstrapProjectFromCwd: true,
       } as never),
-      Effect.provideService(ProjectionSnapshotQuery, {
+      Effect.provideService(ThreadProjection, {
         getSnapshot: () => Effect.die("unused"),
         getShellSnapshot: () => Effect.die("unused"),
         getCounts: () => Effect.die("unused"),
-        getActiveProjectByWorkspaceRoot: () => Effect.succeed(Option.none()),
+        getActiveProjectByProjectRoot: () => Effect.succeed(Option.none()),
         getProjectShellById: () => Effect.die("unused"),
         getFirstActiveThreadIdByProjectId: () => Effect.succeed(Option.none()),
         getThreadCheckpointContext: () => Effect.succeed(Option.none()),

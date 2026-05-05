@@ -83,7 +83,7 @@ function setRightPanelOpen(cwd: string | null, open: boolean): void {
   shellPanelsActions.setMuted(cwd, !open);
 }
 
-const SHOW_RIGHT_WORKBENCH_LABEL = "Show workspace panel — files, Git changes, terminal.";
+const SHOW_RIGHT_WORKBENCH_LABEL = "Show project panel — files, Git changes, terminal.";
 
 function LeftAside(props: { children: ReactNode }) {
   const leftOpen = useLeftOpen();
@@ -268,7 +268,7 @@ function RightAside(props: {
             <RightAsidePanels activeTab={activeTab} rightPanels={props.rightPanels} />
           </TabsRoot>
           <div
-            aria-label="Resize workspace panel width"
+            aria-label="Resize project panel width"
             aria-orientation="vertical"
             className={cn(
               "multi-shell-sash-hit-area multi-shell-sash-hit-area--align-start pointer-events-auto",
@@ -380,7 +380,7 @@ function RightPanelChromeToggle(props: {
     return null;
   }
 
-  const label = rightOpen ? "Hide workspace panel" : SHOW_RIGHT_WORKBENCH_LABEL;
+  const label = rightOpen ? "Hide project panel" : SHOW_RIGHT_WORKBENCH_LABEL;
 
   return (
     <div

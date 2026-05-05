@@ -8,7 +8,7 @@ import { join } from "node:path";
  * verbatim and treated as relative paths by the receiver.
  *
  * Matches the behavior of the other `expandHomePath` helpers in the
- * workspace layers and CLI bootstrap: `~` alone and both `~/` and `~\`
+ * project layers and CLI bootstrap: `~` alone and both `~/` and `~\`
  * separators are handled. Returns the input unchanged if it doesn't
  * start with `~` or is empty. Does not handle `~user` (other-user)
  * expansion.

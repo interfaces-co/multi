@@ -32,17 +32,17 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
   planMarkdown,
   environmentId,
   cwd,
-  workspaceRoot,
+  projectRoot,
 }: {
   planMarkdown: string;
   environmentId: EnvironmentId;
   cwd: string | undefined;
-  workspaceRoot: string | undefined;
+  projectRoot: string | undefined;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [savePath, setSavePath] = useState("");
-  const [isSavingToWorkspace, setIsSavingToWorkspace] = useState(false);
+  const [isSavingToProject, setIsSavingToProject] = useState(false);
   const { copyToClipboard, isCopied } = useCopyToClipboard({
     onError: (error) => {
       toastManager.add({
@@ -72,11 +72,11 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
   };
 
   const openSaveDialog = () => {
-    if (!workspaceRoot) {
+    if (!projectRoot) {
       toastManager.add({
         type: "error",
-        title: "Workspace path is unavailable",
-        description: "This thread does not have a workspace path to save into.",
+        title: "Project path is unavailable",
+        description: "This thread does not have a project path to save into.",
       });
       return;
     }
@@ -84,24 +84,24 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
     setIsSaveDialogOpen(true);
   };
 
-  const handleSaveToWorkspace = () => {
+  const handleSaveToProject = () => {
     const api = readEnvironmentApi(environmentId);
     const relativePath = savePath.trim();
-    if (!api || !workspaceRoot) {
+    if (!api || !projectRoot) {
       return;
     }
     if (!relativePath) {
       toastManager.add({
         type: "warning",
-        title: "Enter a workspace path",
+        title: "Enter a project path",
       });
       return;
     }
 
-    setIsSavingToWorkspace(true);
+    setIsSavingToProject(true);
     void api.projects
       .writeFile({
-        cwd: workspaceRoot,
+        cwd: projectRoot,
         relativePath,
         contents: saveContents,
       })
@@ -109,7 +109,7 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
         setIsSaveDialogOpen(false);
         toastManager.add({
           type: "success",
-          title: "Plan saved to workspace",
+          title: "Plan saved to project",
           description: result.relativePath,
         });
       })
@@ -122,10 +122,10 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
       })
       .then(
         () => {
-          setIsSavingToWorkspace(false);
+          setIsSavingToProject(false);
         },
         () => {
-          setIsSavingToWorkspace(false);
+          setIsSavingToProject(false);
         },
       );
   };
@@ -148,8 +148,8 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
               {isCopied ? "Copied!" : "Copy to clipboard"}
             </MenuItem>
             <MenuItem onClick={handleDownload}>Download as markdown</MenuItem>
-            <MenuItem onClick={openSaveDialog} disabled={!workspaceRoot || isSavingToWorkspace}>
-              Save to workspace
+            <MenuItem onClick={openSaveDialog} disabled={!projectRoot || isSavingToProject}>
+              Save to project
             </MenuItem>
           </MenuPopup>
         </Menu>
@@ -182,28 +182,28 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
       <Dialog
         open={isSaveDialogOpen}
         onOpenChange={(open) => {
-          if (!isSavingToWorkspace) {
+          if (!isSavingToProject) {
             setIsSaveDialogOpen(open);
           }
         }}
       >
         <DialogPopup className="max-w-xl">
           <DialogHeader>
-            <DialogTitle>Save plan to workspace</DialogTitle>
+            <DialogTitle>Save plan to project</DialogTitle>
             <DialogDescription>
-              Enter a path relative to <code>{workspaceRoot ?? "the workspace"}</code>.
+              Enter a path relative to <code>{projectRoot ?? "the project"}</code>.
             </DialogDescription>
           </DialogHeader>
           <DialogPanel className="space-y-3">
             <label htmlFor={savePathInputId} className="grid gap-1.5">
-              <span className="text-xs font-medium text-foreground">Workspace path</span>
+              <span className="text-xs font-medium text-foreground">Project path</span>
               <Input
                 id={savePathInputId}
                 value={savePath}
                 onChange={(event) => setSavePath(event.target.value)}
                 placeholder={downloadFilename}
                 spellCheck={false}
-                disabled={isSavingToWorkspace}
+                disabled={isSavingToProject}
               />
             </label>
           </DialogPanel>
@@ -212,16 +212,16 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
               variant="outline"
               size="sm"
               onClick={() => setIsSaveDialogOpen(false)}
-              disabled={isSavingToWorkspace}
+              disabled={isSavingToProject}
             >
               Cancel
             </Button>
             <Button
               size="sm"
-              onClick={() => void handleSaveToWorkspace()}
-              disabled={isSavingToWorkspace}
+              onClick={() => void handleSaveToProject()}
+              disabled={isSavingToProject}
             >
-              {isSavingToWorkspace ? "Saving..." : "Save"}
+              {isSavingToProject ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>
         </DialogPopup>

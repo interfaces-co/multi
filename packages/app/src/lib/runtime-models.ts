@@ -29,7 +29,7 @@ import {
 } from "../provider-models";
 import { selectProjectsForEnvironment, useStore } from "../store";
 import type { Project } from "../types";
-import { readStoredWorkspaceCwd } from "./workspace-state";
+import { readStoredProjectCwd } from "./project-state";
 
 export interface RuntimeModelItem extends HarnessModelRef {
   key: string;
@@ -54,7 +54,7 @@ export interface RuntimeDefaultsRead {
 const commandId = () => CommandId.make(crypto.randomUUID());
 
 export function readStoredCwd() {
-  return readStoredWorkspaceCwd();
+  return readStoredProjectCwd();
 }
 
 export function resolveActiveProject(projects: readonly Project[], cwd = readStoredCwd()) {

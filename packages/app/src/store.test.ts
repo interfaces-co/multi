@@ -478,7 +478,7 @@ describe("incremental orchestration updates", () => {
       makeEvent("project.created", {
         projectId: recreatedProjectId,
         title: "Project Recreated",
-        workspaceRoot: "/tmp/project",
+        projectRoot: "/tmp/project",
         defaultModelSelection: {
           instanceId: "codex",
           model: DEFAULT_MODEL,
@@ -828,7 +828,7 @@ describe("incremental orchestration updates", () => {
     );
   });
 
-  it("reverts messages, plans, activities, and checkpoints by retained turns", () => {
+  it("leaves thread detail unchanged for server-owned revert events", () => {
     const state = makeState(
       makeThread({
         messages: [
@@ -933,17 +933,20 @@ describe("incremental orchestration updates", () => {
     expect(threadsOf(next)[0]?.messages.map((message) => message.id)).toEqual([
       "user-1",
       "assistant-1",
+      "user-2",
     ]);
-    expect(threadsOf(next)[0]?.proposedPlans.map((plan) => plan.id)).toEqual(["plan-1"]);
+    expect(threadsOf(next)[0]?.proposedPlans.map((plan) => plan.id)).toEqual(["plan-1", "plan-2"]);
     expect(threadsOf(next)[0]?.activities.map((activity) => activity.id)).toEqual([
       EventId.make("activity-1"),
+      EventId.make("activity-2"),
     ]);
     expect(threadsOf(next)[0]?.turnDiffSummaries.map((summary) => summary.turnId)).toEqual([
       TurnId.make("turn-1"),
+      TurnId.make("turn-2"),
     ]);
   });
 
-  it("clears pending source proposed plans after revert before a new session-set event", () => {
+  it("waits for server detail snapshot after revert before clearing pending proposed plans", () => {
     const thread = makeThread({
       latestTurn: {
         turnId: TurnId.make("turn-2"),
@@ -989,7 +992,10 @@ describe("incremental orchestration updates", () => {
       localEnvironmentId,
     );
 
-    expect(threadsOf(reverted)[0]?.pendingSourceProposedPlan).toBeUndefined();
+    expect(threadsOf(reverted)[0]?.pendingSourceProposedPlan).toEqual({
+      threadId: ThreadId.make("thread-source"),
+      planId: "plan-2",
+    });
 
     const next = applyOrchestrationEvent(
       reverted,
@@ -1012,6 +1018,9 @@ describe("incremental orchestration updates", () => {
       turnId: TurnId.make("turn-3"),
       state: "running",
     });
-    expect(threadsOf(next)[0]?.latestTurn?.sourceProposedPlan).toBeUndefined();
+    expect(threadsOf(next)[0]?.latestTurn?.sourceProposedPlan).toEqual({
+      threadId: ThreadId.make("thread-source"),
+      planId: "plan-2",
+    });
   });
 });

@@ -1,15 +1,15 @@
 import { SHELL_LAYOUT_CHANGED_EVENT } from "./shell-runtime-constants";
 
-export const WORKSPACE_KEY = "multi:workspace-cwd";
+export const PROJECT_KEY = "multi:project-cwd";
 
-export function readStoredWorkspaceCwd(): string | null {
+export function readStoredProjectCwd(): string | null {
   if (typeof window === "undefined") return null;
-  const raw = window.localStorage.getItem(WORKSPACE_KEY)?.trim();
+  const raw = window.localStorage.getItem(PROJECT_KEY)?.trim();
   return raw && raw.length > 0 ? raw : null;
 }
 
-export function writeStoredWorkspaceCwd(cwd: string): void {
+export function writeStoredProjectCwd(cwd: string): void {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(WORKSPACE_KEY, cwd);
+  window.localStorage.setItem(PROJECT_KEY, cwd);
   window.dispatchEvent(new CustomEvent(SHELL_LAYOUT_CHANGED_EVENT));
 }

@@ -42,7 +42,7 @@ function makeTerminalEvent(
         snapshot: {
           threadId: THREAD_ID,
           terminalId: "default",
-          cwd: "/tmp/workspace",
+          cwd: "/tmp/project",
           worktreePath: null,
           status: "running",
           pid: 123,

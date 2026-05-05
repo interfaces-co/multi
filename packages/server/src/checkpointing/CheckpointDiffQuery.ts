@@ -6,7 +6,7 @@ import {
 } from "@multi/contracts";
 import { Effect, Layer, Option, Schema } from "effect";
 
-import { ProjectionSnapshotQuery } from "../orchestration/ProjectionSnapshotQuery.service.ts";
+import { ThreadProjection } from "../orchestration/ThreadProjection.service.ts";
 import { CheckpointInvariantError, CheckpointUnavailableError } from "./Errors.ts";
 import { checkpointRefForThreadTurn } from "./Utils.ts";
 import { CheckpointStore } from "./CheckpointStore.service.ts";
@@ -15,12 +15,12 @@ import {
   type CheckpointDiffQueryShape,
 } from "./CheckpointDiffQuery.service.ts";
 import { ServerConfig } from "../config.ts";
-import { coerceAccessibleWorkspaceCwd } from "../workspace/AccessibleWorkspaceCwd.ts";
+import { coerceAccessibleProjectCwd } from "../project/AccessibleProjectCwd.ts";
 
 const isTurnDiffResult = Schema.is(OrchestrationGetTurnDiffResult);
 
 const make = Effect.gen(function* () {
-  const projectionSnapshotQuery = yield* ProjectionSnapshotQuery;
+  const threadProjection = yield* ThreadProjection;
   const checkpointStore = yield* CheckpointStore;
   const serverConfig = yield* ServerConfig;
 
@@ -44,7 +44,7 @@ const make = Effect.gen(function* () {
         return emptyDiff;
       }
 
-      const threadContext = yield* projectionSnapshotQuery.getThreadCheckpointContext(
+      const threadContext = yield* threadProjection.getThreadCheckpointContext(
         input.threadId,
       );
       if (Option.isNone(threadContext)) {
@@ -66,11 +66,11 @@ const make = Effect.gen(function* () {
         });
       }
 
-      const workspaceCwd = yield* coerceAccessibleWorkspaceCwd({
+      const projectCwd = yield* coerceAccessibleProjectCwd({
         operation: "CheckpointDiffQuery.getTurnDiff",
         candidates: [
           { label: "thread.worktreePath", cwd: threadContext.value.worktreePath },
-          { label: "project.workspaceRoot", cwd: threadContext.value.workspaceRoot },
+          { label: "project.projectRoot", cwd: threadContext.value.projectRoot },
         ],
         fallbackCwds: [
           { label: "server.cwd", cwd: serverConfig.cwd },
@@ -79,10 +79,10 @@ const make = Effect.gen(function* () {
         threadId: input.threadId,
         projectId: threadContext.value.projectId,
       });
-      if (!workspaceCwd) {
+      if (!projectCwd) {
         return yield* new CheckpointInvariantError({
           operation,
-          detail: `Workspace path missing for thread '${input.threadId}' when computing turn diff.`,
+          detail: `Project path missing for thread '${input.threadId}' when computing turn diff.`,
         });
       }
 
@@ -114,11 +114,11 @@ const make = Effect.gen(function* () {
       const [fromExists, toExists] = yield* Effect.all(
         [
           checkpointStore.hasCheckpointRef({
-            cwd: workspaceCwd,
+            cwd: projectCwd,
             checkpointRef: fromCheckpointRef,
           }),
           checkpointStore.hasCheckpointRef({
-            cwd: workspaceCwd,
+            cwd: projectCwd,
             checkpointRef: toCheckpointRef,
           }),
         ],
@@ -142,7 +142,7 @@ const make = Effect.gen(function* () {
       }
 
       const diff = yield* checkpointStore.diffCheckpoints({
-        cwd: workspaceCwd,
+        cwd: projectCwd,
         fromCheckpointRef,
         toCheckpointRef,
         fallbackFromToHead: false,

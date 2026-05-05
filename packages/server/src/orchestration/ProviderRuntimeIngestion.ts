@@ -28,7 +28,7 @@ import {
 } from "./ProviderRuntimeIngestion.service.ts";
 import { ServerSettingsService } from "../server-settings.ts";
 import { ServerConfig } from "../config.ts";
-import { coerceThreadWorkspaceCwd } from "../workspace/AccessibleWorkspaceCwd.ts";
+import { coerceThreadProjectCwd } from "../project/AccessibleProjectCwd.ts";
 
 const providerTurnKey = (threadId: ThreadId, turnId: TurnId) => `${threadId}:${turnId}`;
 const providerCommandId = (event: ProviderRuntimeEvent, tag: string): CommandId =>
@@ -544,7 +544,7 @@ const make = Effect.fn("make")(function* () {
     if (!thread) {
       return false;
     }
-    const workspaceCwd = yield* coerceThreadWorkspaceCwd({
+    const projectCwd = yield* coerceThreadProjectCwd({
       operation: "ProviderRuntimeIngestion.isGitRepoForThread",
       thread: {
         id: thread.id,
@@ -557,10 +557,10 @@ const make = Effect.fn("make")(function* () {
         { label: "process.cwd", cwd: process.cwd() },
       ],
     });
-    if (!workspaceCwd) {
+    if (!projectCwd) {
       return false;
     }
-    return isGitRepository(workspaceCwd);
+    return isGitRepository(projectCwd);
   });
 
   const rememberAssistantMessageId = (threadId: ThreadId, turnId: TurnId, messageId: MessageId) =>

@@ -42,7 +42,7 @@ export interface TimelineRowSharedState {
   routeThreadKey: string;
   markdownCwd: string | undefined;
   resolvedTheme: "light" | "dark";
-  workspaceRoot: string | undefined;
+  projectRoot: string | undefined;
   activeThreadEnvironmentId: EnvironmentId;
   isServerThread: boolean;
   onBeginEditUserMessage: ((messageId: MessageId) => void) | undefined;
@@ -84,7 +84,7 @@ interface MessagesTimelineProps {
   activeThreadEnvironmentId: EnvironmentId;
   markdownCwd: string | undefined;
   resolvedTheme: "light" | "dark";
-  workspaceRoot: string | undefined;
+  projectRoot: string | undefined;
   isServerThread: boolean;
   onBeginEditUserMessage: ((messageId: MessageId) => void) | undefined;
   showEmptyState?: boolean | undefined;
@@ -114,7 +114,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
   activeThreadEnvironmentId,
   markdownCwd,
   resolvedTheme,
-  workspaceRoot,
+  projectRoot,
   isServerThread,
   onBeginEditUserMessage,
   showEmptyState = true,
@@ -200,7 +200,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
       routeThreadKey,
       markdownCwd,
       resolvedTheme,
-      workspaceRoot,
+      projectRoot,
       activeThreadEnvironmentId,
       isServerThread,
       onBeginEditUserMessage,
@@ -216,7 +216,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
       routeThreadKey,
       markdownCwd,
       resolvedTheme,
-      workspaceRoot,
+      projectRoot,
       activeThreadEnvironmentId,
       isServerThread,
       onBeginEditUserMessage,
@@ -355,7 +355,7 @@ function TimelineRowContent({ row }: { row: TimelineRow }) {
             planMarkdown={row.proposedPlan.planMarkdown}
             environmentId={ctx.activeThreadEnvironmentId}
             cwd={ctx.markdownCwd}
-            workspaceRoot={ctx.workspaceRoot}
+            projectRoot={ctx.projectRoot}
           />
         </div>
       )}
@@ -378,7 +378,7 @@ const WorkGroupSection = memo(function WorkGroupSection({
 }: {
   groupedEntries: Extract<MessagesTimelineRow, { kind: "work" }>["groupedEntries"];
 }) {
-  const { workspaceRoot } = use(TimelineRowCtx);
+  const { projectRoot } = use(TimelineRowCtx);
 
   return (
     <div>
@@ -388,7 +388,7 @@ const WorkGroupSection = memo(function WorkGroupSection({
             <ToolCallMessage
               key={`work-row:${workEntry.toolCallId ?? workEntry.id}`}
               workEntry={workEntry}
-              workspaceRoot={workspaceRoot}
+              projectRoot={projectRoot}
             />
           ))}
         </div>

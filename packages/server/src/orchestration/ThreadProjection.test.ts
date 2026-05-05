@@ -6,8 +6,8 @@ import * as SqlClient from "effect/unstable/sql/SqlClient";
 import { SqlitePersistenceMemory } from "../persistence/Sqlite.ts";
 import { RepositoryIdentityResolverLive } from "../project/RepositoryIdentityResolver.ts";
 import { ORCHESTRATION_PROJECTOR_NAMES } from "./ProjectionPipeline.ts";
-import { OrchestrationProjectionSnapshotQueryLive } from "./ProjectionSnapshotQuery.ts";
-import { ProjectionSnapshotQuery } from "./ProjectionSnapshotQuery.service.ts";
+import { ThreadProjectionLive } from "./ThreadProjection.ts";
+import { ThreadProjection } from "./ThreadProjection.service.ts";
 
 const asProjectId = (value: string): ProjectId => ProjectId.make(value);
 const asTurnId = (value: string): TurnId => TurnId.make(value);
@@ -15,17 +15,17 @@ const asMessageId = (value: string): MessageId => MessageId.make(value);
 const asEventId = (value: string): EventId => EventId.make(value);
 const asCheckpointRef = (value: string): CheckpointRef => CheckpointRef.make(value);
 
-const projectionSnapshotLayer = it.layer(
-  OrchestrationProjectionSnapshotQueryLive.pipe(
+const threadProjectionLayer = it.layer(
+  ThreadProjectionLive.pipe(
     Layer.provideMerge(RepositoryIdentityResolverLive),
     Layer.provideMerge(SqlitePersistenceMemory),
   ),
 );
 
-projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
+threadProjectionLayer("ThreadProjection", (it) => {
   it.effect("hydrates read model from projection tables and computes snapshot sequence", () =>
     Effect.gen(function* () {
-      const snapshotQuery = yield* ProjectionSnapshotQuery;
+      const threadProjection = yield* ThreadProjection;
       const sql = yield* SqlClient.SqlClient;
 
       yield* sql`DELETE FROM projection_projects`;
@@ -37,7 +37,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
         INSERT INTO projection_projects (
           project_id,
           title,
-          workspace_root,
+          project_root,
           default_model_selection_json,
           scripts_json,
           created_at,
@@ -241,7 +241,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
         sequence += 1;
       }
 
-      const snapshot = yield* snapshotQuery.getSnapshot();
+      const snapshot = yield* threadProjection.getSnapshot();
 
       assert.equal(snapshot.snapshotSequence, 5);
       assert.equal(snapshot.updatedAt, "2026-02-24T00:00:09.000Z");
@@ -249,7 +249,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
         {
           id: asProjectId("project-1"),
           title: "Project 1",
-          workspaceRoot: "/tmp/project-1",
+          projectRoot: "/tmp/project-1",
           repositoryIdentity: null,
           defaultModelSelection: {
             instanceId: "codex",
@@ -354,13 +354,13 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
         },
       ]);
 
-      const shellSnapshot = yield* snapshotQuery.getShellSnapshot();
+      const shellSnapshot = yield* threadProjection.getShellSnapshot();
       assert.equal(shellSnapshot.snapshotSequence, 5);
       assert.deepEqual(shellSnapshot.projects, [
         {
           id: asProjectId("project-1"),
           title: "Project 1",
-          workspaceRoot: "/tmp/project-1",
+          projectRoot: "/tmp/project-1",
           repositoryIdentity: null,
           defaultModelSelection: {
             instanceId: "codex",
@@ -423,7 +423,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
         },
       ]);
 
-      const threadDetail = yield* snapshotQuery.getThreadDetailById(ThreadId.make("thread-1"));
+      const threadDetail = yield* threadProjection.getThreadDetailById(ThreadId.make("thread-1"));
       assert.equal(threadDetail._tag, "Some");
       if (threadDetail._tag === "Some") {
         assert.deepEqual(threadDetail.value, snapshot.threads[0]);
@@ -431,9 +431,9 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
     }),
   );
 
-  it.effect("returns a shell snapshot when an active project workspace root is missing", () =>
+  it.effect("returns a shell snapshot when an active project project root is missing", () =>
     Effect.gen(function* () {
-      const snapshotQuery = yield* ProjectionSnapshotQuery;
+      const threadProjection = yield* ThreadProjection;
       const sql = yield* SqlClient.SqlClient;
 
       yield* sql`DELETE FROM projection_projects`;
@@ -445,7 +445,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
         INSERT INTO projection_projects (
           project_id,
           title,
-          workspace_root,
+          project_root,
           default_model_selection_json,
           scripts_json,
           created_at,
@@ -455,7 +455,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
         VALUES (
           'project-missing-root',
           'Missing Root',
-          '/tmp/multi-missing-workspace-root-for-shell-snapshot',
+          '/tmp/multi-missing-project-root-for-shell-snapshot',
           '{"instanceId":"codex","model":"gpt-5-codex"}',
           '[]',
           '2026-02-24T00:00:00.000Z',
@@ -464,13 +464,13 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
         )
       `;
 
-      const shellSnapshot = yield* snapshotQuery.getShellSnapshot();
+      const shellSnapshot = yield* threadProjection.getShellSnapshot();
 
       assert.deepEqual(shellSnapshot.projects, [
         {
           id: asProjectId("project-missing-root"),
           title: "Missing Root",
-          workspaceRoot: "/tmp/multi-missing-workspace-root-for-shell-snapshot",
+          projectRoot: "/tmp/multi-missing-project-root-for-shell-snapshot",
           repositoryIdentity: null,
           defaultModelSelection: {
             instanceId: "codex",
@@ -489,7 +489,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
     "reads targeted project, thread, and count queries without hydrating the full snapshot",
     () =>
       Effect.gen(function* () {
-        const snapshotQuery = yield* ProjectionSnapshotQuery;
+        const threadProjection = yield* ThreadProjection;
         const sql = yield* SqlClient.SqlClient;
 
         yield* sql`DELETE FROM projection_projects`;
@@ -500,7 +500,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
         INSERT INTO projection_projects (
           project_id,
           title,
-          workspace_root,
+          project_root,
           default_model_selection_json,
           scripts_json,
           created_at,
@@ -511,7 +511,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
           (
             'project-active',
             'Active Project',
-            '/tmp/workspace',
+            '/tmp/project',
             '{"instanceId":"codex","model":"gpt-5-codex"}',
             '[]',
             '2026-03-01T00:00:00.000Z',
@@ -594,22 +594,22 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
           )
       `;
 
-        const counts = yield* snapshotQuery.getCounts();
+        const counts = yield* threadProjection.getCounts();
         assert.deepEqual(counts, {
           projectCount: 2,
           threadCount: 3,
         });
 
-        const project = yield* snapshotQuery.getActiveProjectByWorkspaceRoot("/tmp/workspace");
+        const project = yield* threadProjection.getActiveProjectByProjectRoot("/tmp/project");
         assert.equal(project._tag, "Some");
         if (project._tag === "Some") {
           assert.equal(project.value.id, asProjectId("project-active"));
         }
 
-        const missingProject = yield* snapshotQuery.getActiveProjectByWorkspaceRoot("/tmp/missing");
+        const missingProject = yield* threadProjection.getActiveProjectByProjectRoot("/tmp/missing");
         assert.equal(missingProject._tag, "None");
 
-        const firstThreadId = yield* snapshotQuery.getFirstActiveThreadIdByProjectId(
+        const firstThreadId = yield* threadProjection.getFirstActiveThreadIdByProjectId(
           asProjectId("project-active"),
         );
         assert.equal(firstThreadId._tag, "Some");
@@ -621,7 +621,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
 
   it.effect("reads single-thread checkpoint context without hydrating unrelated threads", () =>
     Effect.gen(function* () {
-      const snapshotQuery = yield* ProjectionSnapshotQuery;
+      const threadProjection = yield* ThreadProjection;
       const sql = yield* SqlClient.SqlClient;
 
       yield* sql`DELETE FROM projection_projects`;
@@ -632,7 +632,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
         INSERT INTO projection_projects (
           project_id,
           title,
-          workspace_root,
+          project_root,
           default_model_selection_json,
           scripts_json,
           created_at,
@@ -642,7 +642,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
         VALUES (
           'project-context',
           'Context Project',
-          '/tmp/context-workspace',
+          '/tmp/context-project',
           NULL,
           '[]',
           '2026-03-02T00:00:00.000Z',
@@ -736,7 +736,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
           )
       `;
 
-      const context = yield* snapshotQuery.getThreadCheckpointContext(
+      const context = yield* threadProjection.getThreadCheckpointContext(
         ThreadId.make("thread-context"),
       );
       assert.equal(context._tag, "Some");
@@ -744,7 +744,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
         assert.deepEqual(context.value, {
           threadId: ThreadId.make("thread-context"),
           projectId: asProjectId("project-context"),
-          workspaceRoot: "/tmp/context-workspace",
+          projectRoot: "/tmp/context-project",
           worktreePath: "/tmp/context-worktree",
           checkpoints: [
             {
@@ -773,7 +773,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
 
   it.effect("keeps thread detail activity ordering consistent with shell snapshot ordering", () =>
     Effect.gen(function* () {
-      const snapshotQuery = yield* ProjectionSnapshotQuery;
+      const threadProjection = yield* ThreadProjection;
       const sql = yield* SqlClient.SqlClient;
 
       yield* sql`DELETE FROM projection_projects`;
@@ -785,7 +785,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
         INSERT INTO projection_projects (
           project_id,
           title,
-          workspace_root,
+          project_root,
           default_model_selection_json,
           scripts_json,
           created_at,
@@ -891,8 +891,8 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
           )
       `;
 
-      const snapshot = yield* snapshotQuery.getSnapshot();
-      const threadDetail = yield* snapshotQuery.getThreadDetailById(ThreadId.make("thread-1"));
+      const snapshot = yield* threadProjection.getSnapshot();
+      const threadDetail = yield* threadProjection.getThreadDetailById(ThreadId.make("thread-1"));
 
       assert.equal(threadDetail._tag, "Some");
       if (threadDetail._tag === "Some") {
@@ -935,7 +935,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
 
   it.effect("uses projection_threads.latest_turn_id for targeted thread latest turn queries", () =>
     Effect.gen(function* () {
-      const snapshotQuery = yield* ProjectionSnapshotQuery;
+      const threadProjection = yield* ThreadProjection;
       const sql = yield* SqlClient.SqlClient;
 
       yield* sql`DELETE FROM projection_projects`;
@@ -946,7 +946,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
         INSERT INTO projection_projects (
           project_id,
           title,
-          workspace_root,
+          project_root,
           default_model_selection_json,
           scripts_json,
           created_at,
@@ -1058,7 +1058,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
           )
       `;
 
-      const threadShell = yield* snapshotQuery.getThreadShellById(ThreadId.make("thread-1"));
+      const threadShell = yield* threadProjection.getThreadShellById(ThreadId.make("thread-1"));
       assert.equal(threadShell._tag, "Some");
       if (threadShell._tag === "Some") {
         assert.equal(threadShell.value.latestTurn?.turnId, asTurnId("turn-running"));
@@ -1066,7 +1066,7 @@ projectionSnapshotLayer("ProjectionSnapshotQuery", (it) => {
         assert.equal(threadShell.value.latestTurn?.startedAt, "2026-04-02T00:00:30.000Z");
       }
 
-      const threadDetail = yield* snapshotQuery.getThreadDetailById(ThreadId.make("thread-1"));
+      const threadDetail = yield* threadProjection.getThreadDetailById(ThreadId.make("thread-1"));
       assert.equal(threadDetail._tag, "Some");
       if (threadDetail._tag === "Some") {
         assert.equal(threadDetail.value.latestTurn?.turnId, asTurnId("turn-running"));

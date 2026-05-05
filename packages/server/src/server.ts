@@ -46,9 +46,9 @@ import { ProviderRegistryLive } from "./provider/ProviderRegistry";
 import { ServerSettingsLive } from "./server-settings";
 import { ProjectFaviconResolverLive } from "./project/ProjectFaviconResolver";
 import { RepositoryIdentityResolverLive } from "./project/RepositoryIdentityResolver";
-import { WorkspaceEntriesLive } from "./workspace/WorkspaceEntries";
-import { WorkspaceFileSystemLive } from "./workspace/WorkspaceFileSystem";
-import { WorkspacePathsLive } from "./workspace/WorkspacePaths";
+import { ProjectEntriesLive } from "./project/ProjectEntries";
+import { ProjectFileSystemLive } from "./project/ProjectFileSystem";
+import { ProjectPathsLive } from "./project/ProjectPaths";
 import { ProjectSetupScriptRunnerLive } from "./project/ProjectSetupScriptRunner";
 import { ObservabilityLive } from "./observability/Observability";
 import { ServerEnvironmentLive } from "./environment/ServerEnvironment";
@@ -192,12 +192,12 @@ const GitLayerLive = Layer.empty.pipe(
 
 const TerminalLayerLive = TerminalManagerLive.pipe(Layer.provide(PtyAdapterLive));
 
-const WorkspaceLayerLive = Layer.mergeAll(
-  WorkspacePathsLive,
-  WorkspaceEntriesLive.pipe(Layer.provide(WorkspacePathsLive)),
-  WorkspaceFileSystemLive.pipe(
-    Layer.provide(WorkspacePathsLive),
-    Layer.provide(WorkspaceEntriesLive.pipe(Layer.provide(WorkspacePathsLive))),
+const ProjectLayerLive = Layer.mergeAll(
+  ProjectPathsLive,
+  ProjectEntriesLive.pipe(Layer.provide(ProjectPathsLive)),
+  ProjectFileSystemLive.pipe(
+    Layer.provide(ProjectPathsLive),
+    Layer.provide(ProjectEntriesLive.pipe(Layer.provide(ProjectPathsLive))),
   ),
 );
 
@@ -217,7 +217,7 @@ const RuntimeDependenciesLive = ReactorLayerLive.pipe(
   Layer.provideMerge(KeybindingsLive),
   Layer.provideMerge(ProviderRegistryLive),
   Layer.provideMerge(ServerSettingsLive),
-  Layer.provideMerge(WorkspaceLayerLive),
+  Layer.provideMerge(ProjectLayerLive),
   Layer.provideMerge(ProjectFaviconResolverLive),
   Layer.provideMerge(RepositoryIdentityResolverLive),
   Layer.provideMerge(ServerEnvironmentLive),

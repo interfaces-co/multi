@@ -75,14 +75,14 @@ const baseServerConfig: ServerConfig = {
     sessionMethods: ["browser-session-cookie", "bearer-session-token"],
     sessionCookieName: "t3_session",
   },
-  cwd: "/tmp/workspace",
-  keybindingsConfigPath: "/tmp/workspace/.config/keybindings.json",
+  cwd: "/tmp/project",
+  keybindingsConfigPath: "/tmp/project/.config/keybindings.json",
   keybindings: [],
   issues: [],
   providers: defaultProviders,
   availableEditors: ["cursor"],
   observability: {
-    logsDirectoryPath: "/tmp/workspace/.config/logs",
+    logsDirectoryPath: "/tmp/project/.config/logs",
     localTracingEnabled: true,
     otlpTracesEnabled: false,
     otlpMetricsEnabled: false,
@@ -218,7 +218,7 @@ describe("serverState", () => {
       type: "welcome",
       payload: {
         environment: baseEnvironment,
-        cwd: "/tmp/workspace",
+        cwd: "/tmp/project",
         projectName: "multi",
         bootstrapProjectId: ProjectId.make("project-1"),
         bootstrapThreadId: ThreadId.make("thread-1"),
@@ -227,7 +227,7 @@ describe("serverState", () => {
 
     expect(listener).toHaveBeenCalledWith({
       environment: baseEnvironment,
-      cwd: "/tmp/workspace",
+      cwd: "/tmp/project",
       projectName: "multi",
       bootstrapProjectId: ProjectId.make("project-1"),
       bootstrapThreadId: ThreadId.make("thread-1"),
@@ -237,7 +237,7 @@ describe("serverState", () => {
     const unsubscribeLate = onWelcome(lateListener);
     expect(lateListener).toHaveBeenCalledWith({
       environment: baseEnvironment,
-      cwd: "/tmp/workspace",
+      cwd: "/tmp/project",
       projectName: "multi",
       bootstrapProjectId: ProjectId.make("project-1"),
       bootstrapThreadId: ThreadId.make("thread-1"),

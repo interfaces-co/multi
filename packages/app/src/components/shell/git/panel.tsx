@@ -84,7 +84,7 @@ export function GitPanel(props: {
           <div className="space-y-1 px-4 py-3">
             <p className="text-body/[1.4] font-medium text-foreground/85">No repository</p>
             <p className="max-w-[18rem] text-detail/[1.45] text-muted-foreground/72">
-              Initialize Git in this workspace to track changes and review diffs.
+              Initialize Git in this project to track changes and review diffs.
             </p>
           </div>
           <button

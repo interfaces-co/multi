@@ -289,7 +289,7 @@ In Default mode, strongly prefer making reasonable assumptions and executing the
 
 function mapCodexRuntimeMode(runtimeMode: RuntimeMode): {
   readonly approvalPolicy: "untrusted" | "on-request" | "never";
-  readonly sandbox: "read-only" | "workspace-write" | "danger-full-access";
+  readonly sandbox: "read-only" | "project-write" | "danger-full-access";
 } {
   switch (runtimeMode) {
     case "approval-required":
@@ -300,7 +300,7 @@ function mapCodexRuntimeMode(runtimeMode: RuntimeMode): {
     case "auto-accept-edits":
       return {
         approvalPolicy: "on-request",
-        sandbox: "workspace-write",
+        sandbox: "project-write",
       };
     case "full-access":
       return {

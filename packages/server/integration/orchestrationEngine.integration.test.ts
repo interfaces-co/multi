@@ -117,7 +117,7 @@ const seedProjectAndThread = (harness: OrchestrationIntegrationHarness) =>
       commandId: CommandId.make("cmd-project-create"),
       projectId: PROJECT_ID,
       title: "Integration Project",
-      workspaceRoot: harness.workspaceDir,
+      projectRoot: harness.projectDir,
       defaultModelSelection: {
         instanceId: provider,
         model: defaultModel,
@@ -138,7 +138,7 @@ const seedProjectAndThread = (harness: OrchestrationIntegrationHarness) =>
       interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
       runtimeMode: "approval-required",
       branch: null,
-      worktreePath: harness.workspaceDir,
+      worktreePath: harness.projectDir,
       createdAt,
     });
   });
@@ -246,10 +246,10 @@ it.live("runs a single turn end-to-end and persists checkpoint state in sqlite +
 
       const ref0 = checkpointRefForThreadTurn(THREAD_ID, 0);
       const ref1 = checkpointRefForThreadTurn(THREAD_ID, 1);
-      assert.equal(gitRefExists(harness.workspaceDir, ref0), true);
-      assert.equal(gitRefExists(harness.workspaceDir, ref1), true);
-      assert.equal(gitShowFileAtRef(harness.workspaceDir, ref0, "README.md"), "v1\n");
-      assert.equal(gitShowFileAtRef(harness.workspaceDir, ref1, "README.md"), "v1\n");
+      assert.equal(gitRefExists(harness.projectDir, ref0), true);
+      assert.equal(gitRefExists(harness.projectDir, ref1), true);
+      assert.equal(gitShowFileAtRef(harness.projectDir, ref0, "README.md"), "v1\n");
+      assert.equal(gitShowFileAtRef(harness.projectDir, ref1, "README.md"), "v1\n");
     }),
   ),
 );
@@ -266,7 +266,7 @@ it.live.skipIf(!process.env.CODEX_BINARY_PATH)(
           commandId: CommandId.make("cmd-project-create-real-codex"),
           projectId: PROJECT_ID,
           title: "Integration Project",
-          workspaceRoot: harness.workspaceDir,
+          projectRoot: harness.projectDir,
           defaultModelSelection: {
             instanceId: "codex",
             model: "gpt-5.3-codex",
@@ -287,7 +287,7 @@ it.live.skipIf(!process.env.CODEX_BINARY_PATH)(
           interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
           runtimeMode: "full-access",
           branch: null,
-          worktreePath: harness.workspaceDir,
+          worktreePath: harness.projectDir,
           createdAt,
         });
 
@@ -395,7 +395,7 @@ it.live("runs multi-turn file edits and persists checkpoint diffs", () =>
             status: "completed",
           },
         ],
-        mutateWorkspace: ({ cwd }) =>
+        mutateProject: ({ cwd }) =>
           Effect.sync(() => {
             fs.writeFileSync(path.join(cwd, "README.md"), "v2\n", "utf8");
           }),
@@ -442,7 +442,7 @@ it.live("runs multi-turn file edits and persists checkpoint diffs", () =>
             status: "completed",
           },
         ],
-        mutateWorkspace: ({ cwd }) =>
+        mutateProject: ({ cwd }) =>
           Effect.sync(() => {
             fs.writeFileSync(path.join(cwd, "README.md"), "v3\n", "utf8");
           }),
@@ -495,7 +495,7 @@ it.live("runs multi-turn file edits and persists checkpoint diffs", () =>
       );
 
       const incrementalDiff = yield* harness.checkpointStore.diffCheckpoints({
-        cwd: harness.workspaceDir,
+        cwd: harness.projectDir,
         fromCheckpointRef: checkpointRefForThreadTurn(THREAD_ID, 1),
         toCheckpointRef: checkpointRefForThreadTurn(THREAD_ID, 2),
         fallbackFromToHead: false,
@@ -503,7 +503,7 @@ it.live("runs multi-turn file edits and persists checkpoint diffs", () =>
       assert.equal(incrementalDiff.includes("README.md"), true);
 
       const fullDiff = yield* harness.checkpointStore.diffCheckpoints({
-        cwd: harness.workspaceDir,
+        cwd: harness.projectDir,
         fromCheckpointRef: checkpointRefForThreadTurn(THREAD_ID, 0),
         toCheckpointRef: checkpointRefForThreadTurn(THREAD_ID, 2),
         fallbackFromToHead: false,
@@ -512,7 +512,7 @@ it.live("runs multi-turn file edits and persists checkpoint diffs", () =>
 
       assert.equal(
         gitShowFileAtRef(
-          harness.workspaceDir,
+          harness.projectDir,
           checkpointRefForThreadTurn(THREAD_ID, 1),
           "README.md",
         ),
@@ -520,7 +520,7 @@ it.live("runs multi-turn file edits and persists checkpoint diffs", () =>
       );
       assert.equal(
         gitShowFileAtRef(
-          harness.workspaceDir,
+          harness.projectDir,
           checkpointRefForThreadTurn(THREAD_ID, 2),
           "README.md",
         ),
@@ -683,7 +683,7 @@ it.live("records failed turn runtime state and checkpoint status as error", () =
         assert.equal(checkpointRow.value.status, "error");
       }
       assert.equal(
-        gitRefExists(harness.workspaceDir, checkpointRefForThreadTurn(THREAD_ID, 1)),
+        gitRefExists(harness.projectDir, checkpointRefForThreadTurn(THREAD_ID, 1)),
         true,
       );
     }),
@@ -736,7 +736,7 @@ it.live("reverts to an earlier checkpoint and trims checkpoint projections + git
             status: "completed",
           },
         ],
-        mutateWorkspace: ({ cwd }) =>
+        mutateProject: ({ cwd }) =>
           Effect.sync(() => {
             fs.writeFileSync(path.join(cwd, "README.md"), "v2\n", "utf8");
           }),
@@ -794,7 +794,7 @@ it.live("reverts to an earlier checkpoint and trims checkpoint projections + git
             status: "completed",
           },
         ],
-        mutateWorkspace: ({ cwd }) =>
+        mutateProject: ({ cwd }) =>
           Effect.sync(() => {
             fs.writeFileSync(path.join(cwd, "README.md"), "v3\n", "utf8");
           }),
@@ -853,9 +853,9 @@ it.live("reverts to an earlier checkpoint and trims checkpoint projections + git
         ),
         true,
       );
-      assert.equal(fs.readFileSync(path.join(harness.workspaceDir, "README.md"), "utf8"), "v2\n");
+      assert.equal(fs.readFileSync(path.join(harness.projectDir, "README.md"), "utf8"), "v2\n");
       assert.equal(
-        gitRefExists(harness.workspaceDir, checkpointRefForThreadTurn(THREAD_ID, 2)),
+        gitRefExists(harness.projectDir, checkpointRefForThreadTurn(THREAD_ID, 2)),
         false,
       );
       assert.deepEqual(harness.adapterHarness!.getRollbackCalls(THREAD_ID), [1]);
@@ -1242,7 +1242,7 @@ it.live("reverts claudeAgent turns and rolls back provider conversation state", 
               status: "completed",
             },
           ],
-          mutateWorkspace: ({ cwd }) =>
+          mutateProject: ({ cwd }) =>
             Effect.sync(() => {
               fs.writeFileSync(path.join(cwd, "README.md"), "v2\n", "utf8");
             }),
@@ -1288,7 +1288,7 @@ it.live("reverts claudeAgent turns and rolls back provider conversation state", 
               status: "completed",
             },
           ],
-          mutateWorkspace: ({ cwd }) =>
+          mutateProject: ({ cwd }) =>
             Effect.sync(() => {
               fs.writeFileSync(path.join(cwd, "README.md"), "v3\n", "utf8");
             }),
@@ -1324,11 +1324,11 @@ it.live("reverts claudeAgent turns and rolls back provider conversation state", 
         );
         assert.equal(revertedThread.checkpoints[0]?.checkpointTurnCount, 1);
         assert.equal(
-          gitRefExists(harness.workspaceDir, checkpointRefForThreadTurn(THREAD_ID, 1)),
+          gitRefExists(harness.projectDir, checkpointRefForThreadTurn(THREAD_ID, 1)),
           true,
         );
         assert.equal(
-          gitRefExists(harness.workspaceDir, checkpointRefForThreadTurn(THREAD_ID, 2)),
+          gitRefExists(harness.projectDir, checkpointRefForThreadTurn(THREAD_ID, 2)),
           false,
         );
         assert.deepEqual(harness.adapterHarness!.getRollbackCalls(THREAD_ID), [1]);

@@ -1,29 +1,29 @@
 import { describe, expect, it } from "vitest";
 
-import { formatWorkspaceRelativePath } from "./file-path-display";
+import { formatProjectRelativePath } from "./file-path-display";
 
-describe("formatWorkspaceRelativePath", () => {
-  it("formats absolute workspace paths from the workspace root", () => {
+describe("formatProjectRelativePath", () => {
+  it("formats absolute project paths from the project root", () => {
     expect(
-      formatWorkspaceRelativePath(
+      formatProjectRelativePath(
         "C:/Users/mike/dev-stuff/multi/packages/app/src/session-logic.ts:501",
         "C:/Users/mike/dev-stuff/multi",
       ),
     ).toBe("multi/packages/app/src/session-logic.ts:501");
   });
 
-  it("prefixes relative paths with the workspace root label", () => {
+  it("prefixes relative paths with the project root label", () => {
     expect(
-      formatWorkspaceRelativePath(
+      formatProjectRelativePath(
         "packages/app/src/session-logic.ts:501",
         "C:/Users/mike/dev-stuff/multi",
       ),
     ).toBe("multi/packages/app/src/session-logic.ts:501");
   });
 
-  it("keeps paths already rooted at the workspace label stable", () => {
+  it("keeps paths already rooted at the project label stable", () => {
     expect(
-      formatWorkspaceRelativePath(
+      formatProjectRelativePath(
         "multi/packages/app/src/session-logic.ts:501",
         "C:/Users/mike/dev-stuff/multi",
       ),
@@ -32,7 +32,7 @@ describe("formatWorkspaceRelativePath", () => {
 
   it("preserves columns when present", () => {
     expect(
-      formatWorkspaceRelativePath(
+      formatProjectRelativePath(
         "/C:/Users/mike/dev-stuff/multi/packages/app/src/session-logic.ts:501:9",
         "C:/Users/mike/dev-stuff/multi",
       ),

@@ -880,7 +880,7 @@ export const ChatComposer = memo(
       (debouncerState) => ({ isPending: debouncerState.isPending }),
     );
     const effectivePathQuery = pathTriggerQuery.length > 0 ? debouncedPathQuery : "";
-    const workspaceEntriesQuery = useQuery(
+    const projectEntriesQuery = useQuery(
       projectSearchEntriesQueryOptions({
         environmentId,
         cwd: gitCwd,
@@ -889,12 +889,12 @@ export const ChatComposer = memo(
         limit: 80,
       }),
     );
-    const workspaceEntries = workspaceEntriesQuery.data?.entries ?? EMPTY_PROJECT_ENTRIES;
+    const projectEntries = projectEntriesQuery.data?.entries ?? EMPTY_PROJECT_ENTRIES;
 
     const composerMenuItems = useMemo<ComposerCommandItem[]>(() => {
       if (!composerTrigger) return [];
       if (composerTrigger.kind === "path") {
-        return workspaceEntries.map((entry) => ({
+        return projectEntries.map((entry) => ({
           id: `path:${entry.kind}:${entry.path}`,
           type: "path",
           path: entry.path,
@@ -962,7 +962,7 @@ export const ChatComposer = memo(
         }));
       }
       return [];
-    }, [composerTrigger, selectedProvider, selectedProviderStatus, workspaceEntries]);
+    }, [composerTrigger, selectedProvider, selectedProviderStatus, projectEntries]);
 
     const composerMenuOpen = composerTrigger ? composerTrigger.kind !== "slash-model" : false;
     const composerMenuSearchKey = composerTrigger
@@ -1031,8 +1031,8 @@ export const ChatComposer = memo(
     const isComposerMenuLoading =
       composerTriggerKind === "path" &&
       ((pathTriggerQuery.length > 0 && composerPathQueryDebouncer.state.isPending) ||
-        workspaceEntriesQuery.isLoading ||
-        workspaceEntriesQuery.isFetching);
+        projectEntriesQuery.isLoading ||
+        projectEntriesQuery.isFetching);
     const composerMenuEmptyState = useMemo(() => {
       if (composerTriggerKind === "skill") {
         return "No skills found. Try / to browse provider commands.";

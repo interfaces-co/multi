@@ -9,7 +9,7 @@ import type {
 
 import type { HarnessKind } from "~/lib/ui-session-types";
 
-import { shortWorkspacePathLabel } from "./path-label";
+import { shortProjectPathLabel } from "./path-label";
 
 export interface SidebarDraftSummary {
   id: string;
@@ -153,7 +153,7 @@ function buildDraftChat(draft: SidebarDraftSummary) {
   } satisfies SidebarChatItem;
 }
 
-export function buildWorkspaceChatSections(
+export function buildProjectChatSections(
   threadSummaries: readonly SidebarThreadSummary[],
   drafts: readonly SidebarDraftSummary[],
   cwd: string | null,
@@ -179,7 +179,7 @@ export function buildWorkspaceChatSections(
       left.updatedAt < right.updatedAt ? 1 : left.updatedAt > right.updatedAt ? -1 : 0,
     );
     const latest = sorted[0]?.updatedAt ?? "";
-    return { dir, label: shortWorkspacePathLabel(dir, home), sorted, latest };
+    return { dir, label: shortProjectPathLabel(dir, home), sorted, latest };
   });
 
   groups.sort((left, right) => {

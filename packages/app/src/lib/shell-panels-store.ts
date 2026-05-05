@@ -28,13 +28,13 @@ interface WorkbenchPanelState {
   muted: boolean;
 }
 
-/** Per-workspace, per-tool secondary rail state. */
+/** Per-project, per-tool secondary rail state. */
 export interface SecondaryRailState {
   open: boolean;
   width: number;
 }
 
-/** Per-workspace terminal session tracking. */
+/** Per-project terminal session tracking. */
 export interface TerminalSessionEntry {
   id: string;
   label: string;

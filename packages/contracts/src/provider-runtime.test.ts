@@ -72,8 +72,8 @@ describe("ProviderRuntimeEvent", () => {
             question: "Which mode should be used?",
             options: [
               {
-                label: "workspace-write",
-                description: "Allow edits in workspace only",
+                label: "project-write",
+                description: "Allow edits in project only",
               },
               {
                 label: "danger-full-access",
@@ -105,7 +105,7 @@ describe("ProviderRuntimeEvent", () => {
       requestId: "request-1",
       payload: {
         answers: {
-          sandbox_mode: "workspace-write",
+          sandbox_mode: "project-write",
         },
       },
     });
@@ -114,7 +114,7 @@ describe("ProviderRuntimeEvent", () => {
     if (parsed.type !== "user-input.resolved") {
       throw new Error("expected user-input.resolved");
     }
-    expect(parsed.payload.answers.sandbox_mode).toBe("workspace-write");
+    expect(parsed.payload.answers.sandbox_mode).toBe("project-write");
   });
 
   it("rejects legacy message.delta type", () => {

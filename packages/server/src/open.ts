@@ -1,7 +1,7 @@
 /**
  * Open - Browser/editor launch service interface.
  *
- * Owns process launch helpers for opening URLs in a browser and workspace
+ * Owns process launch helpers for opening URLs in a browser and project
  * paths in a configured editor.
  *
  * @module Open
@@ -245,7 +245,7 @@ export interface OpenShape {
   readonly openBrowser: (target: string) => Effect.Effect<void, OpenError>;
 
   /**
-   * Open a workspace path in a selected editor integration.
+   * Open a project path in a selected editor integration.
    *
    * Launches the editor as a detached process so server startup is not blocked.
    */

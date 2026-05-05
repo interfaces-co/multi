@@ -130,7 +130,7 @@ function createMinimalSnapshot(): OrchestrationReadModel {
       {
         id: PROJECT_ID,
         title: "Project",
-        workspaceRoot: "/repo/project",
+        projectRoot: "/repo/project",
         defaultModelSelection: {
           instanceId: ProviderInstanceId.make("codex"),
           model: "gpt-5",
@@ -194,7 +194,7 @@ function toShellSnapshot(snapshot: OrchestrationReadModel) {
     projects: snapshot.projects.map((project) => ({
       id: project.id,
       title: project.title,
-      workspaceRoot: project.workspaceRoot,
+      projectRoot: project.projectRoot,
       repositoryIdentity: project.repositoryIdentity ?? null,
       defaultModelSelection: project.defaultModelSelection,
       scripts: project.scripts,

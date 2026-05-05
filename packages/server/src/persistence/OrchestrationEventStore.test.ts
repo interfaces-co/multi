@@ -34,7 +34,7 @@ layer("OrchestrationEventStore", (it) => {
         payload: {
           projectId: ProjectId.make("project-roundtrip"),
           title: "Roundtrip Project",
-          workspaceRoot: "/tmp/project-roundtrip",
+          projectRoot: "/tmp/project-roundtrip",
           defaultModelSelection: null,
           scripts: [],
           createdAt: now,

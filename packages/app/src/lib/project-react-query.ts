@@ -48,7 +48,7 @@ export function projectSearchEntriesQueryOptions(input: {
     queryKey: projectQueryKeys.searchEntries(input.environmentId, input.cwd, input.query, limit),
     queryFn: async () => {
       if (!input.cwd || !input.environmentId) {
-        throw new Error("Workspace entry search is unavailable.");
+        throw new Error("Project entry search is unavailable.");
       }
       const api = ensureEnvironmentApi(input.environmentId);
       return api.projects.searchEntries({
@@ -79,7 +79,7 @@ export function projectListEntriesQueryOptions(input: {
     queryKey: projectQueryKeys.listEntries(input.environmentId, input.cwd, limit),
     queryFn: async () => {
       if (!input.cwd || !input.environmentId) {
-        throw new Error("Workspace entries are unavailable.");
+        throw new Error("Project entries are unavailable.");
       }
       const api = ensureEnvironmentApi(input.environmentId);
       return api.projects.listEntries({
@@ -104,7 +104,7 @@ export function projectReadFileQueryOptions(input: {
     queryKey: projectQueryKeys.readFile(input.environmentId, input.cwd, input.relativePath),
     queryFn: async () => {
       if (!input.cwd || !input.environmentId || !input.relativePath) {
-        throw new Error("Workspace file preview is unavailable.");
+        throw new Error("Project file preview is unavailable.");
       }
       const api = ensureEnvironmentApi(input.environmentId);
       return api.projects.readFile({

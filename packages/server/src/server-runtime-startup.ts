@@ -28,7 +28,7 @@ import { ServerConfig } from "./config";
 import { Keybindings } from "./keybindings";
 import { Open } from "./open";
 import { OrchestrationEngineService } from "./orchestration/OrchestrationEngine.service";
-import { ProjectionSnapshotQuery } from "./orchestration/ProjectionSnapshotQuery.service";
+import { ThreadProjection } from "./orchestration/ThreadProjection.service";
 import { OrchestrationReactor } from "./orchestration/OrchestrationReactor.service";
 import { ServerLifecycleEvents } from "./server-lifecycle-events";
 import { ServerSettingsService } from "./server-settings";
@@ -126,9 +126,9 @@ export const makeCommandGate = Effect.gen(function* () {
 
 export const recordStartupHeartbeat = Effect.gen(function* () {
   const analytics = yield* AnalyticsService;
-  const projectionSnapshotQuery = yield* ProjectionSnapshotQuery;
+  const threadProjection = yield* ThreadProjection;
 
-  const { threadCount, projectCount } = yield* projectionSnapshotQuery.getCounts().pipe(
+  const { threadCount, projectCount } = yield* threadProjection.getCounts().pipe(
     Effect.catch((cause) =>
       Effect.logWarning("failed to gather startup projection counts for telemetry", {
         cause,
@@ -155,13 +155,13 @@ export const launchStartupHeartbeat = recordStartupHeartbeat.pipe(
   Effect.asVoid,
 );
 
-export const logInaccessibleProjectWorkspaceRoots = Effect.gen(function* () {
-  const projectionSnapshotQuery = yield* ProjectionSnapshotQuery;
+export const logInaccessibleProjectProjectRoots = Effect.gen(function* () {
+  const threadProjection = yield* ThreadProjection;
   const fileSystem = yield* FileSystem.FileSystem;
 
-  const snapshot = yield* projectionSnapshotQuery.getSnapshot().pipe(
+  const snapshot = yield* threadProjection.getSnapshot().pipe(
     Effect.catch((cause) =>
-      Effect.logWarning("failed to validate startup project workspace roots", {
+      Effect.logWarning("failed to validate startup project project roots", {
         cause,
       }).pipe(Effect.as(null)),
     ),
@@ -175,15 +175,15 @@ export const logInaccessibleProjectWorkspaceRoots = Effect.gen(function* () {
       continue;
     }
 
-    const stat = yield* Effect.exit(fileSystem.stat(project.workspaceRoot));
+    const stat = yield* Effect.exit(fileSystem.stat(project.projectRoot));
     if (Exit.isSuccess(stat) && stat.value.type === "Directory") {
       continue;
     }
 
-    yield* Effect.logError("active project workspace root is not accessible", {
+    yield* Effect.logError("active project project root is not accessible", {
       projectId: project.id,
       title: project.title,
-      workspaceRoot: project.workspaceRoot,
+      projectRoot: project.projectRoot,
       detail: Exit.isSuccess(stat)
         ? `Not a directory: ${stat.value.type}`
         : "Directory is not accessible.",
@@ -209,7 +209,7 @@ export const resolveWelcomeBase = Effect.gen(function* () {
 
 export const resolveAutoBootstrapWelcomeTargets = Effect.gen(function* () {
   const serverConfig = yield* ServerConfig;
-  const projectionReadModelQuery = yield* ProjectionSnapshotQuery;
+  const threadProjection = yield* ThreadProjection;
   const orchestrationEngine = yield* OrchestrationEngineService;
   const path = yield* Path.Path;
 
@@ -218,7 +218,7 @@ export const resolveAutoBootstrapWelcomeTargets = Effect.gen(function* () {
 
   if (serverConfig.autoBootstrapProjectFromCwd) {
     yield* Effect.gen(function* () {
-      const existingProject = yield* projectionReadModelQuery.getActiveProjectByWorkspaceRoot(
+      const existingProject = yield* threadProjection.getActiveProjectByProjectRoot(
         serverConfig.cwd,
       );
       let nextProjectId: ProjectId;
@@ -234,7 +234,7 @@ export const resolveAutoBootstrapWelcomeTargets = Effect.gen(function* () {
           commandId: CommandId.make(crypto.randomUUID()),
           projectId: nextProjectId,
           title: bootstrapProjectTitle,
-          workspaceRoot: serverConfig.cwd,
+          projectRoot: serverConfig.cwd,
           defaultModelSelection: nextProjectDefaultModelSelection,
           createdAt,
         });
@@ -245,7 +245,7 @@ export const resolveAutoBootstrapWelcomeTargets = Effect.gen(function* () {
       }
 
       const existingThreadId =
-        yield* projectionReadModelQuery.getFirstActiveThreadIdByProjectId(nextProjectId);
+        yield* threadProjection.getFirstActiveThreadIdByProjectId(nextProjectId);
       if (Option.isNone(existingThreadId)) {
         const createdAt = new Date().toISOString();
         const createdThreadId = ThreadId.make(crypto.randomUUID());
@@ -367,10 +367,10 @@ export const makeServerRuntimeStartup = Effect.gen(function* () {
       orchestrationReactor.start().pipe(Scope.provide(reactorScope)),
     );
 
-    yield* Effect.logDebug("startup phase: validating project workspace roots");
+    yield* Effect.logDebug("startup phase: validating project project roots");
     yield* runStartupPhase(
-      "projects.validate-workspace-roots",
-      logInaccessibleProjectWorkspaceRoots,
+      "projects.validate-project-roots",
+      logInaccessibleProjectProjectRoots,
     );
 
     const welcomeBase = yield* resolveWelcomeBase;

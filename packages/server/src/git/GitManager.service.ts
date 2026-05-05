@@ -80,7 +80,7 @@ export interface GitManagerShape {
   ) => Effect.Effect<GitResolvePullRequestResult, GitManagerServiceError>;
 
   /**
-   * Prepare a new thread workspace from a pull request in local or worktree mode.
+   * Prepare a new thread project from a pull request in local or worktree mode.
    */
   readonly preparePullRequestThread: (
     input: GitPreparePullRequestThreadInput,

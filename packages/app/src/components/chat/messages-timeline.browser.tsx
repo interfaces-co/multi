@@ -68,7 +68,7 @@ function buildProps() {
     activeThreadEnvironmentId: EnvironmentId.make("environment-local"),
     markdownCwd: undefined,
     resolvedTheme: "dark" as const,
-    workspaceRoot: undefined,
+    projectRoot: undefined,
     onIsAtEndChange: vi.fn(),
   };
 }

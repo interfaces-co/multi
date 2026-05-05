@@ -19,7 +19,7 @@ import { Command } from "effect/unstable/cli";
 import { cli } from "./cli.ts";
 import { deriveServerPaths, ServerConfig, type ServerConfigShape } from "./config.ts";
 import { OrchestrationEngineService } from "./orchestration/OrchestrationEngine.service.ts";
-import { ProjectionSnapshotQuery } from "./orchestration/ProjectionSnapshotQuery.service.ts";
+import { ThreadProjection } from "./orchestration/ThreadProjection.service.ts";
 import { OrchestrationLayerLive } from "./orchestration/runtime-layer.ts";
 import {
   orchestrationDispatchRouteLayer,
@@ -31,7 +31,7 @@ import {
   makePersistedServerRuntimeState,
   persistServerRuntimeState,
 } from "./server-runtime-state.ts";
-import { WorkspacePathsLive } from "./workspace/WorkspacePaths.ts";
+import { ProjectPathsLive } from "./project/ProjectPaths.ts";
 import { ServerSecretStoreLive } from "./auth/ServerSecretStore.ts";
 import { ServerAuthLive } from "./auth/ServerAuth.ts";
 
@@ -86,7 +86,7 @@ const makeProjectPersistenceLayer = (config: ServerConfigShape) =>
       Layer.provideMerge(RepositoryIdentityResolverLive),
       Layer.provideMerge(SqlitePersistenceLayerLive),
     ),
-    WorkspacePathsLive,
+    ProjectPathsLive,
   ).pipe(
     Layer.provideMerge(NodeServices.layer),
     Layer.provide(Layer.succeed(ServerConfig, config)),
@@ -96,8 +96,8 @@ const readPersistedSnapshot = (baseDir: string, devUrl?: URL) =>
   Effect.gen(function* () {
     const config = yield* makeCliTestServerConfig(baseDir, devUrl);
     return yield* Effect.gen(function* () {
-      const projectionSnapshotQuery = yield* ProjectionSnapshotQuery;
-      return yield* projectionSnapshotQuery.getSnapshot();
+      const threadProjection = yield* ThreadProjection;
+      return yield* threadProjection.getSnapshot();
     }).pipe(Effect.provide(makeProjectPersistenceLayer(config)));
   });
 
@@ -258,15 +258,15 @@ it.layer(NodeServices.layer)("cli log-level parsing", (it) => {
   it.effect("adds, renames, and removes projects offline through the orchestration engine", () =>
     Effect.gen(function* () {
       const baseDir = mkdtempSync(join(tmpdir(), "multi-cli-projects-offline-test-"));
-      const workspaceRoot = mkdtempSync(join(tmpdir(), "multi-cli-projects-workspace-"));
-      const relocatedWorkspaceRoot = mkdtempSync(
-        join(tmpdir(), "multi-cli-projects-relocated-workspace-"),
+      const projectRoot = mkdtempSync(join(tmpdir(), "multi-cli-projects-project-"));
+      const relocatedProjectRoot = mkdtempSync(
+        join(tmpdir(), "multi-cli-projects-relocated-project-"),
       );
 
       yield* runCliWithRuntime([
         "project",
         "add",
-        workspaceRoot,
+        projectRoot,
         "--title",
         "Alpha",
         "--base-dir",
@@ -274,12 +274,12 @@ it.layer(NodeServices.layer)("cli log-level parsing", (it) => {
       ]);
       const afterAdd = yield* readPersistedSnapshot(baseDir);
       const addedProject = afterAdd.projects.find(
-        (project) => project.workspaceRoot === workspaceRoot && project.deletedAt === null,
+        (project) => project.projectRoot === projectRoot && project.deletedAt === null,
       );
       assert.isTrue(addedProject !== undefined);
       assert.equal(addedProject?.title, "Alpha");
 
-      yield* runCliWithRuntime(["project", "rename", workspaceRoot, "Beta", "--base-dir", baseDir]);
+      yield* runCliWithRuntime(["project", "rename", projectRoot, "Beta", "--base-dir", baseDir]);
       const afterRename = yield* readPersistedSnapshot(baseDir);
       const renamedProject = afterRename.projects.find(
         (project) => project.id === addedProject?.id,
@@ -290,8 +290,8 @@ it.layer(NodeServices.layer)("cli log-level parsing", (it) => {
       yield* runCliWithRuntime([
         "project",
         "relocate",
-        workspaceRoot,
-        relocatedWorkspaceRoot,
+        projectRoot,
+        relocatedProjectRoot,
         "--base-dir",
         baseDir,
       ]);
@@ -299,7 +299,7 @@ it.layer(NodeServices.layer)("cli log-level parsing", (it) => {
       const relocatedProject = afterRelocate.projects.find(
         (project) => project.id === addedProject?.id,
       );
-      assert.equal(relocatedProject?.workspaceRoot, relocatedWorkspaceRoot);
+      assert.equal(relocatedProject?.projectRoot, relocatedProjectRoot);
       assert.equal(relocatedProject?.title, "Beta");
       assert.equal(relocatedProject?.deletedAt, null);
 
@@ -321,14 +321,14 @@ it.layer(NodeServices.layer)("cli log-level parsing", (it) => {
   it.effect("routes project commands through a running server when runtime state is present", () =>
     Effect.gen(function* () {
       const baseDir = mkdtempSync(join(tmpdir(), "multi-cli-projects-live-test-"));
-      const workspaceRoot = mkdtempSync(join(tmpdir(), "multi-cli-projects-live-workspace-"));
+      const projectRoot = mkdtempSync(join(tmpdir(), "multi-cli-projects-live-project-"));
 
       yield* withLiveProjectCliServer(baseDir, () =>
         Effect.gen(function* () {
           yield* runCliWithRuntime([
             "project",
             "add",
-            workspaceRoot,
+            projectRoot,
             "--title",
             "Live Project",
             "--base-dir",
@@ -337,7 +337,7 @@ it.layer(NodeServices.layer)("cli log-level parsing", (it) => {
           const orchestrationEngine = yield* OrchestrationEngineService;
           const readModel = yield* orchestrationEngine.getReadModel();
           const addedProject = readModel.projects.find(
-            (project) => project.workspaceRoot === workspaceRoot && project.deletedAt === null,
+            (project) => project.projectRoot === projectRoot && project.deletedAt === null,
           );
           assert.isTrue(addedProject !== undefined);
           assert.equal(addedProject?.title, "Live Project");
@@ -346,19 +346,19 @@ it.layer(NodeServices.layer)("cli log-level parsing", (it) => {
     }),
   );
 
-  it.effect("relocates a project by stale workspace root when the old path is missing", () =>
+  it.effect("relocates a project by stale project root when the old path is missing", () =>
     Effect.gen(function* () {
       const baseDir = mkdtempSync(join(tmpdir(), "multi-cli-projects-stale-root-test-"));
-      const workspaceRoot = mkdtempSync(join(tmpdir(), "multi-cli-projects-stale-root-old-"));
-      const relocatedWorkspaceRoot = mkdtempSync(
+      const projectRoot = mkdtempSync(join(tmpdir(), "multi-cli-projects-stale-root-old-"));
+      const relocatedProjectRoot = mkdtempSync(
         join(tmpdir(), "multi-cli-projects-stale-root-new-"),
       );
-      const missingWorkspaceRoot = join(baseDir, "missing-workspace-root");
+      const missingProjectRoot = join(baseDir, "missing-project-root");
 
       yield* runCliWithRuntime([
         "project",
         "add",
-        workspaceRoot,
+        projectRoot,
         "--title",
         "Stale Root",
         "--base-dir",
@@ -366,7 +366,7 @@ it.layer(NodeServices.layer)("cli log-level parsing", (it) => {
       ]);
       const afterAdd = yield* readPersistedSnapshot(baseDir);
       const addedProject = afterAdd.projects.find(
-        (project) => project.workspaceRoot === workspaceRoot && project.deletedAt === null,
+        (project) => project.projectRoot === projectRoot && project.deletedAt === null,
       );
       assert.isTrue(addedProject !== undefined);
 
@@ -375,7 +375,7 @@ it.layer(NodeServices.layer)("cli log-level parsing", (it) => {
         const sql = yield* SqlClient.SqlClient;
         yield* sql`
           UPDATE projection_projects
-          SET workspace_root = ${missingWorkspaceRoot}
+          SET project_root = ${missingProjectRoot}
           WHERE project_id = ${addedProject?.id ?? ""}
         `;
       }).pipe(Effect.provide(makeProjectPersistenceLayer(config)));
@@ -383,8 +383,8 @@ it.layer(NodeServices.layer)("cli log-level parsing", (it) => {
       yield* runCliWithRuntime([
         "project",
         "relocate",
-        missingWorkspaceRoot,
-        relocatedWorkspaceRoot,
+        missingProjectRoot,
+        relocatedProjectRoot,
         "--base-dir",
         baseDir,
       ]);
@@ -393,20 +393,20 @@ it.layer(NodeServices.layer)("cli log-level parsing", (it) => {
       const relocatedProject = afterRelocate.projects.find(
         (project) => project.id === addedProject?.id,
       );
-      assert.equal(relocatedProject?.workspaceRoot, relocatedWorkspaceRoot);
+      assert.equal(relocatedProject?.projectRoot, relocatedProjectRoot);
     }),
   );
 
   it.effect("targets dev state when project commands receive dev-url", () =>
     Effect.gen(function* () {
-      const workspaceRoot = mkdtempSync(join(tmpdir(), "multi-cli-projects-dev-url-workspace-"));
+      const projectRoot = mkdtempSync(join(tmpdir(), "multi-cli-projects-dev-url-project-"));
       const baseDir = mkdtempSync(join(tmpdir(), "multi-cli-projects-dev-url-test-"));
       const devUrl = new URL("http://127.0.0.1:5173");
 
       yield* runCliWithRuntime([
         "project",
         "add",
-        workspaceRoot,
+        projectRoot,
         "--title",
         "Dev Project",
         "--base-dir",
@@ -420,14 +420,14 @@ it.layer(NodeServices.layer)("cli log-level parsing", (it) => {
       assert.equal(
         devSnapshot.projects.some(
           (project) =>
-            project.workspaceRoot === workspaceRoot &&
+            project.projectRoot === projectRoot &&
             project.title === "Dev Project" &&
             project.deletedAt === null,
         ),
         true,
       );
       assert.equal(
-        userdataSnapshot.projects.some((project) => project.workspaceRoot === workspaceRoot),
+        userdataSnapshot.projects.some((project) => project.projectRoot === projectRoot),
         false,
       );
     }),

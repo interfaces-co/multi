@@ -217,7 +217,7 @@ export const ComposerCommandMenu = memo(function ComposerCommandMenu(props: {
                 </CommandGroupLabel>
                 <p className="text-[12px]/[18px] text-multi-fg-tertiary">
                   {props.isLoading
-                    ? "Searching workspace skills..."
+                    ? "Searching project skills..."
                     : (props.emptyStateText ??
                       "No skills found. Try / to browse provider commands.")}
                 </p>
@@ -225,7 +225,7 @@ export const ComposerCommandMenu = memo(function ComposerCommandMenu(props: {
             ) : (
               <p className="text-[12px]/[18px] text-multi-fg-tertiary">
                 {props.isLoading
-                  ? "Searching workspace files..."
+                  ? "Searching project files..."
                   : (props.emptyStateText ??
                     (props.triggerKind === "path"
                       ? "No matching files or folders."

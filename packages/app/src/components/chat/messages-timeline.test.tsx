@@ -134,7 +134,7 @@ function buildProps() {
     activeThreadEnvironmentId: ACTIVE_THREAD_ENVIRONMENT_ID,
     markdownCwd: undefined,
     resolvedTheme: "light" as const,
-    workspaceRoot: undefined,
+    projectRoot: undefined,
     onIsAtEndChange: () => {},
   };
 }
@@ -200,7 +200,7 @@ describe("messages-timeline", () => {
     expect(markup).toContain("Ran tool");
   });
 
-  it("formats changed file paths from the workspace root", async () => {
+  it("formats changed file paths from the project root", async () => {
     const { MessagesTimeline } = await import("./messages-timeline");
     const markup = renderToStaticMarkup(
       <MessagesTimeline
@@ -219,7 +219,7 @@ describe("messages-timeline", () => {
             },
           },
         ]}
-        workspaceRoot="C:/Users/mike/dev-stuff/multi"
+        projectRoot="C:/Users/mike/dev-stuff/multi"
       />,
     );
 

@@ -22,7 +22,7 @@ layer("016_CanonicalizeModelSelections", (it) => {
         INSERT INTO projection_projects (
           project_id,
           title,
-          workspace_root,
+          project_root,
           default_model,
           scripts_json,
           created_at,
@@ -111,7 +111,7 @@ layer("016_CanonicalizeModelSelections", (it) => {
           NULL,
           'correlation-project-created',
           'user',
-          '{"projectId":"project-1","title":"Project","workspaceRoot":"/tmp/project","defaultModel":"claude-opus-4-6","defaultModelOptions":{"codex":{"reasoningEffort":"high"},"claudeAgent":{"effort":"max"}},"scripts":[],"createdAt":"2026-01-01T00:00:00.000Z","updatedAt":"2026-01-01T00:00:00.000Z"}',
+          '{"projectId":"project-1","title":"Project","projectRoot":"/tmp/project","defaultModel":"claude-opus-4-6","defaultModelOptions":{"codex":{"reasoningEffort":"high"},"claudeAgent":{"effort":"max"}},"scripts":[],"createdAt":"2026-01-01T00:00:00.000Z","updatedAt":"2026-01-01T00:00:00.000Z"}',
           '{}'
         ),
         (
@@ -125,7 +125,7 @@ layer("016_CanonicalizeModelSelections", (it) => {
           NULL,
           'correlation-project-created-fallback',
           'user',
-          '{"projectId":"project-2","title":"Fallback Project","workspaceRoot":"/tmp/project-2","defaultModel":"claude-opus-4-6","defaultModelOptions":{"codex":{"reasoningEffort":"low"}},"scripts":[],"createdAt":"2026-01-01T00:00:00.000Z","updatedAt":"2026-01-01T00:00:00.000Z"}',
+          '{"projectId":"project-2","title":"Fallback Project","projectRoot":"/tmp/project-2","defaultModel":"claude-opus-4-6","defaultModelOptions":{"codex":{"reasoningEffort":"low"}},"scripts":[],"createdAt":"2026-01-01T00:00:00.000Z","updatedAt":"2026-01-01T00:00:00.000Z"}',
           '{}'
         ),
         (
@@ -139,7 +139,7 @@ layer("016_CanonicalizeModelSelections", (it) => {
           NULL,
           'correlation-project-created-null-model',
           'user',
-          '{"projectId":"project-3","title":"Null Model Project","workspaceRoot":"/tmp/project-3","defaultModel":null,"scripts":[],"createdAt":"2026-01-01T00:00:00.000Z","updatedAt":"2026-01-01T00:00:00.000Z"}',
+          '{"projectId":"project-3","title":"Null Model Project","projectRoot":"/tmp/project-3","defaultModel":null,"scripts":[],"createdAt":"2026-01-01T00:00:00.000Z","updatedAt":"2026-01-01T00:00:00.000Z"}',
           '{}'
         ),
         (
@@ -268,7 +268,7 @@ layer("016_CanonicalizeModelSelections", (it) => {
           assert.deepStrictEqual(JSON.parse(eventRows[0]!.payloadJson), {
             projectId: "project-1",
             title: "Project",
-            workspaceRoot: "/tmp/project",
+            projectRoot: "/tmp/project",
             defaultModelSelection: {
               instanceId: "claudeAgent",
               model: "claude-opus-4-6",
@@ -284,7 +284,7 @@ layer("016_CanonicalizeModelSelections", (it) => {
           assert.deepStrictEqual(JSON.parse(eventRows[1]!.payloadJson), {
             projectId: "project-2",
             title: "Fallback Project",
-            workspaceRoot: "/tmp/project-2",
+            projectRoot: "/tmp/project-2",
             defaultModelSelection: {
               instanceId: "claudeAgent",
               model: "claude-opus-4-6",
@@ -300,7 +300,7 @@ layer("016_CanonicalizeModelSelections", (it) => {
           assert.deepStrictEqual(JSON.parse(eventRows[2]!.payloadJson), {
             projectId: "project-3",
             title: "Null Model Project",
-            workspaceRoot: "/tmp/project-3",
+            projectRoot: "/tmp/project-3",
             defaultModelSelection: null,
             scripts: [],
             createdAt: "2026-01-01T00:00:00.000Z",

@@ -27,7 +27,7 @@ import {
 
 export interface TestTurnResponse {
   readonly events: ReadonlyArray<FixtureProviderRuntimeEvent>;
-  readonly mutateWorkspace?: (input: {
+  readonly mutateProject?: (input: {
     readonly cwd: string;
     readonly turnCount: number;
   }) => Effect.Effect<void, never>;
@@ -338,8 +338,8 @@ export const makeTestProviderAdapterHarness = (options?: MakeTestProviderAdapter
           yield* emit(runtimeEvent);
         }
 
-        if (response.mutateWorkspace && state.session.cwd) {
-          yield* response.mutateWorkspace({ cwd: state.session.cwd!, turnCount });
+        if (response.mutateProject && state.session.cwd) {
+          yield* response.mutateProject({ cwd: state.session.cwd!, turnCount });
         }
 
         const userItem = {

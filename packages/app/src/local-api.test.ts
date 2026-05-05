@@ -249,14 +249,14 @@ const baseServerConfig: ServerConfig = {
     sessionMethods: ["browser-session-cookie", "bearer-session-token"],
     sessionCookieName: "t3_session",
   },
-  cwd: "/tmp/workspace",
-  keybindingsConfigPath: "/tmp/workspace/.config/keybindings.json",
+  cwd: "/tmp/project",
+  keybindingsConfigPath: "/tmp/project/.config/keybindings.json",
   keybindings: [],
   issues: [],
   providers: defaultProviders,
   availableEditors: ["cursor"],
   observability: {
-    logsDirectoryPath: "/tmp/workspace/.config/logs",
+    logsDirectoryPath: "/tmp/project/.config/logs",
     localTracingEnabled: true,
     otlpTracesEnabled: false,
     otlpMetricsEnabled: false,
@@ -334,7 +334,7 @@ describe("wsApi", () => {
       project: {
         id: ProjectId.make("project-1"),
         title: "Project",
-        workspaceRoot: "/tmp/workspace",
+        projectRoot: "/tmp/project",
         defaultModelSelection: {
           instanceId: "codex",
           model: "gpt-5-codex",
@@ -400,7 +400,7 @@ describe("wsApi", () => {
       commandId: CommandId.make("cmd-1"),
       projectId: ProjectId.make("project-1"),
       title: "Project",
-      workspaceRoot: "/tmp/project",
+      projectRoot: "/tmp/project",
       defaultModelSelection: {
         instanceId: "codex",
         model: "gpt-5-codex",
@@ -412,7 +412,7 @@ describe("wsApi", () => {
     expect(rpcClientMock.orchestration.dispatchCommand).toHaveBeenCalledWith(command);
   });
 
-  it("forwards workspace file writes to the project RPC", async () => {
+  it("forwards project file writes to the project RPC", async () => {
     rpcClientMock.projects.writeFile.mockResolvedValue({ relativePath: "plan.md" });
     const { createEnvironmentApi } = await import("./environment-api");
 
@@ -518,10 +518,10 @@ describe("wsApi", () => {
     const { createLocalApi } = await import("./local-api");
     const api = createLocalApi(rpcClientMock as never);
 
-    await expect(api.dialogs.pickFolder({ initialPath: "/tmp/workspace" })).resolves.toBe(
+    await expect(api.dialogs.pickFolder({ initialPath: "/tmp/project" })).resolves.toBe(
       "/tmp/project",
     );
-    expect(pickFolder).toHaveBeenCalledWith({ initialPath: "/tmp/workspace" });
+    expect(pickFolder).toHaveBeenCalledWith({ initialPath: "/tmp/project" });
   });
 
   it("falls back to the browser context menu helper when the desktop bridge is missing", async () => {

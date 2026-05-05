@@ -385,7 +385,7 @@ export function useEnvironmentGitPanel(
 
   const init = useCallback(async () => {
     if (!cwd) {
-      throw new Error("No workspace");
+      throw new Error("No project");
     }
 
     const api = readNativeGitApi(environmentId);
@@ -400,7 +400,7 @@ export function useEnvironmentGitPanel(
   const discard = useCallback(
     async (pathsToDiscard: string[]) => {
       if (!cwd) {
-        throw new Error("No workspace");
+        throw new Error("No project");
       }
 
       if (pathsToDiscard.length === 0) {

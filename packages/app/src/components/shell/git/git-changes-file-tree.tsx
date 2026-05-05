@@ -166,7 +166,7 @@ export function GitChangesFileTree(props: {
   return (
     <section
       className={cn(
-        "git-changes-file-tree workspace-file-tree flex min-h-0 min-h-36 shrink-0 flex-col overflow-hidden bg-multi-bg-quinary text-multi-fg-primary",
+        "git-changes-file-tree project-file-tree flex min-h-0 min-h-36 shrink-0 flex-col overflow-hidden bg-multi-bg-quinary text-multi-fg-primary",
         props.className,
       )}
     >

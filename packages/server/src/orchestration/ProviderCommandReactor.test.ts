@@ -34,7 +34,7 @@ import { TextGeneration, type TextGenerationShape } from "../git/TextGeneration.
 import { RepositoryIdentityResolverLive } from "../project/RepositoryIdentityResolver.ts";
 import { OrchestrationEngineLive } from "./OrchestrationEngine.ts";
 import { OrchestrationProjectionPipelineLive } from "./ProjectionPipeline.ts";
-import { OrchestrationProjectionSnapshotQueryLive } from "./ProjectionSnapshotQuery.ts";
+import { ThreadProjectionLive } from "./ThreadProjection.ts";
 import { ProviderCommandReactorLive } from "./ProviderCommandReactor.ts";
 import { OrchestrationEngineService } from "./OrchestrationEngine.service.ts";
 import { ProviderCommandReactor } from "./ProviderCommandReactor.service.ts";
@@ -98,18 +98,18 @@ describe("ProviderCommandReactor", () => {
 
   async function createHarness(input?: {
     readonly baseDir?: string;
-    readonly projectWorkspaceRoot?: string;
+    readonly projectProjectRoot?: string;
     readonly threadModelSelection?: ModelSelection;
     readonly sessionModelSwitch?: "unsupported" | "in-session";
   }) {
     const now = new Date().toISOString();
     const baseDir = input?.baseDir ?? fs.mkdtempSync(path.join(os.tmpdir(), "multi-reactor-"));
     createdBaseDirs.add(baseDir);
-    const projectWorkspaceRoot =
-      input?.projectWorkspaceRoot ??
+    const projectProjectRoot =
+      input?.projectProjectRoot ??
       fs.mkdtempSync(path.join(os.tmpdir(), "multi-reactor-project-"));
-    if (input?.projectWorkspaceRoot === undefined) {
-      createdBaseDirs.add(projectWorkspaceRoot);
+    if (input?.projectProjectRoot === undefined) {
+      createdBaseDirs.add(projectProjectRoot);
     }
     const { stateDir } = deriveServerPathsSync(baseDir, undefined);
     createdStateDirs.add(stateDir);
@@ -249,7 +249,7 @@ describe("ProviderCommandReactor", () => {
     };
 
     const orchestrationLayer = OrchestrationEngineLive.pipe(
-      Layer.provide(OrchestrationProjectionSnapshotQueryLive),
+      Layer.provide(ThreadProjectionLive),
       Layer.provide(OrchestrationProjectionPipelineLive),
       Layer.provide(OrchestrationEventStoreLive),
       Layer.provide(OrchestrationCommandReceiptRepositoryLive),
@@ -293,7 +293,7 @@ describe("ProviderCommandReactor", () => {
         commandId: CommandId.make("cmd-project-create"),
         projectId: asProjectId("project-1"),
         title: "Provider Project",
-        workspaceRoot: projectWorkspaceRoot,
+        projectRoot: projectProjectRoot,
         defaultModelSelection: modelSelection,
         createdAt: now,
       }),
@@ -326,7 +326,7 @@ describe("ProviderCommandReactor", () => {
       refreshStatus,
       generateBranchName,
       generateThreadTitle,
-      projectWorkspaceRoot,
+      projectProjectRoot,
       stateDir,
       drain,
     };
@@ -357,7 +357,7 @@ describe("ProviderCommandReactor", () => {
     await waitFor(() => harness.sendTurn.mock.calls.length === 1);
     expect(harness.startSession.mock.calls[0]?.[0]).toEqual(ThreadId.make("thread-1"));
     expect(harness.startSession.mock.calls[0]?.[1]).toMatchObject({
-      cwd: harness.projectWorkspaceRoot,
+      cwd: harness.projectProjectRoot,
       modelSelection: {
         instanceId: "codex",
         model: "gpt-5-codex",
@@ -371,13 +371,13 @@ describe("ProviderCommandReactor", () => {
     expect(thread?.session?.runtimeMode).toBe("approval-required");
   });
 
-  it("falls back to an accessible server cwd when the project workspace root is stale", async () => {
-    const missingWorkspaceRoot = path.join(
+  it("falls back to an accessible server cwd when the project project root is stale", async () => {
+    const missingProjectRoot = path.join(
       os.tmpdir(),
       `multi-reactor-missing-${crypto.randomUUID()}`,
     );
-    fs.rmSync(missingWorkspaceRoot, { recursive: true, force: true });
-    const harness = await createHarness({ projectWorkspaceRoot: missingWorkspaceRoot });
+    fs.rmSync(missingProjectRoot, { recursive: true, force: true });
+    const harness = await createHarness({ projectProjectRoot: missingProjectRoot });
     const now = new Date().toISOString();
 
     await Effect.runPromise(
@@ -918,7 +918,7 @@ describe("ProviderCommandReactor", () => {
     expect(harness.stopSession.mock.calls.length).toBe(0);
   });
 
-  it("restarts the provider session when the thread workspace changes", async () => {
+  it("restarts the provider session when the thread project changes", async () => {
     const harness = await createHarness({
       threadModelSelection: {
         instanceId: "claudeAgent",
@@ -930,10 +930,10 @@ describe("ProviderCommandReactor", () => {
     await Effect.runPromise(
       harness.engine.dispatch({
         type: "thread.turn.start",
-        commandId: CommandId.make("cmd-turn-start-workspace-1"),
+        commandId: CommandId.make("cmd-turn-start-project-1"),
         threadId: ThreadId.make("thread-1"),
         message: {
-          messageId: asMessageId("user-message-workspace-1"),
+          messageId: asMessageId("user-message-project-1"),
           role: "user",
           text: "first in project root",
           attachments: [],
@@ -947,7 +947,7 @@ describe("ProviderCommandReactor", () => {
     await waitFor(() => harness.startSession.mock.calls.length === 1);
     await waitFor(() => harness.sendTurn.mock.calls.length === 1);
     expect(harness.startSession.mock.calls[0]?.[1]).toMatchObject({
-      cwd: harness.projectWorkspaceRoot,
+      cwd: harness.projectProjectRoot,
     });
 
     const worktreePath = fs.mkdtempSync(path.join(os.tmpdir(), "multi-reactor-worktree-"));
@@ -964,10 +964,10 @@ describe("ProviderCommandReactor", () => {
     await Effect.runPromise(
       harness.engine.dispatch({
         type: "thread.turn.start",
-        commandId: CommandId.make("cmd-turn-start-workspace-2"),
+        commandId: CommandId.make("cmd-turn-start-project-2"),
         threadId: ThreadId.make("thread-1"),
         message: {
-          messageId: asMessageId("user-message-workspace-2"),
+          messageId: asMessageId("user-message-project-2"),
           role: "user",
           text: "second in worktree",
           attachments: [],
@@ -1488,7 +1488,7 @@ describe("ProviderCommandReactor", () => {
         threadId: ThreadId.make("thread-1"),
         requestId: asApprovalRequestId("user-input-request-1"),
         answers: {
-          sandbox_mode: "workspace-write",
+          sandbox_mode: "project-write",
         },
         createdAt: now,
       }),
@@ -1499,7 +1499,7 @@ describe("ProviderCommandReactor", () => {
       threadId: "thread-1",
       requestId: "user-input-request-1",
       answers: {
-        sandbox_mode: "workspace-write",
+        sandbox_mode: "project-write",
       },
     });
   });
@@ -1649,8 +1649,8 @@ describe("ProviderCommandReactor", () => {
                 question: "Which mode should be used?",
                 options: [
                   {
-                    label: "workspace-write",
-                    description: "Allow workspace writes only",
+                    label: "project-write",
+                    description: "Allow project writes only",
                   },
                 ],
               },
@@ -1670,7 +1670,7 @@ describe("ProviderCommandReactor", () => {
         threadId: ThreadId.make("thread-1"),
         requestId: asApprovalRequestId("user-input-request-1"),
         answers: {
-          sandbox_mode: "workspace-write",
+          sandbox_mode: "project-write",
         },
         createdAt: now,
       }),

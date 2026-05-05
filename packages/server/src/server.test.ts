@@ -71,9 +71,9 @@ import {
 } from "./orchestration/OrchestrationEngine.service.ts";
 import { OrchestrationListenerCallbackError } from "./orchestration/Errors.ts";
 import {
-  ProjectionSnapshotQuery,
-  type ProjectionSnapshotQueryShape,
-} from "./orchestration/ProjectionSnapshotQuery.service.ts";
+  ThreadProjection,
+  type ThreadProjectionShape,
+} from "./orchestration/ThreadProjection.service.ts";
 import { SqlitePersistenceMemory } from "./persistence/Sqlite.ts";
 import {
   ProviderRegistry,
@@ -103,9 +103,9 @@ import {
   ServerEnvironment,
   type ServerEnvironmentShape,
 } from "./environment/ServerEnvironment.service.ts";
-import { WorkspaceEntriesLive } from "./workspace/WorkspaceEntries.ts";
-import { WorkspaceFileSystemLive } from "./workspace/WorkspaceFileSystem.ts";
-import { WorkspacePathsLive } from "./workspace/WorkspacePaths.ts";
+import { ProjectEntriesLive } from "./project/ProjectEntries.ts";
+import { ProjectFileSystemLive } from "./project/ProjectFileSystem.ts";
+import { ProjectPathsLive } from "./project/ProjectPaths.ts";
 import { ServerSecretStoreLive } from "./auth/ServerSecretStore.ts";
 import { ServerAuthLive } from "./auth/ServerAuth.ts";
 
@@ -137,7 +137,7 @@ const makeDefaultOrchestrationReadModel = (): OrchestrationReadModel => {
       {
         id: defaultProjectId,
         title: "Default Project",
-        workspaceRoot: "/tmp/default-project",
+        projectRoot: "/tmp/default-project",
         defaultModelSelection,
         scripts: [],
         createdAt: now,
@@ -170,12 +170,12 @@ const makeDefaultOrchestrationReadModel = (): OrchestrationReadModel => {
   } as const satisfies OrchestrationReadModel;
 };
 
-const workspaceAndProjectServicesLayer = Layer.mergeAll(
-  WorkspacePathsLive,
-  WorkspaceEntriesLive.pipe(Layer.provide(WorkspacePathsLive)),
-  WorkspaceFileSystemLive.pipe(
-    Layer.provide(WorkspacePathsLive),
-    Layer.provide(WorkspaceEntriesLive.pipe(Layer.provide(WorkspacePathsLive))),
+const projectAndProjectServicesLayer = Layer.mergeAll(
+  ProjectPathsLive,
+  ProjectEntriesLive.pipe(Layer.provide(ProjectPathsLive)),
+  ProjectFileSystemLive.pipe(
+    Layer.provide(ProjectPathsLive),
+    Layer.provide(ProjectEntriesLive.pipe(Layer.provide(ProjectPathsLive))),
   ),
   ProjectFaviconResolverLive,
 );
@@ -305,7 +305,7 @@ const buildAppUnderTest = (options?: {
     projectSetupScriptRunner?: Partial<ProjectSetupScriptRunnerShape>;
     terminalManager?: Partial<TerminalManagerShape>;
     orchestrationEngine?: Partial<OrchestrationEngineShape>;
-    projectionSnapshotQuery?: Partial<ProjectionSnapshotQueryShape>;
+    threadProjection?: Partial<ThreadProjectionShape>;
     checkpointDiffQuery?: Partial<CheckpointDiffQueryShape>;
     browserTraceCollector?: Partial<BrowserTraceCollectorShape>;
     serverLifecycleEvents?: Partial<ServerLifecycleEventsShape>;
@@ -421,7 +421,7 @@ const buildAppUnderTest = (options?: {
         }),
       ),
       Layer.provide(
-        Layer.mock(ProjectionSnapshotQuery)({
+        Layer.mock(ThreadProjection)({
           getSnapshot: () => Effect.succeed(makeDefaultOrchestrationReadModel()),
           getShellSnapshot: () =>
             Effect.succeed({
@@ -434,10 +434,10 @@ const buildAppUnderTest = (options?: {
           getThreadShellById: () => Effect.succeed(Option.none()),
           getThreadDetailById: () => Effect.succeed(Option.none()),
           getCounts: () => Effect.succeed({ projectCount: 0, threadCount: 0 }),
-          getActiveProjectByWorkspaceRoot: () => Effect.succeed(Option.none()),
+          getActiveProjectByProjectRoot: () => Effect.succeed(Option.none()),
           getFirstActiveThreadIdByProjectId: () => Effect.succeed(Option.none()),
           getThreadCheckpointContext: () => Effect.succeed(Option.none()),
-          ...options?.layers?.projectionSnapshotQuery,
+          ...options?.layers?.threadProjection,
         }),
       ),
       Layer.provide(
@@ -498,7 +498,7 @@ const buildAppUnderTest = (options?: {
         }),
       ),
       Layer.provideMerge(authTestLayer),
-      Layer.provide(workspaceAndProjectServicesLayer),
+      Layer.provide(projectAndProjectServicesLayer),
       Layer.provideMerge(FetchHttpClient.layer),
       Layer.provide(layerConfig),
     );
@@ -1768,9 +1768,9 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const workspaceDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-ws-auth-required-" });
+      const projectDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-ws-auth-required-" });
       yield* fs.writeFileString(
-        path.join(workspaceDir, "needle-file.ts"),
+        path.join(projectDir, "needle-file.ts"),
         "export const needle = 1;",
       );
 
@@ -1780,7 +1780,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       const result = yield* Effect.scoped(
         withWsRpcClient(wsUrl, (client) =>
           client[WS_METHODS.projectsSearchEntries]({
-            cwd: workspaceDir,
+            cwd: projectDir,
             query: "needle",
             limit: 10,
           }),
@@ -1971,9 +1971,9 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const workspaceDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-ws-project-search-" });
+      const projectDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-ws-project-search-" });
       yield* fs.writeFileString(
-        path.join(workspaceDir, "needle-file.ts"),
+        path.join(projectDir, "needle-file.ts"),
         "export const needle = 1;",
       );
 
@@ -1983,7 +1983,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       const response = yield* Effect.scoped(
         withWsRpcClient(wsUrl, (client) =>
           client[WS_METHODS.projectsSearchEntries]({
-            cwd: workspaceDir,
+            cwd: projectDir,
             query: "needle",
             limit: 10,
           }),
@@ -2000,9 +2000,9 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const workspaceDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-ws-project-list-" });
-      yield* fs.makeDirectory(path.join(workspaceDir, "src"), { recursive: true });
-      yield* fs.writeFileString(path.join(workspaceDir, "src", "index.ts"), "export {};");
+      const projectDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-ws-project-list-" });
+      yield* fs.makeDirectory(path.join(projectDir, "src"), { recursive: true });
+      yield* fs.writeFileString(path.join(projectDir, "src", "index.ts"), "export {};");
 
       yield* buildAppUnderTest();
 
@@ -2010,7 +2010,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       const response = yield* Effect.scoped(
         withWsRpcClient(wsUrl, (client) =>
           client[WS_METHODS.projectsListEntries]({
-            cwd: workspaceDir,
+            cwd: projectDir,
           }),
         ),
       );
@@ -2028,7 +2028,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       const result = yield* Effect.scoped(
         withWsRpcClient(wsUrl, (client) =>
           client[WS_METHODS.projectsSearchEntries]({
-            cwd: "/definitely/not/a/real/workspace/path",
+            cwd: "/definitely/not/a/real/project/path",
             query: "needle",
             limit: 10,
           }),
@@ -2039,7 +2039,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       assertTrue(result.failure._tag === "ProjectSearchEntriesError");
       assertInclude(
         result.failure.message,
-        "Workspace root does not exist: /definitely/not/a/real/workspace/path",
+        "Project root does not exist: /definitely/not/a/real/project/path",
       );
     }).pipe(Effect.provide(NodeHttpServer.layerTest)),
   );
@@ -2048,9 +2048,9 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const workspaceDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-ws-project-read-" });
-      yield* fs.makeDirectory(path.join(workspaceDir, "src"), { recursive: true });
-      yield* fs.writeFileString(path.join(workspaceDir, "src", "index.ts"), "export {};\n");
+      const projectDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-ws-project-read-" });
+      yield* fs.makeDirectory(path.join(projectDir, "src"), { recursive: true });
+      yield* fs.writeFileString(path.join(projectDir, "src", "index.ts"), "export {};\n");
 
       yield* buildAppUnderTest();
 
@@ -2058,7 +2058,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       const response = yield* Effect.scoped(
         withWsRpcClient(wsUrl, (client) =>
           client[WS_METHODS.projectsReadFile]({
-            cwd: workspaceDir,
+            cwd: projectDir,
             relativePath: "src/index.ts",
           }),
         ),
@@ -2074,7 +2074,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const workspaceDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-ws-project-write-" });
+      const projectDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-ws-project-write-" });
 
       yield* buildAppUnderTest();
 
@@ -2082,7 +2082,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       const response = yield* Effect.scoped(
         withWsRpcClient(wsUrl, (client) =>
           client[WS_METHODS.projectsWriteFile]({
-            cwd: workspaceDir,
+            cwd: projectDir,
             relativePath: "nested/created.txt",
             contents: "written-by-rpc",
           }),
@@ -2090,17 +2090,17 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       );
 
       assert.equal(response.relativePath, "nested/created.txt");
-      const persisted = yield* fs.readFileString(path.join(workspaceDir, "nested", "created.txt"));
+      const persisted = yield* fs.readFileString(path.join(projectDir, "nested", "created.txt"));
       assert.equal(persisted, "written-by-rpc");
     }).pipe(Effect.provide(NodeHttpServer.layerTest)),
   );
 
-  it.effect("creates a missing workspace root during websocket project.create dispatch", () =>
+  it.effect("creates a missing project root during websocket project.create dispatch", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
       const parentDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-ws-project-create-" });
-      const missingWorkspaceRoot = path.join(parentDir, "nested", "new-project");
+      const missingProjectRoot = path.join(parentDir, "nested", "new-project");
 
       yield* buildAppUnderTest();
 
@@ -2112,8 +2112,8 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
             commandId: CommandId.make("cmd-project-create-missing-root"),
             projectId: ProjectId.make("project-create-missing-root"),
             title: "New Project",
-            workspaceRoot: missingWorkspaceRoot,
-            createWorkspaceRootIfMissing: true,
+            projectRoot: missingProjectRoot,
+            createProjectRootIfMissing: true,
             defaultModelSelection: {
               instanceId: "codex",
               model: "gpt-5-codex",
@@ -2122,7 +2122,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
           }),
         ),
       );
-      const stat = yield* fs.stat(missingWorkspaceRoot);
+      const stat = yield* fs.stat(missingProjectRoot);
 
       assert.isAtLeast(response.sequence, 0);
       assert.equal(stat.type, "Directory");
@@ -2132,7 +2132,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
   it.effect("routes websocket rpc projects.writeFile errors", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
-      const workspaceDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-ws-project-write-" });
+      const projectDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-ws-project-write-" });
 
       yield* buildAppUnderTest();
 
@@ -2140,7 +2140,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       const result = yield* Effect.scoped(
         withWsRpcClient(wsUrl, (client) =>
           client[WS_METHODS.projectsWriteFile]({
-            cwd: workspaceDir,
+            cwd: projectDir,
             relativePath: "../escape.txt",
             contents: "nope",
           }),
@@ -2151,7 +2151,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       assertTrue(result.failure._tag === "ProjectWriteFileError");
       assert.equal(
         result.failure.message,
-        "Workspace file path must stay within the project root.",
+        "Project file path must stay within the project root.",
       );
     }).pipe(Effect.provide(NodeHttpServer.layerTest)),
   );
@@ -2829,7 +2829,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
           {
             id: ProjectId.make("project-a"),
             title: "Project A",
-            workspaceRoot: "/tmp/project-a",
+            projectRoot: "/tmp/project-a",
             defaultModelSelection,
             scripts: [],
             createdAt: now,
@@ -2863,7 +2863,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
 
       yield* buildAppUnderTest({
         layers: {
-          projectionSnapshotQuery: {
+          threadProjection: {
             getSnapshot: () => Effect.succeed(snapshot),
           },
           orchestrationEngine: {
@@ -2964,7 +2964,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
 
       yield* buildAppUnderTest({
         layers: {
-          projectionSnapshotQuery: {
+          threadProjection: {
             getThreadDetailById: () => Effect.succeed(Option.none()),
           },
           orchestrationEngine: {
@@ -3021,7 +3021,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
                 payload: {
                   projectId: defaultProjectId,
                   title: "Default Project",
-                  workspaceRoot: "/tmp/default-project",
+                  projectRoot: "/tmp/default-project",
                   defaultModelSelection,
                   scripts: [],
                   createdAt: "2026-04-05T00:00:00.000Z",

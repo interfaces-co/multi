@@ -5,12 +5,12 @@ import {
   deriveLocalBranchNameFromRemoteRef,
   resolveEnvironmentOptionLabel,
   resolveBranchSelectionTarget,
-  resolveCurrentWorkspaceLabel,
+  resolveCurrentProjectLabel,
   resolveDraftEnvModeAfterBranchChange,
   resolveEffectiveEnvMode,
   resolveEnvModeLabel,
   resolveBranchToolbarValue,
-  resolveLockedWorkspaceLabel,
+  resolveLockedProjectLabel,
   shouldIncludeBranchPickerItem,
 } from "./branch-toolbar-logic";
 
@@ -142,31 +142,31 @@ describe("resolveEffectiveEnvMode", () => {
 });
 
 describe("resolveEnvModeLabel", () => {
-  it("uses explicit workspace labels", () => {
+  it("uses explicit project labels", () => {
     expect(resolveEnvModeLabel("local")).toBe("Current checkout");
     expect(resolveEnvModeLabel("worktree")).toBe("New worktree");
   });
 });
 
-describe("resolveCurrentWorkspaceLabel", () => {
+describe("resolveCurrentProjectLabel", () => {
   it("describes the main repo checkout when no worktree path is active", () => {
-    expect(resolveCurrentWorkspaceLabel(null)).toBe("Current checkout");
+    expect(resolveCurrentProjectLabel(null)).toBe("Current checkout");
   });
 
   it("describes the active checkout as a worktree when one is attached", () => {
-    expect(resolveCurrentWorkspaceLabel("/repo/.multi/worktrees/feature-a")).toBe(
+    expect(resolveCurrentProjectLabel("/repo/.multi/worktrees/feature-a")).toBe(
       "Current worktree",
     );
   });
 });
 
-describe("resolveLockedWorkspaceLabel", () => {
+describe("resolveLockedProjectLabel", () => {
   it("uses a shorter label for the main repo checkout", () => {
-    expect(resolveLockedWorkspaceLabel(null)).toBe("Local checkout");
+    expect(resolveLockedProjectLabel(null)).toBe("Local checkout");
   });
 
   it("uses a shorter label for an attached worktree", () => {
-    expect(resolveLockedWorkspaceLabel("/repo/.multi/worktrees/feature-a")).toBe("Worktree");
+    expect(resolveLockedProjectLabel("/repo/.multi/worktrees/feature-a")).toBe("Worktree");
   });
 });
 

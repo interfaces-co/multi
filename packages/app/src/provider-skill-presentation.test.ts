@@ -49,7 +49,7 @@ describe("formatProviderSkillInstallSource", () => {
     ).toBe("System");
     expect(
       formatProviderSkillInstallSource({
-        path: "/workspace/.codex/skills/review-follow-up/SKILL.md",
+        path: "/project/.codex/skills/review-follow-up/SKILL.md",
         scope: "project",
       }),
     ).toBe("Project");

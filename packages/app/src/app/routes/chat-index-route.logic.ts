@@ -59,7 +59,7 @@ function toSortableTimestamp(iso: string): number {
 export function resolveInitialChatTarget(input: {
   readonly activeEnvironmentId: EnvironmentId | null;
   readonly bootstrapComplete: boolean;
-  readonly storedWorkspaceCwd: string | null;
+  readonly storedProjectCwd: string | null;
   readonly projects: readonly InitialChatProject[];
   readonly threads: readonly InitialChatServerThread[];
   readonly drafts: readonly InitialChatDraftThread[];
@@ -117,11 +117,11 @@ export function resolveInitialChatTarget(input: {
     return null;
   }
 
-  const sameWorkspaceCandidates =
-    input.storedWorkspaceCwd === null
+  const sameProjectCandidates =
+    input.storedProjectCwd === null
       ? []
-      : allCandidates.filter((candidate) => candidate.cwd === input.storedWorkspaceCwd);
-  const candidates = sameWorkspaceCandidates.length > 0 ? sameWorkspaceCandidates : allCandidates;
+      : allCandidates.filter((candidate) => candidate.cwd === input.storedProjectCwd);
+  const candidates = sameProjectCandidates.length > 0 ? sameProjectCandidates : allCandidates;
 
   const [selected] = candidates.toSorted((left, right) => {
     const rightTimestamp = toSortableTimestamp(right.updatedAt);

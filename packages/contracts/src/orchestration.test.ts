@@ -91,7 +91,7 @@ it.effect("trims branded ids and command string fields at decode boundaries", ()
       commandId: " cmd-1 ",
       projectId: " project-1 ",
       title: " Project Title ",
-      workspaceRoot: " /tmp/workspace ",
+      projectRoot: " /tmp/project ",
       defaultModelSelection: {
         instanceId: "codex",
         model: " gpt-5.2 ",
@@ -101,8 +101,8 @@ it.effect("trims branded ids and command string fields at decode boundaries", ()
     assert.strictEqual(parsed.commandId, "cmd-1");
     assert.strictEqual(parsed.projectId, "project-1");
     assert.strictEqual(parsed.title, "Project Title");
-    assert.strictEqual(parsed.workspaceRoot, "/tmp/workspace");
-    assert.strictEqual(parsed.createWorkspaceRootIfMissing, undefined);
+    assert.strictEqual(parsed.projectRoot, "/tmp/project");
+    assert.strictEqual(parsed.createProjectRootIfMissing, undefined);
     assert.deepStrictEqual(parsed.defaultModelSelection, {
       instanceId: "codex",
       model: "gpt-5.2",
@@ -110,19 +110,19 @@ it.effect("trims branded ids and command string fields at decode boundaries", ()
   }),
 );
 
-it.effect("decodes project.create with createWorkspaceRootIfMissing enabled", () =>
+it.effect("decodes project.create with createProjectRootIfMissing enabled", () =>
   Effect.gen(function* () {
     const parsed = yield* decodeProjectCreateCommand({
       type: "project.create",
       commandId: "cmd-1",
       projectId: "project-1",
       title: "Project Title",
-      workspaceRoot: "/tmp/workspace",
-      createWorkspaceRootIfMissing: true,
+      projectRoot: "/tmp/project",
+      createProjectRootIfMissing: true,
       createdAt: "2026-01-01T00:00:00.000Z",
     });
 
-    assert.strictEqual(parsed.createWorkspaceRootIfMissing, true);
+    assert.strictEqual(parsed.createProjectRootIfMissing, true);
   }),
 );
 
@@ -131,7 +131,7 @@ it.effect("decodes historical project.created payloads with a default provider",
     const parsed = yield* decodeProjectCreatedPayload({
       projectId: "project-1",
       title: "Project Title",
-      workspaceRoot: "/tmp/workspace",
+      projectRoot: "/tmp/project",
       defaultModelSelection: {
         instanceId: "codex",
         model: "gpt-5.4",
@@ -166,7 +166,7 @@ it.effect("rejects command fields that become empty after trim", () =>
         commandId: "cmd-1",
         projectId: "project-1",
         title: "  ",
-        workspaceRoot: "/tmp/workspace",
+        projectRoot: "/tmp/project",
         createdAt: "2026-01-01T00:00:00.000Z",
       }),
     );
@@ -246,7 +246,7 @@ it.effect("accepts bootstrap metadata in thread.turn.start", () =>
           createdAt: "2026-01-01T00:00:00.000Z",
         },
         prepareWorktree: {
-          projectCwd: "/tmp/workspace",
+          projectCwd: "/tmp/project",
           baseBranch: "main",
           branch: "multi/example",
         },
@@ -421,7 +421,7 @@ it.effect("normalizes legacy object-shaped defaultModelSelection.options on deco
     const parsed = yield* decodeProjectCreatedPayload({
       projectId: "project-1",
       title: "Legacy default project",
-      workspaceRoot: "/tmp/legacy",
+      projectRoot: "/tmp/legacy",
       defaultModelSelection: {
         instanceId: "codex",
         model: "gpt-5.4",

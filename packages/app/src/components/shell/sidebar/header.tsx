@@ -38,12 +38,12 @@ export function ShellSidebarHeader(props: {
         <button
           type="button"
           onClick={props.onAddProject}
-          className="agent-window-open-workspace flex min-h-6 w-full min-w-0 items-center gap-1.5 rounded-multi-control px-2 py-1 text-left font-multi text-[12px]/[16px] font-normal text-muted-foreground/72 transition-colors hover:bg-multi-hover hover:text-foreground"
-          aria-label="Open workspace"
+          className="agent-window-open-project flex min-h-6 w-full min-w-0 items-center gap-1.5 rounded-multi-control px-2 py-1 text-left font-multi text-[12px]/[16px] font-normal text-muted-foreground/72 transition-colors hover:bg-multi-hover hover:text-foreground"
+          aria-label="Open project"
           data-testid="sidebar-add-project-trigger"
         >
           <IconPlusLarge className="size-3 shrink-0 opacity-65" />
-          <span className="min-w-0 flex-1 truncate">Open Workspace</span>
+          <span className="min-w-0 flex-1 truncate">Open Project</span>
         </button>
       ) : null}
     </div>

@@ -14,89 +14,89 @@ it.layer(NodeServices.layer)("resolveEditorLaunch", (it) => {
   it.effect("returns commands for command-based editors", () =>
     Effect.gen(function* () {
       const antigravityLaunch = yield* resolveEditorLaunch(
-        { cwd: "/tmp/workspace", editor: "antigravity" },
+        { cwd: "/tmp/project", editor: "antigravity" },
         "darwin",
         { PATH: "" },
       );
       assert.deepEqual(antigravityLaunch, {
         command: "agy",
-        args: ["/tmp/workspace"],
+        args: ["/tmp/project"],
       });
 
       const cursorLaunch = yield* resolveEditorLaunch(
-        { cwd: "/tmp/workspace", editor: "cursor" },
+        { cwd: "/tmp/project", editor: "cursor" },
         "darwin",
         { PATH: "" },
       );
       assert.deepEqual(cursorLaunch, {
         command: "cursor",
-        args: ["/tmp/workspace"],
+        args: ["/tmp/project"],
       });
 
       const traeLaunch = yield* resolveEditorLaunch(
-        { cwd: "/tmp/workspace", editor: "trae" },
+        { cwd: "/tmp/project", editor: "trae" },
         "darwin",
       );
       assert.deepEqual(traeLaunch, {
         command: "trae",
-        args: ["/tmp/workspace"],
+        args: ["/tmp/project"],
       });
 
       const kiroLaunch = yield* resolveEditorLaunch(
-        { cwd: "/tmp/workspace", editor: "kiro" },
+        { cwd: "/tmp/project", editor: "kiro" },
         "darwin",
         { PATH: "" },
       );
       assert.deepEqual(kiroLaunch, {
         command: "kiro",
-        args: ["ide", "/tmp/workspace"],
+        args: ["ide", "/tmp/project"],
       });
 
       const vscodeLaunch = yield* resolveEditorLaunch(
-        { cwd: "/tmp/workspace", editor: "vscode" },
+        { cwd: "/tmp/project", editor: "vscode" },
         "darwin",
         { PATH: "" },
       );
       assert.deepEqual(vscodeLaunch, {
         command: "code",
-        args: ["/tmp/workspace"],
+        args: ["/tmp/project"],
       });
 
       const vscodeInsidersLaunch = yield* resolveEditorLaunch(
-        { cwd: "/tmp/workspace", editor: "vscode-insiders" },
+        { cwd: "/tmp/project", editor: "vscode-insiders" },
         "darwin",
       );
       assert.deepEqual(vscodeInsidersLaunch, {
         command: "code-insiders",
-        args: ["/tmp/workspace"],
+        args: ["/tmp/project"],
       });
 
       const vscodiumLaunch = yield* resolveEditorLaunch(
-        { cwd: "/tmp/workspace", editor: "vscodium" },
+        { cwd: "/tmp/project", editor: "vscodium" },
         "darwin",
       );
       assert.deepEqual(vscodiumLaunch, {
         command: "codium",
-        args: ["/tmp/workspace"],
+        args: ["/tmp/project"],
       });
 
       const zedLaunch = yield* resolveEditorLaunch(
-        { cwd: "/tmp/workspace", editor: "zed" },
+        { cwd: "/tmp/project", editor: "zed" },
         "darwin",
         { PATH: "" },
       );
       assert.deepEqual(zedLaunch, {
         command: "zed",
-        args: ["/tmp/workspace"],
+        args: ["/tmp/project"],
       });
 
       const ideaLaunch = yield* resolveEditorLaunch(
-        { cwd: "/tmp/workspace", editor: "idea" },
+        { cwd: "/tmp/project", editor: "idea" },
         "darwin",
       );
       assert.deepEqual(ideaLaunch, {
         command: "idea",
-        args: ["/tmp/workspace"],
+        args: ["/tmp/project"],
       });
     }),
   );
@@ -104,108 +104,108 @@ it.layer(NodeServices.layer)("resolveEditorLaunch", (it) => {
   it.effect("applies launch-style-specific navigation arguments", () =>
     Effect.gen(function* () {
       const lineOnly = yield* resolveEditorLaunch(
-        { cwd: "/tmp/workspace/AGENTS.md:48", editor: "cursor" },
+        { cwd: "/tmp/project/AGENTS.md:48", editor: "cursor" },
         "darwin",
         { PATH: "" },
       );
       assert.deepEqual(lineOnly, {
         command: "cursor",
-        args: ["--goto", "/tmp/workspace/AGENTS.md:48"],
+        args: ["--goto", "/tmp/project/AGENTS.md:48"],
       });
 
       const lineAndColumn = yield* resolveEditorLaunch(
-        { cwd: "/tmp/workspace/src/open.ts:71:5", editor: "cursor" },
+        { cwd: "/tmp/project/src/open.ts:71:5", editor: "cursor" },
         "darwin",
         { PATH: "" },
       );
       assert.deepEqual(lineAndColumn, {
         command: "cursor",
-        args: ["--goto", "/tmp/workspace/src/open.ts:71:5"],
+        args: ["--goto", "/tmp/project/src/open.ts:71:5"],
       });
 
       const traeLineAndColumn = yield* resolveEditorLaunch(
-        { cwd: "/tmp/workspace/src/open.ts:71:5", editor: "trae" },
+        { cwd: "/tmp/project/src/open.ts:71:5", editor: "trae" },
         "darwin",
       );
       assert.deepEqual(traeLineAndColumn, {
         command: "trae",
-        args: ["--goto", "/tmp/workspace/src/open.ts:71:5"],
+        args: ["--goto", "/tmp/project/src/open.ts:71:5"],
       });
 
       const kiroLineAndColumn = yield* resolveEditorLaunch(
-        { cwd: "/tmp/workspace/src/open.ts:71:5", editor: "kiro" },
+        { cwd: "/tmp/project/src/open.ts:71:5", editor: "kiro" },
         "darwin",
         { PATH: "" },
       );
       assert.deepEqual(kiroLineAndColumn, {
         command: "kiro",
-        args: ["ide", "--goto", "/tmp/workspace/src/open.ts:71:5"],
+        args: ["ide", "--goto", "/tmp/project/src/open.ts:71:5"],
       });
 
       const vscodeLineAndColumn = yield* resolveEditorLaunch(
-        { cwd: "/tmp/workspace/src/open.ts:71:5", editor: "vscode" },
+        { cwd: "/tmp/project/src/open.ts:71:5", editor: "vscode" },
         "darwin",
         { PATH: "" },
       );
       assert.deepEqual(vscodeLineAndColumn, {
         command: "code",
-        args: ["--goto", "/tmp/workspace/src/open.ts:71:5"],
+        args: ["--goto", "/tmp/project/src/open.ts:71:5"],
       });
 
       const vscodeInsidersLineAndColumn = yield* resolveEditorLaunch(
-        { cwd: "/tmp/workspace/src/open.ts:71:5", editor: "vscode-insiders" },
+        { cwd: "/tmp/project/src/open.ts:71:5", editor: "vscode-insiders" },
         "darwin",
       );
       assert.deepEqual(vscodeInsidersLineAndColumn, {
         command: "code-insiders",
-        args: ["--goto", "/tmp/workspace/src/open.ts:71:5"],
+        args: ["--goto", "/tmp/project/src/open.ts:71:5"],
       });
 
       const vscodiumLineAndColumn = yield* resolveEditorLaunch(
-        { cwd: "/tmp/workspace/src/open.ts:71:5", editor: "vscodium" },
+        { cwd: "/tmp/project/src/open.ts:71:5", editor: "vscodium" },
         "darwin",
       );
       assert.deepEqual(vscodiumLineAndColumn, {
         command: "codium",
-        args: ["--goto", "/tmp/workspace/src/open.ts:71:5"],
+        args: ["--goto", "/tmp/project/src/open.ts:71:5"],
       });
 
       const zedLineAndColumn = yield* resolveEditorLaunch(
-        { cwd: "/tmp/workspace/src/open.ts:71:5", editor: "zed" },
+        { cwd: "/tmp/project/src/open.ts:71:5", editor: "zed" },
         "darwin",
         { PATH: "" },
       );
       assert.deepEqual(zedLineAndColumn, {
         command: "zed",
-        args: ["/tmp/workspace/src/open.ts:71:5"],
+        args: ["/tmp/project/src/open.ts:71:5"],
       });
 
       const zedLineOnly = yield* resolveEditorLaunch(
-        { cwd: "/tmp/workspace/AGENTS.md:48", editor: "zed" },
+        { cwd: "/tmp/project/AGENTS.md:48", editor: "zed" },
         "darwin",
         { PATH: "" },
       );
       assert.deepEqual(zedLineOnly, {
         command: "zed",
-        args: ["/tmp/workspace/AGENTS.md:48"],
+        args: ["/tmp/project/AGENTS.md:48"],
       });
 
       const ideaLineOnly = yield* resolveEditorLaunch(
-        { cwd: "/tmp/workspace/AGENTS.md:48", editor: "idea" },
+        { cwd: "/tmp/project/AGENTS.md:48", editor: "idea" },
         "darwin",
       );
       assert.deepEqual(ideaLineOnly, {
         command: "idea",
-        args: ["--line", "48", "/tmp/workspace/AGENTS.md"],
+        args: ["--line", "48", "/tmp/project/AGENTS.md"],
       });
 
       const ideaLineAndColumn = yield* resolveEditorLaunch(
-        { cwd: "/tmp/workspace/src/open.ts:71:5", editor: "idea" },
+        { cwd: "/tmp/project/src/open.ts:71:5", editor: "idea" },
         "darwin",
       );
       assert.deepEqual(ideaLineAndColumn, {
         command: "idea",
-        args: ["--line", "71", "--column", "5", "/tmp/workspace/src/open.ts"],
+        args: ["--line", "71", "--column", "5", "/tmp/project/src/open.ts"],
       });
     }),
   );
@@ -218,25 +218,25 @@ it.layer(NodeServices.layer)("resolveEditorLaunch", (it) => {
       yield* fs.writeFileString(path.join(dir, "zeditor"), "#!/bin/sh\nexit 0\n");
       yield* fs.chmod(path.join(dir, "zeditor"), 0o755);
 
-      const result = yield* resolveEditorLaunch({ cwd: "/tmp/workspace", editor: "zed" }, "linux", {
+      const result = yield* resolveEditorLaunch({ cwd: "/tmp/project", editor: "zed" }, "linux", {
         PATH: dir,
       });
 
       assert.deepEqual(result, {
         command: "zeditor",
-        args: ["/tmp/workspace"],
+        args: ["/tmp/project"],
       });
     }),
   );
 
   it.effect("falls back to the primary command when no alias is installed", () =>
     Effect.gen(function* () {
-      const result = yield* resolveEditorLaunch({ cwd: "/tmp/workspace", editor: "zed" }, "linux", {
+      const result = yield* resolveEditorLaunch({ cwd: "/tmp/project", editor: "zed" }, "linux", {
         PATH: "",
       });
       assert.deepEqual(result, {
         command: "zed",
-        args: ["/tmp/workspace"],
+        args: ["/tmp/project"],
       });
     }),
   );
@@ -244,33 +244,33 @@ it.layer(NodeServices.layer)("resolveEditorLaunch", (it) => {
   it.effect("maps file-manager editor to OS open commands", () =>
     Effect.gen(function* () {
       const launch1 = yield* resolveEditorLaunch(
-        { cwd: "/tmp/workspace", editor: "file-manager" },
+        { cwd: "/tmp/project", editor: "file-manager" },
         "darwin",
         { PATH: "" },
       );
       assert.deepEqual(launch1, {
         command: "open",
-        args: ["/tmp/workspace"],
+        args: ["/tmp/project"],
       });
 
       const launch2 = yield* resolveEditorLaunch(
-        { cwd: "C:\\workspace", editor: "file-manager" },
+        { cwd: "C:\\project", editor: "file-manager" },
         "win32",
         { PATH: "" },
       );
       assert.deepEqual(launch2, {
         command: "explorer",
-        args: ["C:\\workspace"],
+        args: ["C:\\project"],
       });
 
       const launch3 = yield* resolveEditorLaunch(
-        { cwd: "/tmp/workspace", editor: "file-manager" },
+        { cwd: "/tmp/project", editor: "file-manager" },
         "linux",
         { PATH: "" },
       );
       assert.deepEqual(launch3, {
         command: "xdg-open",
-        args: ["/tmp/workspace"],
+        args: ["/tmp/project"],
       });
     }),
   );

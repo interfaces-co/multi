@@ -15,18 +15,18 @@ import {
 
 import { GitCore } from "../git/GitCore.service.ts";
 import {
-  WorkspaceEntries,
-  WorkspaceEntriesBrowseError,
-  WorkspaceEntriesError,
-  type WorkspaceEntriesShape,
-} from "./WorkspaceEntries.service.ts";
-import { WorkspacePaths } from "./WorkspacePaths.service.ts";
+  ProjectEntries,
+  ProjectEntriesBrowseError,
+  ProjectEntriesError,
+  type ProjectEntriesShape,
+} from "./ProjectEntries.service.ts";
+import { ProjectPaths } from "./ProjectPaths.service.ts";
 
-const WORKSPACE_CACHE_TTL_MS = 15_000;
-const WORKSPACE_CACHE_MAX_KEYS = 4;
-const WORKSPACE_INDEX_MAX_ENTRIES = 25_000;
-const WORKSPACE_LIST_DEFAULT_LIMIT = WORKSPACE_INDEX_MAX_ENTRIES;
-const WORKSPACE_SCAN_READDIR_CONCURRENCY = 32;
+const PROJECT_CACHE_TTL_MS = 15_000;
+const PROJECT_CACHE_MAX_KEYS = 4;
+const PROJECT_INDEX_MAX_ENTRIES = 25_000;
+const PROJECT_LIST_DEFAULT_LIMIT = PROJECT_INDEX_MAX_ENTRIES;
+const PROJECT_SCAN_READDIR_CONCURRENCY = 32;
 const IGNORED_DIRECTORY_NAMES = new Set([
   ".git",
   ".convex",
@@ -39,18 +39,18 @@ const IGNORED_DIRECTORY_NAMES = new Set([
   ".cache",
 ]);
 
-interface WorkspaceIndex {
+interface ProjectIndex {
   scannedAt: number;
-  entries: SearchableWorkspaceEntry[];
+  entries: SearchableProjectEntry[];
   truncated: boolean;
 }
 
-interface SearchableWorkspaceEntry extends ProjectEntry {
+interface SearchableProjectEntry extends ProjectEntry {
   normalizedPath: string;
   normalizedName: string;
 }
 
-type RankedWorkspaceEntry = RankedSearchResult<SearchableWorkspaceEntry>;
+type RankedProjectEntry = RankedSearchResult<SearchableProjectEntry>;
 
 function toPosixPath(input: string): string {
   return input.replaceAll("\\", "/");
@@ -82,7 +82,7 @@ function basenameOf(input: string): string {
   return input.slice(separatorIndex + 1);
 }
 
-function toSearchableWorkspaceEntry(entry: ProjectEntry): SearchableWorkspaceEntry {
+function toSearchableProjectEntry(entry: ProjectEntry): SearchableProjectEntry {
   const normalizedPath = entry.path.toLowerCase();
   return {
     ...entry,
@@ -91,7 +91,7 @@ function toSearchableWorkspaceEntry(entry: ProjectEntry): SearchableWorkspaceEnt
   };
 }
 
-function toProjectEntry(entry: SearchableWorkspaceEntry): ProjectEntry {
+function toProjectEntry(entry: SearchableProjectEntry): ProjectEntry {
   return {
     path: entry.path,
     kind: entry.kind,
@@ -99,7 +99,7 @@ function toProjectEntry(entry: SearchableWorkspaceEntry): ProjectEntry {
   };
 }
 
-function scoreEntry(entry: SearchableWorkspaceEntry, query: string): number | null {
+function scoreEntry(entry: SearchableProjectEntry, query: string): number | null {
   if (!query) {
     return entry.kind === "directory" ? 0 : 1;
   }
@@ -154,13 +154,13 @@ function directoryAncestorsOf(relativePath: string): string[] {
 const resolveBrowseTarget = (
   input: FilesystemBrowseInput,
   pathService: Path.Path,
-): Effect.Effect<string, WorkspaceEntriesBrowseError> =>
+): Effect.Effect<string, ProjectEntriesBrowseError> =>
   Effect.gen(function* () {
     if (process.platform !== "win32" && isWindowsAbsolutePath(input.partialPath)) {
-      return yield* new WorkspaceEntriesBrowseError({
+      return yield* new ProjectEntriesBrowseError({
         cwd: input.cwd,
         partialPath: input.partialPath,
-        operation: "workspaceEntries.resolveBrowseTarget",
+        operation: "projectEntries.resolveBrowseTarget",
         detail: "Windows-style paths are only supported on Windows.",
       });
     }
@@ -170,10 +170,10 @@ const resolveBrowseTarget = (
     }
 
     if (!input.cwd) {
-      return yield* new WorkspaceEntriesBrowseError({
+      return yield* new ProjectEntriesBrowseError({
         cwd: input.cwd,
         partialPath: input.partialPath,
-        operation: "workspaceEntries.resolveBrowseTarget",
+        operation: "projectEntries.resolveBrowseTarget",
         detail: "Relative filesystem browse paths require a current project.",
       });
     }
@@ -181,10 +181,10 @@ const resolveBrowseTarget = (
     return pathService.resolve(expandHomePath(input.cwd, pathService), input.partialPath);
   });
 
-export const makeWorkspaceEntries = Effect.gen(function* () {
+export const makeProjectEntries = Effect.gen(function* () {
   const path = yield* Path.Path;
   const gitOption = yield* Effect.serviceOption(GitCore);
-  const workspacePaths = yield* WorkspacePaths;
+  const projectPaths = yield* ProjectPaths;
 
   const isInsideGitWorkTree = (cwd: string): Effect.Effect<boolean> =>
     Option.match(gitOption, {
@@ -205,7 +205,7 @@ export const makeWorkspaceEntries = Effect.gen(function* () {
       onNone: () => Effect.succeed(relativePaths),
     });
 
-  const buildWorkspaceIndexFromGit = Effect.fn("WorkspaceEntries.buildWorkspaceIndexFromGit")(
+  const buildProjectIndexFromGit = Effect.fn("ProjectEntries.buildProjectIndexFromGit")(
     function* (cwd: string) {
       if (Option.isNone(gitOption)) {
         return null;
@@ -215,7 +215,7 @@ export const makeWorkspaceEntries = Effect.gen(function* () {
       }
 
       const listedFiles = yield* gitOption.value
-        .listWorkspaceFiles(cwd)
+        .listProjectFiles(cwd)
         .pipe(Effect.catch(() => Effect.succeed(null)));
 
       if (!listedFiles) {
@@ -245,7 +245,7 @@ export const makeWorkspaceEntries = Effect.gen(function* () {
             parentPath: parentPathOf(directoryPath),
           }),
         )
-        .map(toSearchableWorkspaceEntry);
+        .map(toSearchableProjectEntry);
       const fileEntries = [...new Set(filePaths)]
         .toSorted((left, right) => left.localeCompare(right))
         .map(
@@ -255,23 +255,23 @@ export const makeWorkspaceEntries = Effect.gen(function* () {
             parentPath: parentPathOf(filePath),
           }),
         )
-        .map(toSearchableWorkspaceEntry);
+        .map(toSearchableProjectEntry);
 
       const entries = [...directoryEntries, ...fileEntries];
       return {
         scannedAt: Date.now(),
-        entries: entries.slice(0, WORKSPACE_INDEX_MAX_ENTRIES),
-        truncated: listedFiles.truncated || entries.length > WORKSPACE_INDEX_MAX_ENTRIES,
+        entries: entries.slice(0, PROJECT_INDEX_MAX_ENTRIES),
+        truncated: listedFiles.truncated || entries.length > PROJECT_INDEX_MAX_ENTRIES,
       };
     },
   );
 
-  const readDirectoryEntries = Effect.fn("WorkspaceEntries.readDirectoryEntries")(function* (
+  const readDirectoryEntries = Effect.fn("ProjectEntries.readDirectoryEntries")(function* (
     cwd: string,
     relativeDir: string,
   ): Effect.fn.Return<
     { readonly relativeDir: string; readonly dirents: Dirent[] | null },
-    WorkspaceEntriesError
+    ProjectEntriesError
   > {
     return yield* Effect.tryPromise({
       try: async () => {
@@ -280,9 +280,9 @@ export const makeWorkspaceEntries = Effect.gen(function* () {
         return { relativeDir, dirents };
       },
       catch: (cause) =>
-        new WorkspaceEntriesError({
+        new ProjectEntriesError({
           cwd,
-          operation: "workspaceEntries.readDirectoryEntries",
+          operation: "projectEntries.readDirectoryEntries",
           detail: cause instanceof Error ? cause.message : String(cause),
           cause,
         }),
@@ -294,13 +294,13 @@ export const makeWorkspaceEntries = Effect.gen(function* () {
     );
   });
 
-  const buildWorkspaceIndexFromFilesystem = Effect.fn(
-    "WorkspaceEntries.buildWorkspaceIndexFromFilesystem",
-  )(function* (cwd: string): Effect.fn.Return<WorkspaceIndex, WorkspaceEntriesError> {
+  const buildProjectIndexFromFilesystem = Effect.fn(
+    "ProjectEntries.buildProjectIndexFromFilesystem",
+  )(function* (cwd: string): Effect.fn.Return<ProjectIndex, ProjectEntriesError> {
     const shouldFilterWithGitIgnore = yield* isInsideGitWorkTree(cwd);
 
     let pendingDirectories: string[] = [""];
-    const entries: SearchableWorkspaceEntry[] = [];
+    const entries: SearchableProjectEntry[] = [];
     let truncated = false;
 
     while (pendingDirectories.length > 0 && !truncated) {
@@ -310,7 +310,7 @@ export const makeWorkspaceEntries = Effect.gen(function* () {
       const directoryEntries = yield* Effect.forEach(
         currentDirectories,
         (relativeDir) => readDirectoryEntries(cwd, relativeDir),
-        { concurrency: WORKSPACE_SCAN_READDIR_CONCURRENCY },
+        { concurrency: PROJECT_SCAN_READDIR_CONCURRENCY },
       );
 
       const candidateEntriesByDirectory = directoryEntries.map((directoryEntry) => {
@@ -354,7 +354,7 @@ export const makeWorkspaceEntries = Effect.gen(function* () {
             continue;
           }
 
-          const entry = toSearchableWorkspaceEntry({
+          const entry = toSearchableProjectEntry({
             path: candidate.relativePath,
             kind: candidate.dirent.isDirectory() ? "directory" : "file",
             parentPath: parentPathOf(candidate.relativePath),
@@ -365,7 +365,7 @@ export const makeWorkspaceEntries = Effect.gen(function* () {
             pendingDirectories.push(candidate.relativePath);
           }
 
-          if (entries.length >= WORKSPACE_INDEX_MAX_ENTRIES) {
+          if (entries.length >= PROJECT_INDEX_MAX_ENTRIES) {
             truncated = true;
             break;
           }
@@ -384,34 +384,34 @@ export const makeWorkspaceEntries = Effect.gen(function* () {
     };
   });
 
-  const buildWorkspaceIndex = Effect.fn("WorkspaceEntries.buildWorkspaceIndex")(function* (
+  const buildProjectIndex = Effect.fn("ProjectEntries.buildProjectIndex")(function* (
     cwd: string,
-  ): Effect.fn.Return<WorkspaceIndex, WorkspaceEntriesError> {
-    const gitIndexed = yield* buildWorkspaceIndexFromGit(cwd);
+  ): Effect.fn.Return<ProjectIndex, ProjectEntriesError> {
+    const gitIndexed = yield* buildProjectIndexFromGit(cwd);
     if (gitIndexed) {
       return gitIndexed;
     }
-    return yield* buildWorkspaceIndexFromFilesystem(cwd);
+    return yield* buildProjectIndexFromFilesystem(cwd);
   });
 
-  const workspaceIndexCache = yield* Cache.makeWith<string, WorkspaceIndex, WorkspaceEntriesError>(
-    buildWorkspaceIndex,
+  const projectIndexCache = yield* Cache.makeWith<string, ProjectIndex, ProjectEntriesError>(
+    buildProjectIndex,
     {
-      capacity: WORKSPACE_CACHE_MAX_KEYS,
+      capacity: PROJECT_CACHE_MAX_KEYS,
       timeToLive: (exit) =>
-        Exit.isSuccess(exit) ? Duration.millis(WORKSPACE_CACHE_TTL_MS) : Duration.zero,
+        Exit.isSuccess(exit) ? Duration.millis(PROJECT_CACHE_TTL_MS) : Duration.zero,
     },
   );
 
-  const normalizeWorkspaceRoot = Effect.fn("WorkspaceEntries.normalizeWorkspaceRoot")(function* (
+  const normalizeProjectRoot = Effect.fn("ProjectEntries.normalizeProjectRoot")(function* (
     cwd: string,
-  ): Effect.fn.Return<string, WorkspaceEntriesError> {
-    return yield* workspacePaths.normalizeWorkspaceRoot(cwd).pipe(
+  ): Effect.fn.Return<string, ProjectEntriesError> {
+    return yield* projectPaths.normalizeProjectRoot(cwd).pipe(
       Effect.mapError(
         (cause) =>
-          new WorkspaceEntriesError({
+          new ProjectEntriesError({
             cwd,
-            operation: "workspaceEntries.normalizeWorkspaceRoot",
+            operation: "projectEntries.normalizeProjectRoot",
             detail: cause.message,
             cause,
           }),
@@ -419,19 +419,19 @@ export const makeWorkspaceEntries = Effect.gen(function* () {
     );
   });
 
-  const invalidate: WorkspaceEntriesShape["invalidate"] = Effect.fn("WorkspaceEntries.invalidate")(
+  const invalidate: ProjectEntriesShape["invalidate"] = Effect.fn("ProjectEntries.invalidate")(
     function* (cwd) {
-      const normalizedCwd = yield* normalizeWorkspaceRoot(cwd).pipe(
+      const normalizedCwd = yield* normalizeProjectRoot(cwd).pipe(
         Effect.catch(() => Effect.succeed(cwd)),
       );
-      yield* Cache.invalidate(workspaceIndexCache, cwd);
+      yield* Cache.invalidate(projectIndexCache, cwd);
       if (normalizedCwd !== cwd) {
-        yield* Cache.invalidate(workspaceIndexCache, normalizedCwd);
+        yield* Cache.invalidate(projectIndexCache, normalizedCwd);
       }
     },
   );
 
-  const browse: WorkspaceEntriesShape["browse"] = Effect.fn("WorkspaceEntries.browse")(
+  const browse: ProjectEntriesShape["browse"] = Effect.fn("ProjectEntries.browse")(
     function* (input) {
       const resolvedInputPath = yield* resolveBrowseTarget(input, path);
       const endsWithSeparator = /[\\/]$/.test(input.partialPath) || input.partialPath === "~";
@@ -441,10 +441,10 @@ export const makeWorkspaceEntries = Effect.gen(function* () {
       const dirents = yield* Effect.tryPromise({
         try: () => fsPromises.readdir(parentPath, { withFileTypes: true }),
         catch: (cause) =>
-          new WorkspaceEntriesBrowseError({
+          new ProjectEntriesBrowseError({
             cwd: input.cwd,
             partialPath: input.partialPath,
-            operation: "workspaceEntries.browse.readDirectory",
+            operation: "projectEntries.browse.readDirectory",
             detail: `Unable to browse '${parentPath}': ${cause instanceof Error ? cause.message : String(cause)}`,
             cause,
           }),
@@ -471,16 +471,16 @@ export const makeWorkspaceEntries = Effect.gen(function* () {
     },
   );
 
-  const search: WorkspaceEntriesShape["search"] = Effect.fn("WorkspaceEntries.search")(
+  const search: ProjectEntriesShape["search"] = Effect.fn("ProjectEntries.search")(
     function* (input) {
-      const normalizedCwd = yield* normalizeWorkspaceRoot(input.cwd);
-      return yield* Cache.get(workspaceIndexCache, normalizedCwd).pipe(
+      const normalizedCwd = yield* normalizeProjectRoot(input.cwd);
+      return yield* Cache.get(projectIndexCache, normalizedCwd).pipe(
         Effect.map((index) => {
           const normalizedQuery = normalizeSearchQuery(input.query, {
             trimLeadingPattern: /^[@./]+/,
           });
           const limit = Math.max(0, Math.floor(input.limit));
-          const rankedEntries: RankedWorkspaceEntry[] = [];
+          const rankedEntries: RankedProjectEntry[] = [];
           let matchedEntryCount = 0;
 
           for (const entry of index.entries) {
@@ -506,11 +506,11 @@ export const makeWorkspaceEntries = Effect.gen(function* () {
     },
   );
 
-  const list: WorkspaceEntriesShape["list"] = Effect.fn("WorkspaceEntries.list")(function* (input) {
-    const normalizedCwd = yield* normalizeWorkspaceRoot(input.cwd);
-    return yield* Cache.get(workspaceIndexCache, normalizedCwd).pipe(
+  const list: ProjectEntriesShape["list"] = Effect.fn("ProjectEntries.list")(function* (input) {
+    const normalizedCwd = yield* normalizeProjectRoot(input.cwd);
+    return yield* Cache.get(projectIndexCache, normalizedCwd).pipe(
       Effect.map((index) => {
-        const limit = input.limit ?? WORKSPACE_LIST_DEFAULT_LIMIT;
+        const limit = input.limit ?? PROJECT_LIST_DEFAULT_LIMIT;
         const entries = index.entries
           .map(toProjectEntry)
           .toSorted((left, right) => left.path.localeCompare(right.path));
@@ -527,7 +527,7 @@ export const makeWorkspaceEntries = Effect.gen(function* () {
     invalidate,
     list,
     search,
-  } satisfies WorkspaceEntriesShape;
+  } satisfies ProjectEntriesShape;
 });
 
-export const WorkspaceEntriesLive = Layer.effect(WorkspaceEntries, makeWorkspaceEntries);
+export const ProjectEntriesLive = Layer.effect(ProjectEntries, makeProjectEntries);

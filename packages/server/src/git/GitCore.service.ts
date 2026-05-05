@@ -101,7 +101,7 @@ export interface GitRangeContext {
   diffPatch: string;
 }
 
-export interface GitListWorkspaceFilesResult {
+export interface GitListProjectFilesResult {
   readonly paths: ReadonlyArray<string>;
   readonly truncated: boolean;
 }
@@ -214,11 +214,11 @@ export interface GitCoreShape {
   readonly isInsideWorkTree: (cwd: string) => Effect.Effect<boolean, GitCommandError>;
 
   /**
-   * List tracked and untracked workspace file paths relative to cwd.
+   * List tracked and untracked project file paths relative to cwd.
    */
-  readonly listWorkspaceFiles: (
+  readonly listProjectFiles: (
     cwd: string,
-  ) => Effect.Effect<GitListWorkspaceFilesResult, GitCommandError>;
+  ) => Effect.Effect<GitListProjectFilesResult, GitCommandError>;
 
   /**
    * Remove gitignored paths from a relative path list.

@@ -316,7 +316,7 @@ function createSnapshotForTargetUser(options: {
       {
         id: PROJECT_ID,
         title: "Project",
-        workspaceRoot: "/repo/project",
+        projectRoot: "/repo/project",
         defaultModelSelection: {
           instanceId: ProviderInstanceId.make("codex"),
           model: "gpt-5",
@@ -457,7 +457,7 @@ function toShellSnapshot(snapshot: OrchestrationReadModel) {
     projects: snapshot.projects.map((project) => ({
       id: project.id,
       title: project.title,
-      workspaceRoot: project.workspaceRoot,
+      projectRoot: project.projectRoot,
       repositoryIdentity: project.repositoryIdentity ?? null,
       defaultModelSelection: project.defaultModelSelection,
       scripts: project.scripts,
@@ -801,7 +801,7 @@ function createSnapshotWithSecondaryProject(options?: {
       {
         id: SECOND_PROJECT_ID,
         title: "Docs Portal",
-        workspaceRoot: "/repo/clients/docs-portal",
+        projectRoot: "/repo/clients/docs-portal",
         defaultModelSelection: { instanceId: ProviderInstanceId.make("codex"), model: "gpt-5" },
         scripts: [],
         createdAt: NOW_ISO,
@@ -4224,7 +4224,7 @@ describe("ChatView timeline estimator parity (full app)", () => {
             | {
                 _tag: string;
                 type?: string;
-                workspaceRoot?: string;
+                projectRoot?: string;
                 title?: string;
               }
             | undefined;
@@ -4232,7 +4232,7 @@ describe("ChatView timeline estimator parity (full app)", () => {
           expect(dispatchRequest).toMatchObject({
             _tag: ORCHESTRATION_WS_METHODS.dispatchCommand,
             type: "project.create",
-            workspaceRoot: "~/Development",
+            projectRoot: "~/Development",
             title: "Development",
           });
         },
@@ -4416,18 +4416,18 @@ describe("ChatView timeline estimator parity (full app)", () => {
             | {
                 _tag: string;
                 type?: string;
-                workspaceRoot?: string;
+                projectRoot?: string;
                 title?: string;
-                createWorkspaceRootIfMissing?: boolean;
+                createProjectRootIfMissing?: boolean;
               }
             | undefined;
 
           expect(dispatchRequest).toMatchObject({
             _tag: ORCHESTRATION_WS_METHODS.dispatchCommand,
             type: "project.create",
-            workspaceRoot: "~/Desktop/fresh-project",
+            projectRoot: "~/Desktop/fresh-project",
             title: "fresh-project",
-            createWorkspaceRootIfMissing: true,
+            createProjectRootIfMissing: true,
           });
         },
         { timeout: 8_000, interval: 16 },
@@ -4510,7 +4510,7 @@ describe("ChatView timeline estimator parity (full app)", () => {
             | {
                 _tag: string;
                 type?: string;
-                workspaceRoot?: string;
+                projectRoot?: string;
                 title?: string;
               }
             | undefined;
@@ -4518,7 +4518,7 @@ describe("ChatView timeline estimator parity (full app)", () => {
           expect(dispatchRequest).toMatchObject({
             _tag: ORCHESTRATION_WS_METHODS.dispatchCommand,
             type: "project.create",
-            workspaceRoot: "~/Development/codex",
+            projectRoot: "~/Development/codex",
             title: "codex",
           });
         },
@@ -4531,16 +4531,16 @@ describe("ChatView timeline estimator parity (full app)", () => {
 
   it("selects an environment before browsing when multiple environments are available", async () => {
     const remoteBrowseMock = vi.fn(async ({ partialPath }: { partialPath: string }) => {
-      if (partialPath === "~/workspaces/") {
+      if (partialPath === "~/projects/") {
         return {
-          parentPath: "~/workspaces/",
-          entries: [{ name: "codething", fullPath: "~/workspaces/codething" }],
+          parentPath: "~/projects/",
+          entries: [{ name: "codething", fullPath: "~/projects/codething" }],
         };
       }
 
       return {
         parentPath: "~/",
-        entries: [{ name: "workspaces", fullPath: "~/workspaces" }],
+        entries: [{ name: "projects", fullPath: "~/projects" }],
       };
     });
     const remoteDispatchMock = vi.fn(async () => ({
@@ -4590,7 +4590,7 @@ describe("ChatView timeline estimator parity (full app)", () => {
           },
           settings: {
             ...fixture.serverConfig.settings,
-            addProjectBaseDirectory: "~/workspaces",
+            addProjectBaseDirectory: "~/projects",
           },
         },
         connectedAt: NOW_ISO,
@@ -4608,19 +4608,19 @@ describe("ChatView timeline estimator parity (full app)", () => {
       await palette.getByText("Staging", { exact: true }).click();
 
       const browseInput = await waitForCommandPaletteInput(ADD_PROJECT_SUBMENU_PLACEHOLDER);
-      await expect.element(browseInput).toHaveValue("~/workspaces/");
+      await expect.element(browseInput).toHaveValue("~/projects/");
 
       await vi.waitFor(
         () => {
-          expect(remoteBrowseMock).toHaveBeenCalledWith({ partialPath: "~/workspaces/" });
+          expect(remoteBrowseMock).toHaveBeenCalledWith({ partialPath: "~/projects/" });
         },
         { timeout: 8_000, interval: 16 },
       );
 
-      await page.getByPlaceholder(ADD_PROJECT_SUBMENU_PLACEHOLDER).fill("~/workspaces/");
+      await page.getByPlaceholder(ADD_PROJECT_SUBMENU_PLACEHOLDER).fill("~/projects/");
       await vi.waitFor(
         () => {
-          expect(remoteBrowseMock).toHaveBeenCalledWith({ partialPath: "~/workspaces/" });
+          expect(remoteBrowseMock).toHaveBeenCalledWith({ partialPath: "~/projects/" });
         },
         { timeout: 8_000, interval: 16 },
       );
@@ -4636,8 +4636,8 @@ describe("ChatView timeline estimator parity (full app)", () => {
           expect(remoteDispatchMock).toHaveBeenCalledWith(
             expect.objectContaining({
               type: "project.create",
-              workspaceRoot: "~/workspaces",
-              title: "workspaces",
+              projectRoot: "~/projects",
+              title: "projects",
             }),
           );
         },
@@ -4726,7 +4726,7 @@ describe("ChatView timeline estimator parity (full app)", () => {
             | {
                 _tag: string;
                 type?: string;
-                workspaceRoot?: string;
+                projectRoot?: string;
                 title?: string;
               }
             | undefined;
@@ -4734,7 +4734,7 @@ describe("ChatView timeline estimator parity (full app)", () => {
           expect(dispatchRequest).toMatchObject({
             _tag: ORCHESTRATION_WS_METHODS.dispatchCommand,
             type: "project.create",
-            workspaceRoot: "/Users/julius/Projects/finder-picked",
+            projectRoot: "/Users/julius/Projects/finder-picked",
             title: "finder-picked",
           });
         },
@@ -4853,7 +4853,7 @@ describe("ChatView timeline estimator parity (full app)", () => {
             | {
                 _tag: string;
                 type?: string;
-                workspaceRoot?: string;
+                projectRoot?: string;
                 title?: string;
               }
             | undefined;
@@ -4861,7 +4861,7 @@ describe("ChatView timeline estimator parity (full app)", () => {
           expect(dispatchRequest).toMatchObject({
             _tag: ORCHESTRATION_WS_METHODS.dispatchCommand,
             type: "project.create",
-            workspaceRoot: "~/Development",
+            projectRoot: "~/Development",
             title: "Development",
           });
         },
@@ -5198,7 +5198,7 @@ describe("ChatView timeline estimator parity (full app)", () => {
     }
   });
 
-  it("uses the active worktree path when saving a proposed plan to the workspace", async () => {
+  it("uses the active worktree path when saving a proposed plan to the project", async () => {
     const snapshot = createSnapshotWithLongProposedPlan();
     const threads = snapshot.threads.slice();
     const targetThreadIndex = threads.findIndex((thread) => thread.id === THREAD_ID);
@@ -5225,14 +5225,14 @@ describe("ChatView timeline estimator parity (full app)", () => {
       );
       planActionsButton.click();
 
-      const saveToWorkspaceItem = await waitForElement(
+      const saveToProjectItem = await waitForElement(
         () =>
           (Array.from(document.querySelectorAll('[data-slot="menu-item"]')).find(
-            (item) => item.textContent?.trim() === "Save to workspace",
+            (item) => item.textContent?.trim() === "Save to project",
           ) ?? null) as HTMLElement | null,
-        'Unable to find "Save to workspace" menu item.',
+        'Unable to find "Save to project" menu item.',
       );
-      saveToWorkspaceItem.click();
+      saveToProjectItem.click();
 
       await vi.waitFor(
         () => {

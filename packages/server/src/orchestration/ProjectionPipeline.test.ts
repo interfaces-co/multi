@@ -23,7 +23,7 @@ import {
   ORCHESTRATION_PROJECTOR_NAMES,
   OrchestrationProjectionPipelineLive,
 } from "./ProjectionPipeline.ts";
-import { OrchestrationProjectionSnapshotQueryLive } from "./ProjectionSnapshotQuery.ts";
+import { ThreadProjectionLive } from "./ThreadProjection.ts";
 import { OrchestrationEngineService } from "./OrchestrationEngine.service.ts";
 import { OrchestrationProjectionPipeline } from "./ProjectionPipeline.service.ts";
 import { ServerConfig } from "../config.ts";
@@ -66,7 +66,7 @@ it.layer(BaseTestLayer)("OrchestrationProjectionPipeline", (it) => {
         payload: {
           projectId: ProjectId.make("project-1"),
           title: "Project 1",
-          workspaceRoot: "/tmp/project-1",
+          projectRoot: "/tmp/project-1",
           defaultModelSelection: null,
           scripts: [],
           createdAt: now,
@@ -338,7 +338,7 @@ it.layer(BaseTestLayer)("OrchestrationProjectionPipeline", (it) => {
           payload: {
             projectId: ProjectId.make("project-clear-attachments"),
             title: "Project Clear Attachments",
-            workspaceRoot: "/tmp/project-clear-attachments",
+            projectRoot: "/tmp/project-clear-attachments",
             defaultModelSelection: null,
             scripts: [],
             createdAt: now,
@@ -466,7 +466,7 @@ it.layer(
         payload: {
           projectId: ProjectId.make("project-overwrite"),
           title: "Project Overwrite",
-          workspaceRoot: "/tmp/project-overwrite",
+          projectRoot: "/tmp/project-overwrite",
           defaultModelSelection: null,
           scripts: [],
           createdAt: now,
@@ -614,7 +614,7 @@ it.layer(
         payload: {
           projectId: ProjectId.make("project-rollback"),
           title: "Project Rollback",
-          workspaceRoot: "/tmp/project-rollback",
+          projectRoot: "/tmp/project-rollback",
           defaultModelSelection: null,
           scripts: [],
           createdAt: now,
@@ -743,7 +743,7 @@ it.layer(
         payload: {
           projectId: ProjectId.make("project-revert-files"),
           title: "Project Revert Files",
-          workspaceRoot: "/tmp/project-revert-files",
+          projectRoot: "/tmp/project-revert-files",
           defaultModelSelection: null,
           scripts: [],
           createdAt: now,
@@ -951,7 +951,7 @@ it.layer(Layer.fresh(makeProjectionPipelinePrefixedTestLayer("t3-projection-atta
           payload: {
             projectId: ProjectId.make("project-delete-files"),
             title: "Project Delete Files",
-            workspaceRoot: "/tmp/project-delete-files",
+            projectRoot: "/tmp/project-delete-files",
             defaultModelSelection: null,
             scripts: [],
             createdAt: now,
@@ -1114,7 +1114,7 @@ it.layer(BaseTestLayer)("OrchestrationProjectionPipeline", (it) => {
         payload: {
           projectId: ProjectId.make("project-a"),
           title: "Project A",
-          workspaceRoot: "/tmp/project-a",
+          projectRoot: "/tmp/project-a",
           defaultModelSelection: null,
           scripts: [],
           createdAt: now,
@@ -1241,7 +1241,7 @@ it.layer(BaseTestLayer)("OrchestrationProjectionPipeline", (it) => {
         payload: {
           projectId: ProjectId.make("project-empty"),
           title: "Project Empty",
-          workspaceRoot: "/tmp/project-empty",
+          projectRoot: "/tmp/project-empty",
           defaultModelSelection: null,
           scripts: [],
           createdAt: now,
@@ -1381,7 +1381,7 @@ it.layer(BaseTestLayer)("OrchestrationProjectionPipeline", (it) => {
           payload: {
             projectId: ProjectId.make("project-conflict"),
             title: "Project Conflict",
-            workspaceRoot: "/tmp/project-conflict",
+            projectRoot: "/tmp/project-conflict",
             defaultModelSelection: null,
             scripts: [],
             createdAt: "2026-02-26T13:00:00.000Z",
@@ -1525,7 +1525,7 @@ it.layer(BaseTestLayer)("OrchestrationProjectionPipeline", (it) => {
         payload: {
           projectId: ProjectId.make("project-stale-approval"),
           title: "Project Stale Approval",
-          workspaceRoot: "/tmp/project-stale-approval",
+          projectRoot: "/tmp/project-stale-approval",
           defaultModelSelection: null,
           scripts: [],
           createdAt: "2026-02-26T12:30:00.000Z",
@@ -1668,7 +1668,7 @@ it.layer(BaseTestLayer)("OrchestrationProjectionPipeline", (it) => {
         payload: {
           projectId: ProjectId.make("project-nonstale-approval"),
           title: "Project Non-Stale Approval",
-          workspaceRoot: "/tmp/project-nonstale-approval",
+          projectRoot: "/tmp/project-nonstale-approval",
           defaultModelSelection: null,
           scripts: [],
           createdAt: "2026-02-26T12:45:00.000Z",
@@ -1848,7 +1848,7 @@ it.layer(BaseTestLayer)("OrchestrationProjectionPipeline", (it) => {
         payload: {
           projectId: ProjectId.make("project-revert"),
           title: "Project Revert",
-          workspaceRoot: "/tmp/project-revert",
+          projectRoot: "/tmp/project-revert",
           defaultModelSelection: null,
           scripts: [],
           createdAt: "2026-02-26T12:00:00.000Z",
@@ -2163,7 +2163,7 @@ it.effect("restores pending turn-start metadata across projection pipeline resta
 
 const engineLayer = it.layer(
   OrchestrationEngineLive.pipe(
-    Layer.provide(OrchestrationProjectionSnapshotQueryLive),
+    Layer.provide(ThreadProjectionLive),
     Layer.provide(OrchestrationProjectionPipelineLive),
     Layer.provide(OrchestrationEventStoreLive),
     Layer.provide(OrchestrationCommandReceiptRepositoryLive),
@@ -2190,7 +2190,7 @@ engineLayer("OrchestrationProjectionPipeline via engine dispatch", (it) => {
         commandId: CommandId.make("cmd-live-project"),
         projectId: ProjectId.make("project-live"),
         title: "Live Project",
-        workspaceRoot: "/tmp/project-live",
+        projectRoot: "/tmp/project-live",
         defaultModelSelection: {
           instanceId: "codex",
           model: "gpt-5-codex",
@@ -2228,7 +2228,7 @@ engineLayer("OrchestrationProjectionPipeline via engine dispatch", (it) => {
         commandId: CommandId.make("cmd-scripts-project-create"),
         projectId: ProjectId.make("project-scripts"),
         title: "Scripts Project",
-        workspaceRoot: "/tmp/project-scripts",
+        projectRoot: "/tmp/project-scripts",
         defaultModelSelection: {
           instanceId: "codex",
           model: "gpt-5-codex",

@@ -38,7 +38,7 @@ import {
 import { decideOrchestrationCommand } from "./decider.ts";
 import { createEmptyReadModel, projectEvent } from "./projector.ts";
 import { OrchestrationProjectionPipeline } from "./ProjectionPipeline.service.ts";
-import { ProjectionSnapshotQuery } from "./ProjectionSnapshotQuery.service.ts";
+import { ThreadProjection } from "./ThreadProjection.service.ts";
 import {
   OrchestrationEngineService,
   type OrchestrationEngineShape,
@@ -75,7 +75,7 @@ const makeOrchestrationEngine = Effect.gen(function* () {
   const eventStore = yield* OrchestrationEventStore;
   const commandReceiptRepository = yield* OrchestrationCommandReceiptRepository;
   const projectionPipeline = yield* OrchestrationProjectionPipeline;
-  const projectionSnapshotQuery = yield* ProjectionSnapshotQuery;
+  const threadProjection = yield* ThreadProjection;
 
   let readModel = createEmptyReadModel(new Date().toISOString());
 
@@ -270,7 +270,7 @@ const makeOrchestrationEngine = Effect.gen(function* () {
   };
 
   yield* projectionPipeline.bootstrap;
-  readModel = yield* projectionSnapshotQuery.getSnapshot();
+  readModel = yield* threadProjection.getSnapshot();
 
   const worker = Effect.forever(Queue.take(commandQueue).pipe(Effect.flatMap(processEnvelope)));
   yield* Effect.forkScoped(worker);

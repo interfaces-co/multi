@@ -7,17 +7,17 @@ import { Effect, FileSystem, Layer, Path, PlatformError } from "effect";
 import { ServerConfig } from "../config.ts";
 import { GitCoreLive } from "../git/GitCore.ts";
 import { GitCore } from "../git/GitCore.service.ts";
-import { WorkspaceEntries } from "./WorkspaceEntries.service.ts";
-import { WorkspaceEntriesLive } from "./WorkspaceEntries.ts";
-import { WorkspacePathsLive } from "./WorkspacePaths.ts";
+import { ProjectEntries } from "./ProjectEntries.service.ts";
+import { ProjectEntriesLive } from "./ProjectEntries.ts";
+import { ProjectPathsLive } from "./ProjectPaths.ts";
 
 const TestLayer = Layer.empty.pipe(
-  Layer.provideMerge(WorkspaceEntriesLive.pipe(Layer.provide(WorkspacePathsLive))),
-  Layer.provideMerge(WorkspacePathsLive),
+  Layer.provideMerge(ProjectEntriesLive.pipe(Layer.provide(ProjectPathsLive))),
+  Layer.provideMerge(ProjectPathsLive),
   Layer.provideMerge(GitCoreLive),
   Layer.provide(
     ServerConfig.layerTest(process.cwd(), {
-      prefix: "t3-workspace-entries-test-",
+      prefix: "t3-project-entries-test-",
     }),
   ),
   Layer.provideMerge(NodeServices.layer),
@@ -27,7 +27,7 @@ const makeTempDir = Effect.fn(function* (opts?: { prefix?: string; git?: boolean
   const fileSystem = yield* FileSystem.FileSystem;
   const gitCore = yield* GitCore;
   const dir = yield* fileSystem.makeTempDirectoryScoped({
-    prefix: opts?.prefix ?? "multi-workspace-entries-",
+    prefix: opts?.prefix ?? "multi-project-entries-",
   });
   if (opts?.git) {
     yield* gitCore.initRepo({ cwd: dir });
@@ -53,7 +53,7 @@ const git = (cwd: string, args: ReadonlyArray<string>, env?: NodeJS.ProcessEnv) 
   Effect.gen(function* () {
     const gitCore = yield* GitCore;
     const result = yield* gitCore.execute({
-      operation: "WorkspaceEntries.test.git",
+      operation: "ProjectEntries.test.git",
       cwd,
       args,
       ...(env ? { env } : {}),
@@ -62,16 +62,16 @@ const git = (cwd: string, args: ReadonlyArray<string>, env?: NodeJS.ProcessEnv) 
     return result.stdout.trim();
   });
 
-const searchWorkspaceEntries = (input: { cwd: string; query: string; limit: number }) =>
+const searchProjectEntries = (input: { cwd: string; query: string; limit: number }) =>
   Effect.gen(function* () {
-    const workspaceEntries = yield* WorkspaceEntries;
-    return yield* workspaceEntries.search(input);
+    const projectEntries = yield* ProjectEntries;
+    return yield* projectEntries.search(input);
   });
 
-const listWorkspaceEntries = (input: { cwd: string; limit?: number }) =>
+const listProjectEntries = (input: { cwd: string; limit?: number }) =>
   Effect.gen(function* () {
-    const workspaceEntries = yield* WorkspaceEntries;
-    return yield* workspaceEntries.list(input);
+    const projectEntries = yield* ProjectEntries;
+    return yield* projectEntries.list(input);
   });
 
 const appendSeparator = (input: string) =>
@@ -79,7 +79,7 @@ const appendSeparator = (input: string) =>
     ? input
     : `${input}${process.platform === "win32" ? "\\" : "/"}`;
 
-it.layer(TestLayer)("WorkspaceEntriesLive", (it) => {
+it.layer(TestLayer)("ProjectEntriesLive", (it) => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -94,7 +94,7 @@ it.layer(TestLayer)("WorkspaceEntriesLive", (it) => {
         yield* writeTextFile(cwd, ".git/HEAD");
         yield* writeTextFile(cwd, "node_modules/pkg/index.js");
 
-        const result = yield* searchWorkspaceEntries({ cwd, query: "", limit: 100 });
+        const result = yield* searchProjectEntries({ cwd, query: "", limit: 100 });
         const paths = result.entries.map((entry) => entry.path);
 
         expect(paths).toContain("src");
@@ -109,12 +109,12 @@ it.layer(TestLayer)("WorkspaceEntriesLive", (it) => {
 
     it.effect("filters and ranks entries by query", () =>
       Effect.gen(function* () {
-        const cwd = yield* makeTempDir({ prefix: "multi-workspace-query-" });
+        const cwd = yield* makeTempDir({ prefix: "multi-project-query-" });
         yield* writeTextFile(cwd, "src/components/Composer.tsx");
         yield* writeTextFile(cwd, "src/components/composePrompt.ts");
         yield* writeTextFile(cwd, "docs/composition.md");
 
-        const result = yield* searchWorkspaceEntries({ cwd, query: "compo", limit: 5 });
+        const result = yield* searchProjectEntries({ cwd, query: "compo", limit: 5 });
 
         expect(result.entries.length).toBeGreaterThan(0);
         expect(result.entries.some((entry) => entry.path === "src/components")).toBe(true);
@@ -126,12 +126,12 @@ it.layer(TestLayer)("WorkspaceEntriesLive", (it) => {
 
     it.effect("supports fuzzy subsequence queries for composer path search", () =>
       Effect.gen(function* () {
-        const cwd = yield* makeTempDir({ prefix: "multi-workspace-fuzzy-query-" });
+        const cwd = yield* makeTempDir({ prefix: "multi-project-fuzzy-query-" });
         yield* writeTextFile(cwd, "src/components/Composer.tsx");
         yield* writeTextFile(cwd, "src/components/composePrompt.ts");
         yield* writeTextFile(cwd, "docs/composition.md");
 
-        const result = yield* searchWorkspaceEntries({ cwd, query: "cmp", limit: 10 });
+        const result = yield* searchProjectEntries({ cwd, query: "cmp", limit: 10 });
         const paths = result.entries.map((entry) => entry.path);
 
         expect(result.entries.length).toBeGreaterThan(0);
@@ -142,11 +142,11 @@ it.layer(TestLayer)("WorkspaceEntriesLive", (it) => {
 
     it.effect("prioritizes exact basename matches ahead of broader path matches", () =>
       Effect.gen(function* () {
-        const cwd = yield* makeTempDir({ prefix: "multi-workspace-exact-ranking-" });
+        const cwd = yield* makeTempDir({ prefix: "multi-project-exact-ranking-" });
         yield* writeTextFile(cwd, "src/components/Composer.tsx");
         yield* writeTextFile(cwd, "docs/composer.tsx-notes.md");
 
-        const result = yield* searchWorkspaceEntries({ cwd, query: "Composer.tsx", limit: 5 });
+        const result = yield* searchProjectEntries({ cwd, query: "Composer.tsx", limit: 5 });
 
         expect(result.entries[0]?.path).toBe("src/components/Composer.tsx");
       }),
@@ -154,12 +154,12 @@ it.layer(TestLayer)("WorkspaceEntriesLive", (it) => {
 
     it.effect("tracks truncation without sorting every fuzzy match", () =>
       Effect.gen(function* () {
-        const cwd = yield* makeTempDir({ prefix: "multi-workspace-fuzzy-limit-" });
+        const cwd = yield* makeTempDir({ prefix: "multi-project-fuzzy-limit-" });
         yield* writeTextFile(cwd, "src/components/Composer.tsx");
         yield* writeTextFile(cwd, "src/components/composePrompt.ts");
         yield* writeTextFile(cwd, "docs/composition.md");
 
-        const result = yield* searchWorkspaceEntries({ cwd, query: "cmp", limit: 1 });
+        const result = yield* searchProjectEntries({ cwd, query: "cmp", limit: 1 });
 
         expect(result.entries).toHaveLength(1);
         expect(result.truncated).toBe(true);
@@ -168,14 +168,14 @@ it.layer(TestLayer)("WorkspaceEntriesLive", (it) => {
 
     it.effect("excludes gitignored paths for git repositories", () =>
       Effect.gen(function* () {
-        const cwd = yield* makeTempDir({ prefix: "multi-workspace-gitignore-", git: true });
+        const cwd = yield* makeTempDir({ prefix: "multi-project-gitignore-", git: true });
         yield* writeTextFile(cwd, ".gitignore", ".convex/\nconvex/\nignored.txt\n");
         yield* writeTextFile(cwd, "src/keep.ts", "export {};");
         yield* writeTextFile(cwd, "ignored.txt", "ignore me");
         yield* writeTextFile(cwd, ".convex/local-storage/data.json", "{}");
         yield* writeTextFile(cwd, "convex/UOoS-l/convex_local_storage/modules/data.json", "{}");
 
-        const result = yield* searchWorkspaceEntries({ cwd, query: "", limit: 100 });
+        const result = yield* searchProjectEntries({ cwd, query: "", limit: 100 });
         const paths = result.entries.map((entry) => entry.path);
 
         expect(paths).toContain("src");
@@ -189,7 +189,7 @@ it.layer(TestLayer)("WorkspaceEntriesLive", (it) => {
     it.effect("excludes tracked paths that match ignore rules", () =>
       Effect.gen(function* () {
         const cwd = yield* makeTempDir({
-          prefix: "multi-workspace-tracked-gitignore-",
+          prefix: "multi-project-tracked-gitignore-",
           git: true,
         });
         yield* writeTextFile(cwd, ".convex/local-storage/data.json", "{}");
@@ -197,7 +197,7 @@ it.layer(TestLayer)("WorkspaceEntriesLive", (it) => {
         yield* git(cwd, ["add", ".convex/local-storage/data.json", "src/keep.ts"]);
         yield* writeTextFile(cwd, ".gitignore", ".convex/\n");
 
-        const result = yield* searchWorkspaceEntries({ cwd, query: "", limit: 100 });
+        const result = yield* searchProjectEntries({ cwd, query: "", limit: 100 });
         const paths = result.entries.map((entry) => entry.path);
 
         expect(paths).toContain("src");
@@ -206,13 +206,13 @@ it.layer(TestLayer)("WorkspaceEntriesLive", (it) => {
       }),
     );
 
-    it.effect("excludes .convex in non-git workspaces", () =>
+    it.effect("excludes .convex in non-git projects", () =>
       Effect.gen(function* () {
-        const cwd = yield* makeTempDir({ prefix: "multi-workspace-non-git-convex-" });
+        const cwd = yield* makeTempDir({ prefix: "multi-project-non-git-convex-" });
         yield* writeTextFile(cwd, ".convex/local-storage/data.json", "{}");
         yield* writeTextFile(cwd, "src/keep.ts", "export {};");
 
-        const result = yield* searchWorkspaceEntries({ cwd, query: "", limit: 100 });
+        const result = yield* searchProjectEntries({ cwd, query: "", limit: 100 });
         const paths = result.entries.map((entry) => entry.path);
 
         expect(paths).toContain("src");
@@ -223,7 +223,7 @@ it.layer(TestLayer)("WorkspaceEntriesLive", (it) => {
 
     it.effect("deduplicates concurrent index builds for the same cwd", () =>
       Effect.gen(function* () {
-        const cwd = yield* makeTempDir({ prefix: "multi-workspace-concurrent-build-" });
+        const cwd = yield* makeTempDir({ prefix: "multi-project-concurrent-build-" });
         yield* writeTextFile(cwd, "src/components/Composer.tsx");
 
         let rootReadCount = 0;
@@ -240,9 +240,9 @@ it.layer(TestLayer)("WorkspaceEntriesLive", (it) => {
 
         yield* Effect.all(
           [
-            searchWorkspaceEntries({ cwd, query: "", limit: 100 }),
-            searchWorkspaceEntries({ cwd, query: "comp", limit: 100 }),
-            searchWorkspaceEntries({ cwd, query: "src", limit: 100 }),
+            searchProjectEntries({ cwd, query: "", limit: 100 }),
+            searchProjectEntries({ cwd, query: "comp", limit: 100 }),
+            searchProjectEntries({ cwd, query: "src", limit: 100 }),
           ],
           { concurrency: "unbounded" },
         );
@@ -253,7 +253,7 @@ it.layer(TestLayer)("WorkspaceEntriesLive", (it) => {
 
     it.effect("limits concurrent directory reads while walking the filesystem", () =>
       Effect.gen(function* () {
-        const cwd = yield* makeTempDir({ prefix: "multi-workspace-read-concurrency-" });
+        const cwd = yield* makeTempDir({ prefix: "multi-project-read-concurrency-" });
         yield* Effect.forEach(
           Array.from({ length: 80 }, (_, index) => index),
           (index) => writeTextFile(cwd, `group-${index}/entry-${index}.ts`, "export {};"),
@@ -280,7 +280,7 @@ it.layer(TestLayer)("WorkspaceEntriesLive", (it) => {
           return originalReaddir(...args);
         }) as typeof fsPromises.readdir);
 
-        yield* searchWorkspaceEntries({ cwd, query: "", limit: 200 });
+        yield* searchProjectEntries({ cwd, query: "", limit: 200 });
 
         expect(peakReads).toBeLessThanOrEqual(32);
       }),
@@ -290,14 +290,14 @@ it.layer(TestLayer)("WorkspaceEntriesLive", (it) => {
   describe("list", () => {
     it.effect("returns the full tree in stable path order", () =>
       Effect.gen(function* () {
-        const cwd = yield* makeTempDir({ prefix: "multi-workspace-list-" });
+        const cwd = yield* makeTempDir({ prefix: "multi-project-list-" });
         yield* writeTextFile(cwd, "src/components/Button.tsx");
         yield* writeTextFile(cwd, "src/index.ts");
         yield* writeTextFile(cwd, "README.md");
         yield* writeTextFile(cwd, ".git/HEAD");
         yield* writeTextFile(cwd, "node_modules/pkg/index.js");
 
-        const result = yield* listWorkspaceEntries({ cwd });
+        const result = yield* listProjectEntries({ cwd });
 
         expect(result.entries).toEqual([
           { path: "README.md", kind: "file" },
@@ -316,11 +316,11 @@ it.layer(TestLayer)("WorkspaceEntriesLive", (it) => {
 
     it.effect("tracks truncation when the requested list limit is smaller than the index", () =>
       Effect.gen(function* () {
-        const cwd = yield* makeTempDir({ prefix: "multi-workspace-list-limit-" });
+        const cwd = yield* makeTempDir({ prefix: "multi-project-list-limit-" });
         yield* writeTextFile(cwd, "src/a.ts");
         yield* writeTextFile(cwd, "src/b.ts");
 
-        const result = yield* listWorkspaceEntries({ cwd, limit: 2 });
+        const result = yield* listProjectEntries({ cwd, limit: 2 });
 
         expect(result.entries).toHaveLength(2);
         expect(result.truncated).toBe(true);
@@ -331,14 +331,14 @@ it.layer(TestLayer)("WorkspaceEntriesLive", (it) => {
   describe("browse", () => {
     it.effect("returns matching directories and excludes files", () =>
       Effect.gen(function* () {
-        const workspaceEntries = yield* WorkspaceEntries;
+        const projectEntries = yield* ProjectEntries;
         const path = yield* Path.Path;
-        const cwd = yield* makeTempDir({ prefix: "multi-workspace-browse-prefix-" });
+        const cwd = yield* makeTempDir({ prefix: "multi-project-browse-prefix-" });
         yield* writeTextFile(cwd, "alphabet.txt", "ignore me");
         yield* writeTextFile(cwd, "alpha/index.ts", "export {};\n");
         yield* writeTextFile(cwd, "alpine/index.ts", "export {};\n");
 
-        const result = yield* workspaceEntries.browse({
+        const result = yield* projectEntries.browse({
           partialPath: path.join(cwd, "alp"),
         });
 
@@ -354,16 +354,16 @@ it.layer(TestLayer)("WorkspaceEntriesLive", (it) => {
 
     it.effect("shows dot directories in directory mode and hidden-prefix mode", () =>
       Effect.gen(function* () {
-        const workspaceEntries = yield* WorkspaceEntries;
+        const projectEntries = yield* ProjectEntries;
         const path = yield* Path.Path;
-        const cwd = yield* makeTempDir({ prefix: "multi-workspace-browse-hidden-" });
+        const cwd = yield* makeTempDir({ prefix: "multi-project-browse-hidden-" });
         yield* writeTextFile(cwd, ".config/settings.json", "{}");
         yield* writeTextFile(cwd, "config/settings.json", "{}");
 
-        const directoryResult = yield* workspaceEntries.browse({
+        const directoryResult = yield* projectEntries.browse({
           partialPath: appendSeparator(cwd),
         });
-        const hiddenPrefixResult = yield* workspaceEntries.browse({
+        const hiddenPrefixResult = yield* projectEntries.browse({
           partialPath: `${appendSeparator(cwd)}.c`,
         });
 
@@ -377,12 +377,12 @@ it.layer(TestLayer)("WorkspaceEntriesLive", (it) => {
 
     it.effect("supports relative paths when cwd is provided", () =>
       Effect.gen(function* () {
-        const workspaceEntries = yield* WorkspaceEntries;
+        const projectEntries = yield* ProjectEntries;
         const path = yield* Path.Path;
-        const cwd = yield* makeTempDir({ prefix: "multi-workspace-browse-relative-" });
+        const cwd = yield* makeTempDir({ prefix: "multi-project-browse-relative-" });
         yield* writeTextFile(cwd, "packages/pkg.json", "{}");
 
-        const result = yield* workspaceEntries.browse({
+        const result = yield* projectEntries.browse({
           cwd,
           partialPath: "./pack",
         });
@@ -396,9 +396,9 @@ it.layer(TestLayer)("WorkspaceEntriesLive", (it) => {
 
     it.effect("rejects relative paths without cwd", () =>
       Effect.gen(function* () {
-        const workspaceEntries = yield* WorkspaceEntries;
+        const projectEntries = yield* ProjectEntries;
 
-        const error = yield* workspaceEntries
+        const error = yield* projectEntries
           .browse({
             partialPath: "./src",
           })

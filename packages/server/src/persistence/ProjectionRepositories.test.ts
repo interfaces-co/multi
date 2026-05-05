@@ -26,7 +26,7 @@ projectionRepositoriesLayer("Projection repositories", (it) => {
       yield* projects.upsert({
         projectId: ProjectId.make("project-null-options"),
         title: "Null options project",
-        workspaceRoot: "/tmp/project-null-options",
+        projectRoot: "/tmp/project-null-options",
         defaultModelSelection: {
           instanceId: "codex",
           model: "gpt-5.4",

@@ -10,6 +10,7 @@ import {
   OrchestrationDispatchCommandError,
   type OrchestrationEvent,
   type OrchestrationShellStreamEvent,
+  type OrchestrationThreadStreamItem,
   OrchestrationGetFullThreadDiffError,
   OrchestrationGetSnapshotError,
   OrchestrationGetTurnDiffError,
@@ -39,7 +40,7 @@ import { Keybindings } from "./keybindings";
 import { Open, resolveAvailableEditors } from "./open";
 import { normalizeDispatchCommand } from "./orchestration/Normalizer";
 import { OrchestrationEngineService } from "./orchestration/OrchestrationEngine.service";
-import { ProjectionSnapshotQuery } from "./orchestration/ProjectionSnapshotQuery.service";
+import { ThreadProjection } from "./orchestration/ThreadProjection.service";
 import {
   observeRpcEffect,
   observeRpcStream,
@@ -50,9 +51,9 @@ import { ServerLifecycleEvents } from "./server-lifecycle-events";
 import { ServerRuntimeStartup } from "./server-runtime-startup";
 import { ServerSettingsService } from "./server-settings";
 import { TerminalManager } from "./terminal/Manager.service";
-import { WorkspaceEntries } from "./workspace/WorkspaceEntries.service";
-import { WorkspaceFileSystem } from "./workspace/WorkspaceFileSystem.service";
-import { WorkspacePathOutsideRootError } from "./workspace/WorkspacePaths.service";
+import { ProjectEntries } from "./project/ProjectEntries.service";
+import { ProjectFileSystem } from "./project/ProjectFileSystem.service";
+import { ProjectPathOutsideRootError } from "./project/ProjectPaths.service";
 import { ProjectSetupScriptRunner } from "./project/ProjectSetupScriptRunner.service";
 import { RepositoryIdentityResolver } from "./project/RepositoryIdentityResolver.service";
 import { ServerEnvironment } from "./environment/ServerEnvironment.service";
@@ -134,7 +135,7 @@ function toAuthAccessStreamEvent(
 const makeWsRpcLayer = (currentSessionId: AuthSessionId) =>
   WsRpcGroup.toLayer(
     Effect.gen(function* () {
-      const projectionSnapshotQuery = yield* ProjectionSnapshotQuery;
+      const threadProjection = yield* ThreadProjection;
       const orchestrationEngine = yield* OrchestrationEngineService;
       const checkpointDiffQuery = yield* CheckpointDiffQuery;
       const keybindings = yield* Keybindings;
@@ -148,8 +149,8 @@ const makeWsRpcLayer = (currentSessionId: AuthSessionId) =>
       const lifecycleEvents = yield* ServerLifecycleEvents;
       const serverSettings = yield* ServerSettingsService;
       const startup = yield* ServerRuntimeStartup;
-      const workspaceEntries = yield* WorkspaceEntries;
-      const workspaceFileSystem = yield* WorkspaceFileSystem;
+      const projectEntries = yield* ProjectEntries;
+      const projectFileSystem = yield* ProjectFileSystem;
       const projectSetupScriptRunner = yield* ProjectSetupScriptRunner;
       const repositoryIdentityResolver = yield* RepositoryIdentityResolver;
       const serverEnvironment = yield* ServerEnvironment;
@@ -213,7 +214,7 @@ const makeWsRpcLayer = (currentSessionId: AuthSessionId) =>
       ): Effect.Effect<OrchestrationEvent, never, never> => {
         switch (event.type) {
           case "project.created":
-            return repositoryIdentityResolver.resolve(event.payload.workspaceRoot).pipe(
+            return repositoryIdentityResolver.resolve(event.payload.projectRoot).pipe(
               Effect.map((repositoryIdentity) => ({
                 ...event,
                 payload: {
@@ -224,17 +225,17 @@ const makeWsRpcLayer = (currentSessionId: AuthSessionId) =>
             );
           case "project.meta-updated":
             return Effect.gen(function* () {
-              const workspaceRoot =
-                event.payload.workspaceRoot ??
+              const projectRoot =
+                event.payload.projectRoot ??
                 (yield* orchestrationEngine.getReadModel()).projects.find(
                   (project) => project.id === event.payload.projectId,
-                )?.workspaceRoot ??
+                )?.projectRoot ??
                 null;
-              if (workspaceRoot === null) {
+              if (projectRoot === null) {
                 return event;
               }
 
-              const repositoryIdentity = yield* repositoryIdentityResolver.resolve(workspaceRoot);
+              const repositoryIdentity = yield* repositoryIdentityResolver.resolve(projectRoot);
               return {
                 ...event,
                 payload: {
@@ -257,7 +258,7 @@ const makeWsRpcLayer = (currentSessionId: AuthSessionId) =>
         switch (event.type) {
           case "project.created":
           case "project.meta-updated":
-            return projectionSnapshotQuery.getProjectShellById(event.payload.projectId).pipe(
+            return threadProjection.getProjectShellById(event.payload.projectId).pipe(
               Effect.map((project) =>
                 Option.map(project, (nextProject) => ({
                   kind: "project-upserted" as const,
@@ -287,7 +288,7 @@ const makeWsRpcLayer = (currentSessionId: AuthSessionId) =>
             if (event.aggregateKind !== "thread") {
               return Effect.succeed(Option.none());
             }
-            return projectionSnapshotQuery
+            return threadProjection
               .getThreadShellById(ThreadId.make(event.aggregateId))
               .pipe(
                 Effect.map((thread) =>
@@ -632,7 +633,7 @@ const makeWsRpcLayer = (currentSessionId: AuthSessionId) =>
           observeRpcStreamEffect(
             ORCHESTRATION_WS_METHODS.subscribeShell,
             Effect.gen(function* () {
-              const snapshot = yield* projectionSnapshotQuery.getShellSnapshot().pipe(
+              const snapshot = yield* threadProjection.getShellSnapshot().pipe(
                 Effect.mapError(
                   (cause) =>
                     new OrchestrationGetSnapshotError({
@@ -664,7 +665,7 @@ const makeWsRpcLayer = (currentSessionId: AuthSessionId) =>
             ORCHESTRATION_WS_METHODS.subscribeThread,
             Effect.gen(function* () {
               const [threadDetail, snapshotSequence] = yield* Effect.all([
-                projectionSnapshotQuery.getThreadDetailById(input.threadId).pipe(
+                threadProjection.getThreadDetailById(input.threadId).pipe(
                   Effect.mapError(
                     (cause) =>
                       new OrchestrationGetSnapshotError({
@@ -685,10 +686,38 @@ const makeWsRpcLayer = (currentSessionId: AuthSessionId) =>
                     event.aggregateId === input.threadId &&
                     isThreadDetailEvent(event),
                 ),
-                Stream.map((event) => ({
-                  kind: "event" as const,
-                  event,
-                })),
+                Stream.mapEffect((event): Effect.Effect<OrchestrationThreadStreamItem, OrchestrationGetSnapshotError> => {
+                  if (event.type !== "thread.reverted") {
+                    return Effect.succeed({
+                      kind: "event" as const,
+                      event,
+                    });
+                  }
+                  return threadProjection.getThreadDetailById(input.threadId).pipe(
+                    Effect.mapError(
+                      (cause) =>
+                        new OrchestrationGetSnapshotError({
+                          message: `Failed to load thread ${input.threadId}`,
+                          cause,
+                        }),
+                    ),
+                    Effect.map((thread) =>
+                      Option.match(thread, {
+                        onNone: () => ({
+                          kind: "event" as const,
+                          event,
+                        }),
+                        onSome: (nextThread) => ({
+                          kind: "snapshot" as const,
+                          snapshot: {
+                            snapshotSequence: event.sequence,
+                            thread: nextThread,
+                          },
+                        }),
+                      }),
+                    ),
+                  );
+                }),
               );
 
               if (Option.isNone(threadDetail)) {
@@ -738,71 +767,71 @@ const makeWsRpcLayer = (currentSessionId: AuthSessionId) =>
         [WS_METHODS.projectsSearchEntries]: (input) =>
           observeRpcEffect(
             WS_METHODS.projectsSearchEntries,
-            workspaceEntries.search(input).pipe(
+            projectEntries.search(input).pipe(
               Effect.mapError(
                 (cause) =>
                   new ProjectSearchEntriesError({
-                    message: `Failed to search workspace entries: ${cause.detail}`,
+                    message: `Failed to search project entries: ${cause.detail}`,
                     cause,
                   }),
               ),
             ),
-            { "rpc.aggregate": "workspace" },
+            { "rpc.aggregate": "project" },
           ),
         [WS_METHODS.projectsListEntries]: (input) =>
           observeRpcEffect(
             WS_METHODS.projectsListEntries,
-            workspaceEntries.list(input).pipe(
+            projectEntries.list(input).pipe(
               Effect.mapError(
                 (cause) =>
                   new ProjectListEntriesError({
-                    message: `Failed to list workspace entries: ${cause.detail}`,
+                    message: `Failed to list project entries: ${cause.detail}`,
                     cause,
                   }),
               ),
             ),
-            { "rpc.aggregate": "workspace" },
+            { "rpc.aggregate": "project" },
           ),
         [WS_METHODS.projectsReadFile]: (input) =>
           observeRpcEffect(
             WS_METHODS.projectsReadFile,
-            workspaceFileSystem.readFile(input).pipe(
+            projectFileSystem.readFile(input).pipe(
               Effect.mapError((cause) => {
-                const message = Schema.is(WorkspacePathOutsideRootError)(cause)
-                  ? "Workspace file path must stay within the project root."
-                  : `Failed to read workspace file: ${cause.detail}`;
+                const message = Schema.is(ProjectPathOutsideRootError)(cause)
+                  ? "Project file path must stay within the project root."
+                  : `Failed to read project file: ${cause.detail}`;
                 return new ProjectReadFileError({
                   message,
                   cause,
                 });
               }),
             ),
-            { "rpc.aggregate": "workspace" },
+            { "rpc.aggregate": "project" },
           ),
         [WS_METHODS.projectsWriteFile]: (input) =>
           observeRpcEffect(
             WS_METHODS.projectsWriteFile,
-            workspaceFileSystem.writeFile(input).pipe(
+            projectFileSystem.writeFile(input).pipe(
               Effect.mapError((cause) => {
-                const message = Schema.is(WorkspacePathOutsideRootError)(cause)
-                  ? "Workspace file path must stay within the project root."
-                  : "Failed to write workspace file";
+                const message = Schema.is(ProjectPathOutsideRootError)(cause)
+                  ? "Project file path must stay within the project root."
+                  : "Failed to write project file";
                 return new ProjectWriteFileError({
                   message,
                   cause,
                 });
               }),
             ),
-            { "rpc.aggregate": "workspace" },
+            { "rpc.aggregate": "project" },
           ),
         [WS_METHODS.shellOpenInEditor]: (input) =>
           observeRpcEffect(WS_METHODS.shellOpenInEditor, open.openInEditor(input), {
-            "rpc.aggregate": "workspace",
+            "rpc.aggregate": "project",
           }),
         [WS_METHODS.filesystemBrowse]: (input) =>
           observeRpcEffect(
             WS_METHODS.filesystemBrowse,
-            workspaceEntries.browse(input).pipe(
+            projectEntries.browse(input).pipe(
               Effect.mapError(
                 (cause) =>
                   new FilesystemBrowseError({
@@ -811,7 +840,7 @@ const makeWsRpcLayer = (currentSessionId: AuthSessionId) =>
                   }),
               ),
             ),
-            { "rpc.aggregate": "workspace" },
+            { "rpc.aggregate": "project" },
           ),
         [WS_METHODS.subscribeGitStatus]: (input) =>
           observeRpcStream(

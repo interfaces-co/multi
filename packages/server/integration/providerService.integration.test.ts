@@ -29,7 +29,7 @@ import {
   codexTurnTextFixture,
 } from "./fixtures/provider-runtime.ts";
 
-const makeWorkspaceDirectory = Effect.gen(function* () {
+const makeProjectDirectory = Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem;
   const pathService = yield* Path.Path;
   const cwd = yield* fs.makeTempDirectory();
@@ -44,7 +44,7 @@ interface IntegrationFixture {
 }
 
 const makeIntegrationFixture = Effect.gen(function* () {
-  const cwd = yield* makeWorkspaceDirectory;
+  const cwd = yield* makeProjectDirectory;
   const harness = yield* makeTestProviderAdapterHarness();
 
   const registry: typeof ProviderAdapterRegistry.Service = {
@@ -186,7 +186,7 @@ it.live("replays file-changing fixture turn events", () =>
         userText: "make a small change",
         response: {
           events: codexTurnToolFixture,
-          mutateWorkspace: ({ cwd }) =>
+          mutateProject: ({ cwd }) =>
             writeFileString(join(cwd, "README.md"), "v2\n").pipe(Effect.asVoid, Effect.ignore),
         },
       });
@@ -223,7 +223,7 @@ it.live("runs multi-turn tool/approval flow", () =>
         userText: "turn 1",
         response: {
           events: codexTurnToolFixture,
-          mutateWorkspace: ({ cwd }) =>
+          mutateProject: ({ cwd }) =>
             writeFileString(join(cwd, "README.md"), "v2\n").pipe(Effect.asVoid, Effect.ignore),
         },
       });
@@ -239,7 +239,7 @@ it.live("runs multi-turn tool/approval flow", () =>
         userText: "turn 2 approval",
         response: {
           events: codexTurnApprovalFixture,
-          mutateWorkspace: ({ cwd }) =>
+          mutateProject: ({ cwd }) =>
             writeFileString(join(cwd, "README.md"), "v3\n").pipe(Effect.asVoid, Effect.ignore),
         },
       });
@@ -275,7 +275,7 @@ it.live("rolls back provider conversation state only", () =>
         userText: "turn 1",
         response: {
           events: codexTurnToolFixture,
-          mutateWorkspace: ({ cwd }) =>
+          mutateProject: ({ cwd }) =>
             writeFileString(join(cwd, "README.md"), "v2\n").pipe(Effect.asVoid, Effect.ignore),
         },
       });
@@ -287,7 +287,7 @@ it.live("rolls back provider conversation state only", () =>
         userText: "turn 2 approval",
         response: {
           events: codexTurnApprovalFixture,
-          mutateWorkspace: ({ cwd }) =>
+          mutateProject: ({ cwd }) =>
             writeFileString(join(cwd, "README.md"), "v3\n").pipe(Effect.asVoid, Effect.ignore),
         },
       });

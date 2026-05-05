@@ -5,8 +5,8 @@ export default Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
 
   yield* sql`
-    CREATE INDEX IF NOT EXISTS idx_projection_projects_workspace_root_deleted_at
-    ON projection_projects(workspace_root, deleted_at)
+    CREATE INDEX IF NOT EXISTS idx_projection_projects_project_root_deleted_at
+    ON projection_projects(project_root, deleted_at)
   `;
 
   yield* sql`

@@ -4,25 +4,25 @@ import { Effect, FileSystem, Layer, Path, Schema } from "effect";
 
 import { ServerConfig } from "../config.ts";
 import { GitCoreLive } from "../git/GitCore.ts";
-import { WorkspaceEntries } from "./WorkspaceEntries.service.ts";
-import { WorkspaceFileSystem, WorkspaceFileSystemError } from "./WorkspaceFileSystem.service.ts";
-import { WorkspaceEntriesLive } from "./WorkspaceEntries.ts";
-import { WorkspaceFileSystemLive } from "./WorkspaceFileSystem.ts";
-import { WorkspacePathsLive } from "./WorkspacePaths.ts";
+import { ProjectEntries } from "./ProjectEntries.service.ts";
+import { ProjectFileSystem, ProjectFileSystemError } from "./ProjectFileSystem.service.ts";
+import { ProjectEntriesLive } from "./ProjectEntries.ts";
+import { ProjectFileSystemLive } from "./ProjectFileSystem.ts";
+import { ProjectPathsLive } from "./ProjectPaths.ts";
 
-const ProjectLayer = WorkspaceFileSystemLive.pipe(
-  Layer.provide(WorkspacePathsLive),
-  Layer.provide(WorkspaceEntriesLive.pipe(Layer.provide(WorkspacePathsLive))),
+const ProjectLayer = ProjectFileSystemLive.pipe(
+  Layer.provide(ProjectPathsLive),
+  Layer.provide(ProjectEntriesLive.pipe(Layer.provide(ProjectPathsLive))),
 );
 
 const TestLayer = Layer.empty.pipe(
   Layer.provideMerge(ProjectLayer),
-  Layer.provideMerge(WorkspaceEntriesLive.pipe(Layer.provide(WorkspacePathsLive))),
-  Layer.provideMerge(WorkspacePathsLive),
+  Layer.provideMerge(ProjectEntriesLive.pipe(Layer.provide(ProjectPathsLive))),
+  Layer.provideMerge(ProjectPathsLive),
   Layer.provideMerge(GitCoreLive),
   Layer.provide(
     ServerConfig.layerTest(process.cwd(), {
-      prefix: "t3-workspace-files-test-",
+      prefix: "t3-project-files-test-",
     }),
   ),
   Layer.provideMerge(NodeServices.layer),
@@ -31,7 +31,7 @@ const TestLayer = Layer.empty.pipe(
 const makeTempDir = Effect.gen(function* () {
   const fileSystem = yield* FileSystem.FileSystem;
   return yield* fileSystem.makeTempDirectoryScoped({
-    prefix: "multi-workspace-files-",
+    prefix: "multi-project-files-",
   });
 });
 
@@ -49,15 +49,15 @@ const writeTextFile = Effect.fn("writeTextFile")(function* (
   yield* fileSystem.writeFileString(absolutePath, contents).pipe(Effect.orDie);
 });
 
-it.layer(TestLayer)("WorkspaceFileSystemLive", (it) => {
+it.layer(TestLayer)("ProjectFileSystemLive", (it) => {
   describe("readFile", () => {
-    it.effect("reads text files relative to the workspace root", () =>
+    it.effect("reads text files relative to the project root", () =>
       Effect.gen(function* () {
-        const workspaceFileSystem = yield* WorkspaceFileSystem;
+        const projectFileSystem = yield* ProjectFileSystem;
         const cwd = yield* makeTempDir;
         yield* writeTextFile(cwd, "src/index.ts", "export const value = 1;\n");
 
-        const result = yield* workspaceFileSystem.readFile({
+        const result = yield* projectFileSystem.readFile({
           cwd,
           relativePath: "src/index.ts",
         });
@@ -74,12 +74,12 @@ it.layer(TestLayer)("WorkspaceFileSystemLive", (it) => {
       }),
     );
 
-    it.effect("rejects reads outside the workspace root", () =>
+    it.effect("rejects reads outside the project root", () =>
       Effect.gen(function* () {
-        const workspaceFileSystem = yield* WorkspaceFileSystem;
+        const projectFileSystem = yield* ProjectFileSystem;
         const cwd = yield* makeTempDir;
 
-        const error = yield* workspaceFileSystem
+        const error = yield* projectFileSystem
           .readFile({
             cwd,
             relativePath: "../escape.md",
@@ -87,43 +87,43 @@ it.layer(TestLayer)("WorkspaceFileSystemLive", (it) => {
           .pipe(Effect.flip);
 
         expect(error.message).toContain(
-          "Workspace file path must be relative to the project root: ../escape.md",
+          "Project file path must be relative to the project root: ../escape.md",
         );
       }),
     );
 
-    it.effect("fails explicitly when the workspace root is missing", () =>
+    it.effect("fails explicitly when the project root is missing", () =>
       Effect.gen(function* () {
-        const workspaceFileSystem = yield* WorkspaceFileSystem;
+        const projectFileSystem = yield* ProjectFileSystem;
         const cwd = yield* makeTempDir;
         const path = yield* Path.Path;
         const missingRoot = path.join(cwd, "missing-root");
 
-        const error = yield* workspaceFileSystem
+        const error = yield* projectFileSystem
           .readFile({
             cwd: missingRoot,
             relativePath: "README.md",
           })
           .pipe(Effect.flip);
 
-        expect(error).toBeInstanceOf(WorkspaceFileSystemError);
-        if (!Schema.is(WorkspaceFileSystemError)(error)) {
+        expect(error).toBeInstanceOf(ProjectFileSystemError);
+        if (!Schema.is(ProjectFileSystemError)(error)) {
           return;
         }
-        expect(error.detail).toContain("Workspace root does not exist:");
+        expect(error.detail).toContain("Project root does not exist:");
         expect(error.cwd).toBe(missingRoot);
       }),
     );
   });
 
   describe("writeFile", () => {
-    it.effect("writes files relative to the workspace root", () =>
+    it.effect("writes files relative to the project root", () =>
       Effect.gen(function* () {
-        const workspaceFileSystem = yield* WorkspaceFileSystem;
+        const projectFileSystem = yield* ProjectFileSystem;
         const cwd = yield* makeTempDir;
         const fileSystem = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
-        const result = yield* workspaceFileSystem.writeFile({
+        const result = yield* projectFileSystem.writeFile({
           cwd,
           relativePath: "plans/effect-rpc.md",
           contents: "# Plan\n",
@@ -137,14 +137,14 @@ it.layer(TestLayer)("WorkspaceFileSystemLive", (it) => {
       }),
     );
 
-    it.effect("invalidates workspace entry search cache after writes", () =>
+    it.effect("invalidates project entry search cache after writes", () =>
       Effect.gen(function* () {
-        const workspaceEntries = yield* WorkspaceEntries;
-        const workspaceFileSystem = yield* WorkspaceFileSystem;
+        const projectEntries = yield* ProjectEntries;
+        const projectFileSystem = yield* ProjectFileSystem;
         const cwd = yield* makeTempDir;
         yield* writeTextFile(cwd, "src/existing.ts", "export {};\n");
 
-        const beforeWrite = yield* workspaceEntries.search({
+        const beforeWrite = yield* projectEntries.search({
           cwd,
           query: "rpc",
           limit: 10,
@@ -154,13 +154,13 @@ it.layer(TestLayer)("WorkspaceFileSystemLive", (it) => {
           truncated: false,
         });
 
-        yield* workspaceFileSystem.writeFile({
+        yield* projectFileSystem.writeFile({
           cwd,
           relativePath: "plans/effect-rpc.md",
           contents: "# Plan\n",
         });
 
-        const afterWrite = yield* workspaceEntries.search({
+        const afterWrite = yield* projectEntries.search({
           cwd,
           query: "rpc",
           limit: 10,
@@ -172,14 +172,14 @@ it.layer(TestLayer)("WorkspaceFileSystemLive", (it) => {
       }),
     );
 
-    it.effect("rejects writes outside the workspace root", () =>
+    it.effect("rejects writes outside the project root", () =>
       Effect.gen(function* () {
-        const workspaceFileSystem = yield* WorkspaceFileSystem;
+        const projectFileSystem = yield* ProjectFileSystem;
         const cwd = yield* makeTempDir;
         const path = yield* Path.Path;
         const fileSystem = yield* FileSystem.FileSystem;
 
-        const error = yield* workspaceFileSystem
+        const error = yield* projectFileSystem
           .writeFile({
             cwd,
             relativePath: "../escape.md",
@@ -188,7 +188,7 @@ it.layer(TestLayer)("WorkspaceFileSystemLive", (it) => {
           .pipe(Effect.flip);
 
         expect(error.message).toContain(
-          "Workspace file path must be relative to the project root: ../escape.md",
+          "Project file path must be relative to the project root: ../escape.md",
         );
 
         const escapedPath = path.resolve(cwd, "..", "escape.md");
@@ -199,15 +199,15 @@ it.layer(TestLayer)("WorkspaceFileSystemLive", (it) => {
       }),
     );
 
-    it.effect("does not create a missing workspace root on write", () =>
+    it.effect("does not create a missing project root on write", () =>
       Effect.gen(function* () {
-        const workspaceFileSystem = yield* WorkspaceFileSystem;
+        const projectFileSystem = yield* ProjectFileSystem;
         const cwd = yield* makeTempDir;
         const path = yield* Path.Path;
         const fileSystem = yield* FileSystem.FileSystem;
         const missingRoot = path.join(cwd, "missing-root");
 
-        const error = yield* workspaceFileSystem
+        const error = yield* projectFileSystem
           .writeFile({
             cwd: missingRoot,
             relativePath: "README.md",
@@ -215,11 +215,11 @@ it.layer(TestLayer)("WorkspaceFileSystemLive", (it) => {
           })
           .pipe(Effect.flip);
 
-        expect(error).toBeInstanceOf(WorkspaceFileSystemError);
-        if (!Schema.is(WorkspaceFileSystemError)(error)) {
+        expect(error).toBeInstanceOf(ProjectFileSystemError);
+        if (!Schema.is(ProjectFileSystemError)(error)) {
           return;
         }
-        expect(error.detail).toContain("Workspace root does not exist:");
+        expect(error.detail).toContain("Project root does not exist:");
         expect(yield* fileSystem.exists(missingRoot)).toBe(false);
       }),
     );

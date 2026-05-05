@@ -31,10 +31,10 @@ import {
   useTerminalSessions,
 } from "~/lib/shell-panels-store";
 import { useThreadUnreadStore } from "~/lib/thread-unread-store";
-import { writeStoredWorkspaceCwd } from "~/lib/workspace-state";
+import { writeStoredProjectCwd } from "~/lib/project-state";
 import { inferLoginShellCaption } from "~/lib/terminal-shell-caption";
 import {
-  buildWorkspaceChatSections,
+  buildProjectChatSections,
   type SidebarDraftSummary,
   type SidebarThreadSummary as SidebarSectionThreadSummary,
 } from "~/lib/sidebar-chat-view-model";
@@ -56,7 +56,7 @@ import {
 } from "~/types";
 import { resolveThreadRouteTarget } from "~/thread-routes";
 import { GitPanel } from "./shell/git/panel";
-import { WorkspaceFilesPanel } from "./shell/files/workspace-files-panel";
+import { ProjectFilesPanel } from "./shell/files/project-files-panel";
 import { AppShell } from "./shell/shell/app";
 import { RightWorkbenchLayout } from "./shell/shell/right-workbench-layout";
 import { WorkbenchPanel } from "./shell/shell/workbench-panel";
@@ -310,7 +310,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
     null;
 
   const sections = useMemo(
-    () => buildWorkspaceChatSections(summaries, drafts, activeCwd, null, unreadIds),
+    () => buildProjectChatSections(summaries, drafts, activeCwd, null, unreadIds),
     [activeCwd, drafts, summaries, unreadIds],
   );
 
@@ -328,7 +328,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
       const project =
         cwd && cwd.length > 0 ? projects.find((candidate) => candidate.cwd === cwd) : null;
       if (project) {
-        writeStoredWorkspaceCwd(project.cwd);
+        writeStoredProjectCwd(project.cwd);
         void startNewThreadInProjectFromContext(
           context,
           scopeProjectRef(project.environmentId, project.id),
@@ -353,7 +353,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
     (id: string) => {
       const draft = drafts.find((entry) => entry.id === id);
       if (draft) {
-        writeStoredWorkspaceCwd(draft.cwd);
+        writeStoredProjectCwd(draft.cwd);
         void navigate({ to: "/draft/$draftId", params: { draftId: id } });
         return;
       }
@@ -362,7 +362,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
       if (thread) {
         const cwd = thread.worktreePath ?? projectById.get(thread.projectId)?.cwd;
         if (cwd) {
-          writeStoredWorkspaceCwd(cwd);
+          writeStoredProjectCwd(cwd);
         }
         void navigate({
           to: "/$environmentId/$threadId",
@@ -632,7 +632,7 @@ function DesktopChatShellHost(props: {
       right={{
         files: (
           <WorkbenchPanel>
-            <WorkspaceFilesPanel
+            <ProjectFilesPanel
               cwd={props.cwd}
               environmentId={props.environmentId}
               availableEditors={props.availableEditors}

@@ -1,4 +1,4 @@
-import { formatWorkspaceRelativePath } from "./file-path-display";
+import { formatProjectRelativePath } from "./file-path-display";
 import { resolvePathLinkTarget, splitPathAndPosition } from "./terminal-links";
 
 const WINDOWS_DRIVE_PATH_PATTERN = /^[A-Za-z]:[\\/]/;
@@ -175,7 +175,7 @@ export function resolveMarkdownFileLinkMeta(
   return {
     filePath: path,
     targetPath,
-    displayPath: formatWorkspaceRelativePath(targetPath, cwd),
+    displayPath: formatProjectRelativePath(targetPath, cwd),
     basename: basenameOfPath(path),
     ...(lineNumber !== undefined ? { line: lineNumber } : {}),
     ...(columnNumber !== undefined ? { column: columnNumber } : {}),

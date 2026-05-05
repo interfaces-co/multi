@@ -25,7 +25,7 @@ import { ProviderService, type ProviderServiceShape } from "../provider/Provider
 import { RepositoryIdentityResolverLive } from "../project/RepositoryIdentityResolver.ts";
 import { OrchestrationEngineLive } from "./OrchestrationEngine.ts";
 import { OrchestrationProjectionPipelineLive } from "./ProjectionPipeline.ts";
-import { OrchestrationProjectionSnapshotQueryLive } from "./ProjectionSnapshotQuery.ts";
+import { ThreadProjectionLive } from "./ThreadProjection.ts";
 import { ProviderRuntimeIngestionLive } from "./ProviderRuntimeIngestion.ts";
 import {
   OrchestrationEngineService,
@@ -191,11 +191,11 @@ describe("ProviderRuntimeIngestion", () => {
   });
 
   async function createHarness(options?: { serverSettings?: Partial<ServerSettings> }) {
-    const workspaceRoot = makeTempDir("t3-provider-project-");
-    fs.mkdirSync(path.join(workspaceRoot, ".git"));
+    const projectRoot = makeTempDir("t3-provider-project-");
+    fs.mkdirSync(path.join(projectRoot, ".git"));
     const provider = createProviderServiceHarness();
     const orchestrationLayer = OrchestrationEngineLive.pipe(
-      Layer.provide(OrchestrationProjectionSnapshotQueryLive),
+      Layer.provide(ThreadProjectionLive),
       Layer.provide(OrchestrationProjectionPipelineLive),
       Layer.provide(OrchestrationEventStoreLive),
       Layer.provide(OrchestrationCommandReceiptRepositoryLive),
@@ -224,7 +224,7 @@ describe("ProviderRuntimeIngestion", () => {
         commandId: CommandId.make("cmd-provider-project-create"),
         projectId: asProjectId("project-1"),
         title: "Provider Project",
-        workspaceRoot,
+        projectRoot,
         defaultModelSelection: {
           instanceId: "codex",
           model: "gpt-5-codex",
@@ -2355,8 +2355,8 @@ describe("ProviderRuntimeIngestion", () => {
             question: "Which mode should be used?",
             options: [
               {
-                label: "workspace-write",
-                description: "Allow workspace writes only",
+                label: "project-write",
+                description: "Allow project writes only",
               },
             ],
           },
@@ -2375,7 +2375,7 @@ describe("ProviderRuntimeIngestion", () => {
       requestId: ApprovalRequestId.make("req-user-input-1"),
       payload: {
         answers: {
-          sandbox_mode: "workspace-write",
+          sandbox_mode: "project-write",
         },
       },
     });
@@ -2405,7 +2405,7 @@ describe("ProviderRuntimeIngestion", () => {
         : undefined;
     expect(resolved?.kind).toBe("user-input.resolved");
     expect(resolvedPayload?.answers).toEqual({
-      sandbox_mode: "workspace-write",
+      sandbox_mode: "project-write",
     });
   });
 

@@ -1,7 +1,7 @@
 import { EnvironmentId, ProjectId, ThreadId } from "@multi/contracts";
 import { assert, it } from "vitest";
 
-import { buildWorkspaceChatSections, type SidebarThreadSummary } from "./sidebar-chat-view-model";
+import { buildProjectChatSections, type SidebarThreadSummary } from "./sidebar-chat-view-model";
 
 const ENVIRONMENT_ID = EnvironmentId.make("environment-local");
 const PROJECT_A_ID = ProjectId.make("project-a");
@@ -32,14 +32,14 @@ function sum(
   };
 }
 
-it("buildWorkspaceChatSections does not reorder workspace sections when cwd changes", () => {
+it("buildProjectChatSections does not reorder project sections when cwd changes", () => {
   const sums = [
     sum(ThreadId.make("thread-a"), PROJECT_A_ID, "/ws/a", "/ws/a", "2026-04-08T10:00:00.000Z"),
     sum(ThreadId.make("thread-b"), PROJECT_B_ID, "/ws/b", "/ws/b", "2026-04-08T09:00:00.000Z"),
   ];
 
-  const first = buildWorkspaceChatSections(sums, [], "/ws/a", "/Users/workgyver");
-  const second = buildWorkspaceChatSections(sums, [], "/ws/b", "/Users/workgyver");
+  const first = buildProjectChatSections(sums, [], "/ws/a", "/Users/workgyver");
+  const second = buildProjectChatSections(sums, [], "/ws/b", "/Users/workgyver");
 
   assert.deepEqual(
     first.map((section) => section.cwd),

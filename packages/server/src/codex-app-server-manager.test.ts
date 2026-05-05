@@ -1078,8 +1078,8 @@ describe("collab child conversation routing", () => {
 
 describe.skipIf(!process.env.CODEX_BINARY_PATH)("startSession live Codex resume", () => {
   it("keeps prior thread history when resuming with a changed runtime mode", async () => {
-    const workspaceDir = mkdtempSync(path.join(os.tmpdir(), "codex-live-resume-"));
-    writeFileSync(path.join(workspaceDir, "README.md"), "hello\n", "utf8");
+    const projectDir = mkdtempSync(path.join(os.tmpdir(), "codex-live-resume-"));
+    writeFileSync(path.join(projectDir, "README.md"), "hello\n", "utf8");
 
     const manager = new CodexAppServerManager();
 
@@ -1087,7 +1087,7 @@ describe.skipIf(!process.env.CODEX_BINARY_PATH)("startSession live Codex resume"
       const firstSession = await manager.startSession({
         threadId: asThreadId("thread-live"),
         provider: "codex",
-        cwd: workspaceDir,
+        cwd: projectDir,
         runtimeMode: "full-access",
         binaryPath: process.env.CODEX_BINARY_PATH!,
         ...(process.env.CODEX_HOME_PATH ? { homePath: process.env.CODEX_HOME_PATH } : {}),
@@ -1117,7 +1117,7 @@ describe.skipIf(!process.env.CODEX_BINARY_PATH)("startSession live Codex resume"
       const resumedSession = await manager.startSession({
         threadId: firstSession.threadId,
         provider: "codex",
-        cwd: workspaceDir,
+        cwd: projectDir,
         runtimeMode: "approval-required",
         resumeCursor: firstSession.resumeCursor,
         binaryPath: process.env.CODEX_BINARY_PATH!,
@@ -1144,7 +1144,7 @@ describe.skipIf(!process.env.CODEX_BINARY_PATH)("startSession live Codex resume"
       );
     } finally {
       manager.stopAll();
-      rmSync(workspaceDir, { recursive: true, force: true });
+      rmSync(projectDir, { recursive: true, force: true });
     }
   }, 180_000);
 });

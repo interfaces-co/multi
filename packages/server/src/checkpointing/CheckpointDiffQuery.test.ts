@@ -5,9 +5,9 @@ import { describe, expect, it } from "vitest";
 
 import { ServerConfig } from "../config.ts";
 import {
-  ProjectionSnapshotQuery,
-  type ProjectionThreadCheckpointContext,
-} from "../orchestration/ProjectionSnapshotQuery.service.ts";
+  ThreadProjection,
+  type ThreadCheckpointContext,
+} from "../orchestration/ThreadProjection.service.ts";
 import { checkpointRefForThreadTurn } from "./Utils.ts";
 import { CheckpointDiffQueryLive } from "./CheckpointDiffQuery.ts";
 import { CheckpointStore, type CheckpointStoreShape } from "./CheckpointStore.service.ts";
@@ -16,15 +16,15 @@ import { CheckpointDiffQuery } from "./CheckpointDiffQuery.service.ts";
 function makeThreadCheckpointContext(input: {
   readonly projectId: ProjectId;
   readonly threadId: ThreadId;
-  readonly workspaceRoot: string;
+  readonly projectRoot: string;
   readonly worktreePath: string | null;
   readonly checkpointTurnCount: number;
   readonly checkpointRef: CheckpointRef;
-}): ProjectionThreadCheckpointContext {
+}): ThreadCheckpointContext {
   return {
     threadId: input.threadId,
     projectId: input.projectId,
-    workspaceRoot: input.workspaceRoot,
+    projectRoot: input.projectRoot,
     worktreePath: input.worktreePath,
     checkpoints: [
       {
@@ -55,7 +55,7 @@ describe("CheckpointDiffQueryLive", () => {
     const threadCheckpointContext = makeThreadCheckpointContext({
       projectId,
       threadId,
-      workspaceRoot: process.cwd(),
+      projectRoot: process.cwd(),
       worktreePath: null,
       checkpointTurnCount: 1,
       checkpointRef: toCheckpointRef,
@@ -81,13 +81,13 @@ describe("CheckpointDiffQueryLive", () => {
     const layer = CheckpointDiffQueryLive.pipe(
       Layer.provideMerge(Layer.succeed(CheckpointStore, checkpointStore)),
       Layer.provideMerge(
-        Layer.succeed(ProjectionSnapshotQuery, {
+        Layer.succeed(ThreadProjection, {
           getSnapshot: () =>
             Effect.die("CheckpointDiffQuery should not request the full orchestration snapshot"),
           getShellSnapshot: () =>
             Effect.die("CheckpointDiffQuery should not request the orchestration shell snapshot"),
           getCounts: () => Effect.succeed({ projectCount: 0, threadCount: 0 }),
-          getActiveProjectByWorkspaceRoot: () => Effect.succeed(Option.none()),
+          getActiveProjectByProjectRoot: () => Effect.succeed(Option.none()),
           getProjectShellById: () => Effect.succeed(Option.none()),
           getFirstActiveThreadIdByProjectId: () => Effect.succeed(Option.none()),
           getThreadCheckpointContext: () => Effect.succeed(Option.some(threadCheckpointContext)),
@@ -142,13 +142,13 @@ describe("CheckpointDiffQueryLive", () => {
     const layer = CheckpointDiffQueryLive.pipe(
       Layer.provideMerge(Layer.succeed(CheckpointStore, checkpointStore)),
       Layer.provideMerge(
-        Layer.succeed(ProjectionSnapshotQuery, {
+        Layer.succeed(ThreadProjection, {
           getSnapshot: () =>
             Effect.die("CheckpointDiffQuery should not request the full orchestration snapshot"),
           getShellSnapshot: () =>
             Effect.die("CheckpointDiffQuery should not request the orchestration shell snapshot"),
           getCounts: () => Effect.succeed({ projectCount: 0, threadCount: 0 }),
-          getActiveProjectByWorkspaceRoot: () => Effect.succeed(Option.none()),
+          getActiveProjectByProjectRoot: () => Effect.succeed(Option.none()),
           getProjectShellById: () => Effect.succeed(Option.none()),
           getFirstActiveThreadIdByProjectId: () => Effect.succeed(Option.none()),
           getThreadCheckpointContext: () => Effect.succeed(Option.none()),

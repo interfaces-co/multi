@@ -4,12 +4,12 @@ import { getFiletypeFromFileName } from "@pierre/diffs";
 import { Effect, FileSystem, Layer, Path } from "effect";
 
 import {
-  WorkspaceFileSystem,
-  WorkspaceFileSystemError,
-  type WorkspaceFileSystemShape,
-} from "./WorkspaceFileSystem.service.ts";
-import { WorkspaceEntries } from "./WorkspaceEntries.service.ts";
-import { WorkspacePaths } from "./WorkspacePaths.service.ts";
+  ProjectFileSystem,
+  ProjectFileSystemError,
+  type ProjectFileSystemShape,
+} from "./ProjectFileSystem.service.ts";
+import { ProjectEntries } from "./ProjectEntries.service.ts";
+import { ProjectPaths } from "./ProjectPaths.service.ts";
 
 const READ_FILE_PREVIEW_MAX_BYTES = 1_000_000;
 const BINARY_DETECTION_BYTES = 8_000;
@@ -18,23 +18,23 @@ function isProbablyBinary(bytes: Buffer): boolean {
   return bytes.subarray(0, BINARY_DETECTION_BYTES).includes(0);
 }
 
-export const makeWorkspaceFileSystem = Effect.gen(function* () {
+export const makeProjectFileSystem = Effect.gen(function* () {
   const fileSystem = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
-  const workspacePaths = yield* WorkspacePaths;
-  const workspaceEntries = yield* WorkspaceEntries;
+  const projectPaths = yield* ProjectPaths;
+  const projectEntries = yield* ProjectEntries;
 
-  const normalizeWorkspaceRoot = Effect.fn("WorkspaceFileSystem.normalizeWorkspaceRoot")(function* (
+  const normalizeProjectRoot = Effect.fn("ProjectFileSystem.normalizeProjectRoot")(function* (
     cwd: string,
     relativePath: string,
-  ): Effect.fn.Return<string, WorkspaceFileSystemError> {
-    return yield* workspacePaths.normalizeWorkspaceRoot(cwd).pipe(
+  ): Effect.fn.Return<string, ProjectFileSystemError> {
+    return yield* projectPaths.normalizeProjectRoot(cwd).pipe(
       Effect.mapError(
         (cause) =>
-          new WorkspaceFileSystemError({
+          new ProjectFileSystemError({
             cwd,
             relativePath,
-            operation: "workspaceFileSystem.normalizeWorkspaceRoot",
+            operation: "projectFileSystem.normalizeProjectRoot",
             detail: cause.message,
             cause,
           }),
@@ -42,31 +42,31 @@ export const makeWorkspaceFileSystem = Effect.gen(function* () {
     );
   });
 
-  const readFile: WorkspaceFileSystemShape["readFile"] = Effect.fn("WorkspaceFileSystem.readFile")(
+  const readFile: ProjectFileSystemShape["readFile"] = Effect.fn("ProjectFileSystem.readFile")(
     function* (input) {
-      const normalizedCwd = yield* normalizeWorkspaceRoot(input.cwd, input.relativePath);
-      const target = yield* workspacePaths.resolveRelativePathWithinRoot({
-        workspaceRoot: normalizedCwd,
+      const normalizedCwd = yield* normalizeProjectRoot(input.cwd, input.relativePath);
+      const target = yield* projectPaths.resolveRelativePathWithinRoot({
+        projectRoot: normalizedCwd,
         relativePath: input.relativePath,
       });
 
       const stat = yield* Effect.tryPromise({
         try: () => fsPromises.stat(target.absolutePath),
         catch: (cause) =>
-          new WorkspaceFileSystemError({
+          new ProjectFileSystemError({
             cwd: normalizedCwd,
             relativePath: input.relativePath,
-            operation: "workspaceFileSystem.readFile.stat",
+            operation: "projectFileSystem.readFile.stat",
             detail: cause instanceof Error ? cause.message : String(cause),
             cause,
           }),
       });
 
       if (!stat.isFile()) {
-        return yield* new WorkspaceFileSystemError({
+        return yield* new ProjectFileSystemError({
           cwd: normalizedCwd,
           relativePath: input.relativePath,
-          operation: "workspaceFileSystem.readFile.stat",
+          operation: "projectFileSystem.readFile.stat",
           detail: "Path is not a file.",
         });
       }
@@ -76,10 +76,10 @@ export const makeWorkspaceFileSystem = Effect.gen(function* () {
         Effect.tryPromise({
           try: () => fsPromises.open(target.absolutePath, "r"),
           catch: (cause) =>
-            new WorkspaceFileSystemError({
+            new ProjectFileSystemError({
               cwd: normalizedCwd,
               relativePath: input.relativePath,
-              operation: "workspaceFileSystem.readFile.open",
+              operation: "projectFileSystem.readFile.open",
               detail: cause instanceof Error ? cause.message : String(cause),
               cause,
             }),
@@ -95,10 +95,10 @@ export const makeWorkspaceFileSystem = Effect.gen(function* () {
               return buffer.subarray(0, result.bytesRead);
             },
             catch: (cause) =>
-              new WorkspaceFileSystemError({
+              new ProjectFileSystemError({
                 cwd: normalizedCwd,
                 relativePath: input.relativePath,
-                operation: "workspaceFileSystem.readFile.read",
+                operation: "projectFileSystem.readFile.read",
                 detail: cause instanceof Error ? cause.message : String(cause),
                 cause,
               }),
@@ -107,10 +107,10 @@ export const makeWorkspaceFileSystem = Effect.gen(function* () {
       );
 
       if (isProbablyBinary(bytes)) {
-        return yield* new WorkspaceFileSystemError({
+        return yield* new ProjectFileSystemError({
           cwd: normalizedCwd,
           relativePath: input.relativePath,
-          operation: "workspaceFileSystem.readFile.decode",
+          operation: "projectFileSystem.readFile.decode",
           detail: "Binary file previews are not supported.",
         });
       }
@@ -127,22 +127,22 @@ export const makeWorkspaceFileSystem = Effect.gen(function* () {
     },
   );
 
-  const writeFile: WorkspaceFileSystemShape["writeFile"] = Effect.fn(
-    "WorkspaceFileSystem.writeFile",
+  const writeFile: ProjectFileSystemShape["writeFile"] = Effect.fn(
+    "ProjectFileSystem.writeFile",
   )(function* (input) {
-    const normalizedCwd = yield* normalizeWorkspaceRoot(input.cwd, input.relativePath);
-    const target = yield* workspacePaths.resolveRelativePathWithinRoot({
-      workspaceRoot: normalizedCwd,
+    const normalizedCwd = yield* normalizeProjectRoot(input.cwd, input.relativePath);
+    const target = yield* projectPaths.resolveRelativePathWithinRoot({
+      projectRoot: normalizedCwd,
       relativePath: input.relativePath,
     });
 
     yield* fileSystem.makeDirectory(path.dirname(target.absolutePath), { recursive: true }).pipe(
       Effect.mapError(
         (cause) =>
-          new WorkspaceFileSystemError({
+          new ProjectFileSystemError({
             cwd: normalizedCwd,
             relativePath: input.relativePath,
-            operation: "workspaceFileSystem.makeDirectory",
+            operation: "projectFileSystem.makeDirectory",
             detail: cause.message,
             cause,
           }),
@@ -151,19 +151,19 @@ export const makeWorkspaceFileSystem = Effect.gen(function* () {
     yield* fileSystem.writeFileString(target.absolutePath, input.contents).pipe(
       Effect.mapError(
         (cause) =>
-          new WorkspaceFileSystemError({
+          new ProjectFileSystemError({
             cwd: normalizedCwd,
             relativePath: input.relativePath,
-            operation: "workspaceFileSystem.writeFile",
+            operation: "projectFileSystem.writeFile",
             detail: cause.message,
             cause,
           }),
       ),
     );
-    yield* workspaceEntries.invalidate(normalizedCwd);
+    yield* projectEntries.invalidate(normalizedCwd);
     return { relativePath: target.relativePath };
   });
-  return { readFile, writeFile } satisfies WorkspaceFileSystemShape;
+  return { readFile, writeFile } satisfies ProjectFileSystemShape;
 });
 
-export const WorkspaceFileSystemLive = Layer.effect(WorkspaceFileSystem, makeWorkspaceFileSystem);
+export const ProjectFileSystemLive = Layer.effect(ProjectFileSystem, makeProjectFileSystem);

@@ -278,7 +278,7 @@ export function TerminalPanel(props: {
   if (!props.cwd) {
     return (
       <div className="flex min-h-0 flex-1 items-center justify-center px-4 text-center">
-        <p className="text-body text-muted-foreground/60">No workspace open</p>
+        <p className="text-body text-muted-foreground/60">No project open</p>
       </div>
     );
   }
