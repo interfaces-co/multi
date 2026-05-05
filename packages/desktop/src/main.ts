@@ -212,6 +212,8 @@ function resolvePickFolderDefaultPath(rawOptions: unknown): string | undefined {
 }
 const DESKTOP_LOOPBACK_HOST = "127.0.0.1";
 const DESKTOP_REQUIRED_PORT_PROBE_HOSTS = ["0.0.0.0", "::"] as const;
+const DEFAULT_WINDOW_WIDTH = 1280;
+const DEFAULT_WINDOW_HEIGHT = 800;
 const TITLEBAR_HEIGHT = 40;
 const TITLEBAR_COLOR = "#01000000"; // #00000000 does not work correctly on Linux
 const TITLEBAR_LIGHT_SYMBOL_COLOR = "#1f2937";
@@ -1971,8 +1973,9 @@ function writeWindowLifecycleLog(window: BrowserWindow, eventName: string, detai
 
 function createWindow(): BrowserWindow {
   const window = new BrowserWindow({
-    width: 1100,
-    height: 780,
+    width: DEFAULT_WINDOW_WIDTH,
+    height: DEFAULT_WINDOW_HEIGHT,
+    center: true,
     minWidth: 840,
     minHeight: 620,
     show: false,
