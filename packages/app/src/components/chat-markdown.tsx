@@ -1,7 +1,6 @@
 import { DiffsHighlighter, getSharedHighlighter, SupportedLanguages } from "@pierre/diffs";
 import { IconCheckmark1, IconClipboard } from "central-icons";
 import React, {
-  Children,
   Suspense,
   type MouseEvent as ReactMouseEvent,
   isValidElement,
@@ -14,10 +13,8 @@ import React, {
   useState,
   type ReactNode,
 } from "react";
-import type { Components } from "react-markdown";
-import ReactMarkdown from "react-markdown";
-import { defaultUrlTransform } from "react-markdown";
-import remarkGfm from "remark-gfm";
+import type { Components, UrlTransform } from "streamdown";
+import { defaultUrlTransform, Streamdown } from "streamdown";
 import { VscodeEntryIcon } from "./chat/vscode-entry-icon";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@multi/ui/tooltip";
 import { toastManager } from "~/app/toast";
@@ -84,28 +81,6 @@ function nodeToPlainText(node: ReactNode): string {
     return nodeToPlainText(node.props.children);
   }
   return "";
-}
-
-function extractCodeBlock(
-  children: ReactNode,
-): { className: string | undefined; code: string } | null {
-  const childNodes = Children.toArray(children);
-  if (childNodes.length !== 1) {
-    return null;
-  }
-
-  const onlyChild = childNodes[0];
-  if (
-    !isValidElement<{ className?: string; children?: ReactNode }>(onlyChild) ||
-    onlyChild.type !== "code"
-  ) {
-    return null;
-  }
-
-  return {
-    className: onlyChild.props.className,
-    code: nodeToPlainText(onlyChild.props.children),
-  };
 }
 
 function createHighlightCacheKey(code: string, language: string, themeName: DiffThemeName): string {
@@ -188,15 +163,17 @@ function MarkdownCodeBlock({ code, children }: { code: string; children: ReactNo
 function PlainCodeBlock({
   className,
   code,
-  preProps,
+  codeProps,
 }: {
   className: string | undefined;
   code: string;
-  preProps: React.ComponentProps<"pre">;
+  codeProps?: React.ComponentProps<"code"> | undefined;
 }) {
   return (
-    <pre {...preProps}>
-      <code className={className}>{code}</code>
+    <pre>
+      <code {...codeProps} className={className}>
+        {code}
+      </code>
     </pre>
   );
 }
@@ -507,8 +484,8 @@ function ChatMarkdown({ text, cwd, isStreaming = false }: ChatMarkdownProps) {
     const filePaths = [...markdownFileLinkMetaByHref.values()].map((meta) => meta.filePath);
     return buildFileLinkParentSuffixByPath(filePaths);
   }, [markdownFileLinkMetaByHref]);
-  const markdownUrlTransform = useCallback((href: string) => {
-    return rewriteMarkdownFileUriHref(href) ?? defaultUrlTransform(href);
+  const markdownUrlTransform = useCallback<UrlTransform>((href, key, node) => {
+    return rewriteMarkdownFileUriHref(href) ?? defaultUrlTransform(href, key, node);
   }, []);
   const markdownComponents = useMemo<Components>(
     () => ({
@@ -542,47 +519,60 @@ function ChatMarkdown({ text, cwd, isStreaming = false }: ChatMarkdownProps) {
           />
         );
       },
-      pre({ node: _node, children, ...props }) {
-        const codeBlock = extractCodeBlock(children);
-        if (!codeBlock) {
-          return <pre {...props}>{children}</pre>;
+      code({
+        node: _node,
+        className,
+        children,
+        "data-block": dataBlock,
+        ...props
+      }: React.ComponentProps<"code"> & {
+        node?: unknown;
+        "data-block"?: string | boolean | undefined;
+      }) {
+        const code = nodeToPlainText(children);
+        if (dataBlock == null) {
+          return (
+            <code {...props} className={className}>
+              {children}
+            </code>
+          );
         }
 
         if (isStreaming) {
           return (
-            <MarkdownCodeBlock code={codeBlock.code}>
+            <MarkdownCodeBlock code={code}>
               <PlainCodeBlock
-                className={codeBlock.className}
-                code={codeBlock.code}
-                preProps={props}
+                className={className}
+                code={code}
+                codeProps={props}
               />
             </MarkdownCodeBlock>
           );
         }
 
         return (
-          <MarkdownCodeBlock code={codeBlock.code}>
+          <MarkdownCodeBlock code={code}>
             <CodeHighlightErrorBoundary
               fallback={
                 <PlainCodeBlock
-                  className={codeBlock.className}
-                  code={codeBlock.code}
-                  preProps={props}
+                  className={className}
+                  code={code}
+                  codeProps={props}
                 />
               }
             >
               <Suspense
                 fallback={
                   <PlainCodeBlock
-                    className={codeBlock.className}
-                    code={codeBlock.code}
-                    preProps={props}
+                    className={className}
+                    code={code}
+                    codeProps={props}
                   />
                 }
               >
                 <SuspenseShikiCodeBlock
-                  className={codeBlock.className}
-                  code={codeBlock.code}
+                  className={className}
+                  code={code}
                   themeName={diffThemeName}
                   isStreaming={false}
                 />
@@ -609,13 +599,17 @@ function ChatMarkdown({ text, cwd, isStreaming = false }: ChatMarkdownProps) {
         "text-multi-fg-primary",
       )}
     >
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+      <Streamdown
+        mode={isStreaming ? "streaming" : "static"}
+        parseIncompleteMarkdown={isStreaming}
         components={markdownComponents}
         urlTransform={markdownUrlTransform}
+        animated={false}
+        controls={false}
+        className="chat-markdown-streamdown space-y-0"
       >
         {text}
-      </ReactMarkdown>
+      </Streamdown>
     </div>
   );
 }

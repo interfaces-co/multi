@@ -12,7 +12,7 @@ import {
   textContainsInlineTerminalContextLabels,
 } from "./user-message-terminal-contexts";
 import { type ChatMessage } from "../../types";
-import { ChatMessageBubble } from "./message-surface";
+import { ChatMessageBubble, EditableChatMessageBubble } from "./message-surface";
 import { HumanMessageCollapsible } from "./human-message-collapse";
 
 interface HumanMessageProps {
@@ -80,13 +80,21 @@ export const HumanMessage = memo(function HumanMessage({
 
   const canEdit = isServerThread && typeof onBeginEditUserMessage === "function";
 
+  if (canEdit) {
+    return (
+      <EditableChatMessageBubble
+        body={body}
+        media={media}
+        onActivate={() => onBeginEditUserMessage(message.id)}
+      />
+    );
+  }
+
   return (
     <ChatMessageBubble
       role="user"
       body={body}
       media={media}
-      interactive={canEdit}
-      onClick={canEdit ? () => onBeginEditUserMessage(message.id) : undefined}
     />
   );
 });

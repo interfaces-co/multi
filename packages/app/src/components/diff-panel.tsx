@@ -88,6 +88,7 @@ function getRenderablePatch(
     const parsedPatches = parsePatchFiles(
       normalizedPatch,
       buildPatchCacheKey(normalizedPatch, cacheScope),
+      true,
     );
     const files = parsedPatches.flatMap((parsedPatch) => parsedPatch.files);
     if (files.length > 0) {

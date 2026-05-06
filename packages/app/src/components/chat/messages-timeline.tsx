@@ -9,7 +9,12 @@ import {
   useMemo,
   useRef,
 } from "react";
-import { LegendList, type LegendListRef } from "@legendapp/list/react";
+import {
+  defaultRangeExtractor,
+  useVirtualizer,
+  type Range,
+  type VirtualItem,
+} from "@tanstack/react-virtual";
 import { Spinner } from "@multi/ui/spinner";
 import { deriveTimelineEntries } from "../../session-logic";
 import { type TurnDiffSummary } from "../../types";
@@ -57,10 +62,20 @@ const CHAT_TIMELINE_CONTENT_STYLE = {
   margin: "0 auto",
   maxWidth: "var(--composer-max-width, 840px)",
   width: "100%",
-  paddingLeft: "var(--composer-messages-padding-inline, 16px)",
-  paddingRight: "var(--composer-messages-padding-inline, 16px)",
-  gap: "var(--chat-timeline-row-gap)",
 } satisfies CSSProperties;
+const DEFAULT_VIRTUALIZER_RECT = { width: 0, height: 720 };
+const VIRTUAL_ROW_GAP_PX = 12;
+const VIRTUALIZER_OVERSCAN = 8;
+const keepScrollOffsetOnMeasuredRowResize = () => false;
+
+interface MessagesTimelineScrollState {
+  isAtBottom: boolean;
+}
+
+export interface MessagesTimelineController {
+  scrollToBottom: (options?: { animated?: boolean }) => void;
+  getScrollState: () => MessagesTimelineScrollState;
+}
 
 // ---------------------------------------------------------------------------
 // Props (public API)
@@ -71,7 +86,8 @@ interface MessagesTimelineProps {
   activeTurnInProgress: boolean;
   activeTurnId?: TurnId | null;
   activeTurnStartedAt: string | null;
-  listRef: React.RefObject<LegendListRef | null>;
+  bottomClearancePx?: number | undefined;
+  timelineControllerRef: React.RefObject<MessagesTimelineController | null>;
   timelineEntries: ReturnType<typeof deriveTimelineEntries>;
   completionDividerBeforeEntryId: string | null;
   completionSummary: string | null;
@@ -89,7 +105,7 @@ interface MessagesTimelineProps {
   onBeginEditUserMessage: ((messageId: MessageId) => void) | undefined;
   showEmptyState?: boolean | undefined;
   awaitingServerThreadDetail?: boolean | undefined;
-  onIsAtEndChange: (isAtEnd: boolean) => void;
+  onIsAtBottomChange: (isAtBottom: boolean) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -101,7 +117,8 @@ export const MessagesTimeline = memo(function MessagesTimeline({
   activeTurnInProgress,
   activeTurnId,
   activeTurnStartedAt,
-  listRef,
+  bottomClearancePx = 0,
+  timelineControllerRef,
   timelineEntries,
   completionDividerBeforeEntryId,
   completionSummary,
@@ -119,7 +136,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
   onBeginEditUserMessage,
   showEmptyState = true,
   awaitingServerThreadDetail = false,
-  onIsAtEndChange,
+  onIsAtBottomChange,
 }: MessagesTimelineProps) {
   const rawRows = useMemo(
     () =>
@@ -145,50 +162,212 @@ export const MessagesTimeline = memo(function MessagesTimeline({
     () => rows.flatMap((row, index) => (isUserMessageRow(row) ? [index] : [])),
     [rows],
   );
-  const isAtEndRef = useRef(true);
+  const scrollElementRef = useRef<HTMLDivElement | null>(null);
+  const isAtBottomRef = useRef(true);
+  const scrollFrameRef = useRef<number | null>(null);
+  const programmaticScrollFrameRef = useRef<number | null>(null);
+  const programmaticScrollDeadlineRef = useRef(0);
+  const programmaticScrollTargetRef = useRef<number | null>(null);
+  const initializedScrollRef = useRef(false);
+  const stickyUserRowIndicesRef = useRef(stickyUserRowIndices);
+  const virtualizerBottomPadding = Math.max(0, Math.ceil(bottomClearancePx));
 
-  const handleScroll = useCallback(() => {
-    const state = listRef.current?.getState?.();
-    if (state) {
-      isAtEndRef.current = state.isAtEnd;
-      onIsAtEndChange(state.isAtEnd);
+  stickyUserRowIndicesRef.current = stickyUserRowIndices;
+
+  const reportIsAtBottom = useCallback(
+    (isAtBottom: boolean, options?: { force?: boolean }) => {
+      if (!options?.force && isAtBottomRef.current === isAtBottom) {
+        return;
+      }
+      isAtBottomRef.current = isAtBottom;
+      onIsAtBottomChange(isAtBottom);
+    },
+    [onIsAtBottomChange],
+  );
+
+  const getIsAtBottom = useCallback(() => {
+    const scrollElement = scrollElementRef.current;
+    if (!scrollElement) {
+      return true;
     }
-  }, [listRef, onIsAtEndChange]);
 
-  const previousRowCountRef = useRef(rows.length);
-  useEffect(() => {
-    const previousRowCount = previousRowCountRef.current;
-    previousRowCountRef.current = rows.length;
+    const maxScrollTop = Math.max(0, scrollElement.scrollHeight - scrollElement.clientHeight);
+    return maxScrollTop <= 1 || scrollElement.scrollTop >= maxScrollTop - 2;
+  }, []);
 
-    if (previousRowCount > 0 || rows.length === 0) {
+  const clearProgrammaticScrollTracking = useCallback(() => {
+    programmaticScrollTargetRef.current = null;
+    if (programmaticScrollFrameRef.current != null) {
+      window.cancelAnimationFrame(programmaticScrollFrameRef.current);
+      programmaticScrollFrameRef.current = null;
+    }
+  }, []);
+
+  const scheduleProgrammaticScrollResolution = useCallback(() => {
+    if (programmaticScrollFrameRef.current != null) {
       return;
     }
 
-    onIsAtEndChange(true);
-    isAtEndRef.current = true;
-    const frameId = window.requestAnimationFrame(() => {
-      void listRef.current?.scrollToEnd?.({ animated: false });
-    });
-    return () => {
-      window.cancelAnimationFrame(frameId);
+    const resolveProgrammaticScroll = () => {
+      programmaticScrollFrameRef.current = null;
+      if (programmaticScrollTargetRef.current === null) {
+        return;
+      }
+
+      const isAtBottom = getIsAtBottom();
+      if (isAtBottom || window.performance.now() >= programmaticScrollDeadlineRef.current) {
+        programmaticScrollTargetRef.current = null;
+        reportIsAtBottom(isAtBottom);
+        return;
+      }
+
+      programmaticScrollFrameRef.current =
+        window.requestAnimationFrame(resolveProgrammaticScroll);
     };
-  }, [listRef, onIsAtEndChange, rows.length]);
+
+    programmaticScrollFrameRef.current = window.requestAnimationFrame(resolveProgrammaticScroll);
+  }, [getIsAtBottom, reportIsAtBottom]);
+
+  const scrollToBottom = useCallback(
+    (options?: { animated?: boolean }) => {
+      const scrollElement = scrollElementRef.current;
+      if (!scrollElement) {
+        return;
+      }
+
+      const maxScrollTop = Math.max(0, scrollElement.scrollHeight - scrollElement.clientHeight);
+      const animated = options?.animated === true;
+      if (animated) {
+        programmaticScrollTargetRef.current = maxScrollTop;
+        programmaticScrollDeadlineRef.current = window.performance.now() + 1600;
+      } else {
+        clearProgrammaticScrollTracking();
+      }
+
+      scrollElement.scrollTo({
+        top: maxScrollTop,
+        behavior: animated ? "smooth" : "auto",
+      });
+      if (animated) {
+        scheduleProgrammaticScrollResolution();
+      } else {
+        reportIsAtBottom(true);
+      }
+    },
+    [clearProgrammaticScrollTracking, reportIsAtBottom, scheduleProgrammaticScrollResolution],
+  );
+
+  const scheduleStickToBottom = useCallback((options?: { animated?: boolean }) => {
+    if (scrollFrameRef.current != null) {
+      return;
+    }
+
+    scrollFrameRef.current = window.requestAnimationFrame(() => {
+      scrollFrameRef.current = null;
+      scrollToBottom({ animated: options?.animated ?? false });
+    });
+  }, [scrollToBottom]);
+
+  useEffect(() => {
+    const controller: MessagesTimelineController = {
+      scrollToBottom,
+      getScrollState: () => ({ isAtBottom: getIsAtBottom() }),
+    };
+
+    timelineControllerRef.current = controller;
+    return () => {
+      if (timelineControllerRef.current === controller) {
+        timelineControllerRef.current = null;
+      }
+    };
+  }, [getIsAtBottom, timelineControllerRef, scrollToBottom]);
+
+  useEffect(
+    () => () => {
+      if (scrollFrameRef.current != null) {
+        window.cancelAnimationFrame(scrollFrameRef.current);
+        scrollFrameRef.current = null;
+      }
+      clearProgrammaticScrollTracking();
+    },
+    [clearProgrammaticScrollTracking],
+  );
+
+  const handleScroll = useCallback(() => {
+    const isAtBottom = getIsAtBottom();
+    if (programmaticScrollTargetRef.current !== null) {
+      if (isAtBottom) {
+        clearProgrammaticScrollTracking();
+        reportIsAtBottom(true);
+      }
+      return;
+    }
+
+    reportIsAtBottom(isAtBottom);
+  }, [clearProgrammaticScrollTracking, getIsAtBottom, reportIsAtBottom]);
+
+  useEffect(() => {
+    if (rows.length === 0) {
+      return;
+    }
+
+    if (!initializedScrollRef.current) {
+      initializedScrollRef.current = true;
+      reportIsAtBottom(true);
+      scheduleStickToBottom();
+      return;
+    }
+
+    if (!isAtBottomRef.current) {
+      return;
+    }
+
+    scheduleStickToBottom();
+  }, [reportIsAtBottom, rows, scheduleStickToBottom]);
 
   useEffect(() => {
     if (!isWorking && !activeTurnInProgress) {
       return;
     }
-    if (!isAtEndRef.current) {
+    if (!isAtBottomRef.current) {
       return;
     }
 
-    const frameId = window.requestAnimationFrame(() => {
-      void listRef.current?.scrollToEnd?.({ animated: false });
-    });
-    return () => {
-      window.cancelAnimationFrame(frameId);
-    };
-  }, [activeTurnInProgress, isWorking, listRef, rows]);
+    scheduleStickToBottom();
+  }, [activeTurnInProgress, isWorking, scheduleStickToBottom]);
+
+  const rangeExtractor = useCallback((range: Range) => {
+    const defaultRange = defaultRangeExtractor(range);
+    const activeStickyIndex = findActiveStickyUserRowIndex(
+      stickyUserRowIndicesRef.current,
+      range.startIndex,
+    );
+
+    if (activeStickyIndex === null || defaultRange.includes(activeStickyIndex)) {
+      return defaultRange;
+    }
+
+    return [activeStickyIndex, ...defaultRange].toSorted((left, right) => left - right);
+  }, []);
+
+  const rowVirtualizer = useVirtualizer<HTMLDivElement, HTMLDivElement>({
+    count: rows.length,
+    getScrollElement: () => scrollElementRef.current,
+    estimateSize: (index) => estimateTimelineRowSize(rows[index]),
+    getItemKey: (index) => rows[index]?.id ?? index,
+    rangeExtractor,
+    overscan: VIRTUALIZER_OVERSCAN,
+    paddingEnd: virtualizerBottomPadding,
+    initialRect: DEFAULT_VIRTUALIZER_RECT,
+    useAnimationFrameWithResizeObserver: true,
+    onChange: (_instance, sync) => {
+      if (!sync && isAtBottomRef.current) {
+        scheduleStickToBottom();
+      }
+    },
+  });
+  rowVirtualizer.shouldAdjustScrollPositionOnItemSizeChange =
+    keepScrollOffsetOnMeasuredRowResize;
 
   const sharedState = useMemo<TimelineRowSharedState>(
     () => ({
@@ -225,11 +404,6 @@ export const MessagesTimeline = memo(function MessagesTimeline({
     ],
   );
 
-  const renderItem = useCallback(
-    ({ item }: { item: MessagesTimelineRow }) => <TimelineRowContent row={item} />,
-    [],
-  );
-
   if (rows.length === 0 && !isWorking && awaitingServerThreadDetail) {
     return (
       <div className="flex h-full items-center justify-center" aria-busy="true">
@@ -248,46 +422,120 @@ export const MessagesTimeline = memo(function MessagesTimeline({
     );
   }
 
+  const virtualItems = rowVirtualizer.getVirtualItems();
+  const activeStickyUserRowIndex = findActiveStickyUserRowIndex(
+    stickyUserRowIndices,
+    rowVirtualizer.range?.startIndex ?? virtualItems[0]?.index ?? 0,
+  );
+  const virtualContentStyle = {
+    ...CHAT_TIMELINE_CONTENT_STYLE,
+    height: rowVirtualizer.getTotalSize(),
+    position: "relative",
+  } satisfies CSSProperties;
+
   return (
     <TimelineRowCtx.Provider value={sharedState}>
       <div
         className={cn(
           "agent-panel-meta-agent-chat-shell ui-imsg-thread relative flex h-full min-h-0 flex-1 flex-col gap-0 overflow-hidden",
-          "pt-[var(--chat-timeline-padding-block-start)] pb-[var(--composer-messages-scroll-bottom-inset)]",
+          "pt-(--chat-timeline-padding-block-start)",
           "[--meta-agent-thread-stack-gap:8px]",
           "[--meta-agent-thread-stack-horizontal-inset:20px]",
           "[--meta-agent-thread-stack-bottom-inset:24px]",
           "[--meta-agent-thread-stack-top-inset:16px]",
         )}
       >
-        <LegendList<MessagesTimelineRow>
-          ref={listRef}
-          data={rows}
-          keyExtractor={keyExtractor}
-          renderItem={renderItem}
-          stickyHeaderIndices={stickyUserRowIndices}
-          estimatedItemSize={90}
-          initialScrollAtEnd
-          maintainScrollAtEnd
-          maintainScrollAtEndThreshold={0.1}
-          maintainVisibleContentPosition={{ data: false, size: true }}
+        <div
+          ref={scrollElementRef}
           onScroll={handleScroll}
-          className="agent-panel-meta-agent-chat h-full min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain"
-          contentContainerStyle={CHAT_TIMELINE_CONTENT_STYLE}
-          ListHeaderComponent={<div />}
-          ListFooterComponent={<div />}
-        />
+          onPointerDown={clearProgrammaticScrollTracking}
+          onTouchStart={clearProgrammaticScrollTracking}
+          onWheel={clearProgrammaticScrollTracking}
+          className="agent-panel-meta-agent-chat h-full min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain [overflow-anchor:none] [scrollbar-gutter:stable_both-edges] [scrollbar-width:thin]"
+        >
+          <div style={virtualContentStyle}>
+            {virtualItems.map((virtualRow) => {
+              const row = rows[virtualRow.index];
+              if (!row) {
+                return null;
+              }
+
+              const isActiveStickyUserRow = virtualRow.index === activeStickyUserRowIndex;
+
+              return (
+                <div
+                  key={virtualRow.key}
+                  ref={rowVirtualizer.measureElement}
+                  data-index={virtualRow.index}
+                  data-sticky={isActiveStickyUserRow ? "true" : undefined}
+                  className={cn(
+                    "virtualized-composer-messages-row w-full px-(--composer-messages-padding-inline) pb-(--chat-timeline-row-gap)",
+                    isActiveStickyUserRow &&
+                      "isolate bg-[color-mix(in_srgb,var(--multi-composer-overlay-bg)_72%,transparent)] backdrop-blur-[18px] after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-6 after:bg-[linear-gradient(to_bottom,var(--multi-composer-overlay-bg),transparent)]",
+                  )}
+                  style={virtualRowStyle(virtualRow, isActiveStickyUserRow)}
+                >
+                  <TimelineRowContent row={row} isSticky={isActiveStickyUserRow} />
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </TimelineRowCtx.Provider>
   );
 });
 
-function keyExtractor(item: MessagesTimelineRow) {
-  return item.id;
-}
-
 function isUserMessageRow(row: MessagesTimelineRow): row is UserMessageTimelineRow {
   return row.kind === "message" && row.message.role === "user";
+}
+
+function findActiveStickyUserRowIndex(indices: readonly number[], visibleStartIndex: number) {
+  let activeIndex: number | null = null;
+  for (const index of indices) {
+    if (index > visibleStartIndex) {
+      break;
+    }
+    activeIndex = index;
+  }
+  return activeIndex;
+}
+
+function estimateTimelineRowSize(row: MessagesTimelineRow | undefined) {
+  if (!row) {
+    return 96 + VIRTUAL_ROW_GAP_PX;
+  }
+
+  if (row.kind === "message") {
+    return (row.message.role === "user" ? 88 : 156) + VIRTUAL_ROW_GAP_PX;
+  }
+
+  if (row.kind === "proposed-plan") {
+    return 180 + VIRTUAL_ROW_GAP_PX;
+  }
+
+  if (row.kind === "working") {
+    return 52 + VIRTUAL_ROW_GAP_PX;
+  }
+
+  return 76 + VIRTUAL_ROW_GAP_PX;
+}
+
+function virtualRowStyle(virtualRow: VirtualItem, isSticky: boolean): CSSProperties {
+  if (isSticky) {
+    return {
+      position: "sticky",
+      top: 0,
+      zIndex: 20,
+    };
+  }
+
+  return {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    transform: `translateY(${virtualRow.start}px)`,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -296,13 +544,20 @@ function isUserMessageRow(row: MessagesTimelineRow): row is UserMessageTimelineR
 
 type TimelineRow = MessagesTimelineRow;
 
-function TimelineRowContent({ row }: { row: TimelineRow }) {
+const TimelineRowContent = memo(function TimelineRowContent({
+  row,
+  isSticky = false,
+}: {
+  row: TimelineRow;
+  isSticky?: boolean;
+}) {
   const ctx = use(TimelineRowCtx);
 
   return (
     <div
       className={cn(
-        "agent-panel-meta-agent-chat__message-entry flex w-full min-w-0 flex-col gap-1 overflow-x-hidden [content-visibility:auto] [contain-intrinsic-size:96px]",
+        "agent-panel-meta-agent-chat__message-entry flex w-full min-w-0 flex-col gap-1 overflow-x-hidden",
+        !isSticky && "[content-visibility:auto] [contain-intrinsic-size:96px]",
         row.kind === "message" && row.message.role === "assistant" ? "group/assistant" : null,
       )}
       data-meta-agent-chat-bubble-id={row.id}
@@ -364,7 +619,7 @@ function TimelineRowContent({ row }: { row: TimelineRow }) {
       )}
     </div>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // WorkGroupSection — tool activity group with overflow control

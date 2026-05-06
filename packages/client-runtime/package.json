@@ -17,7 +17,6 @@
     "@multi/contracts": "workspace:*"
   },
   "devDependencies": {
-    "@effect/language-service": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

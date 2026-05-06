@@ -8,7 +8,7 @@ import { Effect, Layer, Option, Schema } from "effect";
 
 import { ThreadProjection } from "../orchestration/ThreadProjection.service.ts";
 import { CheckpointInvariantError, CheckpointUnavailableError } from "./Errors.ts";
-import { checkpointRefForThreadTurn } from "./Utils.ts";
+import { checkpointRefForThreadTurn, preTurnCheckpointRefForThreadTurn } from "./Utils.ts";
 import { CheckpointStore } from "./CheckpointStore.service.ts";
 import {
   CheckpointDiffQuery,
@@ -84,12 +84,25 @@ const make = Effect.gen(function* () {
         });
       }
 
-      const fromCheckpointRef =
+      const fallbackFromCheckpointRef =
         input.fromTurnCount === 0
           ? checkpointRefForThreadTurn(input.threadId, 0)
           : threadContext.value.checkpoints.find(
               (checkpoint) => checkpoint.checkpointTurnCount === input.fromTurnCount,
             )?.checkpointRef;
+      const singleTurnPreTurnCheckpointRef =
+        input.toTurnCount === input.fromTurnCount + 1
+          ? preTurnCheckpointRefForThreadTurn(input.threadId, input.toTurnCount)
+          : null;
+      const preTurnCheckpointExists = singleTurnPreTurnCheckpointRef
+        ? yield* checkpointStore.hasCheckpointRef({
+            cwd: projectCwd,
+            checkpointRef: singleTurnPreTurnCheckpointRef,
+          })
+        : false;
+      const fromCheckpointRef = preTurnCheckpointExists
+        ? singleTurnPreTurnCheckpointRef
+        : fallbackFromCheckpointRef;
       if (!fromCheckpointRef) {
         return yield* new CheckpointUnavailableError({
           threadId: input.threadId,

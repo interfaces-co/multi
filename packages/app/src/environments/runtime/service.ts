@@ -13,6 +13,7 @@ import { Throttler } from "@tanstack/react-pacer";
 import {
   createKnownEnvironment,
   getKnownEnvironmentWsBaseUrl,
+  scopeProjectRef,
   scopedThreadKey,
   scopeThreadRef,
 } from "@multi/client-runtime";
@@ -25,6 +26,7 @@ import {
 import { ensureLocalApi } from "~/local-api";
 import { collectActiveTerminalThreadIds } from "~/lib/terminal-state-cleanup";
 import { deriveOrchestrationBatchEffects } from "~/orchestration-event-effects";
+import { refreshGitStatus } from "~/lib/git-status-state";
 import { projectQueryKeys } from "~/lib/project-react-query";
 import { providerQueryKeys } from "~/lib/provider-react-query";
 import { getPrimaryKnownEnvironment } from "../primary";
@@ -51,6 +53,7 @@ import {
 import { createEnvironmentConnection, type EnvironmentConnection } from "./connection";
 import {
   useStore,
+  selectProjectByRef,
   selectProjectsAcrossEnvironments,
   selectSidebarThreadSummaryByRef,
   selectThreadByRef,
@@ -616,6 +619,30 @@ export function shouldApplyTerminalEvent(input: {
   return input.hasDraftThread;
 }
 
+function refreshGitStatusForThreadActivityEffects(
+  environmentId: EnvironmentId,
+  threadIds: readonly ThreadId[],
+): void {
+  const refreshedCwds = new Set<string>();
+
+  for (const threadId of threadIds) {
+    const state = useStore.getState();
+    const thread = selectThreadByRef(state, scopeThreadRef(environmentId, threadId));
+    if (thread?.projectId == null) {
+      continue;
+    }
+
+    const project = selectProjectByRef(state, scopeProjectRef(environmentId, thread.projectId));
+    const cwd = thread.worktreePath ?? project?.cwd ?? null;
+    if (cwd === null || refreshedCwds.has(cwd)) {
+      continue;
+    }
+
+    refreshedCwds.add(cwd);
+    void refreshGitStatus({ environmentId, cwd });
+  }
+}
+
 function applyRecoveredEventBatch(
   events: ReadonlyArray<OrchestrationEvent>,
   environmentId: EnvironmentId,
@@ -639,6 +666,7 @@ function applyRecoveredEventBatch(
   }
 
   useStore.getState().applyOrchestrationEvents(uiEvents, environmentId);
+  refreshGitStatusForThreadActivityEffects(environmentId, batchEffects.gitRefreshThreadIds);
   if (needsProjectUiSync) {
     const projects = selectProjectsAcrossEnvironments(useStore.getState());
     useUiStateStore.getState().syncProjects(

@@ -2,16 +2,7 @@ import { cva } from "class-variance-authority";
 import { memo, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { cn } from "~/lib/utils";
 
-function shouldBlockBubbleActivate(target: EventTarget | null): boolean {
-  if (!(target instanceof Element)) {
-    return false;
-  }
-  return Boolean(
-    target.closest(
-      'button, a, input, textarea, select, summary, [role="button"], [role="link"], [data-human-message-collapse-toggle]',
-    ),
-  );
-}
+type MessageBubbleActivateEvent = MouseEvent<HTMLDivElement> | KeyboardEvent<HTMLDivElement>;
 
 interface ChatMessageBubbleProps {
   role: "user" | "assistant";
@@ -19,9 +10,29 @@ interface ChatMessageBubbleProps {
   leadingIcon?: ReactNode;
   footer?: ReactNode;
   media?: ReactNode;
-  interactive?: boolean;
-  onClick?: ((event: MouseEvent | KeyboardEvent) => void) | undefined;
 }
+
+interface EditableChatMessageBubbleProps {
+  body: ReactNode;
+  footer?: ReactNode;
+  media?: ReactNode;
+  onActivate: (event: MessageBubbleActivateEvent) => void;
+}
+
+type UserMessageBubbleSurfaceProps =
+  | {
+      body: ReactNode;
+      footer?: ReactNode;
+      media?: ReactNode;
+      editable: true;
+      onActivate: (event: MessageBubbleActivateEvent) => void;
+    }
+  | {
+      body: ReactNode;
+      footer?: ReactNode;
+      media?: ReactNode;
+      editable?: false;
+    };
 
 const assistantMessageSurfaceVariants = cva("box-border flex w-full justify-start", {
   variants: {
@@ -35,25 +46,6 @@ const assistantMessageSurfaceVariants = cva("box-border flex w-full justify-star
   },
 });
 
-const assistantMessageBodyVariants = cva(
-  cn(
-    "group/message-bubble w-full min-w-0",
-    "text-[length:var(--conversation-text-font-size,var(--conversation-font-size,13px))]/[1.5]",
-    "text-multi-fg-primary",
-  ),
-  {
-    variants: {
-      interactive: {
-        false: "",
-        true: "cursor-pointer",
-      },
-    },
-    defaultVariants: {
-      interactive: false,
-    },
-  },
-);
-
 const humanMessageBubbleVariants = cva(
   cn(
     "group/message-bubble box-border w-full min-w-0 max-w-full",
@@ -61,13 +53,13 @@ const humanMessageBubbleVariants = cva(
   ),
   {
     variants: {
-      interactive: {
+      editable: {
         false: "",
         true: "cursor-pointer",
       },
     },
     defaultVariants: {
-      interactive: false,
+      editable: false,
     },
   },
 );
@@ -111,96 +103,94 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
   leadingIcon,
   footer,
   media,
-  interactive = false,
-  onClick,
 }: ChatMessageBubbleProps) {
   if (role === "user") {
-    const activateEdit = (event: MouseEvent | KeyboardEvent) => {
-      if (!interactive || !onClick) {
-        return;
-      }
-      if ("clientX" in event) {
-        const selection = window.getSelection();
-        if (selection && !selection.isCollapsed) {
-          return;
-        }
-      }
-      if (shouldBlockBubbleActivate(event.target)) {
-        return;
-      }
-      onClick(event);
-    };
-
-    return (
-      <div className="box-border flex w-full min-w-0">
-        <div
-          className={humanMessageBubbleVariants({ interactive })}
-          role={interactive ? "button" : undefined}
-          tabIndex={interactive ? 0 : undefined}
-          aria-label={interactive ? "Edit message" : undefined}
-          onClick={interactive ? activateEdit : undefined}
-          onKeyDown={
-            interactive
-              ? (event) => {
-                  if (event.key !== "Enter" && event.key !== " ") {
-                    return;
-                  }
-                  event.preventDefault();
-                  activateEdit(event);
-                }
-              : undefined
-          }
-        >
-          {media ? (
-            <div
-              className="min-w-0"
-              onClick={
-                interactive
-                  ? (event) => {
-                      event.stopPropagation();
-                    }
-                  : undefined
-              }
-            >
-              {media}
-            </div>
-          ) : null}
-          <div
-            className={cn(
-              "flex min-w-0 flex-col whitespace-pre-wrap break-words wrap-anywhere select-text",
-              "text-[length:var(--conversation-text-font-size,var(--conversation-font-size,13px))]/[1.5]",
-              "text-multi-fg-primary",
-            )}
-          >
-            {body}
-          </div>
-          {footer ? <div className="mt-1">{footer}</div> : null}
-        </div>
-      </div>
-    );
+    return <UserMessageBubbleSurface body={body} footer={footer} media={media} />;
   }
 
   return (
     <div className={assistantMessageSurfaceVariants({ leading: Boolean(leadingIcon) })}>
       {leadingIcon ? <div className="mt-[3px] shrink-0">{leadingIcon}</div> : null}
-      <div
-        className={assistantMessageBodyVariants({ interactive })}
-        role={interactive ? "button" : undefined}
-        tabIndex={interactive ? 0 : undefined}
-        onClick={interactive ? (event) => onClick?.(event) : undefined}
-        onKeyDown={
-          interactive
-            ? (event) => {
-                if (event.key !== "Enter" && event.key !== " ") return;
-                event.preventDefault();
-                onClick?.(event);
-              }
-            : undefined
-        }
-      >
+      <div className="group/message-bubble w-full min-w-0 text-[length:var(--conversation-text-font-size,var(--conversation-font-size,13px))]/[1.5] text-multi-fg-primary">
         {body}
         {footer ? <div className="mt-1.5">{footer}</div> : null}
       </div>
     </div>
   );
 });
+
+export const EditableChatMessageBubble = memo(function EditableChatMessageBubble({
+  body,
+  footer,
+  media,
+  onActivate,
+}: EditableChatMessageBubbleProps) {
+  const activateEdit = (event: MessageBubbleActivateEvent) => {
+    if ("clientX" in event) {
+      const selection = window.getSelection();
+      if (selection && !selection.isCollapsed) {
+        return;
+      }
+    }
+    onActivate(event);
+  };
+
+  return (
+    <UserMessageBubbleSurface
+      body={body}
+      footer={footer}
+      media={media}
+      editable
+      onActivate={activateEdit}
+    />
+  );
+});
+
+function UserMessageBubbleSurface(props: UserMessageBubbleSurfaceProps) {
+  const editableProps = props.editable
+    ? {
+        role: "button" as const,
+        tabIndex: 0,
+        "aria-label": "Edit message",
+        onClick: props.onActivate,
+        onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
+          if (event.key !== "Enter" && event.key !== " ") {
+            return;
+          }
+          event.preventDefault();
+          props.onActivate(event);
+        },
+      }
+    : {};
+
+  return (
+    <div className="box-border flex w-full min-w-0">
+      <div className={humanMessageBubbleVariants({ editable: props.editable })} {...editableProps}>
+        {props.media ? (
+          <div
+            className="min-w-0"
+            onClick={
+              props.editable
+                ? (event) => {
+                    event.stopPropagation();
+                  }
+                : undefined
+            }
+          >
+            {props.media}
+          </div>
+        ) : null}
+        <div
+          className={cn(
+            "flex min-w-0 flex-col whitespace-pre-wrap break-words wrap-anywhere select-text",
+            "text-[length:var(--conversation-text-font-size,var(--conversation-font-size,13px))]/[1.5]",
+            "text-multi-fg-primary",
+          )}
+        >
+          {props.body}
+        </div>
+        {props.footer ? <div className="mt-1">{props.footer}</div> : null}
+      </div>
+    </div>
+  );
+}

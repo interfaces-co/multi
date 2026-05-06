@@ -50,6 +50,8 @@ function canonicalRequestTypeFromAcpKind(kind: string | "unknown"): AcpCanonical
 
 function canonicalItemTypeFromAcpToolKind(kind: string | undefined): ToolLifecycleItemType {
   switch (kind) {
+    case "read":
+      return "file_read";
     case "execute":
       return "command_execution";
     case "edit":
@@ -57,8 +59,9 @@ function canonicalItemTypeFromAcpToolKind(kind: string | undefined): ToolLifecyc
     case "move":
       return "file_change";
     case "search":
+      return "file_search";
     case "fetch":
-      return "web_search";
+      return "web_fetch";
     default:
       return "dynamic_tool_call";
   }

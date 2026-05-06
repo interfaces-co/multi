@@ -132,11 +132,17 @@ function resolveToolCase(workEntry: WorkLogEntry): ToolCallModel["tool"]["case"]
   if (workEntry.requestKind === "file-change" || workEntry.itemType === "file_change") {
     return "editToolCall";
   }
-  if (workEntry.requestKind === "file-read") {
+  if (workEntry.requestKind === "file-read" || workEntry.itemType === "file_read") {
     return "readToolCall";
+  }
+  if (workEntry.itemType === "file_search") {
+    return "globToolCall";
   }
   if (workEntry.itemType === "web_search") {
     return "webSearchToolCall";
+  }
+  if (workEntry.itemType === "web_fetch") {
+    return "webFetchToolCall";
   }
   if (workEntry.itemType === "image_view") {
     return "imageViewToolCall";
@@ -144,8 +150,11 @@ function resolveToolCase(workEntry: WorkLogEntry): ToolCallModel["tool"]["case"]
   if (workEntry.itemType === "collab_agent_tool_call") {
     return "taskToolCall";
   }
-  if (workEntry.itemType === "mcp_tool_call" || workEntry.itemType === "dynamic_tool_call") {
+  if (workEntry.itemType === "mcp_tool_call") {
     return "mcpToolCall";
+  }
+  if (workEntry.itemType === "dynamic_tool_call") {
+    return "dynamicToolCall";
   }
   if ((workEntry.changedFiles?.length ?? 0) > 0) {
     return "editToolCall";
@@ -191,6 +200,7 @@ function resolveOutput(
     toolCase === "grepToolCall" ||
     toolCase === "globToolCall" ||
     toolCase === "mcpToolCall" ||
+    toolCase === "dynamicToolCall" ||
     toolCase === "imageViewToolCall" ||
     toolCase === "unknownToolCall"
   ) {

@@ -2,35 +2,8 @@ import { EnvironmentId, MessageId } from "@multi/contracts";
 import { createRef } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import type { LegendListRef } from "@legendapp/list/react";
 import { ToolCallRenderer, type ToolCallModel } from "./tool-call-renderer";
-
-vi.mock("@legendapp/list/react", async () => {
-  const React = await import("react");
-
-  const LegendList = React.forwardRef(function MockLegendList(
-    props: {
-      data: Array<{ id: string }>;
-      keyExtractor: (item: { id: string }) => string;
-      renderItem: (args: { item: { id: string } }) => React.ReactNode;
-      ListHeaderComponent?: React.ReactNode;
-      ListFooterComponent?: React.ReactNode;
-    },
-    _ref: React.ForwardedRef<LegendListRef>,
-  ) {
-    return (
-      <div data-testid="legend-list">
-        {props.ListHeaderComponent}
-        {props.data.map((item) => (
-          <div key={props.keyExtractor(item)}>{props.renderItem({ item })}</div>
-        ))}
-        {props.ListFooterComponent}
-      </div>
-    );
-  });
-
-  return { LegendList };
-});
+import type { MessagesTimelineController } from "./messages-timeline";
 
 function matchMedia() {
   return {
@@ -120,7 +93,7 @@ function buildProps() {
     activeTurnInProgress: false,
     activeTurnId: null,
     activeTurnStartedAt: null,
-    listRef: createRef<LegendListRef | null>(),
+    timelineControllerRef: createRef<MessagesTimelineController | null>(),
     completionDividerBeforeEntryId: null,
     completionSummary: null,
     turnDiffSummaryByAssistantMessageId: new Map(),
@@ -135,7 +108,7 @@ function buildProps() {
     markdownCwd: undefined,
     resolvedTheme: "light" as const,
     projectRoot: undefined,
-    onIsAtEndChange: () => {},
+    onIsAtBottomChange: () => {},
   };
 }
 

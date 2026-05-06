@@ -1,6 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { NoActiveThreadState } from "~/components/no-active-thread-state";
 import { useComposerDraftStore } from "~/composer-draft-store";
 import { useStore } from "~/store";
 import { selectEnvironmentState } from "~/store";
@@ -48,5 +47,5 @@ export function ChatIndexRouteView() {
     setProjectlessDraftThreadId,
   ]);
 
-  return <NoActiveThreadState />;
+  return null;
 }

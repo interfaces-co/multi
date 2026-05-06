@@ -22,11 +22,11 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.2.128",
+    "@anthropic-ai/claude-agent-sdk": "^0.2.131",
     "@effect/platform-bun": "catalog:",
     "@effect/platform-node": "catalog:",
     "@effect/sql-sqlite-bun": "catalog:",
-    "@opencode-ai/sdk": "^1.14.35",
+    "@opencode-ai/sdk": "^1.14.39",
     "@pierre/diffs": "^1.1.20",
     "effect": "catalog:",
     "node-pty": "^1.1.0",

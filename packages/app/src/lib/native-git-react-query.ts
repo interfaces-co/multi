@@ -31,7 +31,7 @@ function firstFile(patch: string): FileDiffMetadata | null {
   if (text.length < 1) return null;
 
   try {
-    const patches = parsePatchFiles(text);
+    const patches = parsePatchFiles(text, undefined, true);
     for (const patch of patches) {
       const file = patch.files[0];
       if (file) return file;

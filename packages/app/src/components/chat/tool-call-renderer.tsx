@@ -1,6 +1,8 @@
 import {
   IconChevronRight,
   IconClock,
+  IconCodeBrackets,
+  IconCloudDownload,
   IconConsole,
   IconEyeOpen,
   IconFileEdit,
@@ -25,8 +27,10 @@ export type ToolCase =
   | "editToolCall"
   | "deleteToolCall"
   | "mcpToolCall"
+  | "dynamicToolCall"
   | "taskToolCall"
   | "webSearchToolCall"
+  | "webFetchToolCall"
   | "imageViewToolCall"
   | "unknownToolCall";
 
@@ -285,9 +289,10 @@ export const ToolCallRenderer = memo(function ToolCallRenderer({
         />
       );
     case "webSearchToolCall":
+    case "webFetchToolCall":
       return (
         <ToolCallLine
-          icon={IconMagnifyingGlass}
+          icon={iconForToolCase(toolCall.tool.case)}
           action={displayState.action}
           details={displayState.details}
           loading={loading}
@@ -302,6 +307,7 @@ export const ToolCallRenderer = memo(function ToolCallRenderer({
     case "grepToolCall":
     case "globToolCall":
     case "mcpToolCall":
+    case "dynamicToolCall":
     case "imageViewToolCall":
     case "unknownToolCall":
       return (
@@ -606,7 +612,7 @@ const ExpandableToolMetadataLine = memo(function ExpandableToolMetadataLine({
           className={cn(
             "mt-1 max-w-[min(100%,var(--composer-max-width))]",
             "overflow-hidden rounded-multi-control border border-multi-stroke-secondary bg-multi-editor",
-            "px-[var(--conversation-tool-card-padding-x,8px)] py-1.5",
+            "px-(--conversation-tool-card-padding-x) py-1.5",
             "font-mono text-[12px]/4 text-multi-fg-tertiary",
           )}
         >
@@ -714,7 +720,7 @@ function ShellToolCall({
               <pre
                 className={cn(
                   "m-0 bg-multi-editor",
-                  "px-[var(--conversation-tool-card-padding-x,8px)]",
+                  "px-(--conversation-tool-card-padding-x)",
                   "py-1.5",
                   "font-mono text-[12px]/4 whitespace-pre-wrap",
                   "text-multi-fg-tertiary wrap-anywhere select-text",
@@ -728,7 +734,7 @@ function ShellToolCall({
               <pre
                 className={cn(
                   "m-0 bg-multi-editor",
-                  "px-[var(--conversation-tool-card-padding-x,8px)]",
+                  "px-(--conversation-tool-card-padding-x)",
                   "pb-1.5",
                   "font-mono text-[12px]/4 whitespace-pre-wrap",
                   "text-multi-fg-tertiary wrap-anywhere select-text",
@@ -832,7 +838,7 @@ function EditToolCall({
             "mt-1 max-w-[min(100%,var(--composer-max-width))]",
             "overflow-hidden rounded-multi-control",
             "border border-multi-stroke-secondary bg-multi-editor",
-            "px-[var(--conversation-tool-card-padding-x,8px)] py-1.5",
+            "px-(--conversation-tool-card-padding-x) py-1.5",
             "font-mono text-[12px]/4 text-multi-fg-tertiary",
           )}
         >
@@ -968,6 +974,8 @@ function iconForToolCase(toolCase: ToolCase): CentralIconComponent {
     case "globToolCall":
     case "webSearchToolCall":
       return IconMagnifyingGlass;
+    case "webFetchToolCall":
+      return IconCloudDownload;
     case "awaitToolCall":
       return IconClock;
     case "editToolCall":
@@ -975,6 +983,8 @@ function iconForToolCase(toolCase: ToolCase): CentralIconComponent {
       return IconFileEdit;
     case "shellToolCall":
       return IconConsole;
+    case "dynamicToolCall":
+      return IconCodeBrackets;
     case "mcpToolCall":
     case "taskToolCall":
     case "unknownToolCall":
@@ -996,8 +1006,10 @@ const TOOL_ACTION_LABELS: Record<ToolCase, { loading: string; completed: string;
     editToolCall: { loading: "Editing", completed: "Edited", error: "Edit" },
     deleteToolCall: { loading: "Deleting", completed: "Deleted", error: "Delete" },
     mcpToolCall: { loading: "Running MCP", completed: "Ran MCP", error: "Run MCP" },
+    dynamicToolCall: { loading: "Running tool", completed: "Ran tool", error: "Run tool" },
     taskToolCall: { loading: "Task", completed: "Task", error: "Task" },
     webSearchToolCall: { loading: "Searching web", completed: "Searched web", error: "Search web" },
+    webFetchToolCall: { loading: "Fetching", completed: "Fetched", error: "Fetch" },
     imageViewToolCall: { loading: "Viewing image", completed: "Viewed image", error: "View image" },
     unknownToolCall: { loading: "Running tool", completed: "Ran tool", error: "Run tool" },
   };

@@ -4,15 +4,12 @@ import {
   getRouteApi,
   Outlet,
   type ErrorComponentProps,
-  useLocation,
   useNavigate,
 } from "@tanstack/react-router";
-import { useEffect, useEffectEvent, useMemo, useRef } from "react";
+import { useEffect, useEffectEvent, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useShallow } from "zustand/react/shallow";
 
 import { APP_DISPLAY_NAME } from "~/branding";
-import { type DraftId, useComposerDraftStore } from "~/composer-draft-store";
 import { CommandPalette } from "~/components/command-palette";
 import { TaskCompletionNotifications } from "~/notifications/taskCompletion";
 import {
@@ -34,11 +31,6 @@ import {
   useServerWelcomeSubscription,
 } from "~/rpc/server-state";
 import { selectEnvironmentState, selectProjectByRef, useStore } from "~/store";
-import {
-  selectBootstrapCompleteForActiveEnvironment,
-  selectProjectsForEnvironment,
-  selectThreadsForEnvironment,
-} from "~/store";
 import { useUiStateStore } from "~/ui-state-store";
 import { syncBrowserChromeTheme } from "~/hooks/use-theme";
 import {
@@ -51,10 +43,6 @@ import { traceBrowserEvent } from "~/observability/browserDebug";
 import { updatePrimaryEnvironmentDescriptor } from "~/environments/primary";
 import { RouterDevtoolsPanel } from "~/dev/router-devtools";
 import { deriveLogicalProjectKey, derivePhysicalProjectKeyFromPath } from "~/logical-project";
-import { readStoredProjectCwd } from "~/lib/project-state";
-import { buildDraftThreadRouteParams, buildThreadRouteParams } from "~/thread-routes";
-
-import { resolveInitialChatTarget } from "./chat-index-route.logic";
 
 const routeApi = getRouteApi("__root__");
 
@@ -236,31 +224,10 @@ function EnvironmentConnectionManagerBootstrap() {
 
 function EventRouter() {
   const setActiveEnvironmentId = useStore((store) => store.setActiveEnvironmentId);
-  const navigate = useNavigate();
-  const pathname = useLocation({ select: (loc) => loc.pathname });
-  const readPathname = useEffectEvent(() => pathname);
-  const handledBootstrapThreadIdRef = useRef<string | null>(null);
   const seenServerConfigUpdateIdRef = useRef(getServerConfigUpdatedNotification()?.id ?? 0);
   const disposedRef = useRef(false);
   const serverEnvironment = useServerEnvironment();
   const serverConfig = useServerConfig();
-  const activeEnvironmentId = useStore((state) => state.activeEnvironmentId);
-  const bootstrapComplete = useStore(selectBootstrapCompleteForActiveEnvironment);
-  const projects = useStore(
-    useShallow((state) => selectProjectsForEnvironment(state, activeEnvironmentId)),
-  );
-  const threads = useStore(
-    useShallow((state) => selectThreadsForEnvironment(state, activeEnvironmentId)),
-  );
-  const draftThreadsByThreadKey = useComposerDraftStore((state) => state.draftThreadsByThreadKey);
-  const drafts = useMemo(
-    () =>
-      Object.entries(draftThreadsByThreadKey).map(([draftId, draft]) =>
-        Object.assign({ draftId: draftId as DraftId }, draft),
-      ),
-    [draftThreadsByThreadKey],
-  );
-  const lastIndexRedirectTargetKeyRef = useRef<string | null>(null);
 
   const handleWelcome = useEffectEvent((payload: ServerLifecycleWelcomePayload | null) => {
     if (!payload) return;
@@ -299,22 +266,6 @@ function EventRouter() {
           ? derivePhysicalProjectKeyFromPath(payload.environment.environmentId, serverConfig.cwd)
           : scopedProjectKey(bootstrapProjectRef));
       useUiStateStore.getState().setProjectExpanded(bootstrapProjectKey, true);
-
-      if (readPathname() !== "/") {
-        return;
-      }
-      if (handledBootstrapThreadIdRef.current === payload.bootstrapThreadId) {
-        return;
-      }
-      await navigate({
-        to: "/$environmentId/$threadId",
-        params: {
-          environmentId: payload.environment.environmentId,
-          threadId: payload.bootstrapThreadId,
-        },
-        replace: true,
-      });
-      handledBootstrapThreadIdRef.current = payload.bootstrapThreadId;
     })().catch((error) => {
       traceBrowserEvent("root.lifecycle.welcome-handler.failed", { error }, "error");
     });
@@ -419,63 +370,6 @@ function EventRouter() {
       disposedRef.current = true;
     };
   }, []);
-
-  useEffect(() => {
-    if (pathname !== "/") {
-      lastIndexRedirectTargetKeyRef.current = null;
-      return;
-    }
-    const target = resolveInitialChatTarget({
-      activeEnvironmentId,
-      bootstrapComplete,
-      storedProjectCwd: readStoredProjectCwd(),
-      projects: projects.map((project) => ({
-        id: project.id,
-        environmentId: project.environmentId,
-        cwd: project.cwd,
-      })),
-      threads: threads.map((thread) => ({
-        id: thread.id,
-        environmentId: thread.environmentId,
-        projectId: thread.projectId,
-        worktreePath: thread.worktreePath,
-        updatedAt: thread.updatedAt,
-        createdAt: thread.createdAt,
-        archivedAt: thread.archivedAt,
-      })),
-      drafts,
-    });
-    if (!target) {
-      return;
-    }
-
-    const targetKey =
-      target.kind === "server"
-        ? `server:${target.environmentId}:${target.threadId}`
-        : `draft:${target.draftId}`;
-    if (lastIndexRedirectTargetKeyRef.current === targetKey) {
-      return;
-    }
-    lastIndexRedirectTargetKeyRef.current = targetKey;
-
-    if (target.kind === "server") {
-      void navigate({
-        to: "/$environmentId/$threadId",
-        params: buildThreadRouteParams({
-          environmentId: target.environmentId,
-          threadId: target.threadId,
-        }),
-        replace: true,
-      });
-      return;
-    }
-
-    void navigate({
-      to: "/draft/$draftId",
-      params: buildDraftThreadRouteParams(target.draftId as DraftId),
-      replace: true,
-    });
-  }, [activeEnvironmentId, bootstrapComplete, drafts, navigate, pathname, projects, threads]);
 
   useServerWelcomeSubscription(handleWelcome);
   useServerConfigUpdatedSubscription(handleServerConfigUpdated);

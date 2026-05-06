@@ -4,7 +4,20 @@ export interface OrchestrationBatchEffects {
   promoteDraftThreadIds: ThreadId[];
   clearDeletedThreadIds: ThreadId[];
   removeTerminalStateThreadIds: ThreadId[];
+  gitRefreshThreadIds: ThreadId[];
   needsProviderInvalidation: boolean;
+}
+
+const GIT_REFRESH_ACTIVITY_ITEM_TYPE = "file_change";
+const GIT_REFRESH_ACTIVITY_KINDS = new Set(["tool.updated", "tool.completed"]);
+
+function readActivityItemType(payload: unknown): string | null {
+  if (typeof payload !== "object" || payload === null || !("itemType" in payload)) {
+    return null;
+  }
+
+  const itemType = payload.itemType;
+  return typeof itemType === "string" ? itemType : null;
 }
 
 export function deriveOrchestrationBatchEffects(
@@ -18,6 +31,7 @@ export function deriveOrchestrationBatchEffects(
       removeTerminalState: boolean;
     }
   >();
+  const gitRefreshThreadIds = new Set<ThreadId>();
   let needsProviderInvalidation = false;
 
   for (const event of events) {
@@ -64,6 +78,18 @@ export function deriveOrchestrationBatchEffects(
         break;
       }
 
+      case "thread.activity-appended": {
+        const activity = event.payload.activity;
+        const itemType = readActivityItemType(activity.payload);
+        if (
+          itemType === GIT_REFRESH_ACTIVITY_ITEM_TYPE &&
+          GIT_REFRESH_ACTIVITY_KINDS.has(activity.kind)
+        ) {
+          gitRefreshThreadIds.add(event.payload.threadId);
+        }
+        break;
+      }
+
       default: {
         break;
       }
@@ -89,6 +115,7 @@ export function deriveOrchestrationBatchEffects(
     promoteDraftThreadIds,
     clearDeletedThreadIds,
     removeTerminalStateThreadIds,
+    gitRefreshThreadIds: [...gitRefreshThreadIds],
     needsProviderInvalidation,
   };
 }

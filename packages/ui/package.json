@@ -180,15 +180,15 @@
   "dependencies": {
     "@base-ui/react": "^1.4.1",
     "@multi/shared": "workspace:*",
-    "central-icons": "npm:@central-icons-react/round-outlined-radius-2-stroke-1.5@^1.1.224",
+    "central-icons": "npm:@central-icons-react/round-outlined-radius-2-stroke-1.5@^1.1.225",
     "class-variance-authority": "^0.7.1",
-    "react": "^19.2.5",
+    "react": "^19.2.6",
     "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "react-dom": "^19.2.5",
+    "react-dom": "^19.2.6",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

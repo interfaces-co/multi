@@ -59,7 +59,6 @@ import {
   isLatestTurnSettled,
   formatElapsed,
 } from "../session-logic";
-import { type LegendListRef } from "@legendapp/list/react";
 import {
   buildPendingUserInputAnswers,
   derivePendingUserInputProgress,
@@ -125,10 +124,9 @@ import { selectThreadTerminalState, useTerminalStateStore } from "../terminal-st
 import { ChatComposer, type ChatComposerHandle } from "./chat/chat-composer";
 import { ExpandedImageDialog } from "./chat/expanded-image-dialog";
 import { PullRequestThreadDialog } from "./pull-request-thread-dialog";
-import { MessagesTimeline } from "./chat/messages-timeline";
+import { MessagesTimeline, type MessagesTimelineController } from "./chat/messages-timeline";
 import { ChatHeader } from "./chat/chat-header";
 import { type ExpandedImagePreview } from "./chat/expanded-image-preview";
-import { NoActiveThreadState } from "./no-active-thread-state";
 import { resolveEffectiveEnvMode } from "../lib/branch-toolbar-logic";
 import { ProviderStatusBanner } from "./chat/provider-status-banner";
 import { ThreadErrorBanner } from "./chat/thread-error-banner";
@@ -181,6 +179,7 @@ const EMPTY_ACTIVITIES: OrchestrationThreadActivity[] = [];
 const EMPTY_PROPOSED_PLANS: Thread["proposedPlans"] = [];
 const EMPTY_PROVIDERS: ServerProvider[] = [];
 const EMPTY_PENDING_USER_INPUT_ANSWERS: Record<string, PendingUserInputDraftAnswer> = {};
+const DOCKED_COMPOSER_TIMELINE_RESERVE_PX = 88;
 
 type HeroActionTone = "accent" | "blue" | "green";
 
@@ -808,8 +807,8 @@ export default function ChatView(props: ChatViewProps) {
     {},
     LastInvokedScriptByProjectSchema,
   );
-  const legendListRef = useRef<LegendListRef | null>(null);
-  const isAtEndRef = useRef(true);
+  const messagesTimelineControllerRef = useRef<MessagesTimelineController | null>(null);
+  const isAtBottomRef = useRef(true);
   const attachmentPreviewHandoffByMessageIdRef = useRef<Record<string, string[]>>({});
   const attachmentPreviewPromotionInFlightByMessageIdRef = useRef<Record<string, true>>({});
   const sendInFlightRef = useRef(false);
@@ -2037,21 +2036,20 @@ export default function ChatView(props: ChatViewProps) {
     [environmentId, serverThread],
   );
 
-  // Scroll helpers — LegendList handles auto-scroll via maintainScrollAtEnd.
-  const scrollToEnd = useCallback((animated = false) => {
-    legendListRef.current?.scrollToEnd?.({ animated });
+  // Scroll helpers — the messages timeline owns virtualized scroll state.
+  const scrollTimelineToBottom = useCallback((animated = false) => {
+    messagesTimelineControllerRef.current?.scrollToBottom({ animated });
   }, []);
 
   // Debounce *showing* the scroll-to-bottom pill so it doesn't flash during
-  // thread switches.  LegendList fires scroll events with isAtEnd=false while
-  // initialScrollAtEnd is settling; hiding is always immediate.
+  // thread switches while the virtualizer is settling; hiding is always immediate.
   const showScrollDebouncer = useRef(
     new Debouncer(() => setShowScrollToBottom(true), { wait: 150 }),
   );
-  const onIsAtEndChange = useCallback((isAtEnd: boolean) => {
-    if (isAtEndRef.current === isAtEnd) return;
-    isAtEndRef.current = isAtEnd;
-    if (isAtEnd) {
+  const onIsAtBottomChange = useCallback((isAtBottom: boolean) => {
+    if (isAtBottomRef.current === isAtBottom) return;
+    isAtBottomRef.current = isAtBottom;
+    if (isAtBottom) {
       showScrollDebouncer.current.cancel();
       setShowScrollToBottom(false);
     } else {
@@ -2061,7 +2059,7 @@ export default function ChatView(props: ChatViewProps) {
 
   useEffect(() => {
     setPullRequestDialogState(null);
-    isAtEndRef.current = true;
+    isAtBottomRef.current = true;
     showScrollDebouncer.current.cancel();
     setShowScrollToBottom(false);
     if (planSidebarOpenOnNextThreadRef.current) {
@@ -2544,13 +2542,12 @@ export default function ChatView(props: ChatViewProps) {
       sizeBytes: image.sizeBytes,
       previewUrl: image.previewUrl,
     }));
-    // Scroll to the current end *before* adding the optimistic message.
-    // This sets LegendList's internal isAtEnd=true so maintainScrollAtEnd
-    // automatically pins to the new item when the data changes.
-    isAtEndRef.current = true;
+    // Scroll to the current end before adding the optimistic message so the
+    // virtualizer pins to the new item when the data changes.
+    isAtBottomRef.current = true;
     showScrollDebouncer.current.cancel();
     setShowScrollToBottom(false);
-    await legendListRef.current?.scrollToEnd?.({ animated: false });
+    await messagesTimelineControllerRef.current?.scrollToBottom({ animated: false });
 
     setOptimisticUserMessages((existing) => [
       ...existing,
@@ -2964,10 +2961,10 @@ export default function ChatView(props: ChatViewProps) {
       setThreadError(threadIdForSend, null);
 
       // Scroll to the current end *before* adding the optimistic message.
-      isAtEndRef.current = true;
+      isAtBottomRef.current = true;
       showScrollDebouncer.current.cancel();
       setShowScrollToBottom(false);
-      await legendListRef.current?.scrollToEnd?.({ animated: false });
+      await messagesTimelineControllerRef.current?.scrollToBottom({ animated: false });
 
       setOptimisticUserMessages((existing) => [
         ...existing,
@@ -3250,6 +3247,10 @@ export default function ChatView(props: ChatViewProps) {
     [environmentId, isServerThread, navigate, onDiffPanelOpen, threadId],
   );
 
+  const isHeroComposer = activeThread
+    ? isLocalDraftThread && !threadHasStarted(activeThread)
+    : false;
+
   if (!activeThread) {
     traceBrowserEvent(
       "chat-view.blank-fallback.no-active-thread",
@@ -3262,10 +3263,8 @@ export default function ChatView(props: ChatViewProps) {
       },
       "warn",
     );
-    return <NoActiveThreadState />;
+    return null;
   }
-
-  const isHeroComposer = isLocalDraftThread && !threadHasStarted(activeThread);
 
   if (isHeroComposer) {
     traceBrowserEvent("chat-view.render.hero-composer", {
@@ -3334,7 +3333,8 @@ export default function ChatView(props: ChatViewProps) {
                 activeTurnInProgress={isWorking || !latestTurnSettled}
                 activeTurnId={activeLatestTurn?.turnId ?? null}
                 activeTurnStartedAt={activeWorkStartedAt}
-                listRef={legendListRef}
+                bottomClearancePx={DOCKED_COMPOSER_TIMELINE_RESERVE_PX}
+                timelineControllerRef={messagesTimelineControllerRef}
                 timelineEntries={timelineEntries}
                 completionDividerBeforeEntryId={completionDividerBeforeEntryId}
                 completionSummary={completionSummary}
@@ -3352,14 +3352,14 @@ export default function ChatView(props: ChatViewProps) {
                 onBeginEditUserMessage={onBeginEditUserMessage}
                 showEmptyState={showTimelineEmptyState}
                 awaitingServerThreadDetail={isServerThread && !serverThreadDetailLoaded}
-                onIsAtEndChange={onIsAtEndChange}
+                onIsAtBottomChange={onIsAtBottomChange}
               />
 
               {showScrollToBottom && (
-                <div className="pointer-events-none absolute bottom-1 left-1/2 z-30 flex -translate-x-1/2 justify-center py-1.5">
+                <div className="pointer-events-none absolute bottom-[calc(var(--multi-composer-compact-row-min-height)+var(--multi-composer-overlay-height)+var(--multi-composer-followup-padding-block-end)+8px)] left-1/2 z-30 flex -translate-x-1/2 justify-center py-1.5">
                   <button
                     type="button"
-                    onClick={() => scrollToEnd(true)}
+                    onClick={() => scrollTimelineToBottom(true)}
                     className="agent-panel-scroll-to-bottom-button pointer-events-auto"
                     aria-label="Scroll to bottom"
                     title="Scroll to bottom"
@@ -3377,7 +3377,7 @@ export default function ChatView(props: ChatViewProps) {
               "agent-panel-followup-input",
               isHeroComposer ? "agent-panel-empty-state-shell" : undefined,
               isConnecting ? "agent-panel-followup-input--disabled" : undefined,
-              !showScrollToBottom ? "agent-panel-followup-input--conversation-overlay" : undefined,
+              !isHeroComposer ? "agent-panel-followup-input--conversation-overlay" : undefined,
             )}
             data-layout={isHeroComposer ? "wide" : undefined}
             {...(isConnecting ? { "data-disabled": "true" } : {})}
@@ -3430,8 +3430,8 @@ export default function ChatView(props: ChatViewProps) {
               promptRef={promptRef}
               composerImagesRef={composerImagesRef}
               composerTerminalContextsRef={composerTerminalContextsRef}
-              shouldAutoScrollRef={isAtEndRef}
-              scheduleStickToBottom={scrollToEnd}
+              shouldAutoScrollRef={isAtBottomRef}
+              scheduleStickToBottom={scrollTimelineToBottom}
               onSend={onSend}
               onInterrupt={onInterrupt}
               onImplementPlanInNewThread={onImplementPlanInNewThread}

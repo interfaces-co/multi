@@ -133,6 +133,42 @@ function extractPrimaryPath(data: Record<string, unknown> | undefined): string |
   return paths[0];
 }
 
+function extractSearchQuery(data: Record<string, unknown> | undefined): string | undefined {
+  const rawInput = asRecord(data?.rawInput);
+  return (
+    asTrimmedString(rawInput?.query) ??
+    asTrimmedString(rawInput?.pattern) ??
+    asTrimmedString(rawInput?.searchTerm)
+  );
+}
+
+function extractFetchTarget(
+  data: Record<string, unknown> | undefined,
+  detail: string | undefined,
+): string | undefined {
+  const rawInput = asRecord(data?.rawInput);
+  const item = asRecord(data?.item);
+  const itemInput = asRecord(item?.input);
+  for (const candidate of [
+    rawInput?.url,
+    rawInput?.uri,
+    rawInput?.href,
+    rawInput?.endpoint,
+    data?.url,
+    data?.uri,
+    data?.href,
+    itemInput?.url,
+    itemInput?.uri,
+  ]) {
+    const target = asTrimmedString(candidate);
+    if (target) {
+      return target;
+    }
+  }
+  const detailTarget = asTrimmedString(detail);
+  return detailTarget && /^(?:https?:\/\/|www\.)/iu.test(detailTarget) ? detailTarget : undefined;
+}
+
 function normalizeEquivalentValue(value: string | undefined): string | undefined {
   const trimmed = asTrimmedString(value);
   if (!trimmed) {
@@ -154,14 +190,14 @@ function classifyToolAction(input: {
   readonly itemType?: ToolLifecycleItemType | null | undefined;
   readonly title?: string | undefined;
   readonly data?: Record<string, unknown> | undefined;
-}): "command" | "read" | "file_change" | "search" | "other" {
+}): "command" | "read" | "file_change" | "file_search" | "web_search" | "fetch" | "other" {
   const itemType = input.itemType ?? undefined;
   const kind = asTrimmedString(input.data?.kind)?.toLowerCase();
   const title = asTrimmedString(input.title)?.toLowerCase();
   if (itemType === "command_execution" || kind === "execute" || title === "terminal") {
     return "command";
   }
-  if (kind === "read" || title === "read file") {
+  if (itemType === "file_read" || kind === "read" || title === "read file") {
     return "read";
   }
   if (
@@ -173,8 +209,14 @@ function classifyToolAction(input: {
   ) {
     return "file_change";
   }
-  if (itemType === "web_search" || kind === "search" || title === "find" || title === "grep") {
-    return "search";
+  if (itemType === "web_fetch" || kind === "fetch") {
+    return "fetch";
+  }
+  if (itemType === "web_search") {
+    return "web_search";
+  }
+  if (itemType === "file_search" || kind === "search" || title === "find" || title === "grep") {
+    return "file_search";
   }
   return "other";
 }
@@ -233,14 +275,27 @@ export function deriveToolActivityPresentation(
     };
   }
 
-  if (action === "search") {
-    const query =
-      asTrimmedString(asRecord(data?.rawInput)?.query) ??
-      asTrimmedString(asRecord(data?.rawInput)?.pattern) ??
-      asTrimmedString(asRecord(data?.rawInput)?.searchTerm);
+  if (action === "file_search") {
+    const query = extractSearchQuery(data);
     return {
       summary: "Searched files",
       ...(query ? { detail: query } : {}),
+    };
+  }
+
+  if (action === "web_search") {
+    const query = extractSearchQuery(data);
+    return {
+      summary: "Searched web",
+      ...(query ? { detail: query } : {}),
+    };
+  }
+
+  if (action === "fetch") {
+    const target = extractFetchTarget(data, detail);
+    return {
+      summary: "Fetched",
+      ...(target ? { detail: target } : {}),
     };
   }
 

@@ -2,6 +2,7 @@ import {
   CheckpointRef,
   EventId,
   MessageId,
+  type OrchestrationThreadActivity,
   ProjectId,
   ThreadId,
   TurnId,
@@ -38,6 +39,22 @@ function makeEvent<T extends OrchestrationEvent["type"]>(
   } as Extract<OrchestrationEvent, { type: T }>;
 }
 
+function makeActivity(input: {
+  id: string;
+  kind: string;
+  payload: unknown;
+}): OrchestrationThreadActivity {
+  return {
+    id: EventId.make(input.id),
+    tone: "tool",
+    kind: input.kind,
+    summary: "Tool activity",
+    payload: input.payload,
+    turnId: null,
+    createdAt: "2026-02-27T00:00:00.000Z",
+  };
+}
+
 describe("deriveOrchestrationBatchEffects", () => {
   it("targets draft promotion and terminal cleanup from thread lifecycle events", () => {
     const createdThreadId = ThreadId.make("thread-created");
@@ -71,6 +88,7 @@ describe("deriveOrchestrationBatchEffects", () => {
     expect(effects.promoteDraftThreadIds).toEqual([createdThreadId]);
     expect(effects.clearDeletedThreadIds).toEqual([deletedThreadId]);
     expect(effects.removeTerminalStateThreadIds).toEqual([deletedThreadId, archivedThreadId]);
+    expect(effects.gitRefreshThreadIds).toEqual([]);
     expect(effects.needsProviderInvalidation).toBe(false);
   });
 
@@ -109,6 +127,7 @@ describe("deriveOrchestrationBatchEffects", () => {
     expect(effects.promoteDraftThreadIds).toEqual([threadId]);
     expect(effects.clearDeletedThreadIds).toEqual([]);
     expect(effects.removeTerminalStateThreadIds).toEqual([]);
+    expect(effects.gitRefreshThreadIds).toEqual([]);
     expect(effects.needsProviderInvalidation).toBe(true);
   });
 
@@ -130,5 +149,98 @@ describe("deriveOrchestrationBatchEffects", () => {
     expect(effects.promoteDraftThreadIds).toEqual([]);
     expect(effects.clearDeletedThreadIds).toEqual([]);
     expect(effects.removeTerminalStateThreadIds).toEqual([]);
+    expect(effects.gitRefreshThreadIds).toEqual([]);
+  });
+
+  it("targets git refresh for file change tool updates and completions", () => {
+    const threadId = ThreadId.make("thread-1");
+
+    const effects = deriveOrchestrationBatchEffects([
+      makeEvent("thread.activity-appended", {
+        threadId,
+        activity: makeActivity({
+          id: "activity-1",
+          kind: "tool.updated",
+          payload: { itemType: "file_change" },
+        }),
+      }),
+      makeEvent("thread.activity-appended", {
+        threadId,
+        activity: makeActivity({
+          id: "activity-2",
+          kind: "tool.completed",
+          payload: { itemType: "file_change" },
+        }),
+      }),
+    ]);
+
+    expect(effects.gitRefreshThreadIds).toEqual([threadId]);
+  });
+
+  it("ignores file change tool starts and non-file-change activity", () => {
+    const threadId = ThreadId.make("thread-1");
+
+    const effects = deriveOrchestrationBatchEffects([
+      makeEvent("thread.activity-appended", {
+        threadId,
+        activity: makeActivity({
+          id: "activity-1",
+          kind: "tool.started",
+          payload: { itemType: "file_change" },
+        }),
+      }),
+      makeEvent("thread.activity-appended", {
+        threadId,
+        activity: makeActivity({
+          id: "activity-2",
+          kind: "tool.completed",
+          payload: { itemType: "command_execution" },
+        }),
+      }),
+      makeEvent("thread.activity-appended", {
+        threadId,
+        activity: makeActivity({
+          id: "activity-3",
+          kind: "tool.completed",
+          payload: { itemType: 42 },
+        }),
+      }),
+    ]);
+
+    expect(effects.gitRefreshThreadIds).toEqual([]);
+  });
+
+  it("dedupes git refresh thread ids across a batch", () => {
+    const firstThreadId = ThreadId.make("thread-1");
+    const secondThreadId = ThreadId.make("thread-2");
+
+    const effects = deriveOrchestrationBatchEffects([
+      makeEvent("thread.activity-appended", {
+        threadId: firstThreadId,
+        activity: makeActivity({
+          id: "activity-1",
+          kind: "tool.updated",
+          payload: { itemType: "file_change" },
+        }),
+      }),
+      makeEvent("thread.activity-appended", {
+        threadId: firstThreadId,
+        activity: makeActivity({
+          id: "activity-2",
+          kind: "tool.completed",
+          payload: { itemType: "file_change" },
+        }),
+      }),
+      makeEvent("thread.activity-appended", {
+        threadId: secondThreadId,
+        activity: makeActivity({
+          id: "activity-3",
+          kind: "tool.completed",
+          payload: { itemType: "file_change" },
+        }),
+      }),
+    ]);
+
+    expect(effects.gitRefreshThreadIds).toEqual([firstThreadId, secondThreadId]);
   });
 });
