@@ -6,19 +6,14 @@ import ChatMarkdown from "../chat-markdown";
 import { Button } from "@multi/ui/button";
 import { ChangedFilesTree } from "./changed-files-tree";
 import { DiffStatLabel, hasNonZeroStat } from "./diff-stat-label";
-import { MessageCopyButton } from "./message-copy-button";
-import { resolveAssistantMessageCopyState } from "./messages-timeline.logic";
 import { useUiStateStore } from "~/ui-state-store";
-import { ChatMessageBubble, MessageMetaRow } from "./message-surface";
+import { ChatMessageBubble } from "./message-surface";
 import { cn } from "~/lib/utils";
 
 interface AssistantMessageProps {
   message: ChatMessage;
   showCompletionDivider: boolean;
-  showAssistantCopyButton: boolean;
   assistantTurnDiffSummary: TurnDiffSummary | undefined;
-  activeTurnInProgress: boolean;
-  activeTurnId: TurnId | null | undefined;
   completionSummary: string | null;
   routeThreadKey: string;
   markdownCwd: string | undefined;
@@ -29,10 +24,7 @@ interface AssistantMessageProps {
 export const AssistantMessage = memo(function AssistantMessage({
   message,
   showCompletionDivider,
-  showAssistantCopyButton,
   assistantTurnDiffSummary,
-  activeTurnInProgress,
-  activeTurnId,
   completionSummary,
   routeThreadKey,
   markdownCwd,
@@ -40,32 +32,6 @@ export const AssistantMessage = memo(function AssistantMessage({
   onOpenTurnDiff,
 }: AssistantMessageProps) {
   const messageText = message.text || (message.streaming ? "" : "(empty response)");
-  const assistantTurnStillInProgress =
-    activeTurnInProgress &&
-    activeTurnId !== null &&
-    activeTurnId !== undefined &&
-    message.turnId === activeTurnId;
-  const assistantCopyState = resolveAssistantMessageCopyState({
-    text: message.text ?? null,
-    showCopyButton: showAssistantCopyButton,
-    streaming: message.streaming || assistantTurnStillInProgress,
-  });
-
-  const footer = assistantCopyState.visible ? (
-    <MessageMetaRow>
-      <div className="flex items-center opacity-0 transition-opacity duration-200 group-hover/assistant:opacity-100">
-        <MessageCopyButton
-          text={assistantCopyState.text ?? ""}
-          size="icon-xs"
-          variant="outline"
-          className={cn(
-            "border-border/50 bg-background/35 text-muted-foreground/45 shadow-none",
-            "hover:border-border/70 hover:bg-background/55 hover:text-muted-foreground/70",
-          )}
-        />
-      </div>
-    </MessageMetaRow>
-  ) : undefined;
 
   const body = (
     <>
@@ -101,7 +67,7 @@ export const AssistantMessage = memo(function AssistantMessage({
           <span className="h-px flex-1 bg-border" />
         </div>
       )}
-      <ChatMessageBubble role="assistant" body={body} footer={footer} />
+      <ChatMessageBubble role="assistant" body={body} />
     </div>
   );
 });

@@ -336,10 +336,7 @@ function TimelineRowContent({ row }: { row: TimelineRow }) {
           <AssistantMessage
             message={row.message}
             showCompletionDivider={row.showCompletionDivider}
-            showAssistantCopyButton={row.showAssistantCopyButton}
             assistantTurnDiffSummary={row.assistantTurnDiffSummary}
-            activeTurnInProgress={ctx.activeTurnInProgress}
-            activeTurnId={ctx.activeTurnId}
             completionSummary={ctx.completionSummary}
             routeThreadKey={ctx.routeThreadKey}
             markdownCwd={ctx.markdownCwd}

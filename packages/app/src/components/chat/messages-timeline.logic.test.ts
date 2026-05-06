@@ -4,7 +4,6 @@ import {
   computeMessageDurationStart,
   deriveMessagesTimelineRows,
   normalizeCompactToolLabel,
-  resolveAssistantMessageCopyState,
 } from "./messages-timeline.logic";
 
 describe("computeMessageDurationStart", () => {
@@ -150,62 +149,8 @@ describe("normalizeCompactToolLabel", () => {
   });
 });
 
-describe("resolveAssistantMessageCopyState", () => {
-  it("returns enabled copy state for completed assistant messages", () => {
-    expect(
-      resolveAssistantMessageCopyState({
-        showCopyButton: true,
-        text: "Ship it",
-        streaming: false,
-      }),
-    ).toEqual({
-      text: "Ship it",
-      visible: true,
-    });
-  });
-
-  it("hides copy while an assistant message is still streaming", () => {
-    expect(
-      resolveAssistantMessageCopyState({
-        showCopyButton: true,
-        text: "Still streaming",
-        streaming: true,
-      }),
-    ).toEqual({
-      text: "Still streaming",
-      visible: false,
-    });
-  });
-
-  it("hides copy for empty completed assistant messages", () => {
-    expect(
-      resolveAssistantMessageCopyState({
-        showCopyButton: true,
-        text: "   ",
-        streaming: false,
-      }),
-    ).toEqual({
-      text: null,
-      visible: false,
-    });
-  });
-
-  it("hides copy for non-terminal assistant messages", () => {
-    expect(
-      resolveAssistantMessageCopyState({
-        showCopyButton: false,
-        text: "Interim thought",
-        streaming: false,
-      }),
-    ).toEqual({
-      text: "Interim thought",
-      visible: false,
-    });
-  });
-});
-
 describe("deriveMessagesTimelineRows", () => {
-  it("only enables assistant copy for the terminal assistant message in a turn", () => {
+  it("groups assistant rows without adding copy-button state", () => {
     const rows = deriveMessagesTimelineRows({
       timelineEntries: [
         {
@@ -263,8 +208,6 @@ describe("deriveMessagesTimelineRows", () => {
     );
 
     expect(assistantRows).toHaveLength(2);
-    expect(assistantRows[0]?.showAssistantCopyButton).toBe(false);
-    expect(assistantRows[1]?.showAssistantCopyButton).toBe(true);
     expect(assistantRows[1]?.showCompletionDivider).toBe(true);
   });
 
