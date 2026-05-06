@@ -1,5 +1,14 @@
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
-import { Suspense, lazy, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Suspense,
+  lazy,
+  type CSSProperties,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import ChatView from "~/components/chat-view";
 import { threadHasStarted } from "~/components/chat-view.logic";
@@ -27,6 +36,13 @@ const DIFF_INLINE_SIDEBAR_WIDTH_STORAGE_KEY = "chat_diff_sidebar_width";
 const DIFF_INLINE_DEFAULT_WIDTH = "clamp(28rem,48vw,44rem)";
 const DIFF_INLINE_SIDEBAR_MIN_WIDTH = 26 * 16;
 const COMPOSER_COMPACT_MIN_LEFT_CONTROLS_WIDTH_PX = 208;
+type ThreadRouteRef = NonNullable<ReturnType<typeof resolveThreadRouteRef>>;
+type DiffRouteControls = {
+  diffOpen: boolean;
+  closeDiff: () => void;
+  openDiff: () => void;
+  shouldRenderDiffContent: boolean;
+};
 
 const DiffPanelSheet = (props: {
   children: ReactNode;
@@ -141,7 +157,7 @@ const DiffPanelInlineSidebar = (props: {
       open={diffOpen}
       onOpenChange={onOpenChange}
       className="w-auto min-h-0 flex-none bg-transparent"
-      style={{ "--sidebar-width": DIFF_INLINE_DEFAULT_WIDTH } as React.CSSProperties}
+      style={{ "--sidebar-width": DIFF_INLINE_DEFAULT_WIDTH } as CSSProperties}
     >
       <Sidebar
         side="right"
@@ -160,12 +176,126 @@ const DiffPanelInlineSidebar = (props: {
   );
 };
 
-export function ChatThreadRouteView() {
+function ChatThreadMainPanel(props: { threadRef: ThreadRouteRef; onOpenDiff: () => void }) {
+  const { threadRef, onOpenDiff } = props;
+
+  return (
+    <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      <ChatView
+        environmentId={threadRef.environmentId}
+        threadId={threadRef.threadId}
+        onDiffPanelOpen={onOpenDiff}
+        reserveTitleBarControlInset={false}
+        routeKind="server"
+      />
+    </div>
+  );
+}
+
+function ChatThreadInlineDiffLayout(props: {
+  threadRef: ThreadRouteRef;
+  diff: DiffRouteControls;
+}) {
+  const { threadRef, diff } = props;
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-row">
+      <ChatThreadMainPanel threadRef={threadRef} onOpenDiff={diff.openDiff} />
+      <DiffPanelInlineSidebar
+        diffOpen={diff.diffOpen}
+        onCloseDiff={diff.closeDiff}
+        onOpenDiff={diff.openDiff}
+        renderDiffContent={diff.shouldRenderDiffContent}
+      />
+    </div>
+  );
+}
+
+function ChatThreadSheetDiffLayout(props: {
+  threadRef: ThreadRouteRef;
+  diff: DiffRouteControls;
+}) {
+  const { threadRef, diff } = props;
+
+  return (
+    <>
+      <ChatThreadMainPanel threadRef={threadRef} onOpenDiff={diff.openDiff} />
+      <DiffPanelSheet diffOpen={diff.diffOpen} onCloseDiff={diff.closeDiff}>
+        {diff.shouldRenderDiffContent ? <LazyDiffPanel mode="sheet" /> : null}
+      </DiffPanelSheet>
+    </>
+  );
+}
+
+function useThreadDiffRouteControls(args: {
+  diffOpen: boolean;
+  threadRef: ReturnType<typeof resolveThreadRouteRef>;
+}) {
+  const { diffOpen, threadRef } = args;
   const navigate = useNavigate();
+  const currentThreadKey = threadRef ? `${threadRef.environmentId}:${threadRef.threadId}` : null;
+  const [diffPanelMountState, setDiffPanelMountState] = useState(() => ({
+    threadKey: currentThreadKey,
+    hasOpenedDiff: diffOpen,
+  }));
+
+  const hasOpenedDiff =
+    diffPanelMountState.threadKey === currentThreadKey
+      ? diffPanelMountState.hasOpenedDiff
+      : diffOpen;
+
+  const markDiffOpened = useCallback(() => {
+    setDiffPanelMountState((previous) => {
+      if (previous.threadKey === currentThreadKey && previous.hasOpenedDiff) {
+        return previous;
+      }
+      return {
+        threadKey: currentThreadKey,
+        hasOpenedDiff: true,
+      };
+    });
+  }, [currentThreadKey]);
+
+  const closeDiff = useCallback(() => {
+    if (!threadRef) {
+      return;
+    }
+    void navigate({
+      to: "/$environmentId/$threadId",
+      params: buildThreadRouteParams(threadRef),
+      search: (prev) => stripDiffSearchParams(prev),
+    });
+  }, [navigate, threadRef]);
+
+  const openDiff = useCallback(() => {
+    if (!threadRef) {
+      return;
+    }
+    markDiffOpened();
+    void navigate({
+      to: "/$environmentId/$threadId",
+      params: buildThreadRouteParams(threadRef),
+      search: (previous) => {
+        const rest = stripDiffSearchParams(previous);
+        return { ...rest, diff: "1" };
+      },
+    });
+  }, [markDiffOpened, navigate, threadRef]);
+
+  return {
+    diffOpen,
+    closeDiff,
+    openDiff,
+    shouldRenderDiffContent: diffOpen || hasOpenedDiff,
+  } satisfies DiffRouteControls;
+}
+
+export function ChatThreadRouteView() {
   const threadRef = routeApi.useParams({
     select: (params) => resolveThreadRouteRef(params),
   });
   const search = routeApi.useSearch();
+  const navigate = useNavigate();
   const bootstrapComplete = useStore(
     (store) => selectEnvironmentState(store, threadRef?.environmentId ?? null).bootstrapComplete,
   );
@@ -191,50 +321,7 @@ export function ChatThreadRouteView() {
   const environmentHasAnyThreads = environmentHasServerThreads || environmentHasDraftThreads;
   const diffOpen = search.diff === "1";
   const shouldUseDiffSheet = useMediaQuery(DIFF_INLINE_LAYOUT_MEDIA_QUERY);
-  const currentThreadKey = threadRef ? `${threadRef.environmentId}:${threadRef.threadId}` : null;
-  const [diffPanelMountState, setDiffPanelMountState] = useState(() => ({
-    threadKey: currentThreadKey,
-    hasOpenedDiff: diffOpen,
-  }));
-  const hasOpenedDiff =
-    diffPanelMountState.threadKey === currentThreadKey
-      ? diffPanelMountState.hasOpenedDiff
-      : diffOpen;
-  const markDiffOpened = useCallback(() => {
-    setDiffPanelMountState((previous) => {
-      if (previous.threadKey === currentThreadKey && previous.hasOpenedDiff) {
-        return previous;
-      }
-      return {
-        threadKey: currentThreadKey,
-        hasOpenedDiff: true,
-      };
-    });
-  }, [currentThreadKey]);
-  const closeDiff = useCallback(() => {
-    if (!threadRef) {
-      return;
-    }
-    void navigate({
-      to: "/$environmentId/$threadId",
-      params: buildThreadRouteParams(threadRef),
-      search: (prev) => stripDiffSearchParams(prev),
-    });
-  }, [navigate, threadRef]);
-  const openDiff = useCallback(() => {
-    if (!threadRef) {
-      return;
-    }
-    markDiffOpened();
-    void navigate({
-      to: "/$environmentId/$threadId",
-      params: buildThreadRouteParams(threadRef),
-      search: (previous) => {
-        const rest = stripDiffSearchParams(previous);
-        return { ...rest, diff: "1" };
-      },
-    });
-  }, [markDiffOpened, navigate, threadRef]);
+  const diff = useThreadDiffRouteControls({ diffOpen, threadRef });
 
   useEffect(() => {
     if (!threadRef || !bootstrapComplete) {
@@ -295,44 +382,9 @@ export function ChatThreadRouteView() {
     return null;
   }
 
-  const shouldRenderDiffContent = diffOpen || hasOpenedDiff;
-
   if (!shouldUseDiffSheet) {
-    return (
-      <div className="flex min-h-0 flex-1 flex-row">
-        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          <ChatView
-            environmentId={threadRef.environmentId}
-            threadId={threadRef.threadId}
-            onDiffPanelOpen={openDiff}
-            reserveTitleBarControlInset={false}
-            routeKind="server"
-          />
-        </div>
-        <DiffPanelInlineSidebar
-          diffOpen={diffOpen}
-          onCloseDiff={closeDiff}
-          onOpenDiff={openDiff}
-          renderDiffContent={shouldRenderDiffContent}
-        />
-      </div>
-    );
+    return <ChatThreadInlineDiffLayout threadRef={threadRef} diff={diff} />;
   }
 
-  return (
-    <>
-      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <ChatView
-          environmentId={threadRef.environmentId}
-          threadId={threadRef.threadId}
-          onDiffPanelOpen={openDiff}
-          reserveTitleBarControlInset={false}
-          routeKind="server"
-        />
-      </div>
-      <DiffPanelSheet diffOpen={diffOpen} onCloseDiff={closeDiff}>
-        {shouldRenderDiffContent ? <LazyDiffPanel mode="sheet" /> : null}
-      </DiffPanelSheet>
-    </>
-  );
+  return <ChatThreadSheetDiffLayout threadRef={threadRef} diff={diff} />;
 }

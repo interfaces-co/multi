@@ -531,19 +531,8 @@ body {
   inset-inline-start: 0;
   width: 1px;
   pointer-events: none;
-  z-index: 1;
-  background: var(--multi-stroke-quaternary);
-}
-
-.agent-window__workbench::after {
-  content: "";
-  position: absolute;
-  inset-block: 0;
-  inset-inline-end: 0;
-  width: 1px;
-  pointer-events: none;
-  z-index: 1;
-  background: var(--multi-stroke-quaternary);
+  z-index: 20;
+  background: color-mix(in srgb, var(--multi-workbench-panel-border) 94%, transparent);
 }
 
 .multi-shell-secondary-rail::after {
