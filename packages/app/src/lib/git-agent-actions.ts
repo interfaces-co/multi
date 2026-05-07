@@ -33,6 +33,8 @@ export const GIT_AGENT_ACTIONS = {
 
 export type GitAgentAction = keyof typeof GIT_AGENT_ACTIONS;
 
+export type GitAgentActionDetails = (typeof GIT_AGENT_ACTIONS)[GitAgentAction];
+
 export const GIT_AGENT_PRIMARY_ACTION = "commitAndPush" as const satisfies GitAgentAction;
 
 export const GIT_AGENT_ACTION_ORDER = [
@@ -41,3 +43,11 @@ export const GIT_AGENT_ACTION_ORDER = [
   "commit",
   "createPrWithChanges",
 ] as const satisfies readonly GitAgentAction[];
+
+const GIT_AGENT_ACTION_ENTRIES = Object.entries(GIT_AGENT_ACTIONS) as ReadonlyArray<
+  readonly [GitAgentAction, GitAgentActionDetails]
+>;
+
+export function resolveGitAgentActionFromPrompt(prompt: string): GitAgentAction | null {
+  return GIT_AGENT_ACTION_ENTRIES.find(([, details]) => details.prompt === prompt)?.[0] ?? null;
+}

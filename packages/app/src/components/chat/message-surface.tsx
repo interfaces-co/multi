@@ -19,6 +19,12 @@ interface EditableChatMessageBubbleProps {
   onActivate: (event: MessageBubbleActivateEvent) => void;
 }
 
+interface ReadonlyActionChatMessageBubbleProps {
+  body: ReactNode;
+  footer?: ReactNode;
+  media?: ReactNode;
+}
+
 type UserMessageBubbleSurfaceProps =
   | {
       body: ReactNode;
@@ -26,12 +32,14 @@ type UserMessageBubbleSurfaceProps =
       media?: ReactNode;
       editable: true;
       onActivate: (event: MessageBubbleActivateEvent) => void;
+      readonlyAction?: never;
     }
   | {
       body: ReactNode;
       footer?: ReactNode;
       media?: ReactNode;
       editable?: false;
+      readonlyAction?: boolean;
     };
 
 const assistantMessageSurfaceVariants = cva("box-border flex w-full justify-start", {
@@ -146,7 +154,16 @@ export const EditableChatMessageBubble = memo(function EditableChatMessageBubble
   );
 });
 
+export const ReadonlyActionChatMessageBubble = memo(function ReadonlyActionChatMessageBubble({
+  body,
+  footer,
+  media,
+}: ReadonlyActionChatMessageBubbleProps) {
+  return <UserMessageBubbleSurface body={body} footer={footer} media={media} readonlyAction />;
+});
+
 function UserMessageBubbleSurface(props: UserMessageBubbleSurfaceProps) {
+  const readonlyAction = !props.editable && props.readonlyAction === true;
   const editableProps = props.editable
     ? {
         role: "button" as const,
@@ -165,7 +182,13 @@ function UserMessageBubbleSurface(props: UserMessageBubbleSurfaceProps) {
 
   return (
     <div className="box-border flex w-full min-w-0">
-      <div className={humanMessageBubbleVariants({ editable: props.editable })} {...editableProps}>
+      <div
+        className={cn(
+          humanMessageBubbleVariants({ editable: props.editable }),
+          readonlyAction && "cursor-default",
+        )}
+        {...editableProps}
+      >
         {props.media ? (
           <div
             className="min-w-0"

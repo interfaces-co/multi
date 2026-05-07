@@ -1,7 +1,4 @@
-import {
-  type ProviderInstanceId,
-  type ResolvedKeybindingsConfig,
-} from "@multi/contracts";
+import { type ProviderInstanceId, type ResolvedKeybindingsConfig } from "@multi/contracts";
 import { memo, useEffect, useMemo, useState } from "react";
 import type { VariantProps } from "class-variance-authority";
 import { IconChevronDownSmall } from "central-icons";

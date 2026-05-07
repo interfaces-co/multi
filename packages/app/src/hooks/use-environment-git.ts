@@ -1,4 +1,3 @@
-import type { FileDiffMetadata } from "@pierre/diffs";
 import {
   type EnvironmentId,
   type GitManagerServiceError,
@@ -10,9 +9,13 @@ import { useQueries, useQueryClient } from "@tanstack/react-query";
 import * as Schema from "effect/Schema";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { refreshGitStatus, useGitStatus } from "../lib/git-status-state";
-import { gitPatchQueryOptions, gitQueryKeys } from "../lib/native-git-react-query";
 import { readNativeGitApi } from "../lib/native-git-api";
+import { refreshGitStatus, useGitStatus } from "../lib/git-status-state";
+import {
+  gitPatchQueryOptions,
+  gitQueryKeys,
+  type GitPatchData,
+} from "../lib/native-git-react-query";
 import { useShellLayoutStore } from "../lib/shell-layout-store";
 import { useLocalStorage } from "./use-local-storage";
 import { useShellState } from "./use-shell-cwd";
@@ -56,8 +59,7 @@ export interface GitPanelModel {
   totalAdd: number;
   totalDel: number;
   focusId: string | null;
-  diffsByPath: Map<string, FileDiffMetadata | null>;
-  patchesByPath: Map<string, string>;
+  patchesByPath: Map<string, GitPatchData>;
   diffLoadingByPath: Set<string>;
   diffErrorByPath: Map<string, string>;
   expandedIds: Set<string>;
@@ -337,8 +339,7 @@ export function useEnvironmentGitPanel(
     ),
   });
 
-  const diffsByPath = new Map<string, FileDiffMetadata | null>();
-  const patchesByPath = new Map<string, string>();
+  const patchesByPath = new Map<string, GitPatchData>();
   const diffLoadingByPath = new Set<string>();
   const diffErrorByPath = new Map<string, string>();
 
@@ -347,8 +348,7 @@ export function useEnvironmentGitPanel(
     if (!query) continue;
 
     if (query.data) {
-      diffsByPath.set(row.path, query.data.diff);
-      patchesByPath.set(row.path, query.data.patch);
+      patchesByPath.set(row.path, query.data);
     }
 
     if (!query.data && (query.isPending || query.fetchStatus === "fetching")) {
@@ -469,7 +469,6 @@ export function useEnvironmentGitPanel(
     totalAdd: rows.reduce((sum, row) => sum + row.add, 0),
     totalDel: rows.reduce((sum, row) => sum + row.del, 0),
     focusId,
-    diffsByPath,
     patchesByPath,
     diffLoadingByPath,
     diffErrorByPath,

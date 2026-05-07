@@ -598,7 +598,7 @@ describe("findSidebarProposedPlan", () => {
 });
 
 describe("deriveWorkLogEntries", () => {
-  it("omits tool started entries and keeps completed entries", () => {
+  it("keeps tool started entries before completed entries", () => {
     const activities: OrchestrationThreadActivity[] = [
       makeActivity({
         id: "tool-complete",
@@ -615,10 +615,11 @@ describe("deriveWorkLogEntries", () => {
     ];
 
     const entries = deriveWorkLogEntries(activities, undefined);
-    expect(entries.map((entry) => entry.id)).toEqual(["tool-complete"]);
+    expect(entries.map((entry) => entry.id)).toEqual(["tool-start", "tool-complete"]);
+    expect(entries.map((entry) => entry.status)).toEqual(["running", "completed"]);
   });
 
-  it("omits task.started but shows task.progress and task.completed", () => {
+  it("keeps task.started, task.progress, and task.completed", () => {
     const activities: OrchestrationThreadActivity[] = [
       makeActivity({
         id: "task-start",
@@ -644,7 +645,12 @@ describe("deriveWorkLogEntries", () => {
     ];
 
     const entries = deriveWorkLogEntries(activities, undefined);
-    expect(entries.map((entry) => entry.id)).toEqual(["task-progress", "task-complete"]);
+    expect(entries.map((entry) => entry.id)).toEqual([
+      "task-start",
+      "task-progress",
+      "task-complete",
+    ]);
+    expect(entries.map((entry) => entry.status)).toEqual(["running", "running", "completed"]);
   });
 
   it("uses payload summary as label for task entries when available", () => {
@@ -1131,6 +1137,60 @@ describe("deriveWorkLogEntries", () => {
     expect(entries).toHaveLength(1);
     expect(entries[0]?.id).toBe("a-complete-same-timestamp");
   });
+
+  it("keeps collab agent lifecycle rows separate", () => {
+    const activities: OrchestrationThreadActivity[] = [
+      makeActivity({
+        id: "subagent-start",
+        createdAt: "2026-02-23T00:00:01.000Z",
+        kind: "tool.started",
+        summary: "Subagent task started",
+        payload: {
+          itemId: "tool-task-1",
+          itemType: "collab_agent_tool_call",
+          title: "Subagent task",
+          detail: "code-reviewer: Review the database layer",
+        },
+      }),
+      makeActivity({
+        id: "subagent-update",
+        createdAt: "2026-02-23T00:00:02.000Z",
+        kind: "tool.updated",
+        summary: "Subagent task",
+        payload: {
+          itemId: "tool-task-1",
+          itemType: "collab_agent_tool_call",
+          title: "Subagent task",
+          detail: "code-reviewer: Review the database layer",
+        },
+      }),
+      makeActivity({
+        id: "subagent-complete",
+        createdAt: "2026-02-23T00:00:03.000Z",
+        kind: "tool.completed",
+        summary: "Subagent task",
+        payload: {
+          itemId: "tool-task-1",
+          itemType: "collab_agent_tool_call",
+          title: "Subagent task",
+          detail: "code-reviewer: Review the database layer",
+        },
+      }),
+    ];
+
+    const entries = deriveWorkLogEntries(activities, undefined);
+
+    expect(entries.map((entry) => entry.id)).toEqual([
+      "subagent-start",
+      "subagent-update",
+      "subagent-complete",
+    ]);
+    expect(entries.map((entry) => entry.toolCallId)).toEqual([
+      "tool-task-1",
+      "tool-task-1",
+      "tool-task-1",
+    ]);
+  });
 });
 
 describe("deriveTimelineEntries", () => {
@@ -1159,6 +1219,7 @@ describe("deriveTimelineEntries", () => {
       [
         {
           id: "work-1",
+          toolCallId: "shared-tool-call",
           createdAt: "2026-02-23T00:00:03.000Z",
           label: "Ran tests",
           tone: "tool",
@@ -1167,6 +1228,7 @@ describe("deriveTimelineEntries", () => {
     );
 
     expect(entries.map((entry) => entry.kind)).toEqual(["message", "proposed-plan", "work"]);
+    expect(entries[2]?.id).toBe("work:work-1");
     expect(entries[1]).toMatchObject({
       kind: "proposed-plan",
       proposedPlan: {

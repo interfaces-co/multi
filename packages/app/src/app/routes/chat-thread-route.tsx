@@ -192,10 +192,7 @@ function ChatThreadMainPanel(props: { threadRef: ThreadRouteRef; onOpenDiff: () 
   );
 }
 
-function ChatThreadInlineDiffLayout(props: {
-  threadRef: ThreadRouteRef;
-  diff: DiffRouteControls;
-}) {
+function ChatThreadInlineDiffLayout(props: { threadRef: ThreadRouteRef; diff: DiffRouteControls }) {
   const { threadRef, diff } = props;
 
   return (
@@ -211,10 +208,7 @@ function ChatThreadInlineDiffLayout(props: {
   );
 }
 
-function ChatThreadSheetDiffLayout(props: {
-  threadRef: ThreadRouteRef;
-  diff: DiffRouteControls;
-}) {
+function ChatThreadSheetDiffLayout(props: { threadRef: ThreadRouteRef; diff: DiffRouteControls }) {
   const { threadRef, diff } = props;
 
   return (

@@ -534,11 +534,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
 
   const resolvedOverrides = yield* Effect.try({
     try: () =>
-      resolveCatalogDependencies(
-        rootPackageJson.overrides,
-        workspaceCatalog,
-        "packages/desktop",
-      ),
+      resolveCatalogDependencies(rootPackageJson.overrides, workspaceCatalog, "packages/desktop"),
     catch: (cause) =>
       new BuildScriptError({
         message: "Could not resolve overrides from package.json.",
@@ -547,12 +543,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
   });
 
   const resolvedServerDependencies = yield* Effect.try({
-    try: () =>
-      resolveCatalogDependencies(
-        serverDependencies,
-        workspaceCatalog,
-        "packages/server",
-      ),
+    try: () => resolveCatalogDependencies(serverDependencies, workspaceCatalog, "packages/server"),
     catch: (cause) =>
       new BuildScriptError({
         message: "Could not resolve production dependencies from packages/server/package.json.",
@@ -560,11 +551,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
       }),
   });
   const resolvedDesktopRuntimeDependencies = yield* Effect.try({
-    try: () =>
-      resolveDesktopRuntimeDependencies(
-        desktopPackageJson.dependencies,
-        workspaceCatalog,
-      ),
+    try: () => resolveDesktopRuntimeDependencies(desktopPackageJson.dependencies, workspaceCatalog),
     catch: (cause) =>
       new BuildScriptError({
         message:

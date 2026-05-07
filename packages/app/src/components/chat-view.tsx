@@ -123,7 +123,11 @@ import {
   type TerminalContextSelection,
 } from "../lib/terminal-context";
 import { selectThreadTerminalState, useTerminalStateStore } from "../terminal-state-store";
-import { ChatComposer, type ChatComposerHandle, type ChatComposerProps } from "./chat/chat-composer";
+import {
+  ChatComposer,
+  type ChatComposerHandle,
+  type ChatComposerProps,
+} from "./chat/chat-composer";
 import { ExpandedImageDialog } from "./chat/expanded-image-dialog";
 import { PullRequestThreadDialog } from "./pull-request-thread-dialog";
 import { MessagesTimeline, type MessagesTimelineController } from "./chat/messages-timeline";
@@ -713,10 +717,7 @@ type InlineMessageEditComposerProps = Pick<
   composerDraftTarget: ComposerDraftId;
   message: ChatMessage;
   onCancelEditUserMessage: (messageId: MessageId) => void;
-  onSubmitEditUserMessage: (
-    messageId: MessageId,
-    input: InlineEditSubmitInput,
-  ) => Promise<boolean>;
+  onSubmitEditUserMessage: (messageId: MessageId, input: InlineEditSubmitInput) => Promise<boolean>;
 };
 
 const InlineMessageEditComposer = memo(function InlineMessageEditComposer({
@@ -734,9 +735,7 @@ const InlineMessageEditComposer = memo(function InlineMessageEditComposer({
   const editDraft = useComposerThreadDraft(composerDraftTarget);
   const promptRef = useRef(editDraft.prompt || message.text);
   const composerImagesRef = useRef<ComposerImageAttachment[]>(editDraft.images);
-  const composerTerminalContextsRef = useRef<TerminalContextDraft[]>(
-    editDraft.terminalContexts,
-  );
+  const composerTerminalContextsRef = useRef<TerminalContextDraft[]>(editDraft.terminalContexts);
   const shouldAutoScrollRef = useRef(false);
   const setComposerDraftModelSelection = useComposerDraftStore((store) => store.setModelSelection);
   const setStickyComposerModelSelection = useComposerDraftStore(
@@ -778,10 +777,9 @@ const InlineMessageEditComposer = memo(function InlineMessageEditComposer({
   }, []);
 
   const ignoreScheduleStickToBottom = useCallback(() => {}, []);
-  const ignoreRespondToApproval = useCallback<ChatComposerProps["onRespondToApproval"]>(
-    async () => {},
-    [],
-  );
+  const ignoreRespondToApproval = useCallback<
+    ChatComposerProps["onRespondToApproval"]
+  >(async () => {}, []);
   const ignoreSelectPendingUserInputOption = useCallback<
     ChatComposerProps["onSelectActivePendingUserInputOption"]
   >(() => {}, []);
@@ -872,13 +870,7 @@ const InlineMessageEditComposer = memo(function InlineMessageEditComposer({
         interactionMode: inlineInteractionMode,
       });
     },
-    [
-      inlineInteractionMode,
-      inlineRuntimeMode,
-      message.id,
-      onSubmitEditUserMessage,
-      submitDisabled,
-    ],
+    [inlineInteractionMode, inlineRuntimeMode, message.id, onSubmitEditUserMessage, submitDisabled],
   );
 
   return (

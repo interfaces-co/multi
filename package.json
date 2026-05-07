@@ -39,8 +39,8 @@
   },
   "devDependencies": {
     "@effect/language-service": "catalog:",
-    "bun": "catalog:",
     "@types/node": "catalog:",
+    "bun": "catalog:",
     "knip": "^6.12.0",
     "oxfmt": "^0.47.0",
     "oxlint": "^1.63.0",
@@ -64,11 +64,6 @@
     "node": "^24.13.1"
   },
   "packageManager": "pnpm@10.33.0",
-  "msw": {
-    "workerDirectory": [
-      "packages/app/public"
-    ]
-  },
   "pnpm": {
     "ignoredBuiltDependencies": [
       "@central-icons-react/round-outlined-radius-2-stroke-1.5",
@@ -79,6 +74,11 @@
       "electron",
       "msgpackr-extract",
       "node-pty"
+    ]
+  },
+  "msw": {
+    "workerDirectory": [
+      "packages/app/public"
     ]
   }
 }

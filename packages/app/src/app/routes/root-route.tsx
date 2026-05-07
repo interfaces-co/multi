@@ -1,11 +1,6 @@
 import { type ServerLifecycleWelcomePayload } from "@multi/contracts";
 import { scopedProjectKey, scopeProjectRef } from "@multi/client-runtime";
-import {
-  getRouteApi,
-  Outlet,
-  type ErrorComponentProps,
-  useNavigate,
-} from "@tanstack/react-router";
+import { getRouteApi, Outlet, type ErrorComponentProps, useNavigate } from "@tanstack/react-router";
 import { useEffect, useEffectEvent, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 

@@ -4,8 +4,8 @@ import {
   scopeProjectRef,
   scopeThreadRef,
 } from "@multi/client-runtime";
-import type { EditorId, EnvironmentId, ThreadId } from "@multi/contracts";
-import { useQueryClient } from "@tanstack/react-query";
+import type { EditorId, EnvironmentId, ThreadId, TurnId } from "@multi/contracts";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Outlet, useNavigate, useParams, useRouter } from "@tanstack/react-router";
 import { type ReactNode, useCallback, useMemo } from "react";
 import { toast } from "sonner";
@@ -24,7 +24,11 @@ import {
   startNewThreadFromContext,
   startNewThreadInProjectFromContext,
 } from "~/lib/chat-thread-actions";
-import { GIT_AGENT_ACTIONS, type GitAgentAction } from "~/lib/git-agent-actions";
+import {
+  GIT_AGENT_ACTIONS,
+  resolveGitAgentActionFromPrompt,
+  type GitAgentAction,
+} from "~/lib/git-agent-actions";
 import {
   shellPanelsActions,
   useSecondaryRail,
@@ -90,6 +94,12 @@ function needsSidebarAttention(sidebarThread: StoreSidebarThreadSummary | undefi
   if (!sidebarThread) return false;
   const label = resolveThreadStatusPill({ thread: sidebarThread })?.label;
   return label === "Pending Approval" || label === "Awaiting Input" || label === "Plan Ready";
+}
+
+interface GitAgentInterruptTarget {
+  environmentId: EnvironmentId;
+  threadId: ThreadId;
+  turnId?: TurnId | undefined;
 }
 
 function toSummary(
@@ -175,6 +185,10 @@ function ChatShellHost(props: { children?: ReactNode }) {
   const firstProjectCwd = projects[0]?.cwd ?? null;
   const draftThreadsByThreadKey = useComposerDraftStore((store) => store.draftThreadsByThreadKey);
   const composerDraftsByThreadKey = useComposerDraftStore((store) => store.draftsByThreadKey);
+  const markDraftThreadPromoting = useComposerDraftStore((store) => store.markDraftThreadPromoting);
+  const cancelDraftThreadPromotion = useComposerDraftStore(
+    (store) => store.cancelDraftThreadPromotion,
+  );
   const unread = useThreadUnreadStore((store) => store.unread);
   const {
     activeDraftThread,
@@ -319,6 +333,30 @@ function ChatShellHost(props: { children?: ReactNode }) {
         : null,
     [routeThreadId, threads],
   );
+  const activeGitAgentRun = useMemo(() => {
+    if (!activeThread) {
+      return null;
+    }
+    const status = activeThread.session?.orchestrationStatus ?? null;
+    if (status !== "starting" && status !== "running") {
+      return null;
+    }
+    const latestUserMessage = activeThread.messages.findLast((message) => message.role === "user");
+    const action = latestUserMessage
+      ? resolveGitAgentActionFromPrompt(latestUserMessage.text)
+      : null;
+    if (!action) {
+      return null;
+    }
+    return {
+      action,
+      target: {
+        environmentId: activeThread.environmentId,
+        threadId: activeThread.id,
+        turnId: activeThread.session?.activeTurnId ?? activeThread.latestTurn?.turnId ?? undefined,
+      } satisfies GitAgentInterruptTarget,
+    };
+  }, [activeThread]);
   const activeDraftCwd = activeDraftThread
     ? activeDraftThread.projectId === null
       ? PROJECTLESS_CWD
@@ -452,46 +490,80 @@ function ChatShellHost(props: { children?: ReactNode }) {
 
   const startGitAgentAction = useCallback(
     async (action: GitAgentAction) => {
-      const activeDraftProject = activeDraftThread
-        ? activeDraftThread.projectId
-          ? (projectByScopedKey.get(
-              scopedProjectKey(
-                scopeProjectRef(activeDraftThread.environmentId, activeDraftThread.projectId),
-              ),
-            ) ?? null)
-          : null
+      const routeServerThreadFallback =
+        routeTarget?.kind === "server" &&
+        activeThread?.environmentId === routeTarget.threadRef.environmentId &&
+        activeThread.id === routeTarget.threadRef.threadId
+          ? activeThread
+          : null;
+      const currentServerThread =
+        routeTarget?.kind === "server" ? (routeActiveThread ?? routeServerThreadFallback) : null;
+      const currentDraftThread = routeTarget?.kind === "draft" ? activeDraftThread : null;
+
+      if (routeTarget?.kind === "server" && !currentServerThread) {
+        throw new Error("Current thread is unavailable.");
+      }
+      if (routeTarget?.kind === "draft" && !currentDraftThread) {
+        throw new Error("Current draft is unavailable.");
+      }
+
+      const currentServerProject = currentServerThread?.projectId
+        ? (projectByScopedKey.get(
+            scopedProjectKey(
+              scopeProjectRef(currentServerThread.environmentId, currentServerThread.projectId),
+            ),
+          ) ?? null)
         : null;
-      const activeThreadProject = activeThread
-        ? activeThread.projectId
-          ? (projectById.get(activeThread.projectId) ?? null)
-          : null
+      const currentDraftProject = currentDraftThread?.projectId
+        ? (projectByScopedKey.get(
+            scopedProjectKey(
+              scopeProjectRef(currentDraftThread.environmentId, currentDraftThread.projectId),
+            ),
+          ) ?? null)
         : null;
       const activeCwdProject = activeCwd
         ? (projects.find((project) => project.cwd === activeCwd) ?? null)
         : null;
       const project =
-        activeThreadProject ??
-        activeDraftProject ??
+        currentServerProject ??
+        currentDraftProject ??
         activeCwdProject ??
         defaultProject ??
         projects[0];
 
       if (!project) {
-        toast.error("No project is available for this Git action.");
-        return;
+        throw new Error("No project is available for this Git action.");
+      }
+
+      if (
+        currentServerThread &&
+        (currentServerThread.environmentId !== project.environmentId ||
+          currentServerThread.projectId !== project.id)
+      ) {
+        throw new Error("Open this repository's thread before running the Git action.");
+      }
+      if (
+        currentDraftThread &&
+        (currentDraftThread.environmentId !== project.environmentId ||
+          currentDraftThread.projectId !== project.id)
+      ) {
+        throw new Error("Open this repository's draft before running the Git action.");
+      }
+
+      const currentThreadStatus = currentServerThread?.session?.orchestrationStatus ?? null;
+      if (currentThreadStatus === "starting" || currentThreadStatus === "running") {
+        throw new Error("Wait for the current turn to finish before running this Git action.");
       }
 
       const api = readEnvironmentApi(project.environmentId);
       if (!api) {
-        toast.error("Environment API unavailable.");
-        return;
+        throw new Error("Environment API unavailable.");
       }
 
       const modelSelection =
-        activeThread?.modelSelection ?? project.defaultModelSelection ?? undefined;
+        currentServerThread?.modelSelection ?? project.defaultModelSelection ?? undefined;
       if (!modelSelection) {
-        toast.error("Choose a model before running this Git action.");
-        return;
+        throw new Error("Choose a model before running this Git action.");
       }
 
       const createdAt = new Date().toISOString();
@@ -499,34 +571,28 @@ function ChatShellHost(props: { children?: ReactNode }) {
       const title = actionDetails.label;
       const prompt = actionDetails.prompt;
       const runtimeMode =
-        activeThread?.runtimeMode ?? activeDraftThread?.runtimeMode ?? DEFAULT_RUNTIME_MODE;
+        currentServerThread?.runtimeMode ?? currentDraftThread?.runtimeMode ?? DEFAULT_RUNTIME_MODE;
       const interactionMode =
-        activeThread?.interactionMode ??
-        activeDraftThread?.interactionMode ??
+        currentServerThread?.interactionMode ??
+        currentDraftThread?.interactionMode ??
         DEFAULT_INTERACTION_MODE;
-      const targetThread =
-        activeThread?.environmentId === project.environmentId &&
-        activeThread.projectId === project.id &&
-        activeThread.session?.orchestrationStatus !== "starting" &&
-        activeThread.session?.orchestrationStatus !== "running"
-          ? activeThread
-          : null;
-      const threadId = targetThread?.id ?? newThreadId();
-      const projectScopedBranch =
-        activeThread?.projectId === project.id
-          ? activeThread.branch
-          : activeDraftThread?.projectId === project.id
-            ? activeDraftThread.branch
-            : null;
+      const threadId = currentServerThread?.id ?? currentDraftThread?.threadId ?? newThreadId();
+      const projectScopedBranch = currentServerThread?.branch ?? currentDraftThread?.branch ?? null;
       const projectScopedWorktreePath =
-        activeThread?.projectId === project.id
-          ? activeThread.worktreePath
-          : activeDraftThread?.projectId === project.id
-            ? activeDraftThread.worktreePath
-            : null;
+        currentServerThread?.worktreePath ?? currentDraftThread?.worktreePath ?? null;
+      const promotedDraftId = routeTarget?.kind === "draft" ? routeTarget.draftId : null;
+      let draftPromotionMarked = false;
 
       try {
-        if (!targetThread) {
+        if (promotedDraftId) {
+          markDraftThreadPromoting(
+            promotedDraftId,
+            scopeThreadRef(project.environmentId, threadId),
+          );
+          draftPromotionMarked = true;
+        }
+
+        if (!currentServerThread) {
           await api.orchestration.dispatchCommand({
             type: "thread.create",
             commandId: newCommandId(),
@@ -538,7 +604,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
             interactionMode,
             branch: projectScopedBranch,
             worktreePath: projectScopedWorktreePath,
-            createdAt,
+            createdAt: currentDraftThread?.createdAt ?? createdAt,
           });
         }
 
@@ -564,20 +630,64 @@ function ChatShellHost(props: { children?: ReactNode }) {
           params: { environmentId: project.environmentId, threadId },
         });
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Failed to start Git action.");
+        if (draftPromotionMarked && promotedDraftId) {
+          cancelDraftThreadPromotion(promotedDraftId);
+        }
+        throw error;
       }
     },
     [
       activeCwd,
       activeDraftThread,
       activeThread,
+      cancelDraftThreadPromotion,
       defaultProject,
+      markDraftThreadPromoting,
       navigate,
-      projectById,
       projectByScopedKey,
       projects,
+      routeActiveThread,
+      routeTarget,
     ],
   );
+  const gitAgentActionMutation = useMutation({
+    mutationKey: ["git", "agent-action", activeEnvironmentId ?? null, activeCwd ?? null] as const,
+    mutationFn: startGitAgentAction,
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to start Git action.");
+    },
+  });
+  const interruptGitAgentActionMutation = useMutation({
+    mutationKey: [
+      "git",
+      "agent-action",
+      "interrupt",
+      activeGitAgentRun?.target.environmentId ?? null,
+      activeGitAgentRun?.target.threadId ?? null,
+    ] as const,
+    mutationFn: async (target: GitAgentInterruptTarget) => {
+      const api = readEnvironmentApi(target.environmentId);
+      if (!api) {
+        throw new Error("Environment API unavailable.");
+      }
+      await api.orchestration.dispatchCommand({
+        type: "thread.turn.interrupt",
+        commandId: newCommandId(),
+        threadId: target.threadId,
+        ...(target.turnId !== undefined ? { turnId: target.turnId } : {}),
+        createdAt: new Date().toISOString(),
+      });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to stop Git action.");
+    },
+  });
+  const pendingGitAgentAction =
+    activeGitAgentRun?.action ??
+    (gitAgentActionMutation.isPending ? (gitAgentActionMutation.variables ?? null) : null);
+  const stopGitAgentAction = activeGitAgentRun
+    ? () => interruptGitAgentActionMutation.mutate(activeGitAgentRun.target)
+    : null;
 
   const chatLeft = (
     <div className="agent-window__left-content thread-rail-pad flex min-h-0 flex-1 flex-col px-0">
@@ -606,9 +716,10 @@ function ChatShellHost(props: { children?: ReactNode }) {
         cwd={activeCwd}
         environmentId={activeEnvironmentId}
         availableEditors={availableEditors}
-        onGitAgentAction={(action) => {
-          void startGitAgentAction(action);
-        }}
+        onGitAgentAction={(action) => gitAgentActionMutation.mutate(action)}
+        onStopGitAgentAction={stopGitAgentAction}
+        stoppingGitAgentAction={interruptGitAgentActionMutation.isPending}
+        pendingGitAgentAction={pendingGitAgentAction}
       />
     );
   }
@@ -669,6 +780,9 @@ function DesktopChatShellHost(props: {
   environmentId: EnvironmentId | null;
   availableEditors: readonly EditorId[];
   onGitAgentAction: (action: GitAgentAction) => void;
+  onStopGitAgentAction: (() => void) | null;
+  stoppingGitAgentAction: boolean;
+  pendingGitAgentAction: GitAgentAction | null;
 }) {
   const git = useEnvironmentGitPanel(props.environmentId, props.cwd);
 
@@ -692,7 +806,13 @@ function DesktopChatShellHost(props: {
         ),
         git: (
           <WorkbenchPanel>
-            <GitPanel git={git} onAgentAction={props.onGitAgentAction} />
+            <GitPanel
+              git={git}
+              onAgentAction={props.onGitAgentAction}
+              onStopAgentAction={props.onStopGitAgentAction}
+              stoppingAgentAction={props.stoppingGitAgentAction}
+              pendingAgentAction={props.pendingGitAgentAction}
+            />
           </WorkbenchPanel>
         ),
         terminal: <TerminalWorkbenchPanel cwd={props.cwd} environmentId={props.environmentId} />,

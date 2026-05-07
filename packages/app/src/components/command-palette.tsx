@@ -355,7 +355,11 @@ function OpenCommandPaletteDialog() {
     if (!safeThreadSegment) {
       return null;
     }
-    return joinFileSystemPath(observability.logsDirectoryPath, "provider", `${safeThreadSegment}.log`);
+    return joinFileSystemPath(
+      observability.logsDirectoryPath,
+      "provider",
+      `${safeThreadSegment}.log`,
+    );
   }, [observability?.logsDirectoryPath, routeThreadRef]);
   const serverTracePath = useMemo(() => {
     if (!import.meta.env.DEV || !observability?.logsDirectoryPath) {

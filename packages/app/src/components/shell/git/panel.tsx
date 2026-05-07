@@ -7,6 +7,7 @@ import {
   IconChevronRightSmall,
   IconDotGrid1x3Horizontal,
   IconSplit,
+  IconStop,
 } from "central-icons";
 import { Virtualizer } from "@pierre/diffs/react";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -45,6 +46,9 @@ import { RightWorkbenchLayout } from "../shell/right-workbench-layout";
 export function GitPanel(props: {
   git: GitPanelModel;
   onAgentAction: (action: GitAgentAction) => void;
+  onStopAgentAction: (() => void) | null;
+  stoppingAgentAction: boolean;
+  pendingAgentAction: GitAgentAction | null;
 }) {
   const git = props.git;
 
@@ -112,13 +116,24 @@ export function GitPanel(props: {
         </div>
       );
     case "changed":
-      return <GitPanelInner git={git} onAgentAction={props.onAgentAction} />;
+      return (
+        <GitPanelInner
+          git={git}
+          onAgentAction={props.onAgentAction}
+          onStopAgentAction={props.onStopAgentAction}
+          stoppingAgentAction={props.stoppingAgentAction}
+          pendingAgentAction={props.pendingAgentAction}
+        />
+      );
   }
 }
 
 function GitPanelInner(props: {
   git: GitPanelModel;
   onAgentAction: (action: GitAgentAction) => void;
+  onStopAgentAction: (() => void) | null;
+  stoppingAgentAction: boolean;
+  pendingAgentAction: GitAgentAction | null;
 }) {
   const git = props.git;
   const files = git.rows;
@@ -202,8 +217,9 @@ function GitPanelInner(props: {
 
   const { onAgentAction } = props;
   const handleCommitAndPush = useCallback(() => {
+    if (props.pendingAgentAction) return;
     onAgentAction(GIT_AGENT_PRIMARY_ACTION);
-  }, [onAgentAction]);
+  }, [onAgentAction, props.pendingAgentAction]);
 
   const handleSelectFile = useCallback((file: DiffRow) => {
     setSelectedId(file.id);
@@ -216,12 +232,15 @@ function GitPanelInner(props: {
           branch={git.branch}
           onCommitAndPush={handleCommitAndPush}
           onAgentAction={props.onAgentAction}
+          onStopAgentAction={props.onStopAgentAction}
+          stoppingAgentAction={props.stoppingAgentAction}
           diffStyle={diffStyle}
           onDiffStyle={setDiffStyle}
           editorMenuOpen={editorMenuOpen}
           onEditorMenuOpen={setEditorMenuOpen}
           commitMenuOpen={commitMenuOpen}
           onCommitMenuOpen={setCommitMenuOpen}
+          pendingAgentAction={props.pendingAgentAction}
         />
         <ChangesHeader
           railOpen={gitRailOpen}
@@ -271,9 +290,8 @@ function GitPanelInner(props: {
                     selected={selectedId === file.id}
                     expanded={git.expandedIds.has(file.id)}
                     onExpandedChange={(open) => git.toggleExpand(file.id, open)}
-                    diff={git.diffsByPath.get(file.path) ?? null}
                     patch={git.patchesByPath.get(file.path) ?? null}
-                    loaded={git.diffsByPath.has(file.path) || git.patchesByPath.has(file.path)}
+                    loaded={git.patchesByPath.has(file.path)}
                     loading={git.diffLoadingByPath.has(file.path)}
                     error={git.diffErrorByPath.get(file.path) ?? null}
                     diffStyle={diffStyle}
@@ -310,18 +328,25 @@ function LocalBranchBar(props: {
   branch: string | null;
   onCommitAndPush: () => void;
   onAgentAction: (action: GitAgentAction) => void;
+  onStopAgentAction: (() => void) | null;
+  stoppingAgentAction: boolean;
   diffStyle: "unified" | "split";
   onDiffStyle: (next: "unified" | "split") => void;
   editorMenuOpen: boolean;
   onEditorMenuOpen: (open: boolean) => void;
   commitMenuOpen: boolean;
   onCommitMenuOpen: (open: boolean) => void;
+  pendingAgentAction: GitAgentAction | null;
 }) {
   const copyBranch = () => {
     if (!props.branch) return;
     void navigator.clipboard.writeText(props.branch);
     toast.success("Branch copied");
   };
+  const pendingActionDetails = props.pendingAgentAction
+    ? GIT_AGENT_ACTIONS[props.pendingAgentAction]
+    : null;
+  const isAgentActionPending = props.pendingAgentAction !== null;
 
   return (
     <WorkbenchChromeRow
@@ -368,21 +393,41 @@ function LocalBranchBar(props: {
             )}
           </div>
           <div className="no-drag relative min-w-0 shrink-0">
-            <div className="no-drag inline-flex h-(--multi-workbench-action-size) min-w-0 overflow-hidden rounded-[5px] border border-primary bg-primary text-[11px]/[14px] font-medium text-primary-foreground shadow-sm">
+            <div
+              className="group no-drag inline-flex h-(--multi-workbench-action-size) min-w-0 overflow-hidden rounded-[5px] border border-primary bg-primary text-[11px]/[14px] font-medium text-primary-foreground shadow-sm data-[pending=true]:border-rose-500/90 data-[pending=true]:bg-rose-500/90"
+              data-pending={isAgentActionPending || undefined}
+            >
               <button
                 type="button"
-                className="inline-flex h-full min-w-0 items-center justify-center px-2 text-inherit transition-colors hover:bg-primary/90"
+                className="inline-flex h-full min-w-0 items-center justify-center gap-1.5 px-2 text-inherit transition-colors hover:bg-primary/90 disabled:cursor-default disabled:opacity-70 disabled:hover:bg-transparent group-data-[pending=true]:hover:bg-rose-500/90"
+                disabled={
+                  isAgentActionPending &&
+                  (props.onStopAgentAction === null || props.stoppingAgentAction)
+                }
+                aria-busy={isAgentActionPending || undefined}
+                aria-label={isAgentActionPending ? "Stop Git action" : undefined}
                 onClick={() => {
+                  if (isAgentActionPending) {
+                    props.onStopAgentAction?.();
+                    return;
+                  }
                   props.onCommitMenuOpen(false);
                   props.onCommitAndPush();
                 }}
               >
-                Commit & Push
+                {isAgentActionPending ? <IconStop className="size-3" /> : null}
+                {props.stoppingAgentAction
+                  ? "Stopping..."
+                  : (pendingActionDetails?.loadingLabel ?? "Commit & Push")}
               </button>
               <button
                 type="button"
-                className="inline-flex h-full w-[22px] shrink-0 items-center justify-center border-l border-primary-foreground/18 text-primary-foreground transition-colors hover:bg-primary/90 data-[open=true]:bg-primary/90"
-                onClick={() => props.onCommitMenuOpen(!props.commitMenuOpen)}
+                className="inline-flex h-full w-[22px] shrink-0 items-center justify-center border-l border-primary-foreground/18 text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-default disabled:opacity-70 disabled:hover:bg-transparent data-[open=true]:bg-primary/90"
+                disabled={isAgentActionPending}
+                onClick={() => {
+                  if (isAgentActionPending) return;
+                  props.onCommitMenuOpen(!props.commitMenuOpen);
+                }}
                 aria-label="Open commit menu"
                 aria-expanded={props.commitMenuOpen}
                 aria-haspopup="menu"
@@ -404,6 +449,7 @@ function LocalBranchBar(props: {
                       key={action}
                       label={GIT_AGENT_ACTIONS[action].label}
                       onClick={() => {
+                        if (props.pendingAgentAction !== null) return;
                         props.onAgentAction(action);
                         props.onCommitMenuOpen(false);
                       }}

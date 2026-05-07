@@ -292,13 +292,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
       groupFavorites: true,
       instanceOrder: sortOrder,
     });
-  }, [
-    favoritesSet,
-    flatModels,
-    instanceOrder,
-    railSelection,
-    searchQuery,
-  ]);
+  }, [favoritesSet, flatModels, instanceOrder, railSelection, searchQuery]);
 
   const handleModelSelect = useCallback(
     (modelSlug: string, instanceId: ProviderInstanceId) => {

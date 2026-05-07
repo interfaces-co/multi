@@ -160,12 +160,7 @@ function SelectPopup({
           >
             <IconChevronTopSmall className="relative size-4.5 sm:size-4" />
           </SelectPrimitive.ScrollUpArrow>
-          <div
-            className={cn(
-              workbenchMenuPopupClassName,
-              "min-w-(--anchor-width)",
-            )}
-          >
+          <div className={cn(workbenchMenuPopupClassName, "min-w-(--anchor-width)")}>
             <SelectPrimitive.List
               className={cn(workbenchMenuViewportClassName, className)}
               data-slot="select-list"
@@ -216,11 +211,7 @@ function SelectItem({
         </SelectPrimitive.ItemIndicator>
       )}
       <SelectPrimitive.ItemText
-        className={cn(
-          "min-w-0",
-          hideIndicator ? "col-start-1" : "col-start-2",
-          "truncate",
-        )}
+        className={cn("min-w-0", hideIndicator ? "col-start-1" : "col-start-2", "truncate")}
         data-slot="select-item-text"
       >
         {children}

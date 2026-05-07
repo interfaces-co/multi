@@ -568,9 +568,7 @@ describe("ProviderModelPicker", () => {
       await page.getByRole("button").click();
 
       await vi.waitFor(() => {
-        const positioner = document.querySelector<HTMLElement>(
-          '[data-slot="popover-positioner"]',
-        );
+        const positioner = document.querySelector<HTMLElement>('[data-slot="popover-positioner"]');
         expect(positioner).not.toBeNull();
         const triggerRect = trigger!.getBoundingClientRect();
         const positionerRect = positioner!.getBoundingClientRect();

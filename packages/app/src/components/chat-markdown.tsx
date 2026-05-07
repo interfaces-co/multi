@@ -185,25 +185,21 @@ interface SuspenseShikiCodeBlockProps {
   isStreaming: boolean;
 }
 
-function SuspenseShikiCodeBlock({
-  className,
+interface SuspenseShikiCodeBlockUncachedProps {
+  code: string;
+  themeName: DiffThemeName;
+  isStreaming: boolean;
+  cacheKey: string;
+  language: string;
+}
+
+function SuspenseShikiCodeBlockUncached({
   code,
   themeName,
   isStreaming,
-}: SuspenseShikiCodeBlockProps) {
-  const language = extractFenceLanguage(className);
-  const cacheKey = createHighlightCacheKey(code, language, themeName);
-  const cachedHighlightedHtml = !isStreaming ? highlightedCodeCache.get(cacheKey) : null;
-
-  if (cachedHighlightedHtml != null) {
-    return (
-      <div
-        className="chat-markdown-shiki"
-        dangerouslySetInnerHTML={{ __html: cachedHighlightedHtml }}
-      />
-    );
-  }
-
+  cacheKey,
+  language,
+}: SuspenseShikiCodeBlockUncachedProps) {
   const highlighter = use(getHighlighterPromise(language));
   const highlightedHtml = useMemo(() => {
     try {
@@ -231,6 +227,36 @@ function SuspenseShikiCodeBlock({
 
   return (
     <div className="chat-markdown-shiki" dangerouslySetInnerHTML={{ __html: highlightedHtml }} />
+  );
+}
+
+function SuspenseShikiCodeBlock({
+  className,
+  code,
+  themeName,
+  isStreaming,
+}: SuspenseShikiCodeBlockProps) {
+  const language = extractFenceLanguage(className);
+  const cacheKey = createHighlightCacheKey(code, language, themeName);
+  const cachedHighlightedHtml = !isStreaming ? highlightedCodeCache.get(cacheKey) : null;
+
+  if (cachedHighlightedHtml != null) {
+    return (
+      <div
+        className="chat-markdown-shiki"
+        dangerouslySetInnerHTML={{ __html: cachedHighlightedHtml }}
+      />
+    );
+  }
+
+  return (
+    <SuspenseShikiCodeBlockUncached
+      code={code}
+      themeName={themeName}
+      isStreaming={isStreaming}
+      cacheKey={cacheKey}
+      language={language}
+    />
   );
 }
 
@@ -541,11 +567,7 @@ function ChatMarkdown({ text, cwd, isStreaming = false }: ChatMarkdownProps) {
         if (isStreaming) {
           return (
             <MarkdownCodeBlock code={code}>
-              <PlainCodeBlock
-                className={className}
-                code={code}
-                codeProps={props}
-              />
+              <PlainCodeBlock className={className} code={code} codeProps={props} />
             </MarkdownCodeBlock>
           );
         }
@@ -553,22 +575,10 @@ function ChatMarkdown({ text, cwd, isStreaming = false }: ChatMarkdownProps) {
         return (
           <MarkdownCodeBlock code={code}>
             <CodeHighlightErrorBoundary
-              fallback={
-                <PlainCodeBlock
-                  className={className}
-                  code={code}
-                  codeProps={props}
-                />
-              }
+              fallback={<PlainCodeBlock className={className} code={code} codeProps={props} />}
             >
               <Suspense
-                fallback={
-                  <PlainCodeBlock
-                    className={className}
-                    code={code}
-                    codeProps={props}
-                  />
-                }
+                fallback={<PlainCodeBlock className={className} code={code} codeProps={props} />}
               >
                 <SuspenseShikiCodeBlock
                   className={className}

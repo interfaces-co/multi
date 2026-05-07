@@ -346,9 +346,24 @@ export const GitPullResult = Schema.Struct({
 });
 export type GitPullResult = typeof GitPullResult.Type;
 
-export const GitFilePatchResult = Schema.Struct({
-  unifiedDiff: Schema.String,
-});
+export const GitFilePatchResult = Schema.Union([
+  Schema.Struct({
+    kind: Schema.Literal("patch"),
+    patch: Schema.String,
+  }),
+  Schema.Struct({
+    kind: Schema.Literal("untracked"),
+    patch: Schema.String,
+  }),
+  Schema.Struct({
+    kind: Schema.Literal("rename_only"),
+    message: Schema.String,
+  }),
+  Schema.Struct({
+    kind: Schema.Literal("empty"),
+    message: Schema.String,
+  }),
+]);
 export type GitFilePatchResult = typeof GitFilePatchResult.Type;
 
 // RPC / domain errors

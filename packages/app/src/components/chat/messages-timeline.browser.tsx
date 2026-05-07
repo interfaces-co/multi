@@ -76,7 +76,8 @@ function buildConversationEntries(pairCount: number, startIndex = 0): TimelineEn
           role: "assistant",
           text: Array.from(
             { length: 6 },
-            (_, lineIndex) => `Assistant response ${index}.${lineIndex} with enough text to measure.`,
+            (_, lineIndex) =>
+              `Assistant response ${index}.${lineIndex} with enough text to measure.`,
           ).join("\n"),
           createdAt,
           streaming: false,
@@ -123,9 +124,7 @@ async function scrollTo(scrollElement: HTMLElement, scrollTop: number) {
 
 function firstVisibleMessageId(scrollElement: HTMLElement) {
   const scrollRect = scrollElement.getBoundingClientRect();
-  const messageRows = Array.from(
-    scrollElement.querySelectorAll<HTMLElement>("[data-message-id]"),
-  );
+  const messageRows = Array.from(scrollElement.querySelectorAll<HTMLElement>("[data-message-id]"));
   const firstVisibleMessage = messageRows.find((row) => {
     if (row.closest('[data-sticky="true"]')) {
       return false;

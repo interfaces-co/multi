@@ -61,10 +61,7 @@ function Section(props: {
   onSelectAgent: (id: string) => void;
   onNewAgent?: (cwd: string) => void;
   onPrefetchAgent?: (id: string) => void;
-  onVisibleThreadRefsChange: (
-    sectionId: string,
-    threadRefs: readonly ScopedThreadRef[],
-  ) => void;
+  onVisibleThreadRefsChange: (sectionId: string, threadRefs: readonly ScopedThreadRef[]) => void;
 }) {
   const { onPrefetchAgent, section } = props;
   const { archiveThreads, removeProjectFromSidebar } = useThreadActions();

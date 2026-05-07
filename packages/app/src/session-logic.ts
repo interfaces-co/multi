@@ -597,16 +597,6 @@ export function deriveActiveBackgroundTasksState(
   return activeCount > 0 ? { activeCount } : null;
 }
 
-function isCollabAgentToolActivity(activity: OrchestrationThreadActivity): boolean {
-  const payload =
-    activity.payload && typeof activity.payload === "object"
-      ? (activity.payload as Record<string, unknown>)
-      : null;
-  return (
-    typeof payload?.itemType === "string" && payload.itemType.trim() === "collab_agent_tool_call"
-  );
-}
-
 export function deriveWorkLogEntries(
   activities: ReadonlyArray<OrchestrationThreadActivity>,
   latestTurnId: TurnId | undefined,
@@ -614,8 +604,6 @@ export function deriveWorkLogEntries(
   const ordered = [...activities].toSorted(compareActivitiesByOrder);
   const entries = ordered
     .filter((activity) => (latestTurnId ? activity.turnId === latestTurnId : true))
-    .filter((activity) => activity.kind !== "tool.started" || isCollabAgentToolActivity(activity))
-    .filter((activity) => activity.kind !== "task.started")
     .filter((activity) => activity.kind !== "account.rate-limits.updated")
     .filter((activity) => activity.kind !== "context-window.updated")
     .filter((activity) => activity.summary !== "Checkpoint captured")
@@ -648,7 +636,10 @@ function toDerivedWorkLogEntry(activity: OrchestrationThreadActivity): DerivedWo
   const changedFiles = extractChangedFiles(payload);
   const title = extractToolTitle(payload);
   const subagents = extractWorkLogSubagents(payload);
-  const isTaskActivity = activity.kind === "task.progress" || activity.kind === "task.completed";
+  const isTaskActivity =
+    activity.kind === "task.started" ||
+    activity.kind === "task.progress" ||
+    activity.kind === "task.completed";
   const taskSummary =
     isTaskActivity && typeof payload?.summary === "string" && payload.summary.length > 0
       ? payload.summary
@@ -666,7 +657,7 @@ function toDerivedWorkLogEntry(activity: OrchestrationThreadActivity): DerivedWo
     createdAt: activity.createdAt,
     label: taskLabel || activity.summary,
     tone:
-      activity.kind === "task.progress"
+      activity.kind === "task.started" || activity.kind === "task.progress"
         ? "thinking"
         : activity.tone === "approval"
           ? "info"
@@ -698,6 +689,12 @@ function toDerivedWorkLogEntry(activity: OrchestrationThreadActivity): DerivedWo
       }
     }
   } else if (!taskDetailAsLabel) {
+    const resultText = extractToolResultText(payload, commandPreview);
+    if (resultText) {
+      entry.output = resultText;
+    }
+  }
+  if (!taskDetailAsLabel && !entry.output && itemType === "command_execution") {
     const resultText = extractToolResultText(payload, commandPreview);
     if (resultText) {
       entry.output = resultText;
@@ -773,6 +770,9 @@ function shouldCollapseToolLifecycleEntries(
   previous: DerivedWorkLogEntry,
   next: DerivedWorkLogEntry,
 ): boolean {
+  if (isSubagentLifecycleEntry(previous) || isSubagentLifecycleEntry(next)) {
+    return false;
+  }
   if (previous.activityKind !== "tool.updated" && previous.activityKind !== "tool.completed") {
     return false;
   }
@@ -783,6 +783,10 @@ function shouldCollapseToolLifecycleEntries(
     return false;
   }
   return previous.collapseKey !== undefined && previous.collapseKey === next.collapseKey;
+}
+
+function isSubagentLifecycleEntry(entry: DerivedWorkLogEntry): boolean {
+  return entry.itemType === "collab_agent_tool_call" || (entry.subagents?.length ?? 0) > 0;
 }
 
 function mergeDerivedWorkLogEntries(
@@ -821,7 +825,10 @@ function mergeDerivedWorkLogEntries(
   };
 }
 
-function mergeStreamText(previous: string | undefined, next: string | undefined): string | undefined {
+function mergeStreamText(
+  previous: string | undefined,
+  next: string | undefined,
+): string | undefined {
   if (!previous) {
     return next;
   }
@@ -903,6 +910,8 @@ function resolveWorkLogStatus(
     case "tool.updated":
       return "running";
     case "tool.started":
+      return "running";
+    case "task.started":
       return "running";
     case "tool.completed":
       return "completed";
@@ -1524,7 +1533,7 @@ export function deriveTimelineEntries(
     proposedPlan,
   }));
   const workRows: TimelineEntry[] = workEntries.map((entry) => ({
-    id: entry.toolCallId ? `work:${entry.toolCallId}` : entry.id,
+    id: `work:${entry.id}`,
     kind: "work",
     createdAt: entry.createdAt,
     entry,

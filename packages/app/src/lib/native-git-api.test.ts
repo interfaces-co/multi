@@ -49,14 +49,15 @@ describe("readNativeGitApi", () => {
 
   it("uses the selected environment websocket git client for patch and discard operations", async () => {
     const git = makeGitClient();
-    git.getFilePatch.mockResolvedValue({ unifiedDiff: "diff --git a/a b/a\n" });
+    git.getFilePatch.mockResolvedValue({ kind: "patch", patch: "diff --git a/a b/a\n" });
     git.discardPaths.mockResolvedValue(undefined);
     vi.mocked(getWsRpcClientForEnvironment).mockReturnValue({ git } as never);
 
     const api = readNativeGitApi(ENVIRONMENT_ID);
 
     await expect(api?.getFilePatch({ cwd: "/repo", path: "a" })).resolves.toEqual({
-      unifiedDiff: "diff --git a/a b/a\n",
+      kind: "patch",
+      patch: "diff --git a/a b/a\n",
     });
     await expect(api?.discardPaths({ cwd: "/repo", paths: ["a"] })).resolves.toBeUndefined();
     expect(git.getFilePatch).toHaveBeenCalledWith({ cwd: "/repo", path: "a" });

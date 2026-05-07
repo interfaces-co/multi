@@ -646,8 +646,7 @@ export const ChatComposer = memo(
         return ProviderInstanceId.make(explicitSelectedInstanceId);
       }
       const byKind = providerInstanceEntries.find(
-        (entry) =>
-          entry.enabled && entry.driverKind === selectedProvider,
+        (entry) => entry.enabled && entry.driverKind === selectedProvider,
       );
       if (byKind) return byKind.instanceId;
       const anyEnabled = providerInstanceEntries.find((entry) => entry.enabled);

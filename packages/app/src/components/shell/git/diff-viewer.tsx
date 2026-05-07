@@ -1,15 +1,15 @@
 import type { GitFileState } from "~/lib/ui-session-types";
-import { FileDiff, type FileDiffMetadata } from "@pierre/diffs/react";
+import { PatchDiff } from "@pierre/diffs/react";
 import { memo } from "react";
 
 import { resolveDiffThemeName } from "~/lib/diff-rendering";
+import type { GitPatchData } from "~/lib/native-git-react-query";
 import { PIERRE_WORKBENCH_CODE_UNSAFE_CSS } from "~/lib/pierre-workbench-code-css";
 import { cn } from "~/lib/utils";
 import { useTheme } from "~/hooks/use-theme";
 
 interface Props {
-  fileDiff: FileDiffMetadata | null;
-  filePatch?: string | null;
+  filePatch?: GitPatchData | null;
   path?: string;
   state?: GitFileState;
   prevPath?: string | null;
@@ -21,14 +21,14 @@ interface Props {
 export const DiffViewer = memo(function DiffViewer(props: Props) {
   const { resolvedTheme } = useTheme();
   const theme = resolveDiffThemeName(resolvedTheme);
-  const patch = props.filePatch?.trim() ?? "";
+  const patch = props.filePatch?.patch?.trim() ?? "";
 
-  if (props.fileDiff) {
+  if (patch.length > 0) {
     return (
       <div className={cn("min-h-0 min-w-0 w-full overflow-auto", props.className)}>
         <div className="web-component min-h-0 min-w-0 w-full overflow-auto" data-diffs-container>
-          <FileDiff
-            fileDiff={props.fileDiff}
+          <PatchDiff
+            patch={patch}
             options={{
               theme,
               themeType: resolvedTheme,
@@ -51,17 +51,7 @@ export const DiffViewer = memo(function DiffViewer(props: Props) {
     );
   }
 
-  if (patch.length > 0) {
-    return (
-      <div className={cn("min-h-0 min-w-0 w-full overflow-auto", props.className)}>
-        <pre className="min-h-full overflow-auto px-3 py-2 font-mono text-detail/[1.45] whitespace-pre-wrap text-foreground/80">
-          {patch}
-        </pre>
-      </div>
-    );
-  }
-
-  if (props.state === "renamed" && props.prevPath) {
+  if ((props.filePatch?.kind === "rename_only" || props.state === "renamed") && props.prevPath) {
     return (
       <div
         className={cn(
@@ -79,9 +69,27 @@ export const DiffViewer = memo(function DiffViewer(props: Props) {
     );
   }
 
+  if (props.filePatch?.kind === "empty") {
+    return (
+      <div
+        className={cn(
+          "flex h-full flex-col items-center justify-center gap-1 px-4",
+          props.className,
+        )}
+      >
+        <p className="text-body/[1.4] font-medium text-foreground/82">No patch available</p>
+        {props.filePatch.message ? (
+          <p className="max-w-[28rem] text-center text-detail/[1.45] text-muted-foreground/68">
+            {props.filePatch.message}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className={cn("flex h-full items-center justify-center px-4", props.className)}>
-      <p className="text-body/[1.4] text-muted-foreground/60">No diff for this file</p>
+      <p className="text-body/[1.4] text-muted-foreground/60">No patch available</p>
     </div>
   );
 });

@@ -1,6 +1,4 @@
 "use client";
-
-import type { FileDiffMetadata } from "@pierre/diffs/react";
 import {
   IconArrowRotateCounterClockwise,
   IconChevronDownSmall,
@@ -12,6 +10,7 @@ import { toast } from "sonner";
 
 import { PretextOneLine } from "~/components/pretext-one-line";
 import type { DiffRow } from "~/hooks/use-environment-git";
+import type { GitPatchData } from "~/lib/native-git-react-query";
 import { VsFileIcon } from "~/lib/vscode-file-icon";
 import { cn } from "~/lib/utils";
 
@@ -29,8 +28,7 @@ export function GitDiffCard(props: {
   selected: boolean;
   expanded: boolean;
   onExpandedChange: (open: boolean) => void;
-  diff: FileDiffMetadata | null;
-  patch: string | null;
+  patch: GitPatchData | null;
   loaded: boolean;
   loading: boolean;
   error: string | null;
@@ -182,7 +180,6 @@ export function GitDiffCard(props: {
             <div className="px-3 py-3 text-detail text-destructive/90">{props.error}</div>
           ) : (
             <DiffViewer
-              fileDiff={props.diff}
               filePatch={props.patch}
               path={props.file.path}
               state={props.file.state}

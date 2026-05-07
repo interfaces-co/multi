@@ -1,6 +1,7 @@
 import type {
   EnvironmentId,
   GitFilePatchInput,
+  GitFilePatchResult,
   GitListBranchesResult,
   GitStackedAction,
 } from "@multi/contracts";
@@ -16,7 +17,7 @@ interface NativeGitApiCandidate {
   onStatus?: WsRpcClient["git"]["onStatus"];
   init?: WsRpcClient["git"]["init"];
   discardPaths?: (input: { cwd: string; paths: string[] }) => Promise<void>;
-  getFilePatch?: (input: GitFilePatchInput) => Promise<{ unifiedDiff: string }>;
+  getFilePatch?: (input: GitFilePatchInput) => Promise<GitFilePatchResult>;
   runStackedAction?: WsRpcClient["git"]["runStackedAction"];
   listBranches?: WsRpcClient["git"]["listBranches"];
   checkout?: WsRpcClient["git"]["checkout"];
@@ -63,7 +64,7 @@ export interface NativeGitApi {
   onStatus: WsRpcClient["git"]["onStatus"];
   init: WsRpcClient["git"]["init"];
   discardPaths: (input: { cwd: string; paths: string[] }) => Promise<void>;
-  getFilePatch: (input: GitFilePatchInput) => Promise<{ unifiedDiff: string }>;
+  getFilePatch: (input: GitFilePatchInput) => Promise<GitFilePatchResult>;
   runStackedAction: (input: {
     cwd: string;
     action: GitStackedAction;

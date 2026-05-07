@@ -133,9 +133,7 @@ function readPersistedPanels(): {
     }
 
     const activeTab =
-      parsed.activeTab === "files" ||
-      parsed.activeTab === "git" ||
-      parsed.activeTab === "terminal"
+      parsed.activeTab === "files" || parsed.activeTab === "git" || parsed.activeTab === "terminal"
         ? parsed.activeTab
         : DEFAULT_WORKBENCH_PANEL_STATE.activeTab;
 

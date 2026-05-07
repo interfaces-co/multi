@@ -226,10 +226,7 @@ const make = Effect.gen(function* () {
   }) {
     const fromTurnCount = Math.max(0, input.turnCount - 1);
     const fallbackFromCheckpointRef = checkpointRefForThreadTurn(input.threadId, fromTurnCount);
-    const preTurnCheckpointRef = preTurnCheckpointRefForThreadTurn(
-      input.threadId,
-      input.turnCount,
-    );
+    const preTurnCheckpointRef = preTurnCheckpointRefForThreadTurn(input.threadId, input.turnCount);
     const targetCheckpointRef = checkpointRefForThreadTurn(input.threadId, input.turnCount);
 
     const preTurnCheckpointExists = yield* checkpointStore.hasCheckpointRef({
@@ -383,10 +380,7 @@ const make = Effect.gen(function* () {
     }
 
     const nextTurnCount = input.currentTurnCount + 1;
-    const preTurnCheckpointRef = preTurnCheckpointRefForThreadTurn(
-      input.threadId,
-      nextTurnCount,
-    );
+    const preTurnCheckpointRef = preTurnCheckpointRefForThreadTurn(input.threadId, nextTurnCount);
     const preTurnBaselineExists = yield* checkpointStore.hasCheckpointRef({
       cwd: input.checkpointCwd,
       checkpointRef: preTurnCheckpointRef,
@@ -739,10 +733,7 @@ const make = Effect.gen(function* () {
       .filter((checkpoint) => checkpoint.checkpointTurnCount > event.payload.turnCount)
       .flatMap((checkpoint) => [
         checkpoint.checkpointRef,
-        preTurnCheckpointRefForThreadTurn(
-          event.payload.threadId,
-          checkpoint.checkpointTurnCount,
-        ),
+        preTurnCheckpointRefForThreadTurn(event.payload.threadId, checkpoint.checkpointTurnCount),
       ]);
 
     if (staleCheckpointRefs.length > 0) {

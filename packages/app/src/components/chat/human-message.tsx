@@ -1,5 +1,13 @@
 import { type MessageId } from "@multi/contracts";
-import { memo, type ReactNode } from "react";
+import {
+  IconBranch,
+  IconCloudUpload,
+  IconCommits,
+  IconPullRequest,
+  IconPush,
+  type CentralIconBaseProps,
+} from "central-icons";
+import { memo, type ComponentType, type ReactNode } from "react";
 import { buildExpandedImagePreview, type ExpandedImagePreview } from "./expanded-image-preview";
 import { TerminalContextInlineChip } from "./terminal-context-inline-chip";
 import {
@@ -12,8 +20,17 @@ import {
   textContainsInlineTerminalContextLabels,
 } from "./user-message-terminal-contexts";
 import { type ChatMessage } from "../../types";
-import { ChatMessageBubble, EditableChatMessageBubble } from "./message-surface";
+import {
+  ChatMessageBubble,
+  EditableChatMessageBubble,
+  ReadonlyActionChatMessageBubble,
+} from "./message-surface";
 import { HumanMessageCollapsible } from "./human-message-collapse";
+import {
+  GIT_AGENT_ACTIONS,
+  resolveGitAgentActionFromPrompt,
+  type GitAgentAction,
+} from "~/lib/git-agent-actions";
 
 interface HumanMessageProps {
   message: ChatMessage;
@@ -38,6 +55,9 @@ export const HumanMessage = memo(function HumanMessage({
   const userImages = message.attachments ?? [];
   const displayedUserMessage = deriveDisplayedUserMessageState(message.text);
   const terminalContexts = displayedUserMessage.contexts;
+  const gitAgentAction = resolveGitAgentActionFromPrompt(message.text);
+  const isGitAgentActionMessage =
+    gitAgentAction !== null && userImages.length === 0 && terminalContexts.length === 0;
 
   const media =
     userImages.length > 0 ? (
@@ -74,21 +94,35 @@ export const HumanMessage = memo(function HumanMessage({
       </div>
     ) : null;
 
-  const bodyInner =
-    displayedUserMessage.visibleText.trim().length > 0 || terminalContexts.length > 0 ? (
-      <UserMessageBody
-        text={displayedUserMessage.visibleText}
-        terminalContexts={terminalContexts}
-      />
-    ) : null;
+  const bodyInner = isGitAgentActionMessage ? (
+    <GitAgentActionMessage
+      action={gitAgentAction}
+      label={GIT_AGENT_ACTIONS[gitAgentAction].label}
+    />
+  ) : displayedUserMessage.visibleText.trim().length > 0 || terminalContexts.length > 0 ? (
+    <UserMessageBody text={displayedUserMessage.visibleText} terminalContexts={terminalContexts} />
+  ) : null;
 
-  const body = bodyInner ? <HumanMessageCollapsible>{bodyInner}</HumanMessageCollapsible> : null;
+  const body =
+    bodyInner && !isGitAgentActionMessage ? (
+      <HumanMessageCollapsible>{bodyInner}</HumanMessageCollapsible>
+    ) : (
+      bodyInner
+    );
 
-  if (isEditing && editComposer) {
+  if (isEditing && editComposer && !isGitAgentActionMessage) {
     return editComposer;
   }
 
-  const canEdit = isServerThread && !editDisabled && typeof onBeginEditUserMessage === "function";
+  const canEdit =
+    !isGitAgentActionMessage &&
+    isServerThread &&
+    !editDisabled &&
+    typeof onBeginEditUserMessage === "function";
+
+  if (isGitAgentActionMessage) {
+    return <ReadonlyActionChatMessageBubble body={body} />;
+  }
 
   if (canEdit) {
     return (
@@ -100,12 +134,37 @@ export const HumanMessage = memo(function HumanMessage({
     );
   }
 
+  return <ChatMessageBubble role="user" body={body} media={media} />;
+});
+
+type GitAgentActionIconComponent = ComponentType<CentralIconBaseProps>;
+
+function getGitAgentActionIcon(action: GitAgentAction): GitAgentActionIconComponent {
+  switch (action) {
+    case "createBranchAndCommit":
+      return IconBranch;
+    case "createBranchCommitAndPush":
+      return IconPush;
+    case "commit":
+      return IconCommits;
+    case "commitAndPush":
+      return IconCloudUpload;
+    case "createPrWithChanges":
+      return IconPullRequest;
+  }
+}
+
+const GitAgentActionMessage = memo(function GitAgentActionMessage(props: {
+  action: GitAgentAction;
+  label: string;
+}) {
+  const ActionIcon = getGitAgentActionIcon(props.action);
+
   return (
-    <ChatMessageBubble
-      role="user"
-      body={body}
-      media={media}
-    />
+    <div className="flex max-w-full min-w-0 items-center gap-1.5 font-medium text-multi-fg-primary">
+      <ActionIcon className="size-3.5 shrink-0 text-multi-icon-tertiary" aria-hidden="true" />
+      <span className="min-w-0 truncate">{props.label}</span>
+    </div>
   );
 });
 

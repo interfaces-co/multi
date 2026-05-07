@@ -225,54 +225,41 @@ function pokeWorkingTreeStatus(
   map.set(pathValue, mergeWorkingTreeFileStatus(map.get(pathValue), incoming));
 }
 
-function parsePorcelainPath(line: string): string | null {
-  if (line.startsWith("? ") || line.startsWith("! ")) {
-    const simple = line.slice(2).trim();
+function getPorcelainToken(record: string, tokenIndex: number): string | null {
+  let start = 0;
+  for (let index = 0; index <= tokenIndex; index += 1) {
+    const end = record.indexOf(" ", start);
+    if (index === tokenIndex) {
+      const token = end >= 0 ? record.slice(start, end) : record.slice(start);
+      return token.length > 0 ? token : null;
+    }
+    if (end < 0) return null;
+    start = end + 1;
+  }
+  return null;
+}
+
+function getPorcelainPathAfterTokenCount(record: string, tokenCount: number): string | null {
+  let start = 0;
+  for (let index = 0; index < tokenCount; index += 1) {
+    const end = record.indexOf(" ", start);
+    if (end < 0) return null;
+    start = end + 1;
+  }
+  const pathValue = record.slice(start);
+  return pathValue.length > 0 ? pathValue : null;
+}
+
+function parsePorcelainPathRecord(record: string): string | null {
+  if (record.startsWith("? ") || record.startsWith("! ")) {
+    const simple = record.slice(2);
     return simple.length > 0 ? simple : null;
   }
 
-  if (!(line.startsWith("1 ") || line.startsWith("2 ") || line.startsWith("u "))) {
-    return null;
-  }
-
-  if (line.startsWith("2 ")) {
-    const tabIndex = line.indexOf("\t");
-    const firstPathPart = tabIndex >= 0 ? line.slice(0, tabIndex) : line;
-    const parts = firstPathPart.trim().split(/\s+/g);
-    const filePath = parts.at(-1) ?? "";
-    return filePath.length > 0 ? filePath : null;
-  }
-
-  const tabIndex = line.indexOf("\t");
-  if (tabIndex >= 0) {
-    const fromTab = line.slice(tabIndex + 1);
-    const [filePath] = fromTab.split("\t");
-    return filePath?.trim().length ? filePath.trim() : null;
-  }
-
-  const parts = line.trim().split(/\s+/g);
-  const filePath = parts.at(-1) ?? "";
-  return filePath.length > 0 ? filePath : null;
-}
-
-function parsePorcelainRenamePaths(line: string): { path: string; prevPath: string } | null {
-  if (!line.startsWith("2 ")) return null;
-
-  const tabIndex = line.indexOf("\t");
-  if (tabIndex >= 0) {
-    const firstPathPart = line.slice(0, tabIndex);
-    const filePath = firstPathPart.trim().split(/\s+/g).at(-1);
-    const prevPath = line.slice(tabIndex + 1).trim();
-    if (filePath?.trim().length && prevPath.length > 0) {
-      return { path: filePath.trim(), prevPath };
-    }
-    return null;
-  }
-
-  const parts = line.trim().split(/\s+/g);
-  const prevPath = parts.at(-2);
-  const filePath = parts.at(-1);
-  return filePath && prevPath ? { path: filePath, prevPath } : null;
+  if (record.startsWith("1 ")) return getPorcelainPathAfterTokenCount(record, 8);
+  if (record.startsWith("2 ")) return getPorcelainPathAfterTokenCount(record, 9);
+  if (record.startsWith("u ")) return getPorcelainPathAfterTokenCount(record, 10);
+  return null;
 }
 
 function parseBranchLine(line: string): { name: string; current: boolean } | null {
@@ -1286,7 +1273,7 @@ export const makeGitCore = Effect.fn("makeGitCore")(function* (options?: {
     const statusResult = yield* executeGit(
       "GitCore.statusDetails.status",
       cwd,
-      ["status", "--porcelain=2", "--branch", "--untracked-files=all"],
+      ["status", "--porcelain=2", "-z", "--branch", "--untracked-files=all"],
       {
         allowNonZeroExit: true,
       },
@@ -1301,7 +1288,7 @@ export const makeGitCore = Effect.fn("makeGitCore")(function* (options?: {
       return yield* createGitCommandError(
         "GitCore.statusDetails.status",
         cwd,
-        ["status", "--porcelain=2", "--branch", "--untracked-files=all"],
+        ["status", "--porcelain=2", "-z", "--branch", "--untracked-files=all"],
         stderr || "git status failed",
       );
     }
@@ -1342,63 +1329,66 @@ export const makeGitCore = Effect.fn("makeGitCore")(function* (options?: {
     const statusByPath = new Map<string, GitWorkingTreeFileStatus>();
     const previousPathByPath = new Map<string, string>();
 
-    for (const line of statusStdout.split(/\r?\n/g)) {
-      if (line.startsWith("# branch.head ")) {
-        const value = line.slice("# branch.head ".length).trim();
+    const statusRecords = splitNullSeparatedPaths(statusStdout, false);
+    for (let index = 0; index < statusRecords.length; index += 1) {
+      const record = statusRecords[index] ?? "";
+      if (record.startsWith("# branch.head ")) {
+        const value = record.slice("# branch.head ".length).trim();
         branch = value.startsWith("(") ? null : value;
         continue;
       }
-      if (line.startsWith("# branch.upstream ")) {
-        const value = line.slice("# branch.upstream ".length).trim();
+      if (record.startsWith("# branch.upstream ")) {
+        const value = record.slice("# branch.upstream ".length).trim();
         upstreamRef = value.length > 0 ? value : null;
         continue;
       }
-      if (line.startsWith("# branch.ab ")) {
-        const value = line.slice("# branch.ab ".length).trim();
+      if (record.startsWith("# branch.ab ")) {
+        const value = record.slice("# branch.ab ".length).trim();
         const parsed = parseBranchAb(value);
         aheadCount = parsed.ahead;
         behindCount = parsed.behind;
         continue;
       }
-      if (line.trim().length > 0 && !line.startsWith("#")) {
+      if (record.length > 0 && !record.startsWith("#")) {
         hasWorkingTreeChanges = true;
 
-        if (line.startsWith("? ")) {
-          const pathValue = line.slice(2).trim();
-          if (pathValue.length > 0) {
+        if (record.startsWith("? ")) {
+          const pathValue = parsePorcelainPathRecord(record);
+          if (pathValue) {
             pokeWorkingTreeStatus(statusByPath, pathValue, "untracked");
             pathsWithoutNumstat.add(pathValue);
           }
           continue;
         }
 
-        if (line.startsWith("! ")) {
-          const pathValue = line.slice(2).trim();
-          if (pathValue.length > 0) {
+        if (record.startsWith("! ")) {
+          const pathValue = parsePorcelainPathRecord(record);
+          if (pathValue) {
             pokeWorkingTreeStatus(statusByPath, pathValue, "ignored");
             pathsWithoutNumstat.add(pathValue);
           }
           continue;
         }
 
-        const pathValue = parsePorcelainPath(line);
+        const pathValue = parsePorcelainPathRecord(record);
         if (!pathValue) continue;
 
         pathsWithoutNumstat.add(pathValue);
-        if (line.startsWith("u ")) {
+        if (record.startsWith("u ")) {
           pokeWorkingTreeStatus(statusByPath, pathValue, "conflict");
           continue;
         }
-        if (line.startsWith("2 ")) {
-          const renamePaths = parsePorcelainRenamePaths(line);
-          if (renamePaths) {
-            previousPathByPath.set(renamePaths.path, renamePaths.prevPath);
+        if (record.startsWith("2 ")) {
+          const previousPath = statusRecords[index + 1] ?? null;
+          if (previousPath !== null) {
+            previousPathByPath.set(pathValue, previousPath);
+            index += 1;
           }
           pokeWorkingTreeStatus(statusByPath, pathValue, "renamed");
           continue;
         }
-        if (line.startsWith("1 ")) {
-          const xyToken = line.trim().split(/\s+/)[1] ?? "";
+        if (record.startsWith("1 ")) {
+          const xyToken = getPorcelainToken(record, 1) ?? "";
           pokeWorkingTreeStatus(statusByPath, pathValue, classifyPorcelainV2_xy(xyToken));
         }
       }
@@ -1775,7 +1765,7 @@ export const makeGitCore = Effect.fn("makeGitCore")(function* (options?: {
       },
     );
     if (unifiedDiff.trim().length > 0) {
-      return { unifiedDiff };
+      return { kind: "patch", patch: unifiedDiff };
     }
 
     const untrackedPaths = yield* runGitStdoutWithOptions(
@@ -1784,7 +1774,16 @@ export const makeGitCore = Effect.fn("makeGitCore")(function* (options?: {
       ["ls-files", "--others", "--exclude-standard", "-z", "--", input.path],
     );
     if (splitNullSeparatedPaths(untrackedPaths, false).length === 0) {
-      return { unifiedDiff };
+      if (input.prevPath) {
+        return {
+          kind: "rename_only",
+          message: "Git reported a rename without a content patch.",
+        };
+      }
+      return {
+        kind: "empty",
+        message: "Git reported this file in status, but did not return a patch for it.",
+      };
     }
 
     const untrackedDiff = yield* runGitStdoutWithOptions(
@@ -1797,7 +1796,13 @@ export const makeGitCore = Effect.fn("makeGitCore")(function* (options?: {
         truncateOutputAtMaxBytes: true,
       },
     );
-    return { unifiedDiff: untrackedDiff };
+    if (untrackedDiff.trim().length === 0) {
+      return {
+        kind: "empty",
+        message: "Git reported this file as untracked, but did not return a patch for it.",
+      };
+    }
+    return { kind: "untracked", patch: untrackedDiff };
   });
 
   const readRangeContext: GitCoreShape["readRangeContext"] = Effect.fn("readRangeContext")(

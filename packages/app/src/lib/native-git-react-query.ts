@@ -1,14 +1,13 @@
-import type { FileDiffMetadata } from "@pierre/diffs";
 import type { EnvironmentId } from "@multi/contracts";
-import { parsePatchFiles } from "@pierre/diffs";
 import { queryOptions } from "@tanstack/react-query";
 
 import type { GitFileState } from "~/lib/ui-session-types";
 import { readNativeGitApi } from "~/lib/native-git-api";
 
 export interface GitPatchData {
-  patch: string;
-  diff: FileDiffMetadata | null;
+  kind: "patch" | "untracked" | "rename_only" | "empty";
+  patch: string | null;
+  message: string | null;
 }
 
 const GIT_PATCH_CACHE_GC_TIME_MS = 2 * 60 * 1000;
@@ -25,21 +24,6 @@ export const gitQueryKeys = {
       ? (["git", "patch", environmentId ?? null, cwd, path, state, prevPath ?? null] as const)
       : (["git", "patch", environmentId ?? null, cwd, path] as const),
 };
-
-function firstFile(patch: string): FileDiffMetadata | null {
-  const text = patch.trim();
-  if (text.length < 1) return null;
-
-  try {
-    const patches = parsePatchFiles(text, undefined, true);
-    for (const patch of patches) {
-      const file = patch.files[0];
-      if (file) return file;
-    }
-  } catch {}
-
-  return null;
-}
 
 export function gitPatchQueryOptions(input: {
   environmentId: EnvironmentId | null;
@@ -68,10 +52,22 @@ export function gitPatchQueryOptions(input: {
         path: input.path,
         ...(input.prevPath ? { prevPath: input.prevPath } : {}),
       });
-      return {
-        patch: result.unifiedDiff,
-        diff: firstFile(result.unifiedDiff),
-      } satisfies GitPatchData;
+      switch (result.kind) {
+        case "patch":
+        case "untracked":
+          return {
+            kind: result.kind,
+            patch: result.patch,
+            message: null,
+          } satisfies GitPatchData;
+        case "rename_only":
+        case "empty":
+          return {
+            kind: result.kind,
+            patch: null,
+            message: result.message,
+          } satisfies GitPatchData;
+      }
     },
     enabled: (input.enabled ?? true) && Boolean(input.cwd),
     staleTime: Infinity,

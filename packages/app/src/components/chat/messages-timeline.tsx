@@ -227,8 +227,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
         return;
       }
 
-      programmaticScrollFrameRef.current =
-        window.requestAnimationFrame(resolveProgrammaticScroll);
+      programmaticScrollFrameRef.current = window.requestAnimationFrame(resolveProgrammaticScroll);
     };
 
     programmaticScrollFrameRef.current = window.requestAnimationFrame(resolveProgrammaticScroll);
@@ -263,16 +262,19 @@ export const MessagesTimeline = memo(function MessagesTimeline({
     [clearProgrammaticScrollTracking, reportIsAtBottom, scheduleProgrammaticScrollResolution],
   );
 
-  const scheduleStickToBottom = useCallback((options?: { animated?: boolean }) => {
-    if (scrollFrameRef.current != null) {
-      return;
-    }
+  const scheduleStickToBottom = useCallback(
+    (options?: { animated?: boolean }) => {
+      if (scrollFrameRef.current != null) {
+        return;
+      }
 
-    scrollFrameRef.current = window.requestAnimationFrame(() => {
-      scrollFrameRef.current = null;
-      scrollToBottom({ animated: options?.animated ?? false });
-    });
-  }, [scrollToBottom]);
+      scrollFrameRef.current = window.requestAnimationFrame(() => {
+        scrollFrameRef.current = null;
+        scrollToBottom({ animated: options?.animated ?? false });
+      });
+    },
+    [scrollToBottom],
+  );
 
   useEffect(() => {
     const controller: MessagesTimelineController = {
@@ -372,8 +374,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
       }
     },
   });
-  rowVirtualizer.shouldAdjustScrollPositionOnItemSizeChange =
-    keepScrollOffsetOnMeasuredRowResize;
+  rowVirtualizer.shouldAdjustScrollPositionOnItemSizeChange = keepScrollOffsetOnMeasuredRowResize;
 
   const sharedState = useMemo<TimelineRowSharedState>(
     () => ({
@@ -600,7 +601,9 @@ const TimelineRowContent = memo(function TimelineRowContent({
             isEditing={isEditingUserMessage}
             editDisabled={ctx.isWorking || ctx.activeTurnInProgress || ctx.isRevertingCheckpoint}
             isServerThread={ctx.isServerThread}
-            editComposer={isEditingUserMessage ? (ctx.renderEditComposer?.(row.message) ?? null) : null}
+            editComposer={
+              isEditingUserMessage ? (ctx.renderEditComposer?.(row.message) ?? null) : null
+            }
             onImageExpand={ctx.onImageExpand}
             onBeginEditUserMessage={ctx.onBeginEditUserMessage}
           />
@@ -659,7 +662,7 @@ const WorkGroupSection = memo(function WorkGroupSection({
         <div className="flex w-fit max-w-[min(100%,var(--composer-max-width))] flex-col gap-1.5">
           {groupedEntries.map((workEntry) => (
             <ToolCallMessage
-              key={`work-row:${workEntry.toolCallId ?? workEntry.id}`}
+              key={`work-row:${workEntry.id}`}
               workEntry={workEntry}
               projectRoot={projectRoot}
             />
