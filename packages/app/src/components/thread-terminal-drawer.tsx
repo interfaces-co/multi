@@ -50,9 +50,9 @@ import { readLocalApi } from "~/local-api";
 import {
   readTerminalHostFontFamily,
   readTerminalHostFontSize,
-  readTerminalHostTheme,
-  readTerminalHostThemeMode,
+  readTerminalHostThemeForMount,
 } from "~/components/shell/terminal/terminal-host-theme";
+import { subscribeTerminalHostDocument } from "~/components/shell/terminal/terminal-xterm-host-sync";
 import { selectTerminalEventEntries, useTerminalStateStore } from "../terminal-state-store";
 
 const MIN_DRAWER_HEIGHT = 180;
@@ -305,7 +305,7 @@ export function TerminalViewport({
       fontSize: readTerminalHostFontSize(mount),
       scrollback: 5_000,
       fontFamily: readTerminalHostFontFamily(mount),
-      theme: readTerminalHostTheme(mount, readTerminalHostThemeMode(mount)),
+      theme: readTerminalHostThemeForMount(mount),
     });
     const writer = createTerminalWriteQueue(terminal);
     terminal.loadAddon(fitAddon);
@@ -590,24 +590,11 @@ export function TerminalViewport({
       });
     }
 
-    const themeObserver = new MutationObserver(() => {
-      const activeTerminal = terminalRef.current;
-      if (!activeTerminal) return;
-      const mountElement = containerRef.current;
-      if (!mountElement) return;
-      activeTerminal.options.theme = readTerminalHostTheme(
-        mountElement,
-        readTerminalHostThemeMode(mountElement),
-      );
-      activeTerminal.options.fontFamily = readTerminalHostFontFamily(mountElement);
-      activeTerminal.options.fontSize = readTerminalHostFontSize(mountElement);
-      activeTerminal.refresh(0, activeTerminal.rows - 1);
-      scheduleFitAndResize();
-    });
-    themeObserver.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class", "style"],
-    });
+    const unsubscribeTerminalHost = subscribeTerminalHostDocument(
+      () => containerRef.current,
+      () => terminalRef.current,
+      { onApplied: scheduleFitAndResize },
+    );
 
     const applyTerminalEvent = (event: TerminalEvent) => {
       const activeTerminal = terminalRef.current;
@@ -771,7 +758,7 @@ export function TerminalViewport({
       mount.removeEventListener("copy", handleCopy, true);
       mount.removeEventListener("paste", handlePaste, true);
       resizeObserver.disconnect();
-      themeObserver.disconnect();
+      unsubscribeTerminalHost();
       terminalRef.current = null;
       fitAddonRef.current = null;
       terminal.dispose();

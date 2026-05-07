@@ -62,7 +62,8 @@ export const STORAGE_CODE_FONT = "multi:mono-font";
 
 export type ColorPaletteId = "multi" | "pierre";
 
-const APPEARANCE_SETTINGS_EVENT = "appearance-settings-changed";
+/** Dispatched on `window` when palette, fonts, or other appearance chrome from this module changes. */
+export const APPEARANCE_SETTINGS_CHANGED = "appearance-settings-changed" as const;
 
 let listeners: Array<() => void> = [];
 const keys = new Set([
@@ -80,7 +81,7 @@ const keys = new Set([
 
 function emit() {
   for (const fn of listeners) fn();
-  window.dispatchEvent(new CustomEvent(APPEARANCE_SETTINGS_EVENT));
+  window.dispatchEvent(new CustomEvent(APPEARANCE_SETTINGS_CHANGED));
 }
 
 export function subscribeAppearanceSettings(cb: () => void) {

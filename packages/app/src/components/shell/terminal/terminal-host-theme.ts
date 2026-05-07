@@ -1,4 +1,4 @@
-import type { ITheme } from "@xterm/xterm";
+import type { ITheme, Terminal } from "@xterm/xterm";
 
 function normalizePaint(value: string | null | undefined): string | null {
   const normalized = value?.trim().toLowerCase();
@@ -90,6 +90,32 @@ function readBackgroundColor(el: HTMLElement, value: string) {
   return color;
 }
 
+/** Resolved CSS color for the given expression, or null if it does not paint (missing var, transparent, etc.). */
+function tryComputedColor(el: HTMLElement, expr: string): string | null {
+  const node = el.ownerDocument.createElement("span");
+  node.style.position = "absolute";
+  node.style.opacity = "0";
+  node.style.pointerEvents = "none";
+  node.style.color = expr;
+  el.append(node);
+  const out = normalizePaint(getComputedStyle(node).color);
+  node.remove();
+  return out;
+}
+
+/** Resolved CSS background for the given expression, or null if it does not paint. */
+function tryComputedBackground(el: HTMLElement, expr: string): string | null {
+  const node = el.ownerDocument.createElement("span");
+  node.style.position = "absolute";
+  node.style.opacity = "0";
+  node.style.pointerEvents = "none";
+  node.style.backgroundColor = expr;
+  el.append(node);
+  const out = normalizePaint(getComputedStyle(node).backgroundColor);
+  node.remove();
+  return out;
+}
+
 function readNearestComputedPaint(
   el: HTMLElement,
   property: "color" | "backgroundColor",
@@ -135,9 +161,13 @@ export function readTerminalHostFontSize(el: HTMLElement): number {
 export function readWorkbenchFallbackTheme(el: HTMLElement, mode: "light" | "dark"): ITheme {
   const base = mode === "dark" ? dark : light;
   const host = el.parentElement ?? el;
-  const fg = readNearestComputedPaint(host, "color") ?? readTextColor(host, "var(--foreground)");
+  const fg =
+    readNearestComputedPaint(host, "color") ??
+    tryComputedColor(host, "var(--multi-workbench-terminal-foreground)") ??
+    readTextColor(host, "var(--foreground)");
   const bg =
     readNearestComputedPaint(host, "backgroundColor") ??
+    tryComputedBackground(host, "var(--multi-workbench-terminal-background)") ??
     readBackgroundColor(host, "var(--background)");
 
   return {
@@ -184,4 +214,17 @@ export function readTerminalHostTheme(el: HTMLElement, mode: "light" | "dark"): 
       base.selectionBackground!,
     ),
   } satisfies ITheme;
+}
+
+/** xterm `theme` object for the host document's current light/dark mode (constructor and live sync). */
+export function readTerminalHostThemeForMount(el: HTMLElement): ITheme {
+  return readTerminalHostTheme(el, readTerminalHostThemeMode(el));
+}
+
+/** Push host document theme, monospace settings, and a full refresh into an open xterm instance. */
+export function applyTerminalHostToXterm(terminal: Terminal, mount: HTMLElement): void {
+  terminal.options.theme = readTerminalHostThemeForMount(mount);
+  terminal.options.fontFamily = readTerminalHostFontFamily(mount);
+  terminal.options.fontSize = readTerminalHostFontSize(mount);
+  terminal.refresh(0, terminal.rows - 1);
 }

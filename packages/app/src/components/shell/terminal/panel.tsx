@@ -8,9 +8,9 @@ import { useEffect, useRef, useState } from "react";
 import {
   readTerminalHostFontFamily,
   readTerminalHostFontSize,
-  readTerminalHostTheme,
+  readTerminalHostThemeForMount,
 } from "~/components/shell/terminal/terminal-host-theme";
-import { useTheme } from "~/hooks/use-theme";
+import { subscribeTerminalHostDocument } from "~/components/shell/terminal/terminal-xterm-host-sync";
 import { readNativeEnvironmentApi } from "~/lib/native-runtime-api";
 import { traceBrowserEvent } from "~/observability/browserDebug";
 
@@ -40,7 +40,6 @@ export function TerminalPanel(props: {
   const fit = useRef<FitAddon | null>(null);
   const size = useRef<{ thread: string; cols: number; rows: number } | null>(null);
   const openSession = useRef<{ thread: string; terminalId: string } | null>(null);
-  const { resolvedTheme } = useTheme();
   const [bootErr, setBootErr] = useState<string | null>(null);
 
   const dev = import.meta.env.DEV;
@@ -62,7 +61,7 @@ export function TerminalPanel(props: {
     const cwd = props.cwd;
     const thread = workbenchThreadId(cwd);
     const termId = activeTerminalId;
-    const cfg = readTerminalHostTheme(el, resolvedTheme);
+    const cfg = readTerminalHostThemeForMount(el);
     const family = readTerminalHostFontFamily(el);
     const fontSize = readTerminalHostFontSize(el);
 
@@ -181,6 +180,44 @@ export function TerminalPanel(props: {
 
     off = api.onEvent(onEvent);
 
+    const syncPtySize = (terminal: Terminal) => {
+      const addon = fit.current;
+      if (!addon || !live || !props.cwd) return;
+      addon.fit();
+      if (openSession.current?.thread !== thread || openSession.current?.terminalId !== termId) {
+        return;
+      }
+      const prev = size.current;
+      if (
+        prev &&
+        prev.thread === thread &&
+        prev.cols === terminal.cols &&
+        prev.rows === terminal.rows
+      ) {
+        return;
+      }
+      size.current = { thread, cols: terminal.cols, rows: terminal.rows };
+      void api
+        .resize({
+          threadId: thread,
+          terminalId: termId,
+          cols: terminal.cols,
+          rows: terminal.rows,
+        })
+        .catch(() => undefined);
+    };
+
+    const unsubscribeTerminalHost = subscribeTerminalHostDocument(
+      () => ref.current,
+      () => term.current,
+      {
+        onApplied: () => {
+          const t = term.current;
+          if (t) syncPtySize(t);
+        },
+      },
+    );
+
     traceBrowserEvent("terminal.panel.open.start", {
       cwd,
       threadId: thread,
@@ -233,6 +270,7 @@ export function TerminalPanel(props: {
         threadId: thread,
         terminalId: termId,
       });
+      unsubscribeTerminalHost();
       off?.();
       data?.dispose();
       next?.dispose();
@@ -241,7 +279,7 @@ export function TerminalPanel(props: {
       size.current = null;
       el.replaceChildren();
     };
-  }, [activeTerminalId, dev, props.cwd, props.environmentId, resolvedTheme]);
+  }, [activeTerminalId, dev, props.cwd, props.environmentId]);
 
   useEffect(() => {
     const el = ref.current;
