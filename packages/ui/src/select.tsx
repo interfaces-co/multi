@@ -4,9 +4,19 @@ import { mergeProps } from "@base-ui/react/merge-props";
 import { Select as SelectPrimitive } from "@base-ui/react/select";
 import { useRender } from "@base-ui/react/use-render";
 import { cva, type VariantProps } from "class-variance-authority";
-import { IconChevronDownSmall, IconChevronTopSmall, IconSortArrowUpDown } from "central-icons";
+import {
+  IconCheckmark1,
+  IconChevronDownSmall,
+  IconChevronTopSmall,
+  IconSortArrowUpDown,
+} from "central-icons";
 import type * as React from "react";
 
+import {
+  workbenchMenuItemClassName,
+  workbenchMenuPopupClassName,
+  workbenchMenuViewportClassName,
+} from "./menu";
 import { cn } from "./utils";
 
 const Select = SelectPrimitive.Root;
@@ -145,21 +155,26 @@ function SelectPopup({
           {...props}
         >
           <SelectPrimitive.ScrollUpArrow
-            className="top-0 z-50 flex h-6 w-full cursor-default items-center justify-center before:pointer-events-none before:absolute before:inset-x-px before:top-px before:h-[200%] before:rounded-t-[calc(var(--radius-lg)-1px)] before:bg-linear-to-b before:from-50% before:from-popover"
+            className="top-0 z-50 flex h-6 w-full cursor-default items-center justify-center before:pointer-events-none before:absolute before:inset-x-px before:top-px before:h-[200%] before:rounded-t-[7px] before:bg-linear-to-b before:from-50% before:from-multi-bg-elevated"
             data-slot="select-scroll-up-arrow"
           >
             <IconChevronTopSmall className="relative size-4.5 sm:size-4" />
           </SelectPrimitive.ScrollUpArrow>
-          <div className="relative h-full min-w-(--anchor-width) rounded-lg border bg-popover not-dark:bg-clip-padding shadow-lg/5 before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-lg)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] dark:before:shadow-[0_-1px_--theme(--color-white/6%)]">
+          <div
+            className={cn(
+              workbenchMenuPopupClassName,
+              "min-w-(--anchor-width)",
+            )}
+          >
             <SelectPrimitive.List
-              className={cn("max-h-(--available-height) overflow-y-auto p-1", className)}
+              className={cn(workbenchMenuViewportClassName, className)}
               data-slot="select-list"
             >
               {children}
             </SelectPrimitive.List>
           </div>
           <SelectPrimitive.ScrollDownArrow
-            className="bottom-0 z-50 flex h-6 w-full cursor-default items-center justify-center before:pointer-events-none before:absolute before:inset-x-px before:bottom-px before:h-[200%] before:rounded-b-[calc(var(--radius-lg)-1px)] before:bg-linear-to-t before:from-50% before:from-popover"
+            className="bottom-0 z-50 flex h-6 w-full cursor-default items-center justify-center before:pointer-events-none before:absolute before:inset-x-px before:bottom-px before:h-[200%] before:rounded-b-[7px] before:bg-linear-to-t before:from-50% before:from-multi-bg-elevated"
             data-slot="select-scroll-down-arrow"
           >
             <IconChevronDownSmall className="relative size-4.5 sm:size-4" />
@@ -181,32 +196,31 @@ function SelectItem({
   return (
     <SelectPrimitive.Item
       className={cn(
-        "grid min-h-8 in-data-[side=none]:min-w-[calc(var(--anchor-width)+1.25rem)] cursor-default items-center gap-2 rounded-sm py-1 text-base outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:opacity-64 sm:min-h-7 sm:text-sm [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
-        hideIndicator ? "grid-cols-[1fr] ps-3 pe-3" : "grid-cols-[1rem_1fr] ps-2 pe-4",
+        workbenchMenuItemClassName,
+        hideIndicator ? "px-1" : "grid grid-cols-[1rem_1fr] ps-1 pe-2",
         className,
       )}
       data-slot="select-item"
       {...props}
     >
       {hideIndicator ? null : (
-        <SelectPrimitive.ItemIndicator className="col-start-1" data-slot="select-item-indicator">
-          <svg
-            fill="none"
-            height="24"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            viewBox="0 0 24 24"
-            width="24"
-            xmlns="http://www.w3.org/1500/svg"
-          >
-            <path d="M5.252 12.7 10.2 18.63 18.748 5.37" />
-          </svg>
+        <SelectPrimitive.ItemIndicator
+          className={cn(
+            "col-start-1",
+            "inline-flex h-4 w-4 items-center justify-center text-multi-fg-primary data-unchecked:opacity-0 [&_svg:not([class*='size-'])]:size-3",
+          )}
+          data-slot="select-item-indicator"
+          keepMounted
+        >
+          <IconCheckmark1 />
         </SelectPrimitive.ItemIndicator>
       )}
       <SelectPrimitive.ItemText
-        className={cn("min-w-0", hideIndicator ? "col-start-1" : "col-start-2")}
+        className={cn(
+          "min-w-0",
+          hideIndicator ? "col-start-1" : "col-start-2",
+          "truncate",
+        )}
         data-slot="select-item-text"
       >
         {children}

@@ -55,15 +55,6 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
   activeInstanceId: ProviderInstanceId;
   model: string;
   /**
-   * When set, the picker is locked to the given driver kind — typically
-   * because the user is editing a previously-sent message and can't change
-   * which driver served the turn. Multiple instances of the same kind
-   * remain selectable (e.g. locked to `codex` still lets the user switch
-   * between the default Codex and a custom Codex Personal).
-   */
-  lockedProvider: ProviderDriverKind | null;
-  lockedContinuationGroupKey?: string | null;
-  /**
    * All configured provider instances in display order. Used to resolve
    * display names and sort model rows by the active composer instance first.
    */
@@ -171,20 +162,6 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
     () => new Map(instanceEntries.map((entry) => [entry.instanceId, entry])),
     [instanceEntries],
   );
-  const matchesLockedProvider = useCallback(
-    (entry: Pick<ProviderInstanceEntry, "driverKind" | "continuationGroupKey">): boolean => {
-      if (props.lockedProvider === null) return true;
-      if (entry.driverKind !== props.lockedProvider) return false;
-      if (!props.lockedContinuationGroupKey) return true;
-      return entry.continuationGroupKey === props.lockedContinuationGroupKey;
-    },
-    [props.lockedContinuationGroupKey, props.lockedProvider],
-  );
-
-  const sidebarInstanceEntries = useMemo(() => {
-    if (props.lockedProvider === null) return instanceEntries;
-    return instanceEntries.filter((entry) => matchesLockedProvider(entry));
-  }, [instanceEntries, matchesLockedProvider, props.lockedProvider]);
 
   const readyInstanceSet = useMemo(() => {
     const ready = new Set<ProviderInstanceId>();
@@ -231,7 +208,6 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
     return out;
   }, [modelOptionsByInstance, entryByInstanceId, readyInstanceSet]);
 
-  const isLocked = props.lockedProvider !== null;
   const instanceOrder = useMemo(
     () => [
       props.activeInstanceId,
@@ -280,25 +256,6 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
           } => rankedModel.score !== null,
         );
 
-      // When searching, we only respect locked provider (by driver kind),
-      // ignoring sidebar selection so account-scoped searches can find a
-      // model before the user chooses a specific instance rail item.
-      if (props.lockedProvider !== null) {
-        return rankedMatches
-          .filter((rankedModel) => matchesLockedProvider(rankedModel.model))
-          .toSorted((a, b) => {
-            const scoreDelta = a.score - b.score;
-            if (scoreDelta !== 0) {
-              return scoreDelta;
-            }
-            if (a.isFavorite !== b.isFavorite) {
-              return a.isFavorite ? -1 : 1;
-            }
-            return a.tieBreaker.localeCompare(b.tieBreaker);
-          })
-          .map((rankedModel) => rankedModel.model);
-      }
-
       return rankedMatches
         .toSorted((a, b) => {
           const scoreDelta = a.score - b.score;
@@ -314,10 +271,6 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
     }
 
     let result = flatModels;
-
-    if (props.lockedProvider !== null) {
-      result = result.filter((m) => matchesLockedProvider(m));
-    }
 
     const trimmedSearch = searchQuery.trim();
     if (!trimmedSearch) {
@@ -343,8 +296,6 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
     favoritesSet,
     flatModels,
     instanceOrder,
-    matchesLockedProvider,
-    props.lockedProvider,
     railSelection,
     searchQuery,
   ]);
@@ -370,23 +321,6 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
     [entryByInstanceId, modelOptionsByInstance, onInstanceModelChange],
   );
 
-  // Header label for locked mode. Use the active instance's displayName
-  // when the lock narrows to exactly one instance (so "Codex Personal"
-  // shows instead of the generic driver label); fall back to the first
-  // matching entry otherwise.
-  const lockedHeaderLabel = useMemo(() => {
-    if (!isLocked || !props.lockedProvider) return null;
-    const matches = instanceEntries.filter((entry) => matchesLockedProvider(entry));
-    if (matches.length === 0) return null;
-    const active = matches.find((entry) => entry.instanceId === props.activeInstanceId);
-    return (active ?? matches[0])?.displayName ?? null;
-  }, [
-    isLocked,
-    matchesLockedProvider,
-    props.lockedProvider,
-    props.activeInstanceId,
-    instanceEntries,
-  ]);
   const modelJumpCommandByKey = useMemo(() => {
     const mapping = new Map<
       string,
@@ -490,22 +424,14 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
 
   return (
     <div className="relative flex max-h-[250px] min-h-0 min-w-[255px] w-[297px] max-w-[min(297px,calc(100vw-32px))] flex-col overflow-hidden rounded-[8px] border border-multi-stroke-tertiary bg-multi-bg-elevated font-multi text-[12px]/[16px] text-multi-fg-primary shadow-multi-popup backdrop-blur-[18px]">
-      {isLocked && lockedHeaderLabel && (
-        <div className="flex min-h-8 shrink-0 items-center gap-1.5 border-b border-multi-stroke-tertiary px-2 py-1">
-          <span className="truncate text-[12px]/[16px] font-medium text-multi-fg-primary">
-            {lockedHeaderLabel}
-          </span>
-        </div>
-      )}
-
       <div className="flex min-h-0 flex-1">
         <div className="flex min-h-0 w-12 shrink-0 flex-col">
           {sidebarVisible ? (
             <ModelPickerSidebar
               selectedInstanceId={railSelection}
-              instanceEntries={sidebarInstanceEntries}
-              showFavorites={!isLocked}
-              showComingSoon={!isLocked}
+              instanceEntries={instanceEntries}
+              showFavorites
+              showComingSoon
               onSelectInstance={handleSidebarInstanceSelect}
             />
           ) : (
@@ -600,8 +526,8 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
                           model.instanceId === props.activeInstanceId && model.slug === props.model
                         }
                         showProvider
-                        preferShortName={!isLocked}
-                        useTriggerLabel={isLocked}
+                        preferShortName
+                        useTriggerLabel={false}
                         showNewBadge={isModelPickerNewModel(model.driverKind, model.slug)}
                         jumpLabel={modelJumpLabelByKey.get(modelKey) ?? null}
                         showFavoriteToggle

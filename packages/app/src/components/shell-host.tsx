@@ -149,7 +149,6 @@ function SettingsShellHost(props: { children?: ReactNode }) {
   return (
     <AppShell
       cwd={firstProjectCwd}
-      panelPersistenceCwd={firstProjectCwd}
       changesCount={0}
       onBack={() => void navigate({ to: "/" })}
       left={settingsLeft}
@@ -351,31 +350,6 @@ function ChatShellHost(props: { children?: ReactNode }) {
             : undefined) ??
           null)
       : (defaultProject?.cwd ?? firstProjectCwd));
-  const activeDraftProjectCwd = activeDraftThread
-    ? ((activeDraftThread.projectId
-        ? projectByScopedKey.get(
-            scopedProjectKey(
-              scopeProjectRef(activeDraftThread.environmentId, activeDraftThread.projectId),
-            ),
-          )?.cwd
-        : null) ?? null)
-    : null;
-  const activeThreadProjectCwd = activeThread
-    ? ((activeThread.projectId
-        ? projectByScopedKey.get(
-            scopedProjectKey(scopeProjectRef(activeThread.environmentId, activeThread.projectId)),
-          )?.cwd
-        : null) ?? null)
-    : null;
-  const rightWorkbenchPersistenceCwd = activeDraftThread
-    ? activeDraftThread.projectId === null
-      ? PROJECTLESS_CWD
-      : (activeDraftProjectCwd ?? activeDraftThread.worktreePath ?? null)
-    : activeThread
-      ? activeThread.projectId === null
-        ? PROJECTLESS_CWD
-        : (activeThreadProjectCwd ?? activeThread.worktreePath ?? null)
-      : (defaultProject?.cwd ?? firstProjectCwd);
   const activeEnvironmentId =
     activeThread?.environmentId ??
     projects.find((project) => project.cwd === activeCwd)?.environmentId ??
@@ -630,7 +604,6 @@ function ChatShellHost(props: { children?: ReactNode }) {
         center={props.children ?? <Outlet />}
         routeThreadId={routeThreadId}
         cwd={activeCwd}
-        panelPersistenceCwd={rightWorkbenchPersistenceCwd}
         environmentId={activeEnvironmentId}
         availableEditors={availableEditors}
         onGitAgentAction={(action) => {
@@ -643,7 +616,6 @@ function ChatShellHost(props: { children?: ReactNode }) {
   return (
     <AppShell
       cwd={activeCwd}
-      panelPersistenceCwd={rightWorkbenchPersistenceCwd}
       changesCount={0}
       left={chatLeft}
       center={props.children ?? <Outlet />}
@@ -694,7 +666,6 @@ function DesktopChatShellHost(props: {
   center: ReactNode;
   routeThreadId: string | null;
   cwd: string | null;
-  panelPersistenceCwd: string | null;
   environmentId: EnvironmentId | null;
   availableEditors: readonly EditorId[];
   onGitAgentAction: (action: GitAgentAction) => void;
@@ -704,7 +675,6 @@ function DesktopChatShellHost(props: {
   return (
     <AppShell
       cwd={props.cwd}
-      panelPersistenceCwd={props.panelPersistenceCwd}
       changesCount={git.count}
       routeThreadId={props.routeThreadId}
       gitFocusId={git.focusId}

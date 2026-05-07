@@ -81,9 +81,9 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
    * their own model list.
    */
   instanceEntries: ReadonlyArray<ProviderInstanceEntry>;
-  /** Render the favorites rail entry. Hidden for locked-provider instance switching. */
+  /** Render the favorites rail entry. */
   showFavorites?: boolean;
-  /** Render non-configured coming-soon provider entries. Hidden in scoped rails. */
+  /** Render non-configured coming-soon provider entries. */
   showComingSoon?: boolean;
   /**
    * Instance id values that should render the "new" sparkle badge. Callers

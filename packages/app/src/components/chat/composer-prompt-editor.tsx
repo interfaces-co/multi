@@ -139,6 +139,7 @@ interface ComposerPromptEditorProps {
   placeholder: string;
   className?: string;
   onRemoveTerminalContext: (contextId: string) => void;
+  onMeasuredMultilineChange?: (multiline: boolean) => void;
   onChange: (
     nextValue: string,
     nextCursor: number,
@@ -512,6 +513,28 @@ function snapshotsEqual(
     left.expandedCursor === right.expandedCursor &&
     left.terminalContextIds.length === right.terminalContextIds.length &&
     left.terminalContextIds.every((id, index) => id === right.terminalContextIds[index])
+  );
+}
+
+function emitMeasuredMultiline(
+  editor: Editor,
+  callback: ((multiline: boolean) => void) | undefined,
+): void {
+  if (!callback) return;
+  const dom = editor.view.dom;
+  const computed = window.getComputedStyle(dom);
+  const lineHeight = Number.parseFloat(computed.lineHeight);
+  const fallbackLineHeight = Number.parseFloat(computed.fontSize) * 1.5;
+  const resolvedLineHeight = Number.isFinite(lineHeight) ? lineHeight : fallbackLineHeight;
+  const range = document.createRange();
+  range.selectNodeContents(dom);
+  const contentHeight = range.getBoundingClientRect().height;
+  range.detach();
+  const value = promptTextFromDoc(editor.state.doc);
+  callback(
+    value.includes("\n") ||
+      dom.scrollHeight > resolvedLineHeight * 1.5 ||
+      contentHeight > resolvedLineHeight * 1.5,
   );
 }
 
@@ -1025,6 +1048,7 @@ export const ComposerPromptEditor = forwardRef<
     placeholder,
     className,
     onRemoveTerminalContext: _onRemoveTerminalContext,
+    onMeasuredMultilineChange,
     onChange,
     onCommandKeyDown,
     onPaste,
@@ -1033,8 +1057,10 @@ export const ComposerPromptEditor = forwardRef<
 ) {
   const onChangeRef = useRef(onChange);
   const onCommandKeyDownRef = useRef(onCommandKeyDown);
+  const onMeasuredMultilineChangeRef = useRef(onMeasuredMultilineChange);
   const onPasteRef = useRef(onPaste);
   const placeholderRef = useRef(placeholder);
+  onMeasuredMultilineChangeRef.current = onMeasuredMultilineChange;
   placeholderRef.current = placeholder;
   const extensionsRef = useRef<ReturnType<typeof createComposerExtensions> | null>(null);
   extensionsRef.current ??= createComposerExtensions(placeholderRef);
@@ -1151,6 +1177,7 @@ export const ComposerPromptEditor = forwardRef<
       nextSnapshot.terminalContextIds,
       nextSnapshot.doc,
     );
+    emitMeasuredMultiline(nextEditor, onMeasuredMultilineChangeRef.current);
   };
 
   keyDownHandlerRef.current = (event: KeyboardEvent) => {
@@ -1264,6 +1291,7 @@ export const ComposerPromptEditor = forwardRef<
     }
     queueMicrotask(() => {
       isApplyingControlledUpdateRef.current = false;
+      emitMeasuredMultiline(editor, onMeasuredMultilineChangeRef.current);
     });
   }, [
     cursor,
@@ -1275,6 +1303,21 @@ export const ComposerPromptEditor = forwardRef<
     terminalContextsSignature,
     value,
   ]);
+
+  useLayoutEffect(() => {
+    if (!editor) return;
+    const dom = editor.view.dom;
+    emitMeasuredMultiline(editor, onMeasuredMultilineChangeRef.current);
+    if (typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver(() => {
+      emitMeasuredMultiline(editor, onMeasuredMultilineChangeRef.current);
+    });
+    observer.observe(dom);
+    return () => {
+      observer.disconnect();
+    };
+  }, [editor]);
 
   const focusAt = useCallback(
     (nextCursor: number) => {

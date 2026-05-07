@@ -210,7 +210,7 @@ Required tests:
 - Projectless Thread route renders after server shell upsert.
 - Projectless Thread does not show files/Git/worktree/script controls.
 - Selecting a Project before first send produces a normal Project-backed Thread.
-- `bun run typecheck` passes.
+- `pnpm run typecheck` passes.
 
 ## Risks
 
@@ -229,7 +229,7 @@ Required tests:
 
 ## Verification From Current Session
 
-- `bun run typecheck` passed before any implementation edits.
+- `pnpm run typecheck` passed before any implementation edits.
 - Runtime logs showed `no such column: project_root`, confirming stale local schema as the splash-screen blank cause.
 - Fresh dev state currently has zero Projects, confirming the empty home route is the visible second issue.
 - Temporary route-only behavior was backed out; this doc describes the canonical implementation instead.

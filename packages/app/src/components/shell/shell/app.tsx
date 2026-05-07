@@ -78,9 +78,9 @@ function resolveEffectiveRightOpen(input: {
   return input.storedRightOpen || Boolean(input.routeThreadId && input.gitFocusId && !input.muted);
 }
 
-function setRightPanelOpen(cwd: string | null, open: boolean): void {
-  shellPanelsActions.setRightOpen(cwd, open);
-  shellPanelsActions.setMuted(cwd, !open);
+function setRightPanelOpen(open: boolean): void {
+  shellPanelsActions.setRightOpen(open);
+  shellPanelsActions.setMuted(!open);
 }
 
 const SHOW_RIGHT_WORKBENCH_LABEL = "Show project panel — files, Git changes, terminal.";
@@ -172,16 +172,15 @@ function RightAsideHeader(props: {
 
 function RightAside(props: {
   cwd: string | null;
-  panelPersistenceCwd: string | null;
   changesCount: number;
   rightPanels: RightPanels;
   routeThreadId: string | null;
   gitFocusId: string | null;
 }) {
-  const storedRightOpen = useRightOpen(props.panelPersistenceCwd);
-  const rightWidth = useRightWidth(props.panelPersistenceCwd);
-  const activeTab = useActiveTab(props.panelPersistenceCwd);
-  const muted = useIsMuted(props.panelPersistenceCwd);
+  const storedRightOpen = useRightOpen();
+  const rightWidth = useRightWidth();
+  const activeTab = useActiveTab();
+  const muted = useIsMuted();
   const search = chatLayoutRouteApi.useSearch();
   const navigate = useNavigate();
   const rightOpen = resolveEffectiveRightOpen({
@@ -200,17 +199,17 @@ function RightAside(props: {
       return;
     }
     if (w !== activeTab) {
-      shellPanelsActions.setActiveTab(props.panelPersistenceCwd, w);
+      shellPanelsActions.setActiveTab(w);
     }
-  }, [search.workbench, activeTab, props.panelPersistenceCwd]);
+  }, [search.workbench, activeTab]);
 
   const handleWorkbenchTabChange = useCallback(
     (value: unknown) => {
       if (!isWorkbenchTab(value)) {
         return;
       }
-      shellPanelsActions.setActiveTab(props.panelPersistenceCwd, value);
-      shellPanelsActions.setMuted(props.panelPersistenceCwd, false);
+      shellPanelsActions.setActiveTab(value);
+      shellPanelsActions.setMuted(false);
       if (isElectron) {
         navigate({
           to: ".",
@@ -222,7 +221,7 @@ function RightAside(props: {
         });
       }
     },
-    [navigate, props.panelPersistenceCwd, search],
+    [navigate, search],
   );
 
   const asideRef = useRef<HTMLElement | null>(null);
@@ -231,7 +230,7 @@ function RightAside(props: {
     limits: RIGHT_LIMITS,
     elementRef: asideRef,
     direction: "left",
-    onCommit: (nextWidth) => shellPanelsActions.setRightWidth(props.panelPersistenceCwd, nextWidth),
+    onCommit: (nextWidth) => shellPanelsActions.setRightWidth(nextWidth),
   });
 
   return (
@@ -307,15 +306,14 @@ function RightAsidePanels(props: { activeTab: WorkbenchTab; rightPanels: RightPa
 }
 
 function ShellHeaderControls(props: {
-  rightPanelPersistenceCwd: string | null;
   showRight: boolean;
   onBack?: () => void;
   routeThreadId: string | null;
   gitFocusId: string | null;
 }) {
   const leftOpen = useLeftOpen();
-  const storedRightOpen = useRightOpen(props.rightPanelPersistenceCwd);
-  const muted = useIsMuted(props.rightPanelPersistenceCwd);
+  const storedRightOpen = useRightOpen();
+  const muted = useIsMuted();
   const rightOpen = resolveEffectiveRightOpen({
     storedRightOpen,
     routeThreadId: props.routeThreadId,
@@ -355,7 +353,7 @@ function ShellHeaderControls(props: {
         <div className="multi-shell-titlebar-right-toggle pointer-events-auto no-drag absolute z-40 flex shrink-0 items-center self-start">
           <button
             type="button"
-            onClick={() => setRightPanelOpen(props.rightPanelPersistenceCwd, !rightOpen)}
+            onClick={() => setRightPanelOpen(!rightOpen)}
             className="flex h-(--multi-titlebar-control-height) w-(--multi-titlebar-control-height) shrink-0 items-center justify-center rounded-multi-control bg-transparent p-0 leading-none text-muted-foreground [&_svg]:block hover:bg-multi-hover hover:text-foreground"
             aria-label={rightPanelLabel}
             aria-pressed={rightOpen}
@@ -375,8 +373,6 @@ function ShellHeaderControls(props: {
 
 export function AppShell(props: {
   cwd: string | null;
-  /** Keys shell chrome width/open state in localStorage; prefer project root over worktree. */
-  panelPersistenceCwd?: string | null;
   left: ReactNode;
   center: ReactNode;
   right: RightPanels | null;
@@ -387,12 +383,11 @@ export function AppShell(props: {
 }) {
   const electron = isElectronHost();
   const showRight = props.right !== null;
-  const panelPersistenceCwd = props.panelPersistenceCwd ?? props.cwd;
   const leftOpen = useLeftOpen();
   const leftWidth = useLeftWidth();
-  const storedRightOpen = useRightOpen(panelPersistenceCwd);
-  const rightWidth = useRightWidth(panelPersistenceCwd);
-  const muted = useIsMuted(panelPersistenceCwd);
+  const storedRightOpen = useRightOpen();
+  const rightWidth = useRightWidth();
+  const muted = useIsMuted();
   const shellRightOpen =
     showRight &&
     resolveEffectiveRightOpen({
@@ -456,7 +451,6 @@ export function AppShell(props: {
           {showRight && props.right ? (
             <RightAside
               cwd={props.cwd}
-              panelPersistenceCwd={panelPersistenceCwd}
               changesCount={props.changesCount}
               rightPanels={props.right}
               routeThreadId={props.routeThreadId ?? null}
@@ -467,7 +461,6 @@ export function AppShell(props: {
       </div>
 
       <ShellHeaderControls
-        rightPanelPersistenceCwd={panelPersistenceCwd}
         showRight={showRight}
         routeThreadId={props.routeThreadId ?? null}
         gitFocusId={props.gitFocusId ?? null}

@@ -264,17 +264,6 @@ const make = Effect.gen(function* () {
       thread.session?.providerInstanceId ??
       (currentProvider ? ProviderInstanceId.make(currentProvider) : undefined);
     const requestedModelSelection = options?.modelSelection;
-    const threadProviderInstanceId = currentProviderInstanceId ?? thread.modelSelection.instanceId;
-    if (
-      requestedModelSelection !== undefined &&
-      requestedModelSelection.instanceId !== threadProviderInstanceId
-    ) {
-      return yield* new ProviderAdapterRequestError({
-        provider: String(threadProviderInstanceId),
-        method: "thread.turn.start",
-        detail: `Thread '${threadId}' is bound to provider instance '${threadProviderInstanceId}' and cannot switch to '${requestedModelSelection.instanceId}'.`,
-      });
-    }
     const desiredModelSelection = requestedModelSelection ?? thread.modelSelection;
     const effectiveCwd =
       thread.projectId === null
@@ -301,7 +290,6 @@ const make = Effect.gen(function* () {
     const startProviderSession = (input?: { readonly resumeCursor?: unknown }) =>
       providerService.startSession(threadId, {
         threadId,
-        ...(currentProvider ? { provider: currentProvider } : {}),
         providerInstanceId: desiredModelSelection.instanceId,
         ...(effectiveCwd ? { cwd: effectiveCwd } : {}),
         modelSelection: desiredModelSelection,
@@ -332,15 +320,13 @@ const make = Effect.gen(function* () {
     if (existingSessionThreadId) {
       const runtimeModeChanged = thread.runtimeMode !== thread.session?.runtimeMode;
       const providerChanged =
-        requestedModelSelection !== undefined &&
-        requestedModelSelection.instanceId !== currentProviderInstanceId;
+        currentProviderInstanceId !== undefined &&
+        desiredModelSelection.instanceId !== currentProviderInstanceId;
       const sessionModelSwitch =
         currentProvider === undefined
           ? "in-session"
           : (yield* providerService.getCapabilities(currentProvider)).sessionModelSwitch;
-      const modelChanged =
-        requestedModelSelection !== undefined &&
-        requestedModelSelection.model !== activeSession?.model;
+      const modelChanged = desiredModelSelection.model !== activeSession?.model;
       const shouldRestartForModelChange = modelChanged && sessionModelSwitch === "restart-session";
       const cwdChanged = effectiveCwd !== undefined && activeSession?.cwd !== effectiveCwd;
       const previousModelSelection = threadModelSelections.get(threadId);

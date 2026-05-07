@@ -1,12 +1,15 @@
 import { scopeProjectRef } from "@multi/client-runtime";
+import type { ScopedThreadRef } from "@multi/contracts";
 import { IconChevronRightMedium } from "central-icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { SidebarSectionContextMenu } from "~/components/shell/sidebar/thread-context-menu";
 import { resolveAndPersistPreferredEditor } from "~/editor-preferences";
+import { retainThreadDetailSubscription } from "~/environments/runtime/service";
 import { useThreadActions } from "~/hooks/use-thread-actions";
 import type { SidebarSectionModel } from "~/lib/sidebar-chat-view-model";
+import { getSidebarThreadIdsToPrewarm } from "~/lib/thread-sidebar";
 import { useThreadUnreadStore } from "~/lib/thread-unread-store";
 import { readLocalApi } from "~/local-api";
 import { AgentRow } from "./row";
@@ -14,6 +17,7 @@ import { AgentRow } from "./row";
 const initialMaxVisible = 5;
 const pageStep = 8;
 const nearViewportPrefetchLimit = 12;
+const EMPTY_VISIBLE_THREAD_REFS: readonly ScopedThreadRef[] = [];
 
 export interface AgentListProps {
   sections: SidebarSectionModel[];
@@ -37,12 +41,30 @@ function minVisibleForSelection(
   return Math.min(items.length, Math.max(firstPage, index + 1));
 }
 
+function areSameThreadRefs(
+  left: readonly ScopedThreadRef[],
+  right: readonly ScopedThreadRef[],
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every(
+      (threadRef, index) =>
+        threadRef.environmentId === right[index]?.environmentId &&
+        threadRef.threadId === right[index]?.threadId,
+    )
+  );
+}
+
 function Section(props: {
   section: SidebarSectionModel;
   selectedId: string | null;
   onSelectAgent: (id: string) => void;
   onNewAgent?: (cwd: string) => void;
   onPrefetchAgent?: (id: string) => void;
+  onVisibleThreadRefsChange: (
+    sectionId: string,
+    threadRefs: readonly ScopedThreadRef[],
+  ) => void;
 }) {
   const { onPrefetchAgent, section } = props;
   const { archiveThreads, removeProjectFromSidebar } = useThreadActions();
@@ -78,6 +100,15 @@ function Section(props: {
     section.environmentId !== undefined &&
     section.projectId !== undefined &&
     section.projectCwd !== undefined;
+  const visibleThreadRefs = useMemo(
+    () =>
+      open
+        ? section.items
+            .slice(0, visible)
+            .flatMap((item) => (item.kind === "thread" ? [item.threadRef] : []))
+        : EMPTY_VISIBLE_THREAD_REFS,
+    [open, section.items, visible],
+  );
 
   const openSectionInEditor = useCallback(() => {
     const localApi = readLocalApi();
@@ -139,6 +170,10 @@ function Section(props: {
       onPrefetchAgent(item.id);
     }
   }, [onPrefetchAgent, open, section.items, visible]);
+
+  useEffect(() => {
+    props.onVisibleThreadRefsChange(section.id, visibleThreadRefs);
+  }, [props.onVisibleThreadRefsChange, section.id, visibleThreadRefs]);
 
   return (
     <section
@@ -220,6 +255,87 @@ function Section(props: {
   );
 }
 
+function AgentListContent(props: AgentListProps) {
+  const [visibleThreadRefsBySectionId, setVisibleThreadRefsBySectionId] = useState<
+    Record<string, readonly ScopedThreadRef[]>
+  >({});
+  const onVisibleThreadRefsChange = useCallback(
+    (sectionId: string, threadRefs: readonly ScopedThreadRef[]) => {
+      setVisibleThreadRefsBySectionId((current) => {
+        const previousThreadRefs = current[sectionId] ?? EMPTY_VISIBLE_THREAD_REFS;
+        if (areSameThreadRefs(previousThreadRefs, threadRefs)) {
+          return current;
+        }
+        if (threadRefs.length === 0) {
+          if (!(sectionId in current)) {
+            return current;
+          }
+          const next = { ...current };
+          delete next[sectionId];
+          return next;
+        }
+        return {
+          ...current,
+          [sectionId]: threadRefs,
+        };
+      });
+    },
+    [],
+  );
+  const visibleThreadRefs = useMemo(
+    () =>
+      props.sections.flatMap(
+        (section) => visibleThreadRefsBySectionId[section.id] ?? EMPTY_VISIBLE_THREAD_REFS,
+      ),
+    [props.sections, visibleThreadRefsBySectionId],
+  );
+  const prewarmedSidebarThreadRefs = useMemo(
+    () => getSidebarThreadIdsToPrewarm(visibleThreadRefs),
+    [visibleThreadRefs],
+  );
+
+  useEffect(() => {
+    setVisibleThreadRefsBySectionId((current) => {
+      const sectionIds = new Set(props.sections.map((section) => section.id));
+      const nextEntries = Object.entries(current).filter(([sectionId]) =>
+        sectionIds.has(sectionId),
+      );
+      if (nextEntries.length === Object.keys(current).length) {
+        return current;
+      }
+      return Object.fromEntries(nextEntries);
+    });
+  }, [props.sections]);
+
+  useEffect(() => {
+    const releases = prewarmedSidebarThreadRefs.map((threadRef) =>
+      retainThreadDetailSubscription(threadRef.environmentId, threadRef.threadId),
+    );
+
+    return () => {
+      for (const release of releases) {
+        release();
+      }
+    };
+  }, [prewarmedSidebarThreadRefs]);
+
+  return (
+    <div className="sidebar-body multi-agent-sidebar agent-sidebar-sections flex min-h-0 flex-1 flex-col overflow-y-auto [scrollbar-gutter:stable]">
+      {props.sections.map((section) => (
+        <Section
+          key={section.id}
+          section={section}
+          selectedId={props.selectedId}
+          onSelectAgent={props.onSelectAgent}
+          onVisibleThreadRefsChange={onVisibleThreadRefsChange}
+          {...(props.onNewAgent ? { onNewAgent: props.onNewAgent } : {})}
+          {...(props.onPrefetchAgent ? { onPrefetchAgent: props.onPrefetchAgent } : {})}
+        />
+      ))}
+    </div>
+  );
+}
+
 function SkeletonRows() {
   return (
     <div className="sidebar-body multi-agent-sidebar agent-sidebar-sections flex min-h-0 flex-1 flex-col overflow-y-auto [scrollbar-gutter:stable]">
@@ -265,18 +381,5 @@ export function AgentList(props: AgentListProps) {
     );
   }
 
-  return (
-    <div className="sidebar-body multi-agent-sidebar agent-sidebar-sections flex min-h-0 flex-1 flex-col overflow-y-auto [scrollbar-gutter:stable]">
-      {props.sections.map((section) => (
-        <Section
-          key={section.id}
-          section={section}
-          selectedId={props.selectedId}
-          onSelectAgent={props.onSelectAgent}
-          {...(props.onNewAgent ? { onNewAgent: props.onNewAgent } : {})}
-          {...(props.onPrefetchAgent ? { onPrefetchAgent: props.onPrefetchAgent } : {})}
-        />
-      ))}
-    </div>
-  );
+  return <AgentListContent {...props} />;
 }

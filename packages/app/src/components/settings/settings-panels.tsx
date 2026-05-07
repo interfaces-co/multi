@@ -1321,7 +1321,6 @@ export function ModelsSettingsPanel() {
               <ProviderModelPicker
                 activeInstanceId={textGenInstanceId}
                 model={textGenModel}
-                lockedProvider={null}
                 instanceEntries={gitModelInstanceEntries}
                 modelOptionsByInstance={gitModelOptionsByInstance}
                 triggerVariant="outline"

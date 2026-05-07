@@ -29,6 +29,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type MouseEvent,
 } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useDebouncedValue } from "@tanstack/react-pacer";
@@ -65,6 +66,7 @@ import { type ComposerPromptEditorHandle, ComposerPromptEditor } from "./compose
 import { ProviderModelPicker } from "./provider-model-picker";
 import { type ComposerCommandItem, ComposerCommandMenu } from "./composer-command-menu";
 import {
+  type PromptInputMenuPlacement,
   PromptInputRoot,
   PromptInputToolbar,
   PromptInputToolbarLeft,
@@ -375,6 +377,7 @@ export interface ChatComposerHandle {
 
 export interface ChatComposerProps {
   variant?: "hero" | "dock";
+  modelPickerPlacement?: PromptInputMenuPlacement;
   composerDraftTarget: ScopedThreadRef | DraftId;
   environmentId: EnvironmentId;
   routeKind: "server" | "draft";
@@ -425,7 +428,6 @@ export interface ChatComposerProps {
   interactionMode: ProviderInteractionMode;
 
   // Provider / model
-  lockedProvider: ProviderDriverKind | null;
   providerStatuses: ReadonlyArray<ServerProvider>;
   activeProjectDefaultModelSelection: ModelSelection | null | undefined;
   activeThreadModelSelection: ModelSelection | null | undefined;
@@ -488,6 +490,7 @@ export const ChatComposer = memo(
   forwardRef<ChatComposerHandle, ChatComposerProps>(function ChatComposer(props, ref) {
     const {
       variant = "dock",
+      modelPickerPlacement: modelPickerPlacementProp,
       composerDraftTarget,
       environmentId,
       routeKind,
@@ -520,7 +523,6 @@ export const ChatComposer = memo(
       planSidebarOpen,
       runtimeMode,
       interactionMode,
-      lockedProvider,
       providerStatuses,
       activeProjectDefaultModelSelection,
       activeThreadModelSelection,
@@ -554,7 +556,8 @@ export const ChatComposer = memo(
       onExpandImage,
     } = props;
     const composerVariant = variant === "hero" ? "expanded" : "compact";
-    const modelPickerPlacement = "top-start";
+    const modelPickerPlacement =
+      modelPickerPlacementProp ?? (composerVariant === "compact" ? "top-start" : "bottom-start");
 
     // ------------------------------------------------------------------
     // Store subscriptions (prompt / images / terminal contexts)
@@ -605,28 +608,13 @@ export const ChatComposer = memo(
       null;
     const explicitSelectedInstanceId = selectedProviderByThreadId ?? threadProvider;
 
-    const unlockedSelectedProvider =
+    const resolvedSelectedProvider =
       resolveProviderDriverKindForInstanceSelection(
         providerInstanceEntries,
         providerStatuses,
         explicitSelectedInstanceId,
       ) ?? ProviderDriverKind.make("codex");
-    const selectedProvider: ProviderDriverKind = lockedProvider ?? unlockedSelectedProvider;
-    const lockedContinuationGroupKey = useMemo((): string | null => {
-      if (!lockedProvider || !activeThread) return null;
-      const lockedInstanceId =
-        activeThread.session?.providerInstanceId ?? activeThreadModelSelection?.instanceId;
-      if (!lockedInstanceId) return null;
-      return (
-        providerInstanceEntries.find((entry) => entry.instanceId === lockedInstanceId)
-          ?.continuationGroupKey ?? null
-      );
-    }, [
-      activeThread,
-      activeThreadModelSelection?.instanceId,
-      lockedProvider,
-      providerInstanceEntries,
-    ]);
+    const selectedProvider: ProviderDriverKind = resolvedSelectedProvider;
 
     // Resolve which configured instance the composer is currently targeting.
     // Priority:
@@ -651,15 +639,6 @@ export const ChatComposer = memo(
           (entry) => entry.instanceId === candidate && entry.enabled,
         );
         if (match) {
-          // When locked to a specific driver kind, ignore persisted instance
-          // ids from a different kind or continuation group.
-          if (lockedProvider && match.driverKind !== lockedProvider) continue;
-          if (
-            lockedContinuationGroupKey &&
-            match.continuationGroupKey !== lockedContinuationGroupKey
-          ) {
-            continue;
-          }
           return match.instanceId;
         }
       }
@@ -668,10 +647,7 @@ export const ChatComposer = memo(
       }
       const byKind = providerInstanceEntries.find(
         (entry) =>
-          entry.enabled &&
-          entry.driverKind === selectedProvider &&
-          (!lockedContinuationGroupKey ||
-            entry.continuationGroupKey === lockedContinuationGroupKey),
+          entry.enabled && entry.driverKind === selectedProvider,
       );
       if (byKind) return byKind.instanceId;
       const anyEnabled = providerInstanceEntries.find((entry) => entry.enabled);
@@ -688,8 +664,6 @@ export const ChatComposer = memo(
       activeThreadModelSelection?.instanceId,
       composerDraft.activeProvider,
       explicitSelectedInstanceId,
-      lockedContinuationGroupKey,
-      lockedProvider,
       providerInstanceEntries,
       selectedProvider,
     ]);
@@ -810,6 +784,7 @@ export const ChatComposer = memo(
     const [isComposerFooterCompact, setIsComposerFooterCompact] = useState(false);
     const [isComposerPrimaryActionsCompact, setIsComposerPrimaryActionsCompact] = useState(false);
     const [isComposerModelPickerOpen, setIsComposerModelPickerOpen] = useState(false);
+    const [isComposerEditorMultiline, setIsComposerEditorMultiline] = useState(false);
     const [modelPickerOpenSearchSeed, setModelPickerOpenSearchSeed] = useState<string | undefined>(
       undefined,
     );
@@ -990,6 +965,20 @@ export const ChatComposer = memo(
     composerMenuItemsRef.current = composerMenuItems;
     activeComposerMenuItemRef.current = activeComposerMenuItem;
 
+    const handleComposerContainerClick = useCallback((event: MouseEvent<HTMLDivElement>) => {
+      if (composerMenuOpenRef.current) return;
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (
+        target.closest(
+          '.ProseMirror, button, input, select, textarea, a, [role="button"], [role="menuitem"]',
+        )
+      ) {
+        return;
+      }
+      composerEditorRef.current?.focusAtEnd();
+    }, []);
+
     const nonPersistedComposerImageIdSet = useMemo(
       () => new Set(nonPersistedComposerImageIds),
       [nonPersistedComposerImageIds],
@@ -1004,7 +993,10 @@ export const ChatComposer = memo(
 
     const isDockComposerExpanded =
       composerVariant === "compact" &&
-      (hasComposerHeader || composerImages.length > 0 || activePendingProgress !== null);
+      (hasComposerHeader ||
+        composerImages.length > 0 ||
+        activePendingProgress !== null ||
+        isComposerEditorMultiline);
 
     const composerFooterHasWideActions = showPlanFollowUpPrompt || activePendingProgress !== null;
     const showPlanSidebarToggle = Boolean(activePlan || sidebarProposedPlan || planSidebarOpen);
@@ -2012,6 +2004,7 @@ export const ChatComposer = memo(
               "animate-[ultrathink-rainbow_10s_linear_infinite] bg-[linear-gradient(120deg,oklch(0.712_0.181_22.839)_0%,oklch(0.769_0.165_70.08)_18%,oklch(0.723_0.192_149.579)_36%,oklch(0.704_0.123_182.503)_54%,oklch(0.623_0.188_259.815)_72%,oklch(0.656_0.212_354.308)_90%,oklch(0.712_0.181_22.839)_100%)] bg-[length:220%_220%]",
           )}
           containerProps={{
+            onClick: handleComposerContainerClick,
             onDragEnter: onComposerDragEnter,
             onDragOver: onComposerDragOver,
             onDragLeave: onComposerDragLeave,
@@ -2168,6 +2161,7 @@ export const ChatComposer = memo(
                 doc={!isComposerApprovalState && !activePendingProgress ? composerPromptDoc : null}
                 skills={selectedProviderStatus?.skills ?? []}
                 onRemoveTerminalContext={removeComposerTerminalContextFromDraft}
+                onMeasuredMultilineChange={setIsComposerEditorMultiline}
                 onChange={onPromptChange}
                 onCommandKeyDown={onComposerCommandKey}
                 onPaste={onComposerPaste}
@@ -2248,8 +2242,6 @@ export const ChatComposer = memo(
                       {...(isComposerFooterCompact ? { triggerClassName: "mr-1" } : {})}
                       activeInstanceId={selectedInstanceId}
                       model={instanceCoherentSelectedModel}
-                      lockedProvider={lockedProvider}
-                      lockedContinuationGroupKey={lockedContinuationGroupKey}
                       instanceEntries={providerInstanceEntries}
                       keybindings={keybindings}
                       modelOptionsByInstance={modelOptionsByInstance}

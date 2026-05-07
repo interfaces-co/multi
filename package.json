@@ -5,22 +5,7 @@
     "packages": [
       "packages/*",
       "scripts"
-    ],
-    "catalog": {
-      "effect": "4.0.0-beta.45",
-      "@effect/atom-react": "4.0.0-beta.45",
-      "@effect/openapi-generator": "4.0.0-beta.45",
-      "@effect/platform-bun": "4.0.0-beta.45",
-      "@effect/platform-node": "4.0.0-beta.45",
-      "@effect/sql-sqlite-bun": "4.0.0-beta.45",
-      "@effect/vitest": "4.0.0-beta.45",
-      "@effect/language-service": "0.84.2",
-      "@types/bun": "^1.3.13",
-      "@types/node": "^25.6.0",
-      "tsdown": "^0.21.10",
-      "typescript": "^6.0.3",
-      "vitest": "^4.1.5"
-    }
+    ]
   },
   "type": "module",
   "scripts": {
@@ -31,11 +16,11 @@
     "dev:desktop": "node scripts/dev-runner.ts dev:desktop",
     "start": "turbo run start --filter=usemulti",
     "start:desktop": "turbo run start --filter=@multi/desktop",
-    "start:mock-update-server": "bun run scripts/mock-update-server.ts",
+    "start:mock-update-server": "bun scripts/mock-update-server.ts",
     "build": "turbo run build",
     "build:desktop": "turbo run build --filter=@multi/desktop --filter=usemulti",
     "typecheck": "turbo run typecheck",
-    "lint": "oxlint --report-unused-disable-directives --deny-warnings && bun run lint:css",
+    "lint": "oxlint --report-unused-disable-directives --deny-warnings && pnpm run lint:css",
     "lint:css": "stylelint \"packages/**/*.css\" --allow-empty-input",
     "test": "turbo run test",
     "test:desktop-smoke": "turbo run smoke-test --filter=@multi/desktop",
@@ -54,6 +39,7 @@
   },
   "devDependencies": {
     "@effect/language-service": "catalog:",
+    "bun": "catalog:",
     "@types/node": "catalog:",
     "knip": "^6.12.0",
     "oxfmt": "^0.47.0",
@@ -75,17 +61,24 @@
     "vite": "^8.0.10"
   },
   "engines": {
-    "bun": "^1.3.9",
     "node": "^24.13.1"
   },
-  "packageManager": "bun@1.3.13",
+  "packageManager": "pnpm@10.33.0",
   "msw": {
     "workerDirectory": [
       "packages/app/public"
     ]
   },
-  "trustedDependencies": [
-    "electron",
-    "node-pty"
-  ]
+  "pnpm": {
+    "ignoredBuiltDependencies": [
+      "@central-icons-react/round-outlined-radius-2-stroke-1.5",
+      "msw"
+    ],
+    "onlyBuiltDependencies": [
+      "bun",
+      "electron",
+      "msgpackr-extract",
+      "node-pty"
+    ]
+  }
 }

@@ -8,13 +8,17 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const workspaceFiles = [
   "package.json",
-  "bun.lock",
+  "pnpm-workspace.yaml",
+  "pnpm-lock.yaml",
   "packages/server/package.json",
   "packages/desktop/package.json",
   "packages/app/package.json",
   "packages/client-runtime/package.json",
   "packages/contracts/package.json",
+  "packages/effect-acp/package.json",
+  "packages/effect-codex-app-server/package.json",
   "packages/shared/package.json",
+  "packages/ui/package.json",
   "scripts/package.json",
 ] as const;
 
@@ -75,6 +79,15 @@ function assertContains(haystack: string, needle: string, message: string): void
   }
 }
 
+function assertPackageVersion(targetRoot: string, relativePath: string, version: string): void {
+  const manifest = JSON.parse(readFileSync(resolve(targetRoot, relativePath), "utf8")) as {
+    version?: string;
+  };
+  if (manifest.version !== version) {
+    throw new Error(`Expected ${relativePath} version to be ${version}.`);
+  }
+}
+
 const tempRoot = mkdtempSync(join(tmpdir(), "t3-release-smoke-"));
 
 try {
@@ -94,17 +107,15 @@ try {
     },
   );
 
-  execFileSync("bun", ["install", "--ignore-scripts"], {
+  execFileSync("pnpm", ["install", "--ignore-scripts"], {
     cwd: tempRoot,
     stdio: "inherit",
   });
 
-  const lockfile = readFileSync(resolve(tempRoot, "bun.lock"), "utf8");
-  assertContains(
-    lockfile,
-    `"version": "9.9.9-smoke.0"`,
-    "Expected bun.lock to contain the smoke version.",
-  );
+  assertPackageVersion(tempRoot, "packages/server/package.json", "9.9.9-smoke.0");
+  assertPackageVersion(tempRoot, "packages/desktop/package.json", "9.9.9-smoke.0");
+  assertPackageVersion(tempRoot, "packages/app/package.json", "9.9.9-smoke.0");
+  assertPackageVersion(tempRoot, "packages/contracts/package.json", "9.9.9-smoke.0");
 
   const nightlyReleaseMetadata = execFileSync(
     process.execPath,

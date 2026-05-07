@@ -38,5 +38,5 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md). Observability: [docs/observability.md]
 
 ```bash
 mise install   # optional
-bun install .
+pnpm install
 ```

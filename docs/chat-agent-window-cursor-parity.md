@@ -496,7 +496,7 @@ Do not mix the activity patch with the prompt chrome patch. The composer can be 
 
 ### 10. Verification checklist
 
-After code changes, run `bun run typecheck` from the repo root.
+After code changes, run `pnpm run typecheck` from the repo root.
 
 Manual visual checks:
 

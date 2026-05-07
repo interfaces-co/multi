@@ -26,10 +26,10 @@ UI icons use **Central Icons** (`central-icons`, resolved to `@central-icons-rea
 
 ## Commands
 
-- After code changes (not documentation changes): `bun run typecheck` (get full output, no tail). Fix all errors, warnings, and infos before committing.
-- Note: `bun run typecheck` does not run tests.
-- NEVER run: `bun run dev`, `bun run build`, `bun run test`
-- Only run specific tests if user instructs: `bunx vitest --run test/specific.test.ts`
+- After code changes (not documentation changes): `pnpm run typecheck` (get full output, no tail). Fix all errors, warnings, and infos before committing.
+- Note: `pnpm run typecheck` does not run tests.
+- NEVER run: `pnpm run dev`, `pnpm run build`, `pnpm run test`
+- Only run specific tests if user instructs: `pnpx vitest --run test/specific.test.ts`
 - Run tests from the package root, not the repo root.
 - If you create or modify a test file, you MUST run that test file and iterate until it passes.
 - When writing tests, run them, identify issues in either the test or implementation, and iterate until fixed.

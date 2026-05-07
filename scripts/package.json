@@ -9,7 +9,8 @@
   "dependencies": {
     "@effect/platform-node": "catalog:",
     "@multi/shared": "workspace:*",
-    "effect": "catalog:"
+    "effect": "catalog:",
+    "yaml": "^2.8.4"
   },
   "devDependencies": {
     "@effect/language-service": "catalog:",

@@ -9,6 +9,7 @@ import serverPackageJson from "../packages/server/package.json" with { type: "js
 
 import { BRAND_ASSET_PATHS } from "./lib/brand-assets.ts";
 import { resolveCatalogDependencies } from "./lib/resolve-catalog.ts";
+import { readWorkspaceCatalog } from "./lib/workspace-catalog.ts";
 
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import * as NodeServices from "@effect/platform-node/NodeServices";
@@ -23,6 +24,7 @@ const RepoRoot = Effect.service(Path.Path).pipe(
   Effect.flatMap((path) => path.fromFileUrl(new URL("..", import.meta.url))),
 );
 const encodeJsonString = Schema.encodeEffect(Schema.UnknownFromJsonString);
+const workspaceCatalog = readWorkspaceCatalog(new URL("../pnpm-workspace.yaml", import.meta.url));
 
 interface DesktopBuildIconAssets {
   readonly macIconPng: string;
@@ -534,7 +536,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
     try: () =>
       resolveCatalogDependencies(
         rootPackageJson.overrides,
-        rootPackageJson.workspaces.catalog,
+        workspaceCatalog,
         "packages/desktop",
       ),
     catch: (cause) =>
@@ -548,7 +550,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
     try: () =>
       resolveCatalogDependencies(
         serverDependencies,
-        rootPackageJson.workspaces.catalog,
+        workspaceCatalog,
         "packages/server",
       ),
     catch: (cause) =>
@@ -561,7 +563,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
     try: () =>
       resolveDesktopRuntimeDependencies(
         desktopPackageJson.dependencies,
-        rootPackageJson.workspaces.catalog,
+        workspaceCatalog,
       ),
     catch: (cause) =>
       new BuildScriptError({
@@ -596,21 +598,21 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
         ...commandOutputOptions(options.verbose),
         // Windows needs shell mode to resolve .cmd shims (e.g. bun.cmd).
         shell: process.platform === "win32",
-      })`bun run build:desktop`,
+      })`pnpm run build:desktop`,
     );
   }
 
   for (const [label, dir] of Object.entries(distDirs)) {
     if (!(yield* fs.exists(dir))) {
       return yield* new BuildScriptError({
-        message: `Missing ${label} at ${dir}. Run 'bun run build:desktop' first.`,
+        message: `Missing ${label} at ${dir}. Run 'pnpm run build:desktop' first.`,
       });
     }
   }
 
   if (!(yield* fs.exists(bundledClientEntry))) {
     return yield* new BuildScriptError({
-      message: `Missing bundled server client at ${bundledClientEntry}. Run 'bun run build:desktop' first.`,
+      message: `Missing bundled server client at ${bundledClientEntry}. Run 'pnpm run build:desktop' first.`,
     });
   }
 
@@ -673,7 +675,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
       ...commandOutputOptions(options.verbose),
       // Windows needs shell mode to resolve .cmd shims (e.g. bun.cmd).
       shell: process.platform === "win32",
-    })`bun install --production`,
+    })`pnpm install --prod`,
   );
 
   const buildEnv: NodeJS.ProcessEnv = {
@@ -703,7 +705,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
       ...commandOutputOptions(options.verbose),
       // Windows needs shell mode to resolve .cmd shims.
       shell: process.platform === "win32",
-    })`bunx electron-builder ${platformConfig.cliFlag} --${options.arch} --publish never`,
+    })`pnpx electron-builder ${platformConfig.cliFlag} --${options.arch} --publish never`,
   );
 
   const stageDistDir = path.join(stageAppDir, "dist");
@@ -761,7 +763,7 @@ const buildDesktopArtifactCli = Command.make("build-desktop-artifact", {
   ),
   skipBuild: Flag.boolean("skip-build").pipe(
     Flag.withDescription(
-      "Skip `bun run build:desktop` and use existing dist artifacts (env: MULTI_DESKTOP_SKIP_BUILD).",
+      "Skip `pnpm run build:desktop` and use existing dist artifacts (env: MULTI_DESKTOP_SKIP_BUILD).",
     ),
     Flag.optional,
   ),

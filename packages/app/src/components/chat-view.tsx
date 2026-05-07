@@ -145,7 +145,6 @@ import {
   type LocalDispatchSnapshot,
   PullRequestDialogState,
   cloneComposerImageForRetry,
-  deriveLockedProvider,
   readFileAsDataUrl,
   reconcileMountedTerminalThreadIds,
   resolveSendEnvMode,
@@ -692,7 +691,6 @@ type InlineMessageEditComposerProps = Pick<
   | "isPreparingWorktree"
   | "runtimeMode"
   | "interactionMode"
-  | "lockedProvider"
   | "providerStatuses"
   | "activeProjectDefaultModelSelection"
   | "activeThreadModelSelection"
@@ -769,6 +767,14 @@ const InlineMessageEditComposer = memo(function InlineMessageEditComposer({
     window.requestAnimationFrame(() => {
       composerRef.current?.focusAtEnd();
     });
+  }, []);
+
+  const setInlineComposerRef = useCallback((composer: ChatComposerHandle | null) => {
+    composerRef.current = composer;
+    if (!composer) return;
+    window.setTimeout(() => {
+      composer.focusAtEnd();
+    }, 0);
   }, []);
 
   const ignoreScheduleStickToBottom = useCallback(() => {}, []);
@@ -879,8 +885,9 @@ const InlineMessageEditComposer = memo(function InlineMessageEditComposer({
     <div className="box-border w-full min-w-0 rounded-xl border border-multi-stroke-focused bg-multi-bubble p-2 shadow-xs">
       <ChatComposer
         {...composerProps}
-        ref={composerRef}
+        ref={setInlineComposerRef}
         variant="dock"
+        modelPickerPlacement="bottom-start"
         composerDraftTarget={composerDraftTarget}
         runtimeMode={inlineRuntimeMode}
         interactionMode={inlineInteractionMode}
@@ -1337,11 +1344,6 @@ export default function ChatView(props: ChatViewProps) {
     activeThread?.modelSelection.instanceId ??
     activeProject?.defaultModelSelection?.instanceId ??
     null;
-  const lockedProvider = deriveLockedProvider({
-    thread: activeThread,
-    selectedProvider: selectedProviderByThreadId,
-    threadProvider,
-  });
   const primaryServerConfig = useServerConfig();
   const providerConfigEnvironmentId =
     routeKind === "server" ? environmentId : (draftThread?.environmentId ?? environmentId);
@@ -1356,11 +1358,10 @@ export default function ChatView(props: ChatViewProps) {
       ? primaryServerConfig
       : (activeEnvRuntimeState?.serverConfig ?? primaryServerConfig);
   const providerStatuses = serverConfig?.providers ?? EMPTY_PROVIDERS;
-  const unlockedSelectedProvider = resolveSelectableProvider(
+  const selectedProvider = resolveSelectableProvider(
     providerStatuses,
     selectedProviderByThreadId ?? threadProvider ?? ProviderInstanceId.make("codex"),
   );
-  const selectedProvider: ProviderDriverKind = lockedProvider ?? unlockedSelectedProvider;
   const phase = derivePhase(activeThread?.session ?? null);
   const threadActivities = activeThread?.activities ?? EMPTY_ACTIVITIES;
   const workLogEntries = useMemo(
@@ -3705,7 +3706,6 @@ export default function ChatView(props: ChatViewProps) {
           isPreparingWorktree={isPreparingWorktree}
           runtimeMode={runtimeMode}
           interactionMode={interactionMode}
-          lockedProvider={lockedProvider}
           providerStatuses={providerStatuses}
           activeProjectDefaultModelSelection={activeProject?.defaultModelSelection}
           activeThreadModelSelection={activeThread.modelSelection}
@@ -3744,7 +3744,6 @@ export default function ChatView(props: ChatViewProps) {
       isPreparingWorktree,
       isServerThread,
       keybindings,
-      lockedProvider,
       onCancelEditUserMessage,
       onExpandTimelineImage,
       onImplementPlanInNewThread,
@@ -3961,7 +3960,6 @@ export default function ChatView(props: ChatViewProps) {
               planSidebarOpen={planSidebarOpen}
               runtimeMode={runtimeMode}
               interactionMode={interactionMode}
-              lockedProvider={lockedProvider}
               providerStatuses={providerStatuses}
               activeProjectDefaultModelSelection={activeProject?.defaultModelSelection}
               activeThreadModelSelection={activeThread?.modelSelection}

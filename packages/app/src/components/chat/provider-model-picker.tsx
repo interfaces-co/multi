@@ -1,6 +1,5 @@
 import {
   type ProviderInstanceId,
-  type ProviderDriverKind,
   type ResolvedKeybindingsConfig,
 } from "@multi/contracts";
 import { memo, useEffect, useMemo, useState } from "react";
@@ -45,12 +44,6 @@ const MODEL_PICKER_POPOVER_PLACEMENTS: Record<
   "bottom-end": { side: "bottom", align: "end" },
 };
 
-const MODEL_PICKER_EXPLICIT_PLACEMENT_COLLISION_AVOIDANCE = {
-  side: "shift",
-  align: "shift",
-  fallbackAxisSide: "none",
-} as const;
-
 export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   /**
    * The instance currently selected in the composer. Drives the trigger
@@ -58,8 +51,6 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
    */
   activeInstanceId: ProviderInstanceId;
   model: string;
-  lockedProvider: ProviderDriverKind | null;
-  lockedContinuationGroupKey?: string | null;
   /** Instance entries rendered in the sidebar + used to resolve display name. */
   instanceEntries: ReadonlyArray<ProviderInstanceEntry>;
   keybindings?: ResolvedKeybindingsConfig;
@@ -221,19 +212,12 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
         align={popoverPlacement.align}
         instant
         initialFocus={false}
-        positionMethod="fixed"
         side={popoverPlacement.side}
-        sticky
-        collisionAvoidance={
-          props.popoverPlacement ? MODEL_PICKER_EXPLICIT_PLACEMENT_COLLISION_AVOIDANCE : undefined
-        }
         className="z-[70] border-0 bg-transparent p-0 opacity-100 shadow-none before:hidden data-starting-style:scale-100 data-starting-style:opacity-100 [--viewport-inline-padding:0] *:data-[slot=popover-viewport]:p-0"
       >
         <ModelPickerContent
           activeInstanceId={activeInstanceId}
           model={props.model}
-          lockedProvider={props.lockedProvider}
-          lockedContinuationGroupKey={props.lockedContinuationGroupKey ?? null}
           instanceEntries={props.instanceEntries}
           {...(props.keybindings ? { keybindings: props.keybindings } : {})}
           modelOptionsByInstance={props.modelOptionsByInstance}
