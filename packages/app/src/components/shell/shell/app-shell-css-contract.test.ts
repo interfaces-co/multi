@@ -27,6 +27,10 @@ const desktopChromeSource = readFileSync(
 );
 
 describe("AppShell CSS root contract", () => {
+  it("sources shared UI package utilities for app Tailwind output", () => {
+    expect(indexCssSource).toContain('@source "../../ui/src/**/*.{ts,tsx}";');
+  });
+
   it("publishes durable shell intent and geometry from AppShell", () => {
     expect(appShellSource).toContain('"--multi-shell-left-width"');
     expect(appShellSource).toContain('"--multi-shell-left-collapsed-width"');
