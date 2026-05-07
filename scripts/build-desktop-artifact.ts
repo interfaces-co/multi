@@ -585,21 +585,21 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
         ...commandOutputOptions(options.verbose),
         // Windows needs shell mode to resolve .cmd shims (e.g. bun.cmd).
         shell: process.platform === "win32",
-      })`pnpm run build:desktop`,
+      })`bun run build:desktop`,
     );
   }
 
   for (const [label, dir] of Object.entries(distDirs)) {
     if (!(yield* fs.exists(dir))) {
       return yield* new BuildScriptError({
-        message: `Missing ${label} at ${dir}. Run 'pnpm run build:desktop' first.`,
+        message: `Missing ${label} at ${dir}. Run 'bun run build:desktop' first.`,
       });
     }
   }
 
   if (!(yield* fs.exists(bundledClientEntry))) {
     return yield* new BuildScriptError({
-      message: `Missing bundled server client at ${bundledClientEntry}. Run 'pnpm run build:desktop' first.`,
+      message: `Missing bundled server client at ${bundledClientEntry}. Run 'bun run build:desktop' first.`,
     });
   }
 
@@ -655,6 +655,9 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
   const stagePackageJsonString = yield* encodeJsonString(stagePackageJson);
   yield* fs.writeFileString(path.join(stageAppDir, "package.json"), `${stagePackageJsonString}\n`);
 
+  // Staged deps use Bun (same as t3code): pnpm’s `.pnpm` + symlink layout often fails inside
+  // `app.asar` for packages like `fast-check` imported from `effect`’s published files.
+
   yield* Effect.log("[desktop-artifact] Installing staged production dependencies...");
   yield* runCommand(
     ChildProcess.make({
@@ -662,7 +665,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
       ...commandOutputOptions(options.verbose),
       // Windows needs shell mode to resolve .cmd shims (e.g. bun.cmd).
       shell: process.platform === "win32",
-    })`pnpm install --prod`,
+    })`bun install --production --omit optional`,
   );
 
   const buildEnv: NodeJS.ProcessEnv = {
@@ -692,7 +695,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
       ...commandOutputOptions(options.verbose),
       // Windows needs shell mode to resolve .cmd shims.
       shell: process.platform === "win32",
-    })`pnpx electron-builder ${platformConfig.cliFlag} --${options.arch} --publish never`,
+    })`bun x --install=fallback electron-builder ${platformConfig.cliFlag} --${options.arch} --publish never`,
   );
 
   const stageDistDir = path.join(stageAppDir, "dist");
@@ -750,7 +753,7 @@ const buildDesktopArtifactCli = Command.make("build-desktop-artifact", {
   ),
   skipBuild: Flag.boolean("skip-build").pipe(
     Flag.withDescription(
-      "Skip `pnpm run build:desktop` and use existing dist artifacts (env: MULTI_DESKTOP_SKIP_BUILD).",
+      "Skip `bun run build:desktop` and use existing dist artifacts (env: MULTI_DESKTOP_SKIP_BUILD).",
     ),
     Flag.optional,
   ),
