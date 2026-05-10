@@ -18,7 +18,6 @@ import {
   PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
   PROVIDER_SEND_TURN_MAX_IMAGE_BYTES,
 } from "@multi/contracts";
-import { createModelSelection, normalizeModelSlug } from "@multi/shared/model";
 import {
   forwardRef,
   memo,
@@ -49,8 +48,8 @@ import {
   type PersistedComposerImageAttachment,
   useComposerDraftStore,
   useComposerThreadDraft,
-  useEffectiveComposerModelState,
 } from "../../composer-draft-store";
+import { resolveComposerModelSelection } from "../../composer-model-selection";
 import {
   type TerminalContextDraft,
   type TerminalContextSelection,
@@ -107,16 +106,6 @@ import {
 type CentralIconComponent = React.ComponentType<CentralIconBaseProps>;
 import { proposedPlanTitle } from "../../proposed-plan";
 import { getProviderInteractionModeToggle } from "../../provider-models";
-import {
-  deriveProviderInstanceEntriesForSettings,
-  resolveProviderDriverKindForInstanceSelection,
-  sortProviderInstanceEntries,
-  type ProviderInstanceEntry,
-} from "../../provider-instances";
-import {
-  type AppModelOption,
-  getAppModelOptionsForInstance,
-} from "../../model-selection";
 import type { UnifiedSettings } from "@multi/contracts/settings";
 import type { SessionPhase, Thread } from "../../types";
 import type { PendingUserInputDraftAnswer } from "../../pending-user-input";
@@ -596,139 +585,37 @@ export const ChatComposer = memo(
     // ------------------------------------------------------------------
     // Model state
     // ------------------------------------------------------------------
-    // Instance-aware projection of the wire provider list. One entry per
-    // configured instance (default built-in + any custom `providerInstances.*`),
-    // sorted default-first per driver kind for a stable picker order.
-    const providerInstanceEntries = useMemo<ReadonlyArray<ProviderInstanceEntry>>(
+    const composerModelSelection = useMemo(
       () =>
-        sortProviderInstanceEntries(
-          deriveProviderInstanceEntriesForSettings(settings, providerStatuses),
-        ),
-      [providerStatuses, settings],
-    );
-    const selectedProviderByThreadId = composerDraft.activeProvider ?? null;
-    const threadProvider =
-      activeThread?.session?.providerInstanceId ??
-      activeThreadModelSelection?.instanceId ??
-      activeProjectDefaultModelSelection?.instanceId ??
-      null;
-    const explicitSelectedInstanceId = selectedProviderByThreadId ?? threadProvider;
-
-    const resolvedSelectedProvider =
-      resolveProviderDriverKindForInstanceSelection(
-        providerInstanceEntries,
-        providerStatuses,
-        explicitSelectedInstanceId,
-      ) ?? ProviderDriverKind.make("codex");
-    const selectedProvider: ProviderDriverKind = resolvedSelectedProvider;
-
-    // Resolve which configured instance the composer is currently targeting.
-    // Priority:
-    //   1. The composer draft's `activeProvider` — the user's unsaved pick
-    //      from the model picker (must win, otherwise the UI appears to
-    //      ignore picker selections).
-    //   2. Thread's persisted instance id (server-side saved selection).
-    //   3. Project default's instance id.
-    //   4. First enabled entry matching the current driver kind.
-    //   5. First enabled entry overall / default instance for the kind.
-    //
-    const selectedInstanceId = useMemo<ProviderInstanceId>(() => {
-      const candidates: Array<string | null | undefined> = [
-        composerDraft.activeProvider,
+        resolveComposerModelSelection({
+          draft: {
+            activeProvider: composerDraft.activeProvider,
+            modelSelectionByProvider: composerDraft.modelSelectionByProvider,
+          },
+          providers: providerStatuses,
+          settings,
+          sessionProviderInstanceId: activeThread?.session?.providerInstanceId,
+          threadModelSelection: activeThreadModelSelection,
+          projectModelSelection: activeProjectDefaultModelSelection,
+        }),
+      [
+        activeProjectDefaultModelSelection,
         activeThread?.session?.providerInstanceId,
-        activeThreadModelSelection?.instanceId,
-        activeProjectDefaultModelSelection?.instanceId,
-      ];
-      for (const candidate of candidates) {
-        if (!candidate) continue;
-        const match = providerInstanceEntries.find(
-          (entry) => entry.instanceId === candidate && entry.enabled,
-        );
-        if (match) {
-          return match.instanceId;
-        }
-      }
-      if (
-        explicitSelectedInstanceId &&
-        !providerInstanceEntries.some((entry) => entry.instanceId === explicitSelectedInstanceId)
-      ) {
-        return ProviderInstanceId.make(explicitSelectedInstanceId);
-      }
-      const byKind = providerInstanceEntries.find(
-        (entry) => entry.enabled && entry.driverKind === selectedProvider,
-      );
-      if (byKind) return byKind.instanceId;
-      const anyEnabled = providerInstanceEntries.find((entry) => entry.enabled);
-      return (
-        anyEnabled?.instanceId ??
-        providerInstanceEntries[0]?.instanceId ??
-        activeThreadModelSelection?.instanceId ??
-        activeProjectDefaultModelSelection?.instanceId ??
-        ProviderInstanceId.make("codex")
-      );
-    }, [
-      activeProjectDefaultModelSelection?.instanceId,
-      activeThread?.session?.providerInstanceId,
-      activeThreadModelSelection?.instanceId,
-      composerDraft.activeProvider,
-      explicitSelectedInstanceId,
-      providerInstanceEntries,
-      selectedProvider,
-    ]);
-
-    const { modelOptions: composerModelOptions, selectedModel: derivedComposerModel } =
-      useEffectiveComposerModelState({
-        threadRef: composerDraftTarget,
-        providers: providerStatuses,
-        selectedProvider,
-        selectedInstanceId,
-        threadModelSelection: activeThreadModelSelection,
-        projectModelSelection: activeProjectDefaultModelSelection,
+        activeThreadModelSelection,
+        composerDraft.activeProvider,
+        composerDraft.modelSelectionByProvider,
+        providerStatuses,
         settings,
-      });
-
-    // Instance-keyed option list so the picker can show each configured
-    // instance (built-in + custom) as a first-class sidebar entry. The
-    // options are server-reported models plus that exact instance's
-    // configured custom models; selected slugs are not injected into lists.
-    const modelOptionsByInstance = useMemo<
-      ReadonlyMap<ProviderInstanceId, ReadonlyArray<AppModelOption>>
-    >(() => {
-      const out = new Map<ProviderInstanceId, ReadonlyArray<AppModelOption>>();
-      for (const entry of providerInstanceEntries) {
-        out.set(entry.instanceId, getAppModelOptionsForInstance(settings, entry));
-      }
-      return out;
-    }, [providerInstanceEntries, settings]);
-
-    const instanceCoherentSelectedModel = useMemo(() => {
-      const currentOptions = modelOptionsByInstance.get(selectedInstanceId) ?? [];
-      const slugSet = new Set(currentOptions.map((option) => option.slug));
-      if (slugSet.has(derivedComposerModel)) {
-        return derivedComposerModel;
-      }
-      const normalized = normalizeModelSlug(derivedComposerModel, selectedProvider);
-      if (normalized && slugSet.has(normalized)) {
-        return normalized;
-      }
-      return currentOptions[0]?.slug ?? derivedComposerModel;
-    }, [derivedComposerModel, modelOptionsByInstance, selectedInstanceId, selectedProvider]);
-
-    // Resolve the active instance's snapshot by `instanceId` so a custom
-    // instance gets its own slash commands, skills, and model list — not
-    // the first snapshot for the same driver kind.
-    const selectedProviderEntry = useMemo(
-      () => providerInstanceEntries.find((entry) => entry.instanceId === selectedInstanceId),
-      [providerInstanceEntries, selectedInstanceId],
+      ],
     );
-    const selectedProviderStatus = useMemo(
-      () => selectedProviderEntry?.snapshot ?? null,
-      [selectedProviderEntry],
-    );
-    const selectedProviderModels = useMemo<ReadonlyArray<ServerProvider["models"][number]>>(
-      () => selectedProviderEntry?.models ?? [],
-      [selectedProviderEntry],
-    );
+    const providerInstanceEntries = composerModelSelection.providerInstanceEntries;
+    const selectedProvider = composerModelSelection.selectedProvider;
+    const selectedInstanceId = composerModelSelection.selectedInstanceId;
+    const composerModelOptions = composerModelSelection.composerModelOptions;
+    const modelOptionsByInstance = composerModelSelection.modelOptionsByInstance;
+    const instanceCoherentSelectedModel = composerModelSelection.selectedModel;
+    const selectedProviderStatus = composerModelSelection.selectedProviderEntry?.snapshot ?? null;
+    const selectedProviderModels = composerModelSelection.selectedProviderModels;
 
     const composerProviderState = useMemo(
       () =>
@@ -759,15 +646,7 @@ export const ChatComposer = memo(
       }),
       [providerStatuses, selectedProvider],
     );
-    const selectedModelSelection = useMemo<ModelSelection>(
-      () =>
-        createModelSelection(
-          selectedInstanceId,
-          instanceCoherentSelectedModel,
-          selectedModelOptionsForDispatch,
-        ),
-      [selectedInstanceId, instanceCoherentSelectedModel, selectedModelOptionsForDispatch],
-    );
+    const selectedModelSelection = composerModelSelection.modelSelection;
 
     // ------------------------------------------------------------------
     // Context window

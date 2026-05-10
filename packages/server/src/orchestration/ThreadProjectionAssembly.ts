@@ -48,16 +48,17 @@ export function computeSnapshotSequence(
 export function mapLatestTurn(
   row: Schema.Schema.Type<typeof ProjectionLatestTurnDbRowSchema>,
 ): OrchestrationLatestTurn {
+  const state =
+    row.state === "error"
+      ? "error"
+      : row.state === "interrupted"
+        ? "interrupted"
+        : row.state === "completed" || row.completedAt !== null
+          ? "completed"
+          : "running";
   return {
     turnId: row.turnId,
-    state:
-      row.state === "error"
-        ? "error"
-        : row.state === "interrupted"
-          ? "interrupted"
-          : row.state === "completed"
-            ? "completed"
-            : "running",
+    state,
     requestedAt: row.requestedAt,
     startedAt: row.startedAt,
     completedAt: row.completedAt,

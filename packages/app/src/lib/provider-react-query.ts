@@ -56,13 +56,57 @@ function asCheckpointErrorMessage(error: unknown): string {
   return "";
 }
 
-function normalizeCheckpointErrorMessage(error: unknown): string {
+function readObjectField(input: unknown, field: string): unknown {
+  if (typeof input !== "object" || input === null) {
+    return undefined;
+  }
+  return (input as Record<string, unknown>)[field];
+}
+
+function collectCheckpointErrorMessages(error: unknown, messages: string[] = []): string[] {
   const message = asCheckpointErrorMessage(error).trim();
+  if (message.length > 0) {
+    messages.push(message);
+  }
+
+  const detail = readObjectField(error, "detail");
+  if (typeof detail === "string" && detail.trim().length > 0) {
+    messages.push(detail.trim());
+  }
+
+  const cause = error instanceof Error ? error.cause : readObjectField(error, "cause");
+  if (cause !== undefined && cause !== error) {
+    collectCheckpointErrorMessages(cause, messages);
+  }
+
+  return messages;
+}
+
+function isGenericCheckpointWrapperMessage(message: string): boolean {
+  const normalized = message.trim().toLowerCase();
+  return (
+    normalized === "failed to load full thread diff" || normalized === "failed to load turn diff"
+  );
+}
+
+function isDiffOutputTooLargeMessage(message: string): boolean {
+  const normalized = message.trim().toLowerCase();
+  return normalized.includes("git diff") && normalized.includes("output exceeded");
+}
+
+function normalizeCheckpointErrorMessage(error: unknown): string {
+  const messages = collectCheckpointErrorMessages(error);
+  const message =
+    messages.find((candidate) => !isGenericCheckpointWrapperMessage(candidate)) ?? messages[0] ?? "";
   if (message.length === 0) {
     return "Failed to load checkpoint diff.";
   }
 
   const lower = message.toLowerCase();
+  if (isDiffOutputTooLargeMessage(message)) {
+    return "This checkpoint diff is too large to render. Select a single turn to review a smaller patch.";
+  }
+
   if (lower.includes("not a git repository")) {
     return "Turn diffs are unavailable because this project is not a git repository.";
   }

@@ -44,9 +44,22 @@ function normalizeSearchString(value: unknown): string | undefined {
 
 export function stripDiffSearchParams<T extends Record<string, unknown>>(
   params: T,
-): Omit<T, "diff" | "diffTurnId" | "diffFilePath"> {
+): Omit<T, "diff" | "diffTurnId" | "diffFilePath"> & {
+  diff?: undefined;
+  diffTurnId?: undefined;
+  diffFilePath?: undefined;
+} {
   const { diff: _diff, diffTurnId: _diffTurnId, diffFilePath: _diffFilePath, ...rest } = params;
-  return rest as Omit<T, "diff" | "diffTurnId" | "diffFilePath">;
+  return {
+    ...rest,
+    diff: undefined,
+    diffTurnId: undefined,
+    diffFilePath: undefined,
+  } as Omit<T, "diff" | "diffTurnId" | "diffFilePath"> & {
+    diff?: undefined;
+    diffTurnId?: undefined;
+    diffFilePath?: undefined;
+  };
 }
 
 export function parseDiffRouteSearch(search: Record<string, unknown>): DiffRouteSearch {

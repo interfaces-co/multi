@@ -10,8 +10,18 @@ import {
   IconStop,
 } from "central-icons";
 import { Virtualizer } from "@pierre/diffs/react";
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Suspense,
+  lazy,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import { Button } from "@multi/ui/button";
 import {
@@ -36,12 +46,17 @@ import {
   type GitAgentAction,
 } from "~/lib/git-agent-actions";
 import { useGitViewed } from "~/hooks/use-git-viewed-state";
+import { parseDiffRouteSearch, stripDiffSearchParams } from "~/diff-route-search";
+import { DiffWorkerPoolProvider } from "~/components/diff-worker-pool-provider";
+import { DiffPanelLoadingState } from "~/components/diff-panel-shell";
 import { shellPanelsActions, useSecondaryRail } from "~/lib/shell-panels-store";
 import { GitChangesFileTree } from "./git-changes-file-tree";
 import { GitDiffCard } from "./git-diff-card";
 import { WorkbenchChromeRow } from "../shell/workbench-chrome-row";
 import { WorkbenchIconButton, WorkbenchTextButton } from "../shell/workbench-icon-button";
 import { RightWorkbenchLayout } from "../shell/right-workbench-layout";
+
+const ReviewDiffPanel = lazy(() => import("~/components/diff-panel"));
 
 export function GitPanel(props: {
   git: GitPanelModel;
@@ -51,6 +66,8 @@ export function GitPanel(props: {
   pendingAgentAction: GitAgentAction | null;
 }) {
   const git = props.git;
+  const reviewingTurnDiff =
+    useSearch({ strict: false, select: (search) => parseDiffRouteSearch(search).diff }) === "1";
 
   if (!isElectron) {
     return (
@@ -61,6 +78,10 @@ export function GitPanel(props: {
         </p>
       </div>
     );
+  }
+
+  if (reviewingTurnDiff && git.view.kind !== "changed") {
+    return <GitReviewOnlyPanel />;
   }
 
   switch (git.view.kind) {
@@ -119,6 +140,7 @@ export function GitPanel(props: {
       return (
         <GitPanelInner
           git={git}
+          reviewingTurnDiff={reviewingTurnDiff}
           onAgentAction={props.onAgentAction}
           onStopAgentAction={props.onStopAgentAction}
           stoppingAgentAction={props.stoppingAgentAction}
@@ -130,6 +152,7 @@ export function GitPanel(props: {
 
 function GitPanelInner(props: {
   git: GitPanelModel;
+  reviewingTurnDiff: boolean;
   onAgentAction: (action: GitAgentAction) => void;
   onStopAgentAction: (() => void) | null;
   stoppingAgentAction: boolean;
@@ -138,6 +161,7 @@ function GitPanelInner(props: {
   const git = props.git;
   const files = git.rows;
   const viewed = useGitViewed(git.cwd);
+  const navigate = useNavigate();
   const { open: gitRailOpen } = useSecondaryRail(git.cwd, "git");
   const [diffStyle, setDiffStyle] = useDiffStylePreference();
   const [pending, setPending] = useState<DiffRow | null>(null);
@@ -224,6 +248,13 @@ function GitPanelInner(props: {
   const handleSelectFile = useCallback((file: DiffRow) => {
     setSelectedId(file.id);
   }, []);
+  const closeReview = useCallback(() => {
+    void navigate({
+      to: ".",
+      replace: true,
+      search: (previous) => stripDiffSearchParams(previous),
+    });
+  }, [navigate]);
 
   return (
     <>
@@ -254,6 +285,7 @@ function GitPanelInner(props: {
           onDiscardAll={() => setDiscardAllPending(true)}
           onRefresh={() => void git.refresh()}
         />
+        {props.reviewingTurnDiff ? <ReviewModeHeader onClose={closeReview} /> : null}
         <RightWorkbenchLayout
           cwd={git.cwd}
           tab="git"
@@ -271,7 +303,9 @@ function GitPanelInner(props: {
             ref={deckRootRef}
             className="editor-panel-inner flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-(--glass-editor-surface-background)"
           >
-            {files.length === 0 ? (
+            {props.reviewingTurnDiff ? (
+              <GitReviewDiffSurface />
+            ) : files.length === 0 ? (
               <div className="flex flex-1 items-center justify-center text-detail text-muted-foreground/60">
                 No files to compare.
               </div>
@@ -321,6 +355,55 @@ function GitPanelInner(props: {
         onOpenChange={setDiscardAllPending}
       />
     </>
+  );
+}
+
+function GitReviewOnlyPanel() {
+  const navigate = useNavigate();
+  const closeReview = useCallback(() => {
+    void navigate({
+      to: ".",
+      replace: true,
+      search: (previous) => stripDiffSearchParams(previous),
+    });
+  }, [navigate]);
+
+  return (
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      <ReviewModeHeader onClose={closeReview} />
+      <GitReviewDiffSurface />
+    </div>
+  );
+}
+
+function ReviewModeHeader(props: { onClose: () => void }) {
+  return (
+    <WorkbenchChromeRow
+      variant="panel"
+      gap="loose"
+      trailing={
+        <WorkbenchTextButton onClick={props.onClose} className="max-w-[6rem]" title="Close Review">
+          Close
+        </WorkbenchTextButton>
+      }
+    >
+      <span className="no-drag shrink-0 text-detail font-medium text-multi-fg-secondary">
+        Review
+      </span>
+      <span className="min-w-0 truncate text-[11px]/[14px] text-multi-fg-primary">
+        Turn checkpoint diff
+      </span>
+    </WorkbenchChromeRow>
+  );
+}
+
+function GitReviewDiffSurface() {
+  return (
+    <DiffWorkerPoolProvider>
+      <Suspense fallback={<DiffPanelLoadingState label="Loading checkpoint diff..." />}>
+        <ReviewDiffPanel mode="sheet" />
+      </Suspense>
+    </DiffWorkerPoolProvider>
   );
 }
 

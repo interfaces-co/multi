@@ -194,6 +194,15 @@ function RightAside(props: {
     if (!isElectronHost()) {
       return;
     }
+    if (search.diff === "1") {
+      if (activeTab !== "git") {
+        shellPanelsActions.setActiveTab("git");
+      }
+      if (muted) {
+        shellPanelsActions.setMuted(false);
+      }
+      return;
+    }
     const w = search.workbench;
     if (w === undefined) {
       return;
@@ -201,7 +210,7 @@ function RightAside(props: {
     if (w !== activeTab) {
       shellPanelsActions.setActiveTab(w);
     }
-  }, [search.workbench, activeTab]);
+  }, [search.diff, search.workbench, activeTab, muted]);
 
   const handleWorkbenchTabChange = useCallback(
     (value: unknown) => {

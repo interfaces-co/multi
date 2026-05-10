@@ -1,4 +1,9 @@
-import type { OrchestrationEvent, OrchestrationReadModel, ThreadId } from "@multi/contracts";
+import type {
+  OrchestrationEvent,
+  OrchestrationLatestTurn,
+  OrchestrationReadModel,
+  ThreadId,
+} from "@multi/contracts";
 import {
   OrchestrationCheckpointSummary,
   OrchestrationMessage,
@@ -33,6 +38,25 @@ import {
 
 type ThreadPatch = Partial<Omit<OrchestrationThread, "id" | "projectId">>;
 const MAX_THREAD_MESSAGES = 2_000;
+
+function settledLatestTurnForRunningSession(
+  latestTurn: OrchestrationLatestTurn,
+): OrchestrationLatestTurn | null {
+  if (
+    latestTurn.state === "completed" ||
+    latestTurn.state === "interrupted" ||
+    latestTurn.state === "error"
+  ) {
+    return latestTurn;
+  }
+  if (latestTurn.completedAt !== null) {
+    return {
+      ...latestTurn,
+      state: "completed",
+    };
+  }
+  return null;
+}
 const MAX_THREAD_CHECKPOINTS = 500;
 
 function checkpointStatusToLatestTurnState(status: "ready" | "missing" | "error") {
@@ -360,6 +384,10 @@ export function projectEvent(
           event.type,
           "session",
         );
+        const settledLatestTurn =
+          session.activeTurnId !== null && thread.latestTurn?.turnId === session.activeTurnId
+            ? settledLatestTurnForRunningSession(thread.latestTurn)
+            : null;
 
         return {
           ...nextBase,
@@ -367,7 +395,7 @@ export function projectEvent(
             session,
             latestTurn:
               session.status === "running" && session.activeTurnId !== null
-                ? {
+                ? (settledLatestTurn ?? {
                     turnId: session.activeTurnId,
                     state: "running",
                     requestedAt:
@@ -383,7 +411,7 @@ export function projectEvent(
                       thread.latestTurn?.turnId === session.activeTurnId
                         ? thread.latestTurn.assistantMessageId
                         : null,
-                  }
+                  })
                 : thread.latestTurn,
             updatedAt: event.occurredAt,
           }),

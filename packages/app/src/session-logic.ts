@@ -773,13 +773,27 @@ function shouldCollapseToolLifecycleEntries(
   if (isSubagentLifecycleEntry(previous) || isSubagentLifecycleEntry(next)) {
     return false;
   }
-  if (previous.activityKind !== "tool.updated" && previous.activityKind !== "tool.completed") {
+  if (
+    previous.activityKind !== "tool.started" &&
+    previous.activityKind !== "tool.updated" &&
+    previous.activityKind !== "tool.completed"
+  ) {
     return false;
   }
-  if (next.activityKind !== "tool.updated" && next.activityKind !== "tool.completed") {
+  if (
+    next.activityKind !== "tool.started" &&
+    next.activityKind !== "tool.updated" &&
+    next.activityKind !== "tool.completed"
+  ) {
     return false;
   }
   if (previous.activityKind === "tool.completed") {
+    return false;
+  }
+  if (next.activityKind === "tool.started") {
+    return false;
+  }
+  if (previous.activityKind === "tool.started" && !previous.toolCallId) {
     return false;
   }
   return previous.collapseKey !== undefined && previous.collapseKey === next.collapseKey;

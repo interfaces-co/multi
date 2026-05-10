@@ -3,7 +3,7 @@ import { FileDiff, type FileDiffMetadata, Virtualizer } from "@pierre/diffs/reac
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { scopeThreadRef } from "@multi/client-runtime";
-import type { TurnId } from "@multi/contracts";
+import { TurnId, type TurnId as TurnIdType } from "@multi/contracts";
 import {
   IconBrowserTabs,
   IconChevronLeft,
@@ -37,9 +37,11 @@ import { useSettings } from "../hooks/use-settings";
 import { formatShortTimestamp } from "../timestamp-format";
 import { DiffPanelLoadingState, DiffPanelShell, type DiffPanelMode } from "./diff-panel-shell";
 import { ToggleGroup, Toggle } from "@multi/ui/toggle-group";
+import { TabsList, TabsRoot, TabsTab } from "@multi/ui/tabs";
 
 type DiffRenderMode = "stacked" | "split";
 type DiffThemeType = "light" | "dark";
+const ALL_TURNS_TAB_VALUE = "all";
 
 const DIFF_PANEL_UNSAFE_CSS = `
 [data-diffs-header] {
@@ -304,7 +306,7 @@ export default function DiffPanel({ mode = "inline" }: DiffPanelProps) {
     [activeCwd],
   );
 
-  const selectTurn = (turnId: TurnId) => {
+  const selectTurn = useCallback((turnId: TurnIdType) => {
     if (!activeThread) return;
     void navigate({
       to: "/$environmentId/$threadId",
@@ -314,8 +316,8 @@ export default function DiffPanel({ mode = "inline" }: DiffPanelProps) {
         return { ...rest, diff: "1", diffTurnId: turnId };
       },
     });
-  };
-  const selectWholeConversation = () => {
+  }, [activeThread, navigate]);
+  const selectWholeConversation = useCallback(() => {
     if (!activeThread) return;
     void navigate({
       to: "/$environmentId/$threadId",
@@ -325,7 +327,30 @@ export default function DiffPanel({ mode = "inline" }: DiffPanelProps) {
         return { ...rest, diff: "1" };
       },
     });
-  };
+  }, [activeThread, navigate]);
+  const selectedTurnTabValue =
+    selectedTurnId === null ? ALL_TURNS_TAB_VALUE : String(selectedTurnId);
+  const retryActiveDiffQuery = useCallback(() => {
+    void activeCheckpointDiffQuery.refetch();
+  }, [activeCheckpointDiffQuery]);
+  const selectTurnTab = useCallback(
+    (nextValue: string) => {
+      if (nextValue === ALL_TURNS_TAB_VALUE) {
+        selectWholeConversation();
+        return;
+      }
+      selectTurn(TurnId.make(nextValue));
+    },
+    [selectTurn, selectWholeConversation],
+  );
+  const onTurnTabClick = useCallback(
+    (tabValue: string) => {
+      if (tabValue === selectedTurnTabValue) {
+        retryActiveDiffQuery();
+      }
+    },
+    [retryActiveDiffQuery, selectedTurnTabValue],
+  );
   const updateTurnStripScrollState = useCallback(() => {
     const element = turnStripRef.current;
     if (!element) {
@@ -383,8 +408,8 @@ export default function DiffPanel({ mode = "inline" }: DiffPanelProps) {
     const element = turnStripRef.current;
     if (!element) return;
 
-    const selectedChip = element.querySelector<HTMLElement>("[data-turn-chip-selected='true']");
-    selectedChip?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+    const selectedTab = element.querySelector<HTMLElement>("[role='tab'][aria-selected='true']");
+    selectedTab?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
   }, [selectedTurn?.turnId, selectedTurnId]);
 
   const headerRow = (
@@ -418,67 +443,70 @@ export default function DiffPanel({ mode = "inline" }: DiffPanelProps) {
         >
           <IconChevronRight className="size-3.5" />
         </button>
-        <div
-          ref={turnStripRef}
-          className="turn-chip-strip flex gap-1 overflow-x-auto px-8 py-0.5"
-          style={
-            canScrollTurnStripLeft || canScrollTurnStripRight
-              ? {
-                  maskImage: `linear-gradient(to right, ${canScrollTurnStripLeft ? "transparent 24px, black 72px" : "black"}, ${canScrollTurnStripRight ? "black calc(100% - 72px), transparent calc(100% - 24px)" : "black"})`,
-                }
-              : undefined
-          }
-          onWheel={onTurnStripWheel}
+        <TabsRoot
+          value={selectedTurnTabValue}
+          onValueChange={(value) => selectTurnTab(String(value))}
+          className="min-w-0"
         >
-          <button
-            type="button"
-            className="shrink-0 rounded-md"
-            onClick={selectWholeConversation}
-            data-turn-chip-selected={selectedTurnId === null}
+          <TabsList
+            ref={turnStripRef}
+            className="turn-chip-strip flex gap-1 overflow-x-auto px-8 py-0.5"
+            style={
+              canScrollTurnStripLeft || canScrollTurnStripRight
+                ? {
+                    maskImage: `linear-gradient(to right, ${canScrollTurnStripLeft ? "transparent 24px, black 72px" : "black"}, ${canScrollTurnStripRight ? "black calc(100% - 72px), transparent calc(100% - 24px)" : "black"})`,
+                  }
+                : undefined
+            }
+            onWheel={onTurnStripWheel}
           >
-            <div
-              className={cn(
-                "rounded-md border px-2 py-1 text-left transition-colors",
-                selectedTurnId === null
-                  ? "border-border bg-accent text-accent-foreground"
-                  : "border-border/70 bg-background/70 text-muted-foreground/80 hover:border-border hover:text-foreground/80",
-              )}
-            >
-              <div className="text-[10px] leading-tight font-medium">All turns</div>
-            </div>
-          </button>
-          {orderedTurnDiffSummaries.map((summary) => (
-            <button
-              key={summary.turnId}
-              type="button"
-              className="shrink-0 rounded-md"
-              onClick={() => selectTurn(summary.turnId)}
-              title={summary.turnId}
-              data-turn-chip-selected={summary.turnId === selectedTurn?.turnId}
-            >
-              <div
-                className={cn(
-                  "rounded-md border px-2 py-1 text-left transition-colors",
-                  summary.turnId === selectedTurn?.turnId
+            <TabsTab
+              value={ALL_TURNS_TAB_VALUE}
+              className={(state) =>
+                cn(
+                  "shrink-0 rounded-md border px-2 py-1 text-left transition-colors",
+                  state.active
                     ? "border-border bg-accent text-accent-foreground"
                     : "border-border/70 bg-background/70 text-muted-foreground/80 hover:border-border hover:text-foreground/80",
-                )}
-              >
-                <div className="flex items-center gap-1">
-                  <span className="text-[10px] leading-tight font-medium">
-                    Turn{" "}
-                    {summary.checkpointTurnCount ??
-                      inferredCheckpointTurnCountByTurnId[summary.turnId] ??
-                      "?"}
-                  </span>
-                  <span className="text-[9px] leading-tight opacity-70">
-                    {formatShortTimestamp(summary.completedAt, settings.timestampFormat)}
-                  </span>
-                </div>
-              </div>
-            </button>
-          ))}
-        </div>
+                )
+              }
+              onClick={() => onTurnTabClick(ALL_TURNS_TAB_VALUE)}
+            >
+              <div className="text-[10px] leading-tight font-medium">All turns</div>
+            </TabsTab>
+            {orderedTurnDiffSummaries.map((summary) => {
+              const tabValue = String(summary.turnId);
+              return (
+                <TabsTab
+                  key={summary.turnId}
+                  value={tabValue}
+                  className={(state) =>
+                    cn(
+                      "shrink-0 rounded-md border px-2 py-1 text-left transition-colors",
+                      state.active
+                        ? "border-border bg-accent text-accent-foreground"
+                        : "border-border/70 bg-background/70 text-muted-foreground/80 hover:border-border hover:text-foreground/80",
+                    )
+                  }
+                  onClick={() => onTurnTabClick(tabValue)}
+                  title={summary.turnId}
+                >
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] leading-tight font-medium">
+                      Turn{" "}
+                      {summary.checkpointTurnCount ??
+                        inferredCheckpointTurnCountByTurnId[summary.turnId] ??
+                        "?"}
+                    </span>
+                    <span className="text-[9px] leading-tight opacity-70">
+                      {formatShortTimestamp(summary.completedAt, settings.timestampFormat)}
+                    </span>
+                  </div>
+                </TabsTab>
+              );
+            })}
+          </TabsList>
+        </TabsRoot>
       </div>
       <div className="flex shrink-0 items-center gap-1 [-webkit-app-region:no-drag]">
         <ToggleGroup
@@ -536,14 +564,13 @@ export default function DiffPanel({ mode = "inline" }: DiffPanelProps) {
             ref={patchViewportRef}
             className="diff-panel-viewport min-h-0 min-w-0 flex-1 overflow-hidden"
           >
-            {checkpointDiffError && !renderablePatch && (
-              <div className="px-3">
-                <p className="mb-2 text-[11px] text-red-500/80">{checkpointDiffError}</p>
-              </div>
-            )}
             {!renderablePatch ? (
               isLoadingCheckpointDiff ? (
                 <DiffPanelLoadingState label="Loading checkpoint diff..." />
+              ) : checkpointDiffError ? (
+                <div className="flex h-full items-center justify-center px-3 py-2 text-center text-xs text-red-500/80">
+                  <p>{checkpointDiffError}</p>
+                </div>
               ) : (
                 <div className="flex h-full items-center justify-center px-3 py-2 text-xs text-muted-foreground/70">
                   <p>

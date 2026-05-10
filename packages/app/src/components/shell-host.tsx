@@ -7,14 +7,8 @@ import {
 import {
   type EditorId,
   type EnvironmentId,
-  type ModelSelection,
-  ProviderDriverKind,
-  ProviderInstanceId,
-  type ServerProvider,
   type ThreadId,
 } from "@multi/contracts";
-import type { UnifiedSettings } from "@multi/contracts/settings";
-import { createModelSelection, normalizeModelSlug } from "@multi/shared/model";
 import { useMutation } from "@tanstack/react-query";
 import { Outlet, useNavigate, useParams, useRouter } from "@tanstack/react-router";
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
@@ -28,8 +22,8 @@ import { useEnvironmentGitPanel } from "~/hooks/use-environment-git";
 import { useHandleNewThread } from "~/hooks/use-handle-new-thread";
 import { useRouteThreadId } from "~/hooks/use-route-thread-id";
 import { getServerConfig, useServerAvailableEditors } from "~/rpc/server-state";
-import { deriveEffectiveComposerModelState, useComposerDraftStore } from "~/composer-draft-store";
-import { getComposerProviderState } from "~/components/chat/composer-provider-registry";
+import { useComposerDraftStore } from "~/composer-draft-store";
+import { resolveComposerModelSelection } from "~/composer-model-selection";
 import { readEnvironmentApi } from "~/environment-api";
 import {
   startNewThreadFromContext,
@@ -44,11 +38,6 @@ import {
   type GitAgentInterruptTarget,
   type GitAgentRun,
 } from "~/lib/git-agent-actions";
-import { getAppModelOptionsForInstance } from "~/model-selection";
-import {
-  deriveProviderInstanceEntriesForSettings,
-  sortProviderInstanceEntries,
-} from "~/provider-instances";
 import {
   shellPanelsActions,
   useSecondaryRail,
@@ -125,104 +114,6 @@ function hasGitAgentStartFailure(thread: Thread, action: GitAgentAction): boolea
     (activity) =>
       activity.kind === "provider.turn.start.failed" &&
       activity.createdAt >= latestUserMessage.createdAt,
-  );
-}
-
-type ComposerModelDraft = Readonly<{
-  activeProvider: ProviderInstanceId | null;
-  modelSelectionByProvider: Partial<Record<ProviderInstanceId, ModelSelection>>;
-}>;
-
-function resolveGitAgentModelSelection(input: {
-  draft: ComposerModelDraft | null | undefined;
-  providers: ReadonlyArray<ServerProvider>;
-  settings: UnifiedSettings;
-  sessionProviderInstanceId: ProviderInstanceId | null | undefined;
-  threadModelSelection: ModelSelection | null | undefined;
-  projectModelSelection: ModelSelection | null | undefined;
-}): ModelSelection | undefined {
-  const providerInstanceEntries = sortProviderInstanceEntries(
-    deriveProviderInstanceEntriesForSettings(input.settings, input.providers),
-  );
-  const candidateInstanceIds: Array<ProviderInstanceId | null | undefined> = [
-    input.draft?.activeProvider,
-    input.sessionProviderInstanceId,
-    input.threadModelSelection?.instanceId,
-    input.projectModelSelection?.instanceId,
-  ];
-  const explicitInstanceId = candidateInstanceIds.find((instanceId) => Boolean(instanceId)) ?? null;
-  const explicitProvider =
-    providerInstanceEntries.find((entry) => entry.instanceId === explicitInstanceId)?.driverKind ??
-    ProviderDriverKind.make("codex");
-
-  let selectedInstanceId: ProviderInstanceId | undefined;
-  for (const candidate of candidateInstanceIds) {
-    if (!candidate) {
-      continue;
-    }
-    const match = providerInstanceEntries.find(
-      (entry) => entry.instanceId === candidate && entry.enabled,
-    );
-    if (match) {
-      selectedInstanceId = match.instanceId;
-      break;
-    }
-  }
-  if (
-    selectedInstanceId === undefined &&
-    explicitInstanceId !== null &&
-    !providerInstanceEntries.some((entry) => entry.instanceId === explicitInstanceId)
-  ) {
-    selectedInstanceId = explicitInstanceId;
-  }
-  selectedInstanceId ??= providerInstanceEntries.find(
-    (entry) => entry.enabled && entry.driverKind === explicitProvider,
-  )?.instanceId;
-  selectedInstanceId ??= providerInstanceEntries.find((entry) => entry.enabled)?.instanceId;
-  selectedInstanceId ??=
-    input.threadModelSelection?.instanceId ??
-    input.projectModelSelection?.instanceId ??
-    ProviderInstanceId.make("codex");
-
-  const selectedEntry = providerInstanceEntries.find(
-    (entry) => entry.instanceId === selectedInstanceId,
-  );
-  const selectedProvider = selectedEntry?.driverKind ?? explicitProvider;
-  const effectiveModelState = deriveEffectiveComposerModelState({
-    draft: input.draft,
-    providers: input.providers,
-    selectedProvider,
-    selectedInstanceId,
-    threadModelSelection: input.threadModelSelection,
-    projectModelSelection: input.projectModelSelection,
-    settings: input.settings,
-  });
-  const instanceModelOptions = selectedEntry
-    ? getAppModelOptionsForInstance(input.settings, selectedEntry)
-    : [];
-  const instanceModelSlugs = new Set(instanceModelOptions.map((option) => option.slug));
-  const normalizedModel = normalizeModelSlug(effectiveModelState.selectedModel, selectedProvider);
-  const selectedModel = instanceModelSlugs.has(effectiveModelState.selectedModel)
-    ? effectiveModelState.selectedModel
-    : normalizedModel && instanceModelSlugs.has(normalizedModel)
-      ? normalizedModel
-      : (instanceModelOptions[0]?.slug ?? effectiveModelState.selectedModel);
-  if (!selectedModel) {
-    return input.threadModelSelection ?? input.projectModelSelection ?? undefined;
-  }
-
-  const providerState = getComposerProviderState({
-    provider: selectedProvider,
-    model: selectedModel,
-    models: selectedEntry?.models ?? [],
-    prompt: "",
-    modelOptions: effectiveModelState.modelOptions?.[selectedProvider],
-  });
-
-  return createModelSelection(
-    selectedInstanceId,
-    selectedModel,
-    providerState.modelOptionsForDispatch,
   );
 }
 
@@ -695,17 +586,14 @@ function ChatShellHost(props: { children?: ReactNode }) {
           ? useComposerDraftStore.getState().draftsByThreadKey[composerDraftKey]
           : undefined;
       const serverConfig = getServerConfig();
-      const modelSelection = resolveGitAgentModelSelection({
+      const modelSelection = resolveComposerModelSelection({
         draft: composerDraft,
         providers: serverConfig?.providers ?? [],
         settings,
         sessionProviderInstanceId: currentServerThread?.session?.providerInstanceId,
         threadModelSelection: currentServerThread?.modelSelection,
         projectModelSelection: project.defaultModelSelection,
-      });
-      if (!modelSelection) {
-        throw new Error("Choose a model before running this Git action.");
-      }
+      }).modelSelection;
 
       const createdAt = new Date().toISOString();
       const actionDetails = GIT_AGENT_ACTIONS[action];

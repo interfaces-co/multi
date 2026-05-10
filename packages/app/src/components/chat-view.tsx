@@ -123,6 +123,7 @@ import {
   type TerminalContextSelection,
 } from "../lib/terminal-context";
 import { selectThreadTerminalState, useTerminalStateStore } from "../terminal-state-store";
+import { shellPanelsActions } from "~/lib/shell-panels-store";
 import {
   ChatComposer,
   type ChatComposerHandle,
@@ -412,7 +413,6 @@ type ChatViewProps =
   | {
       environmentId: EnvironmentId;
       threadId: ThreadId;
-      onDiffPanelOpen?: () => void;
       reserveTitleBarControlInset?: boolean;
       routeKind: "server";
       draftId?: never;
@@ -420,7 +420,6 @@ type ChatViewProps =
   | {
       environmentId: EnvironmentId;
       threadId: ThreadId;
-      onDiffPanelOpen?: () => void;
       reserveTitleBarControlInset?: boolean;
       routeKind: "draft";
       draftId: ComposerDraftId;
@@ -929,13 +928,7 @@ const InlineMessageEditComposer = memo(function InlineMessageEditComposer({
 });
 
 export default function ChatView(props: ChatViewProps) {
-  const {
-    environmentId,
-    threadId,
-    routeKind,
-    onDiffPanelOpen,
-    reserveTitleBarControlInset = true,
-  } = props;
+  const { environmentId, threadId, routeKind, reserveTitleBarControlInset = true } = props;
   const draftId = routeKind === "draft" ? props.draftId : null;
   const routeThreadRef = useMemo(
     () => scopeThreadRef(environmentId, threadId),
@@ -1814,12 +1807,19 @@ export default function ChatView(props: ChatViewProps) {
     () => shortcutLabelForCommand(keybindings, "diff.toggle", nonTerminalShortcutLabelOptions),
     [keybindings, nonTerminalShortcutLabelOptions],
   );
+  const openGitWorkbench = useCallback(() => {
+    if (!isElectron) {
+      return;
+    }
+    shellPanelsActions.setActiveTab("git");
+    shellPanelsActions.setMuted(false);
+  }, []);
   const onToggleDiff = useCallback(() => {
     if (!isServerThread) {
       return;
     }
     if (!diffOpen) {
-      onDiffPanelOpen?.();
+      openGitWorkbench();
     }
     void navigate({
       to: "/$environmentId/$threadId",
@@ -1830,10 +1830,10 @@ export default function ChatView(props: ChatViewProps) {
       replace: true,
       search: (previous) => {
         const rest = stripDiffSearchParams(previous);
-        return diffOpen ? { ...rest, diff: undefined } : { ...rest, diff: "1" };
+        return diffOpen ? { ...rest, diff: undefined } : { ...rest, diff: "1", workbench: "git" };
       },
     });
-  }, [diffOpen, environmentId, isServerThread, navigate, onDiffPanelOpen, threadId]);
+  }, [diffOpen, environmentId, isServerThread, navigate, openGitWorkbench, threadId]);
 
   const envLocked = Boolean(
     activeThread &&
@@ -3762,7 +3762,7 @@ export default function ChatView(props: ChatViewProps) {
       if (!isServerThread) {
         return;
       }
-      onDiffPanelOpen?.();
+      openGitWorkbench();
       void navigate({
         to: "/$environmentId/$threadId",
         params: {
@@ -3772,12 +3772,12 @@ export default function ChatView(props: ChatViewProps) {
         search: (previous) => {
           const rest = stripDiffSearchParams(previous);
           return filePath
-            ? { ...rest, diff: "1", diffTurnId: turnId, diffFilePath: filePath }
-            : { ...rest, diff: "1", diffTurnId: turnId };
+            ? { ...rest, diff: "1", diffTurnId: turnId, diffFilePath: filePath, workbench: "git" }
+            : { ...rest, diff: "1", diffTurnId: turnId, workbench: "git" };
         },
       });
     },
-    [environmentId, isServerThread, navigate, onDiffPanelOpen, threadId],
+    [environmentId, isServerThread, navigate, openGitWorkbench, threadId],
   );
 
   const isHeroComposer = activeThread
