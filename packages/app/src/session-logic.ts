@@ -693,7 +693,8 @@ export function deriveWorkLogEntries(
     .filter((activity) => activity.summary !== "Checkpoint captured")
     .filter((activity) => !isPlanBoundaryToolActivity(activity))
     .map(toDerivedWorkLogEntry);
-  return collapseDerivedWorkLogEntries(entries).map((entry) => {
+  const workLogEntries: WorkLogEntry[] = [];
+  for (const entry of collapseDerivedWorkLogEntries(entries)) {
     const shouldSettle =
       options.activeRunningTurnId !== undefined &&
       entry.status === "running" &&
@@ -729,8 +730,9 @@ export function deriveWorkLogEntries(
         }
       : entry;
     const { activityKind: _activityKind, turnId: _turnId, ...workEntry } = settledEntry;
-    return workEntry;
-  });
+    workLogEntries.push(workEntry);
+  }
+  return workLogEntries;
 }
 
 function isPlanBoundaryToolActivity(activity: OrchestrationThreadActivity): boolean {

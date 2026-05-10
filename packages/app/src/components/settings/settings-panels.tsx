@@ -74,7 +74,6 @@ import { Switch } from "@multi/ui/switch";
 import { Text } from "@multi/ui/text";
 import { toastManager } from "~/app/toast";
 import {
-  deriveProviderInstanceEntries,
   deriveProviderInstanceEntriesForSettings,
   sortProviderInstanceEntries,
 } from "../../provider-instances";

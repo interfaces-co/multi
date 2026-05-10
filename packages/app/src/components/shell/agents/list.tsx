@@ -168,9 +168,10 @@ function Section(props: {
     }
   }, [onPrefetchAgent, open, section.items, visible]);
 
+  const { onVisibleThreadRefsChange } = props;
   useEffect(() => {
-    props.onVisibleThreadRefsChange(section.id, visibleThreadRefs);
-  }, [props.onVisibleThreadRefsChange, section.id, visibleThreadRefs]);
+    onVisibleThreadRefsChange(section.id, visibleThreadRefs);
+  }, [onVisibleThreadRefsChange, section.id, visibleThreadRefs]);
 
   return (
     <section

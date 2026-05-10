@@ -3357,7 +3357,7 @@ export default function ChatView(props: ChatViewProps) {
     });
   };
 
-  const onInterrupt = async () => {
+  const onInterrupt = useCallback(async () => {
     const api = readEnvironmentApi(environmentId);
     if (!api || !activeThread) return;
     const activeTurnId =
@@ -3369,7 +3369,7 @@ export default function ChatView(props: ChatViewProps) {
       ...(activeTurnId !== undefined ? { turnId: activeTurnId } : {}),
       createdAt: new Date().toISOString(),
     });
-  };
+  }, [activeThread, environmentId]);
 
   const loadQueuedComposerItemIntoComposer = (item: QueuedComposerItem) => {
     const imagesForEdit = item.sendContext.images.map(cloneComposerImageForRetry);
@@ -3900,6 +3900,7 @@ export default function ChatView(props: ChatViewProps) {
       setStickyComposerModelSelection,
       providerStatuses,
       settings,
+      activeThread,
     ],
   );
   const onExpandTimelineImage = useCallback((preview: ExpandedImagePreview) => {

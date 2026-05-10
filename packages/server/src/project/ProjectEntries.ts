@@ -90,14 +90,6 @@ function toSearchableProjectEntry(entry: ProjectEntry): SearchableProjectEntry {
   };
 }
 
-function toProjectEntry(entry: SearchableProjectEntry): ProjectEntry {
-  return {
-    path: entry.path,
-    kind: entry.kind,
-    ...(entry.parentPath ? { parentPath: entry.parentPath } : {}),
-  };
-}
-
 function normalizeRelativeDirectoryPath(input: string): string {
   const normalized = toPosixPath(input.trim()).replace(/\/+$/g, "");
   return normalized === "." ? "" : normalized;
@@ -604,15 +596,19 @@ export const makeProjectEntries = Effect.gen(function* () {
 
     const entries = candidates
       .filter((candidate) => !allowedPathSet || allowedPathSet.has(candidate.relativePath))
-      .map(
-        (candidate): ProjectEntry => ({
-          path: candidate.relativePath,
-          kind: candidate.dirent.isDirectory() ? "directory" : "file",
-          ...(parentPathOf(candidate.relativePath)
-            ? { parentPath: parentPathOf(candidate.relativePath) }
-            : {}),
-        }),
-      )
+      .map((candidate): ProjectEntry => {
+        const parentPath = parentPathOf(candidate.relativePath);
+        return parentPath
+          ? {
+              path: candidate.relativePath,
+              kind: candidate.dirent.isDirectory() ? "directory" : "file",
+              parentPath,
+            }
+          : {
+              path: candidate.relativePath,
+              kind: candidate.dirent.isDirectory() ? "directory" : "file",
+            };
+      })
       .toSorted((left, right) => {
         if (left.kind !== right.kind) {
           return left.kind === "directory" ? -1 : 1;

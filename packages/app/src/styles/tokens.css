@@ -468,7 +468,7 @@ html.multi-reduce-transparency {
   --multi-terminal-scrollbar-background: color-mix(in srgb, var(--foreground) 18%, transparent);
   --multi-terminal-scrollbar-hover-background: color-mix(in srgb, var(--foreground) 34%, transparent);
   --multi-terminal-scrollbar-active-background: color-mix(in srgb, var(--foreground) 46%, transparent);
-  --multi-terminal-ansi-black: #000000;
+  --multi-terminal-ansi-black: #000;
   --multi-terminal-ansi-red: #cd3131;
   --multi-terminal-ansi-green: #0dbc79;
   --multi-terminal-ansi-yellow: #bf8803;
@@ -476,7 +476,7 @@ html.multi-reduce-transparency {
   --multi-terminal-ansi-magenta: #bc05bc;
   --multi-terminal-ansi-cyan: #0598bc;
   --multi-terminal-ansi-white: #e5e5e5;
-  --multi-terminal-ansi-bright-black: #666666;
+  --multi-terminal-ansi-bright-black: #666;
   --multi-terminal-ansi-bright-red: #cd3131;
   --multi-terminal-ansi-bright-green: #14ce14;
   --multi-terminal-ansi-bright-yellow: #b5ba00;
@@ -528,10 +528,10 @@ html.multi-reduce-transparency {
   --multi-terminal-border-subtle: color-mix(in srgb, white 8%, transparent);
   --multi-terminal-hover-background: color-mix(in srgb, white 7%, transparent);
   --multi-terminal-active-background: color-mix(in srgb, white 11%, transparent);
-  --multi-terminal-foreground: #cccccc;
+  --multi-terminal-foreground: #ccc;
   --multi-terminal-muted-foreground: #8f8f8f;
   --multi-terminal-selection-background: rgba(38, 79, 120, 0.75);
-  --multi-terminal-selection-foreground: #ffffff;
+  --multi-terminal-selection-foreground: #fff;
   --multi-terminal-selection-inactive-background: rgba(59, 59, 59, 0.75);
   --multi-terminal-scrollbar-background: rgba(121, 121, 121, 0.28);
   --multi-terminal-scrollbar-hover-background: rgba(100, 100, 100, 0.7);
@@ -546,7 +546,7 @@ html.multi-reduce-transparency {
   --multi-terminal-ansi-bright-blue: #3b8eea;
   --multi-terminal-ansi-bright-magenta: #d670d6;
   --multi-terminal-ansi-bright-cyan: #29b8db;
-  --multi-terminal-ansi-bright-white: #ffffff;
+  --multi-terminal-ansi-bright-white: #fff;
 }
 
 /*

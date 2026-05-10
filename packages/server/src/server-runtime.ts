@@ -1,5 +1,5 @@
 import { Effect, Exit, Layer, ManagedRuntime } from "effect";
-import { FetchHttpClient, HttpRouter } from "effect/unstable/http";
+import { FetchHttpClient } from "effect/unstable/http";
 
 import { ServerConfig } from "./config.ts";
 import {
