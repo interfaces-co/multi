@@ -48,13 +48,11 @@ interface ActiveRemotePoller {
   readonly subscriberCount: number;
 }
 
-function normalizeCwd(cwd: string): string {
-  try {
-    return realpathSync.native(cwd);
-  } catch {
-    return cwd;
-  }
-}
+const normalizeCwd = (cwd: string): Effect.Effect<string> =>
+  Effect.try({
+    try: () => realpathSync.native(cwd),
+    catch: () => cwd,
+  }).pipe(Effect.catch((fallback) => Effect.succeed(fallback)));
 
 function fingerprintStatusPart(status: unknown): string {
   return JSON.stringify(status);
@@ -171,7 +169,7 @@ export const GitStatusBroadcasterLive = Layer.effect(
     const getStatus: GitStatusBroadcasterShape["getStatus"] = Effect.fn("getStatus")(function* (
       input: GitStatusInput,
     ) {
-      const normalizedCwd = normalizeCwd(input.cwd);
+      const normalizedCwd = yield* normalizeCwd(input.cwd);
       const local = yield* getOrLoadLocalStatus(normalizedCwd);
       const remote =
         local.isRepo && local.hasOriginRemote ? yield* getOrLoadRemoteStatus(normalizedCwd) : null;
@@ -181,7 +179,7 @@ export const GitStatusBroadcasterLive = Layer.effect(
     const refreshLocalStatus: GitStatusBroadcasterShape["refreshLocalStatus"] = Effect.fn(
       "refreshLocalStatus",
     )(function* (cwd) {
-      const normalizedCwd = normalizeCwd(cwd);
+      const normalizedCwd = yield* normalizeCwd(cwd);
       yield* gitManager.invalidateLocalStatus(normalizedCwd);
       const local = yield* gitManager.localStatus({ cwd: normalizedCwd });
       return yield* updateCachedLocalStatus(normalizedCwd, local, { publish: true });
@@ -195,7 +193,7 @@ export const GitStatusBroadcasterLive = Layer.effect(
 
     const refreshStatus: GitStatusBroadcasterShape["refreshStatus"] = Effect.fn("refreshStatus")(
       function* (cwd) {
-        const normalizedCwd = normalizeCwd(cwd);
+        const normalizedCwd = yield* normalizeCwd(cwd);
         const local = yield* refreshLocalStatus(normalizedCwd);
         const remote =
           local.isRepo && local.hasOriginRemote ? yield* refreshRemoteStatus(normalizedCwd) : null;
@@ -277,7 +275,7 @@ export const GitStatusBroadcasterLive = Layer.effect(
     const streamStatus: GitStatusBroadcasterShape["streamStatus"] = (input) =>
       Stream.unwrap(
         Effect.gen(function* () {
-          const normalizedCwd = normalizeCwd(input.cwd);
+          const normalizedCwd = yield* normalizeCwd(input.cwd);
           const subscription = yield* PubSub.subscribe(changesPubSub);
           const initialLocal = yield* getOrLoadLocalStatus(normalizedCwd);
           const initialRemote = (yield* getCachedStatus(normalizedCwd))?.remote?.value ?? null;

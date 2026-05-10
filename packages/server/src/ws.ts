@@ -15,7 +15,7 @@ import {
   OrchestrationGetSnapshotError,
   OrchestrationGetTurnDiffError,
   ORCHESTRATION_WS_METHODS,
-  ProjectListEntriesError,
+  ProjectListDirectoryError,
   ProjectReadFileError,
   ProjectSearchEntriesError,
   ProjectWriteFileError,
@@ -783,14 +783,14 @@ const makeWsRpcLayer = (currentSessionId: AuthSessionId) =>
             ),
             { "rpc.aggregate": "project" },
           ),
-        [WS_METHODS.projectsListEntries]: (input) =>
+        [WS_METHODS.projectsListDirectory]: (input) =>
           observeRpcEffect(
-            WS_METHODS.projectsListEntries,
-            projectEntries.list(input).pipe(
+            WS_METHODS.projectsListDirectory,
+            projectEntries.listDirectory(input).pipe(
               Effect.mapError(
                 (cause) =>
-                  new ProjectListEntriesError({
-                    message: `Failed to list project entries: ${cause.detail}`,
+                  new ProjectListDirectoryError({
+                    message: `Failed to list project directory: ${cause.detail}`,
                     cause,
                   }),
               ),

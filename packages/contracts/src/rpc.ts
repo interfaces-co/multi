@@ -48,9 +48,9 @@ import {
   OrchestrationRpcSchemas,
 } from "./orchestration";
 import {
-  ProjectListEntriesError,
-  ProjectListEntriesInput,
-  ProjectListEntriesResult,
+  ProjectListDirectoryError,
+  ProjectListDirectoryInput,
+  ProjectListDirectoryResult,
   ProjectReadFileError,
   ProjectReadFileInput,
   ProjectReadFileResult,
@@ -87,7 +87,7 @@ export const WS_METHODS = {
   projectsList: "projects.list",
   projectsAdd: "projects.add",
   projectsRemove: "projects.remove",
-  projectsListEntries: "projects.listEntries",
+  projectsListDirectory: "projects.listDirectory",
   projectsReadFile: "projects.readFile",
   projectsSearchEntries: "projects.searchEntries",
   projectsWriteFile: "projects.writeFile",
@@ -171,10 +171,10 @@ export const WsProjectsSearchEntriesRpc = Rpc.make(WS_METHODS.projectsSearchEntr
   error: ProjectSearchEntriesError,
 });
 
-export const WsProjectsListEntriesRpc = Rpc.make(WS_METHODS.projectsListEntries, {
-  payload: ProjectListEntriesInput,
-  success: ProjectListEntriesResult,
-  error: ProjectListEntriesError,
+export const WsProjectsListDirectoryRpc = Rpc.make(WS_METHODS.projectsListDirectory, {
+  payload: ProjectListDirectoryInput,
+  success: ProjectListDirectoryResult,
+  error: ProjectListDirectoryError,
 });
 
 export const WsProjectsReadFileRpc = Rpc.make(WS_METHODS.projectsReadFile, {
@@ -393,7 +393,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsServerUpsertKeybindingRpc,
   WsServerGetSettingsRpc,
   WsServerUpdateSettingsRpc,
-  WsProjectsListEntriesRpc,
+  WsProjectsListDirectoryRpc,
   WsProjectsReadFileRpc,
   WsProjectsSearchEntriesRpc,
   WsProjectsWriteFileRpc,

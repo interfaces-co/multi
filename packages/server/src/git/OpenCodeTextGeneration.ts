@@ -29,6 +29,7 @@ import {
   parseOpenCodeModelSlug,
   toOpenCodeFileParts,
 } from "../provider/opencodeRuntime.ts";
+import { resolveOpenCodeSettings } from "../provider/provider-settings.ts";
 
 const OPENCODE_TEXT_GENERATION_IDLE_TTL = "30 seconds";
 
@@ -275,16 +276,7 @@ const makeOpenCodeTextGeneration = Effect.gen(function* () {
     }
 
     const settings = yield* serverSettingsService.getSettings.pipe(
-      Effect.map(
-        (value) =>
-          value.providers?.opencode ?? {
-            enabled: true,
-            binaryPath: "opencode",
-            serverUrl: "",
-            serverPassword: "",
-            customModels: [],
-          },
-      ),
+      Effect.map((value) => resolveOpenCodeSettings(value, input.modelSelection.instanceId)),
       Effect.orElseSucceed(() => ({
         enabled: true,
         binaryPath: "opencode",

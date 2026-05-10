@@ -1,6 +1,7 @@
 import {
   ApprovalRequestId,
   type ChatAttachment,
+  MessageId,
   type OrchestrationEvent,
   ThreadId,
 } from "@multi/contracts";
@@ -90,6 +91,14 @@ function extractActivityRequestId(payload: unknown): ApprovalRequestId | null {
   }
   const requestId = (payload as Record<string, unknown>).requestId;
   return typeof requestId === "string" ? ApprovalRequestId.make(requestId) : null;
+}
+
+function extractActivityMessageId(payload: unknown): MessageId | null {
+  if (typeof payload !== "object" || payload === null) {
+    return null;
+  }
+  const messageId = (payload as Record<string, unknown>).messageId;
+  return typeof messageId === "string" ? MessageId.make(messageId) : null;
 }
 
 function isStalePendingApprovalFailureDetail(detail: string | null): boolean {
@@ -858,6 +867,30 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
             sourceProposedPlanThreadId: event.payload.sourceProposedPlan?.threadId ?? null,
             sourceProposedPlanId: event.payload.sourceProposedPlan?.planId ?? null,
             requestedAt: event.payload.createdAt,
+          });
+          return;
+        }
+
+        case "thread.activity-appended": {
+          if (event.payload.activity.kind !== "provider.turn.start.failed") {
+            return;
+          }
+          const pendingTurnStart = yield* projectionTurnRepository.getPendingTurnStartByThreadId({
+            threadId: event.payload.threadId,
+          });
+          if (Option.isNone(pendingTurnStart)) {
+            return;
+          }
+          const activityMessageId = extractActivityMessageId(event.payload.activity.payload);
+          const matchesPendingStart =
+            activityMessageId !== null
+              ? pendingTurnStart.value.messageId === activityMessageId
+              : pendingTurnStart.value.requestedAt === event.payload.activity.createdAt;
+          if (!matchesPendingStart) {
+            return;
+          }
+          yield* projectionTurnRepository.deletePendingTurnStartByThreadId({
+            threadId: event.payload.threadId,
           });
           return;
         }

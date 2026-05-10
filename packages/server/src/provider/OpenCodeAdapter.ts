@@ -21,6 +21,7 @@ import { resolveAttachmentPath } from "../attachment-store.ts";
 import { ServerConfig } from "../config.ts";
 import { ServerSettingsService } from "../server-settings.ts";
 import { type EventNdjsonLogger, makeEventNdjsonLogger } from "./EventNdjsonLogger.ts";
+import { resolveOpenCodeSettings } from "./provider-settings.ts";
 import {
   ProviderAdapterProcessError,
   ProviderAdapterRequestError,
@@ -1012,9 +1013,10 @@ export function makeOpenCodeAdapterLive(options?: OpenCodeAdapterLiveOptions) {
                 }),
             ),
           );
-          const binaryPath = settings.providers.opencode.binaryPath;
-          const serverUrl = settings.providers.opencode.serverUrl;
-          const serverPassword = settings.providers.opencode.serverPassword;
+          const openCodeSettings = resolveOpenCodeSettings(settings, input.providerInstanceId);
+          const binaryPath = openCodeSettings.binaryPath;
+          const serverUrl = openCodeSettings.serverUrl;
+          const serverPassword = openCodeSettings.serverPassword;
           const directory = input.cwd ?? serverConfig.cwd;
           const existing = sessions.get(input.threadId);
           if (existing) {

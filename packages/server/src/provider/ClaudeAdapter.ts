@@ -43,6 +43,7 @@ import {
   TurnId,
   type UserInputQuestion,
 } from "@multi/contracts";
+import { resolveClaudeSettings } from "./provider-settings.ts";
 import {
   applyClaudePromptEffortPrefix,
   getModelSelectionBooleanOptionValue,
@@ -2828,7 +2829,7 @@ const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
         runPromise(canUseToolEffect(toolName, toolInput, callbackOptions));
 
       const claudeSettings = yield* serverSettingsService.getSettings.pipe(
-        Effect.map((settings) => settings.providers.claudeAgent),
+        Effect.map((settings) => resolveClaudeSettings(settings, input.providerInstanceId)),
         Effect.mapError(
           (error) =>
             new ProviderAdapterProcessError({

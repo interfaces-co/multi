@@ -65,10 +65,9 @@ export function openCodeRuntimeErrorDetail(cause: unknown): string {
     const anyCause = cause as Record<string, unknown>;
     const status = (anyCause.response as { status?: number } | undefined)?.status;
     const body = anyCause.error ?? anyCause.data ?? anyCause.body;
-    try {
-      return `status=${status ?? "?"} body=${JSON.stringify(body ?? cause)}`;
-    } catch {
-      /* fall through */
+    const serializedBody = Result.try(() => JSON.stringify(body ?? cause));
+    if (Result.isSuccess(serializedBody)) {
+      return `status=${status ?? "?"} body=${serializedBody.success}`;
     }
   }
   return String(cause);
@@ -352,15 +351,15 @@ const makeOpenCodeRuntime = Effect.gen(function* () {
       const killOpenCodeProcessGroup = (signal: NodeJS.Signals) =>
         process.platform === "win32"
           ? child.kill({ killSignal: signal, forceKillAfter: "1 second" }).pipe(Effect.asVoid)
-          : Effect.sync(() => {
-              try {
-                process.kill(-Number(child.pid), signal);
-              } catch {
-                // The direct child may already have exited after starting the
-                // server; the process group kill is best-effort cleanup for
-                // any serve process left in that group.
-              }
-            });
+          : Effect.try({
+              try: () => process.kill(-Number(child.pid), signal),
+              catch: (cause) =>
+                new OpenCodeRuntimeError({
+                  operation: "killOpenCodeProcessGroup",
+                  detail: `Failed to send ${signal} to OpenCode process group: ${openCodeRuntimeErrorDetail(cause)}`,
+                  cause,
+                }),
+            }).pipe(Effect.ignore);
       const terminateChild = killOpenCodeProcessGroup("SIGTERM").pipe(
         Effect.andThen(Effect.sleep("1 second")),
         Effect.andThen(killOpenCodeProcessGroup("SIGKILL")),

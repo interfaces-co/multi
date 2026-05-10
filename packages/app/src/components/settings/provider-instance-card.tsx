@@ -405,13 +405,10 @@ interface ProviderInstanceCardProps {
  *   - Unknown drivers (`driverOption === undefined`) get a read-only
  *     notice instead of editable fields, so fork instances round-trip
  *     without accidentally destroying their config.
- *   - The enabled Switch writes to the envelope's `instance.enabled`
- *     field; the server's registry consults this at `entry.enabled ?? true`
- *     before materializing the instance, and the probe also checks its
- *     driver-specific `config.enabled`. We treat the envelope flag as the
- *     single source of truth from the UI — built-in cards used to write
- *     the inner flag, but on the promotion-to-instance path every edit
- *     flows through the envelope.
+ *   - The enabled Switch writes to the provider-instance envelope. Default
+ *     built-ins and custom instances use that same canonical shape; runtime
+ *     provider settings resolve driver-specific fields from `instance.config`
+ *     and enabled state from `instance.enabled`.
  */
 export function ProviderInstanceCard({
   instanceId,

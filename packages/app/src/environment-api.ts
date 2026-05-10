@@ -22,7 +22,7 @@ export function createEnvironmentApi(rpcClient: WsRpcClient): EnvironmentApi {
       onEvent: (callback) => rpcClient.terminal.onEvent(callback),
     },
     projects: {
-      listEntries: rpcClient.projects.listEntries,
+      listDirectory: rpcClient.projects.listDirectory,
       readFile: rpcClient.projects.readFile,
       searchEntries: rpcClient.projects.searchEntries,
       writeFile: rpcClient.projects.writeFile,

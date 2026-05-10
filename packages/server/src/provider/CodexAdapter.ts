@@ -44,6 +44,7 @@ import { CodexAdapter, type CodexAdapterShape } from "./CodexAdapter.service.ts"
 import { resolveAttachmentPath } from "../attachment-store.ts";
 import { ServerConfig } from "../config.ts";
 import { ServerSettingsService } from "../server-settings.ts";
+import { resolveCodexSettings } from "./provider-settings.ts";
 import {
   CodexResumeCursorSchema,
   CodexSessionRuntimeThreadIdMissingError,
@@ -1364,7 +1365,7 @@ const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
         }
 
         const codexSettings = yield* serverSettingsService.getSettings.pipe(
-          Effect.map((settings) => settings.providers.codex),
+          Effect.map((settings) => resolveCodexSettings(settings, input.providerInstanceId)),
           Effect.mapError(
             (error) =>
               new ProviderAdapterProcessError({

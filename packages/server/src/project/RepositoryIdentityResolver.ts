@@ -1,5 +1,5 @@
 import type { RepositoryIdentity } from "@multi/contracts";
-import { Cache, Duration, Effect, Exit, Layer } from "effect";
+import { Cache, Duration, Effect, Exit, Layer, Schema } from "effect";
 import { detectGitHostingProviderFromRemoteUrl, normalizeGitRemoteUrl } from "@multi/shared/git";
 
 import { runProcess } from "../process-runner.ts";
@@ -74,50 +74,80 @@ interface RepositoryIdentityResolverOptions {
   readonly negativeCacheTtl?: Duration.Input;
 }
 
-async function resolveRepositoryIdentityCacheKey(cwd: string): Promise<string> {
-  let cacheKey = cwd;
+class RepositoryIdentityResolverGitError extends Schema.TaggedErrorClass<RepositoryIdentityResolverGitError>()(
+  "RepositoryIdentityResolverGitError",
+  {
+    operation: Schema.String,
+    cwd: Schema.String,
+    cause: Schema.Defect,
+  },
+) {}
 
-  try {
-    const topLevelResult = await runProcess("git", ["-C", cwd, "rev-parse", "--show-toplevel"], {
-      allowNonZeroExit: true,
+const toRepositoryIdentityResolverGitError =
+  (operation: string, cwd: string) =>
+  (cause: unknown): RepositoryIdentityResolverGitError =>
+    new RepositoryIdentityResolverGitError({
+      operation,
+      cwd,
+      cause,
     });
-    if (topLevelResult.code !== 0) {
-      return cacheKey;
-    }
 
-    const candidate = topLevelResult.stdout.trim();
-    if (candidate.length > 0) {
-      cacheKey = candidate;
-    }
-  } catch {
-    return cacheKey;
-  }
+function resolveRepositoryIdentityCacheKey(cwd: string): Effect.Effect<string> {
+  return Effect.tryPromise({
+    try: () =>
+      runProcess("git", ["-C", cwd, "rev-parse", "--show-toplevel"], {
+        allowNonZeroExit: true,
+      }),
+    catch: toRepositoryIdentityResolverGitError("git.rev-parse.show-toplevel", cwd),
+  }).pipe(
+    Effect.map((topLevelResult) => {
+      if (topLevelResult.code !== 0) {
+        return cwd;
+      }
 
-  return cacheKey;
+      const candidate = topLevelResult.stdout.trim();
+      return candidate.length > 0 ? candidate : cwd;
+    }),
+    Effect.catch((cause) =>
+      Effect.logDebug("repository identity cache key resolution failed", {
+        cwd,
+        cause,
+      }).pipe(Effect.as(cwd)),
+    ),
+  );
 }
 
-async function resolveRepositoryIdentityFromCacheKey(
+function resolveRepositoryIdentityFromCacheKey(
   cacheKey: string,
-): Promise<RepositoryIdentity | null> {
-  try {
-    const remoteResult = await runProcess("git", ["-C", cacheKey, "remote", "-v"], {
-      allowNonZeroExit: true,
-    });
-    if (remoteResult.code !== 0) {
-      return null;
-    }
+): Effect.Effect<RepositoryIdentity | null> {
+  return Effect.tryPromise({
+    try: () =>
+      runProcess("git", ["-C", cacheKey, "remote", "-v"], {
+        allowNonZeroExit: true,
+      }),
+    catch: toRepositoryIdentityResolverGitError("git.remote.list", cacheKey),
+  }).pipe(
+    Effect.map((remoteResult) => {
+      if (remoteResult.code !== 0) {
+        return null;
+      }
 
-    const remote = pickPrimaryRemote(parseRemoteFetchUrls(remoteResult.stdout));
-    return remote ? buildRepositoryIdentity(remote) : null;
-  } catch {
-    return null;
-  }
+      const remote = pickPrimaryRemote(parseRemoteFetchUrls(remoteResult.stdout));
+      return remote ? buildRepositoryIdentity(remote) : null;
+    }),
+    Effect.catch((cause) =>
+      Effect.logDebug("repository identity remote resolution failed", {
+        cacheKey,
+        cause,
+      }).pipe(Effect.as(null)),
+    ),
+  );
 }
 
 export const makeRepositoryIdentityResolver = Effect.fn("makeRepositoryIdentityResolver")(
   function* (options: RepositoryIdentityResolverOptions = {}) {
     const repositoryIdentityCache = yield* Cache.makeWith<string, RepositoryIdentity | null>(
-      (cacheKey) => Effect.promise(() => resolveRepositoryIdentityFromCacheKey(cacheKey)),
+      (cacheKey) => resolveRepositoryIdentityFromCacheKey(cacheKey),
       {
         capacity: options.cacheCapacity ?? DEFAULT_REPOSITORY_IDENTITY_CACHE_CAPACITY,
         timeToLive: Exit.match({
@@ -133,7 +163,7 @@ export const makeRepositoryIdentityResolver = Effect.fn("makeRepositoryIdentityR
     const resolve: RepositoryIdentityResolverShape["resolve"] = Effect.fn(
       "RepositoryIdentityResolver.resolve",
     )(function* (cwd) {
-      const cacheKey = yield* Effect.promise(() => resolveRepositoryIdentityCacheKey(cwd));
+      const cacheKey = yield* resolveRepositoryIdentityCacheKey(cwd);
       return yield* Cache.get(repositoryIdentityCache, cacheKey);
     });
 

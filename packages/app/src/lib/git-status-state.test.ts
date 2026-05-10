@@ -83,7 +83,7 @@ function createRegisteredGitStatusClient(environmentId: EnvironmentId) {
       onEvent: vi.fn(() => () => undefined),
     },
     projects: {
-      listEntries: vi.fn(async () => ({ entries: [], truncated: false })),
+      listDirectory: vi.fn(async () => ({ entries: [], truncated: false })),
       readFile: vi.fn(async () => ({
         relativePath: "README.md",
         contents: "",

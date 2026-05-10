@@ -34,6 +34,7 @@ import {
   getModelSelectionBooleanOptionValue,
   getModelSelectionStringOptionValue,
 } from "@multi/shared/model";
+import { resolveCodexSettings } from "../provider/provider-settings.ts";
 
 const CODEX_GIT_TEXT_GENERATION_REASONING_EFFORT = "low";
 const CODEX_TIMEOUT_MS = 180_000;
@@ -154,7 +155,7 @@ const makeCodexTextGeneration = Effect.gen(function* () {
 
     const codexSettings = yield* Effect.map(
       serverSettingsService.getSettings,
-      (settings) => settings.providers.codex,
+      (settings) => resolveCodexSettings(settings, modelSelection.instanceId),
     ).pipe(Effect.catch(() => Effect.undefined));
 
     const runCodexCommand = Effect.fn("runCodexJson.runCodexCommand")(function* () {

@@ -10,7 +10,7 @@ import path from "node:path";
 
 import type { ThreadId } from "@multi/contracts";
 import { RotatingFileSink } from "@multi/shared/logging";
-import { Effect, Exit, Logger, Scope, SynchronizedRef } from "effect";
+import { Effect, Exit, Logger, Schema, Scope, SynchronizedRef } from "effect";
 
 import { toSafeThreadAttachmentSegment } from "../attachment-store.ts";
 
@@ -19,6 +19,24 @@ const DEFAULT_MAX_FILES = 10;
 const DEFAULT_BATCH_WINDOW_MS = 200;
 const GLOBAL_THREAD_SEGMENT = "_global";
 const LOG_SCOPE = "provider-observability";
+
+class EventNdjsonLoggerError extends Schema.TaggedErrorClass<EventNdjsonLoggerError>()(
+  "EventNdjsonLoggerError",
+  {
+    operation: Schema.String,
+    detail: Schema.String,
+    cause: Schema.Defect,
+  },
+) {}
+
+const toEventNdjsonLoggerError =
+  (operation: string, detail: string) =>
+  (cause: unknown): EventNdjsonLoggerError =>
+    new EventNdjsonLoggerError({
+      operation,
+      detail,
+      cause,
+    });
 
 export type EventNdjsonStream = "native" | "canonical" | "orchestration";
 
@@ -82,26 +100,25 @@ function resolveStreamLabel(stream: EventNdjsonStream): string {
 const toLogMessage = Effect.fn("toLogMessage")(function* (
   event: unknown,
 ): Effect.fn.Return<string | undefined> {
-  const serialized = yield* Effect.sync(() => {
-    try {
-      return { ok: true as const, value: JSON.stringify(event) };
-    } catch (error) {
-      return { ok: false as const, error };
-    }
-  });
+  const serialized = yield* Effect.try({
+    try: () => JSON.stringify(event),
+    catch: toEventNdjsonLoggerError(
+      "providerEventLog.serialize",
+      "Failed to serialize provider event log record.",
+    ),
+  }).pipe(
+    Effect.catch((error) =>
+      logWarning("failed to serialize provider event log record", {
+        error,
+      }).pipe(Effect.as(undefined)),
+    ),
+  );
 
-  if (!serialized.ok) {
-    yield* logWarning("failed to serialize provider event log record", {
-      error: serialized.error,
-    });
+  if (typeof serialized !== "string") {
     return undefined;
   }
 
-  if (typeof serialized.value !== "string") {
-    return undefined;
-  }
-
-  return serialized.value;
+  return serialized;
 });
 
 const makeThreadWriter = Effect.fn("makeThreadWriter")(function* (input: {
@@ -111,53 +128,53 @@ const makeThreadWriter = Effect.fn("makeThreadWriter")(function* (input: {
   readonly batchWindowMs: number;
   readonly streamLabel: string;
 }): Effect.fn.Return<ThreadWriter | undefined> {
-  const sinkResult = yield* Effect.sync(() => {
-    try {
-      return {
-        ok: true as const,
-        sink: new RotatingFileSink({
-          filePath: input.filePath,
-          maxBytes: input.maxBytes,
-          maxFiles: input.maxFiles,
-          throwOnError: true,
-        }),
-      };
-    } catch (error) {
-      return { ok: false as const, error };
-    }
-  });
+  const sink = yield* Effect.try({
+    try: () =>
+      new RotatingFileSink({
+        filePath: input.filePath,
+        maxBytes: input.maxBytes,
+        maxFiles: input.maxFiles,
+        throwOnError: true,
+      }),
+    catch: toEventNdjsonLoggerError(
+      "providerEventLog.openThreadWriter",
+      "Failed to initialize provider thread log file.",
+    ),
+  }).pipe(
+    Effect.catch((error) =>
+      logWarning("failed to initialize provider thread log file", {
+        filePath: input.filePath,
+        error,
+      }).pipe(Effect.as(undefined)),
+    ),
+  );
 
-  if (!sinkResult.ok) {
-    yield* logWarning("failed to initialize provider thread log file", {
-      filePath: input.filePath,
-      error: sinkResult.error,
-    });
-    return undefined;
-  }
+  if (!sink) return undefined;
 
-  const sink = sinkResult.sink;
   const scope = yield* Scope.make();
   const lineLogger = makeLineLogger(input.streamLabel);
   const batchedLogger = yield* Logger.batched(lineLogger, {
     window: input.batchWindowMs,
     flush: Effect.fn("makeThreadWriter.flush")(function* (messages) {
-      const flushResult = yield* Effect.sync(() => {
-        try {
-          for (const message of messages) {
-            sink.write(message);
-          }
-          return { ok: true as const };
-        } catch (error) {
-          return { ok: false as const, error };
-        }
-      });
-
-      if (!flushResult.ok) {
-        yield* logWarning("provider event log batch flush failed", {
-          filePath: input.filePath,
-          error: flushResult.error,
-        });
-      }
+      yield* Effect.forEach(
+        messages,
+        (message) =>
+          Effect.try({
+            try: () => sink.write(message),
+            catch: toEventNdjsonLoggerError(
+              "providerEventLog.flush",
+              "Provider event log batch flush failed.",
+            ),
+          }),
+        { discard: true },
+      ).pipe(
+        Effect.catch((error) =>
+          logWarning("provider event log batch flush failed", {
+            filePath: input.filePath,
+            error,
+          }),
+        ),
+      );
     }),
   }).pipe(Effect.provideService(Scope.Scope, scope));
 
@@ -182,19 +199,22 @@ export const makeEventNdjsonLogger = Effect.fn("makeEventNdjsonLogger")(function
   const batchWindowMs = options.batchWindowMs ?? DEFAULT_BATCH_WINDOW_MS;
   const streamLabel = resolveStreamLabel(options.stream);
 
-  const directoryReady = yield* Effect.sync(() => {
-    try {
-      fs.mkdirSync(path.dirname(filePath), { recursive: true });
-      return true;
-    } catch (error) {
-      return { ok: false as const, error };
-    }
-  });
-  if (directoryReady !== true) {
-    yield* logWarning("failed to create provider event log directory", {
-      filePath,
-      error: directoryReady.error,
-    });
+  const directoryReady = yield* Effect.try({
+    try: () => fs.mkdirSync(path.dirname(filePath), { recursive: true }),
+    catch: toEventNdjsonLoggerError(
+      "providerEventLog.createDirectory",
+      "Failed to create provider event log directory.",
+    ),
+  }).pipe(
+    Effect.as(true),
+    Effect.catch((error) =>
+      logWarning("failed to create provider event log directory", {
+        filePath,
+        error,
+      }).pipe(Effect.as(false)),
+    ),
+  );
+  if (!directoryReady) {
     return undefined;
   }
 

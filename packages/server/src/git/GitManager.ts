@@ -442,11 +442,11 @@ function normalizePullRequestReference(reference: string): string {
 }
 
 function canonicalizeExistingPath(value: string): string {
-  try {
-    return realpathSync.native(value);
-  } catch {
-    return value;
-  }
+  const resolved = Result.try({
+    try: () => realpathSync.native(value),
+    catch: () => value,
+  });
+  return Result.isSuccess(resolved) ? resolved.success : resolved.failure;
 }
 
 function toResolvedPullRequest(pr: {

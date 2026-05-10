@@ -27,6 +27,7 @@ import {
   makeCursorAcpRuntime,
 } from "../provider/acp/CursorAcpSupport.ts";
 import { ServerSettingsService } from "../server-settings.ts";
+import { resolveCursorSettings } from "../provider/provider-settings.ts";
 
 const CURSOR_TIMEOUT_MS = 180_000;
 
@@ -79,7 +80,7 @@ const makeCursorTextGeneration = Effect.gen(function* () {
     Effect.gen(function* () {
       const cursorSettings = yield* Effect.map(
         serverSettingsService.getSettings,
-        (settings) => settings.providers.cursor,
+        (settings) => resolveCursorSettings(settings, modelSelection.instanceId),
       ).pipe(Effect.catch(() => Effect.undefined));
 
       const outputRef = yield* Ref.make("");

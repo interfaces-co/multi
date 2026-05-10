@@ -12,7 +12,6 @@ import {
   Exit,
   FileSystem,
   Layer,
-  ManagedRuntime,
   Option,
   Path,
   PubSub,
@@ -73,6 +72,7 @@ import {
 import { deriveServerPaths, ServerConfig } from "../src/config.ts";
 import { ProjectEntriesLive } from "../src/project/ProjectEntries.ts";
 import { ProjectPathsLive } from "../src/project/ProjectPaths.ts";
+import { ServerRuntime } from "../src/server-runtime.ts";
 
 function runGit(cwd: string, args: ReadonlyArray<string>) {
   return execFileSync("git", args, {
@@ -410,7 +410,7 @@ export const makeOrchestrationIntegrationHarness = (
       Layer.provideMerge(NodeServices.layer),
     );
 
-    const runtime = ManagedRuntime.make(layer);
+    const runtime = ServerRuntime.make(layer);
     const engine = yield* tryRuntimePromise("load OrchestrationEngine service", () =>
       runtime.runPromise(Effect.service(OrchestrationEngineService)),
     ).pipe(Effect.orDie);

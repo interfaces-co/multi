@@ -3,7 +3,7 @@ import { NonNegativeInt, PositiveInt, TrimmedNonEmptyString } from "./base-schem
 import { FilesystemPreviewSyntax } from "./filesystem";
 
 const PROJECT_SEARCH_ENTRIES_MAX_LIMIT = 200;
-const PROJECT_LIST_ENTRIES_MAX_LIMIT = 25_000;
+const PROJECT_LIST_DIRECTORY_PATH_MAX_LENGTH = 512;
 const PROJECT_READ_FILE_PATH_MAX_LENGTH = 512;
 const PROJECT_WRITE_FILE_PATH_MAX_LENGTH = 512;
 
@@ -29,22 +29,20 @@ export const ProjectSearchEntriesResult = Schema.Struct({
 });
 export type ProjectSearchEntriesResult = typeof ProjectSearchEntriesResult.Type;
 
-export const ProjectListEntriesInput = Schema.Struct({
+export const ProjectListDirectoryInput = Schema.Struct({
   cwd: TrimmedNonEmptyString,
-  limit: Schema.optional(
-    PositiveInt.check(Schema.isLessThanOrEqualTo(PROJECT_LIST_ENTRIES_MAX_LIMIT)),
-  ),
+  relativeDir: Schema.String.check(Schema.isMaxLength(PROJECT_LIST_DIRECTORY_PATH_MAX_LENGTH)),
 });
-export type ProjectListEntriesInput = typeof ProjectListEntriesInput.Type;
+export type ProjectListDirectoryInput = typeof ProjectListDirectoryInput.Type;
 
-export const ProjectListEntriesResult = Schema.Struct({
+export const ProjectListDirectoryResult = Schema.Struct({
   entries: Schema.Array(ProjectEntry),
   truncated: Schema.Boolean,
 });
-export type ProjectListEntriesResult = typeof ProjectListEntriesResult.Type;
+export type ProjectListDirectoryResult = typeof ProjectListDirectoryResult.Type;
 
-export class ProjectListEntriesError extends Schema.TaggedErrorClass<ProjectListEntriesError>()(
-  "ProjectListEntriesError",
+export class ProjectListDirectoryError extends Schema.TaggedErrorClass<ProjectListDirectoryError>()(
+  "ProjectListDirectoryError",
   {
     message: TrimmedNonEmptyString,
     cause: Schema.optional(Schema.Defect),

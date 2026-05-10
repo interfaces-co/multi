@@ -68,10 +68,10 @@ const searchProjectEntries = (input: { cwd: string; query: string; limit: number
     return yield* projectEntries.search(input);
   });
 
-const listProjectEntries = (input: { cwd: string; limit?: number }) =>
+const listProjectDirectory = (input: { cwd: string; relativeDir: string }) =>
   Effect.gen(function* () {
     const projectEntries = yield* ProjectEntries;
-    return yield* projectEntries.list(input);
+    return yield* projectEntries.listDirectory(input);
   });
 
 const appendSeparator = (input: string) =>
@@ -287,8 +287,8 @@ it.layer(TestLayer)("ProjectEntriesLive", (it) => {
     );
   });
 
-  describe("list", () => {
-    it.effect("returns the full tree in stable path order", () =>
+  describe("listDirectory", () => {
+    it.effect("returns immediate children in stable path order", () =>
       Effect.gen(function* () {
         const cwd = yield* makeTempDir({ prefix: "multi-project-list-" });
         yield* writeTextFile(cwd, "src/components/Button.tsx");
@@ -297,33 +297,32 @@ it.layer(TestLayer)("ProjectEntriesLive", (it) => {
         yield* writeTextFile(cwd, ".git/HEAD");
         yield* writeTextFile(cwd, "node_modules/pkg/index.js");
 
-        const result = yield* listProjectEntries({ cwd });
+        const rootResult = yield* listProjectDirectory({ cwd, relativeDir: "" });
+        const srcResult = yield* listProjectDirectory({ cwd, relativeDir: "src" });
 
-        expect(result.entries).toEqual([
-          { path: "README.md", kind: "file" },
+        expect(rootResult.entries).toEqual([
           { path: "src", kind: "directory" },
+          { path: "README.md", kind: "file" },
+        ]);
+        expect(srcResult.entries).toEqual([
           { path: "src/components", kind: "directory", parentPath: "src" },
-          {
-            path: "src/components/Button.tsx",
-            kind: "file",
-            parentPath: "src/components",
-          },
           { path: "src/index.ts", kind: "file", parentPath: "src" },
         ]);
-        expect(result.truncated).toBe(false);
+        expect(rootResult.truncated).toBe(false);
+        expect(srcResult.truncated).toBe(false);
       }),
     );
 
-    it.effect("tracks truncation when the requested list limit is smaller than the index", () =>
+    it.effect("does not descend into child directories", () =>
       Effect.gen(function* () {
-        const cwd = yield* makeTempDir({ prefix: "multi-project-list-limit-" });
+        const cwd = yield* makeTempDir({ prefix: "multi-project-list-immediate-" });
         yield* writeTextFile(cwd, "src/a.ts");
         yield* writeTextFile(cwd, "src/b.ts");
 
-        const result = yield* listProjectEntries({ cwd, limit: 2 });
+        const result = yield* listProjectDirectory({ cwd, relativeDir: "" });
 
-        expect(result.entries).toHaveLength(2);
-        expect(result.truncated).toBe(true);
+        expect(result.entries).toEqual([{ path: "src", kind: "directory" }]);
+        expect(result.truncated).toBe(false);
       }),
     );
   });

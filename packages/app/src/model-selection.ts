@@ -17,7 +17,11 @@ import { UnifiedSettings } from "@multi/contracts/settings";
 import { getComposerProviderState } from "./components/chat/composer-provider-registry";
 import { ModelEsque } from "./components/chat/provider-icon-utils";
 import { sortModelsForProviderInstance } from "./model-ordering";
-import { type ProviderInstanceEntry, deriveProviderInstanceEntries } from "./provider-instances";
+import {
+  type ProviderInstanceEntry,
+  deriveProviderInstanceEntries,
+  deriveProviderInstanceEntriesForSettings,
+} from "./provider-instances";
 import {
   getDefaultServerModel,
   getProviderModels,
@@ -45,11 +49,11 @@ function readInstanceCustomModels(
   if (instanceId !== defaultInstanceId) {
     return [];
   }
-  const legacyProviders = settings.providers as Record<
+  const defaultProviderConfigs = settings.providers as Record<
     string,
     { readonly customModels: ReadonlyArray<string> } | undefined
   >;
-  return legacyProviders[driverKind]?.customModels ?? [];
+  return defaultProviderConfigs[driverKind]?.customModels ?? [];
 }
 
 export interface AppModelOption {
@@ -227,10 +231,14 @@ export function getCustomModelOptionsByInstance(
   _selectedModel?: string | null,
 ): ReadonlyMap<ProviderInstanceId, ReadonlyArray<ModelEsque>> {
   const out = new Map<ProviderInstanceId, ReadonlyArray<ModelEsque>>();
-  for (const entry of deriveProviderInstanceEntries(providers)) {
+  for (const entry of deriveProviderInstanceEntriesForSettings(settings, providers)) {
     out.set(entry.instanceId, getAppModelOptionsForInstance(settings, entry));
   }
   return out;
+}
+
+function isProviderInstanceSelectable(settings: UnifiedSettings, entry: ProviderInstanceEntry) {
+  return entry.enabled && entry.isAvailable;
 }
 
 export function resolveAppModelSelectionState(
@@ -241,12 +249,14 @@ export function resolveAppModelSelectionState(
     instanceId: DEFAULT_TEXT_GENERATION_INSTANCE_ID,
     model: DEFAULT_GIT_TEXT_GENERATION_MODEL,
   };
-  const entries = deriveProviderInstanceEntries(providers);
+  const entries = deriveProviderInstanceEntriesForSettings(settings, providers);
   const selectedEntry = entries.find(
-    (entry) => entry.instanceId === selection.instanceId && entry.enabled && entry.isAvailable,
+    (entry) =>
+      entry.instanceId === selection.instanceId && isProviderInstanceSelectable(settings, entry),
   );
-  const entry =
-    selectedEntry ?? entries.find((candidate) => candidate.enabled && candidate.isAvailable);
+  const entry = selectedEntry ?? entries.find(
+    (candidate) => isProviderInstanceSelectable(settings, candidate),
+  );
   if (entry) {
     const selectedModel = selectedEntry ? selection.model : null;
     const model =

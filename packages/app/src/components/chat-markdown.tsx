@@ -1,10 +1,14 @@
-import { DiffsHighlighter, getSharedHighlighter, SupportedLanguages } from "@pierre/diffs";
+import {
+  type DiffsHighlighter,
+  getFiletypeFromFileName,
+  getSharedHighlighter,
+  type SupportedLanguages,
+} from "@pierre/diffs";
 import { IconCheckmark1, IconClipboard } from "central-icons";
-import React, {
-  Suspense,
+import {
+  type ComponentProps,
   type MouseEvent as ReactMouseEvent,
   isValidElement,
-  use,
   useCallback,
   memo,
   useEffect,
@@ -27,27 +31,6 @@ import { resolveMarkdownFileLinkMeta, rewriteMarkdownFileUriHref } from "../mark
 import { readLocalApi } from "../local-api";
 import { cn } from "../lib/utils";
 
-class CodeHighlightErrorBoundary extends React.Component<
-  { fallback: ReactNode; children: ReactNode },
-  { hasError: boolean }
-> {
-  constructor(props: { fallback: ReactNode; children: ReactNode }) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-
-  override render() {
-    if (this.state.hasError) {
-      return this.props.fallback;
-    }
-    return this.props.children;
-  }
-}
-
 interface ChatMarkdownProps {
   text: string;
   cwd: string | undefined;
@@ -55,19 +38,64 @@ interface ChatMarkdownProps {
 }
 
 const CODE_FENCE_LANGUAGE_REGEX = /(?:^|\s)language-([^\s]+)/;
+const CODE_FENCE_LANGUAGE_NAME_REGEX = /^[\w.+#-]+$/;
+const CODE_FENCE_LINE_REFERENCE_REGEX = /^\d+(?::\d+)*$/;
 const MAX_HIGHLIGHT_CACHE_ENTRIES = 500;
 const MAX_HIGHLIGHT_CACHE_MEMORY_BYTES = 50 * 1024 * 1024;
 const highlightedCodeCache = new LRUCache<string>(
   MAX_HIGHLIGHT_CACHE_ENTRIES,
   MAX_HIGHLIGHT_CACHE_MEMORY_BYTES,
 );
-const highlighterPromiseCache = new Map<string, Promise<DiffsHighlighter>>();
+const highlighterPromiseCache = new Map<string, Promise<ResolvedHighlighter>>();
+
+interface ResolvedHighlighter {
+  highlighter: DiffsHighlighter;
+  language: SupportedLanguages;
+}
+
+interface HighlightedCodeState {
+  cacheKey: string;
+  html: string;
+}
 
 function extractFenceLanguage(className: string | undefined): string {
   const match = className?.match(CODE_FENCE_LANGUAGE_REGEX);
-  const raw = match?.[1] ?? "text";
+  const raw = match?.[1]?.trim() ?? "";
+  if (!raw) return "text";
+
+  const normalized = raw.toLowerCase();
   // Shiki doesn't bundle a gitignore grammar; ini is a close match (#685)
-  return raw === "gitignore" ? "ini" : raw;
+  if (normalized === "gitignore") return "ini";
+
+  if (CODE_FENCE_LANGUAGE_NAME_REGEX.test(normalized)) {
+    return CODE_FENCE_LINE_REFERENCE_REGEX.test(normalized) ? "text" : normalized;
+  }
+
+  return inferFenceLanguageFromFilename(raw) ?? "text";
+}
+
+function inferFenceLanguageFromFilename(raw: string): string | undefined {
+  const candidates = [raw, ...raw.split(":")].filter((candidate) => candidate.length > 0);
+  for (const candidate of candidates) {
+    if (!candidate.includes("/") && !candidate.includes("\\") && !candidate.startsWith(".")) {
+      continue;
+    }
+
+    const basename = candidate.split(/[\\/]/).at(-1)?.toLowerCase();
+    if (basename === ".zshrc" || basename === ".zshenv" || basename === ".zprofile") {
+      return "zsh";
+    }
+    if (basename === ".bashrc" || basename === ".bash_profile" || basename === ".profile") {
+      return "zsh";
+    }
+
+    const language = getFiletypeFromFileName(candidate);
+    if (language !== "text") {
+      return language;
+    }
+  }
+
+  return undefined;
 }
 
 function nodeToPlainText(node: ReactNode): string {
@@ -91,25 +119,44 @@ function estimateHighlightedSize(html: string, code: string): number {
   return Math.max(html.length * 2, code.length * 3);
 }
 
-function getHighlighterPromise(language: string): Promise<DiffsHighlighter> {
+function getHighlighterPromise(language: string): Promise<ResolvedHighlighter> {
   const cached = highlighterPromiseCache.get(language);
   if (cached) return cached;
 
+  const supportedLanguage = language as SupportedLanguages;
   const promise = getSharedHighlighter({
     themes: [resolveDiffThemeName("dark"), resolveDiffThemeName("light")],
-    langs: [language as SupportedLanguages],
+    langs: [supportedLanguage],
     preferredHighlighter: "shiki-js",
-  }).catch((err) => {
-    highlighterPromiseCache.delete(language);
-    if (language === "text") {
-      // "text" itself failed — Shiki cannot initialize at all, surface the error
-      throw err;
-    }
-    // Language not supported by Shiki — fall back to "text"
-    return getHighlighterPromise("text");
-  });
+  })
+    .then((highlighter) => ({ highlighter, language: supportedLanguage }))
+    .catch((error) => {
+      if (language === "text") {
+        highlighterPromiseCache.delete(language);
+        throw error;
+      }
+      // Language not supported by Shiki. Keep this promise cached so future renders use text too.
+      return getHighlighterPromise("text");
+    });
   highlighterPromiseCache.set(language, promise);
   return promise;
+}
+
+async function getHighlightedCodeHtml(
+  code: string,
+  language: string,
+  themeName: DiffThemeName,
+): Promise<string> {
+  const { highlighter, language: resolvedLanguage } = await getHighlighterPromise(language);
+  try {
+    return highlighter.codeToHtml(code, { lang: resolvedLanguage, theme: themeName });
+  } catch (error) {
+    console.warn(
+      `Code highlighting failed for language "${resolvedLanguage}", falling back to plain text.`,
+      error instanceof Error ? error.message : error,
+    );
+    return highlighter.codeToHtml(code, { lang: "text", theme: themeName });
+  }
 }
 
 function MarkdownCodeBlock({ code, children }: { code: string; children: ReactNode }) {
@@ -167,7 +214,7 @@ function PlainCodeBlock({
 }: {
   className: string | undefined;
   code: string;
-  codeProps?: React.ComponentProps<"code"> | undefined;
+  codeProps?: ComponentProps<"code"> | undefined;
 }) {
   return (
     <pre>
@@ -178,67 +225,50 @@ function PlainCodeBlock({
   );
 }
 
-interface SuspenseShikiCodeBlockProps {
+interface ShikiCodeBlockProps {
   className: string | undefined;
   code: string;
+  codeProps?: ComponentProps<"code"> | undefined;
   themeName: DiffThemeName;
-  isStreaming: boolean;
 }
 
-interface SuspenseShikiCodeBlockUncachedProps {
-  code: string;
-  themeName: DiffThemeName;
-  isStreaming: boolean;
-  cacheKey: string;
-  language: string;
-}
-
-function SuspenseShikiCodeBlockUncached({
-  code,
-  themeName,
-  isStreaming,
-  cacheKey,
-  language,
-}: SuspenseShikiCodeBlockUncachedProps) {
-  const highlighter = use(getHighlighterPromise(language));
-  const highlightedHtml = useMemo(() => {
-    try {
-      return highlighter.codeToHtml(code, { lang: language, theme: themeName });
-    } catch (error) {
-      // Log highlighting failures for debugging while falling back to plain text
-      console.warn(
-        `Code highlighting failed for language "${language}", falling back to plain text.`,
-        error instanceof Error ? error.message : error,
-      );
-      // If highlighting fails for this language, render as plain text
-      return highlighter.codeToHtml(code, { lang: "text", theme: themeName });
-    }
-  }, [code, highlighter, language, themeName]);
-
-  useEffect(() => {
-    if (!isStreaming) {
-      highlightedCodeCache.set(
-        cacheKey,
-        highlightedHtml,
-        estimateHighlightedSize(highlightedHtml, code),
-      );
-    }
-  }, [cacheKey, code, highlightedHtml, isStreaming]);
-
-  return (
-    <div className="chat-markdown-shiki" dangerouslySetInnerHTML={{ __html: highlightedHtml }} />
-  );
-}
-
-function SuspenseShikiCodeBlock({
+function ShikiCodeBlock({
   className,
   code,
+  codeProps,
   themeName,
-  isStreaming,
-}: SuspenseShikiCodeBlockProps) {
+}: ShikiCodeBlockProps) {
   const language = extractFenceLanguage(className);
   const cacheKey = createHighlightCacheKey(code, language, themeName);
-  const cachedHighlightedHtml = !isStreaming ? highlightedCodeCache.get(cacheKey) : null;
+  const cachedHighlightedHtml = highlightedCodeCache.get(cacheKey);
+  const [highlightedCode, setHighlightedCode] = useState<HighlightedCodeState | null>(null);
+
+  useEffect(() => {
+    if (highlightedCodeCache.get(cacheKey) != null) {
+      return undefined;
+    }
+
+    let isCurrent = true;
+    void getHighlightedCodeHtml(code, language, themeName).then(
+      (html) => {
+        if (!isCurrent) return;
+        highlightedCodeCache.set(cacheKey, html, estimateHighlightedSize(html, code));
+        setHighlightedCode({ cacheKey, html });
+      },
+      (error) => {
+        if (!isCurrent) return;
+        console.warn(
+          "Code highlighting failed, falling back to plain text.",
+          error instanceof Error ? error.message : error,
+        );
+        setHighlightedCode(null);
+      },
+    );
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [cacheKey, code, language, themeName]);
 
   if (cachedHighlightedHtml != null) {
     return (
@@ -249,15 +279,16 @@ function SuspenseShikiCodeBlock({
     );
   }
 
-  return (
-    <SuspenseShikiCodeBlockUncached
-      code={code}
-      themeName={themeName}
-      isStreaming={isStreaming}
-      cacheKey={cacheKey}
-      language={language}
-    />
-  );
+  if (highlightedCode?.cacheKey === cacheKey) {
+    return (
+      <div
+        className="chat-markdown-shiki"
+        dangerouslySetInnerHTML={{ __html: highlightedCode.html }}
+      />
+    );
+  }
+
+  return <PlainCodeBlock className={className} code={code} codeProps={codeProps} />;
 }
 
 interface MarkdownFileLinkProps {
@@ -551,7 +582,7 @@ function ChatMarkdown({ text, cwd, isStreaming = false }: ChatMarkdownProps) {
         children,
         "data-block": dataBlock,
         ...props
-      }: React.ComponentProps<"code"> & {
+      }: ComponentProps<"code"> & {
         node?: unknown;
         "data-block"?: string | boolean | undefined;
       }) {
@@ -574,20 +605,12 @@ function ChatMarkdown({ text, cwd, isStreaming = false }: ChatMarkdownProps) {
 
         return (
           <MarkdownCodeBlock code={code}>
-            <CodeHighlightErrorBoundary
-              fallback={<PlainCodeBlock className={className} code={code} codeProps={props} />}
-            >
-              <Suspense
-                fallback={<PlainCodeBlock className={className} code={code} codeProps={props} />}
-              >
-                <SuspenseShikiCodeBlock
-                  className={className}
-                  code={code}
-                  themeName={diffThemeName}
-                  isStreaming={false}
-                />
-              </Suspense>
-            </CodeHighlightErrorBoundary>
+            <ShikiCodeBlock
+              className={className}
+              code={code}
+              codeProps={props}
+              themeName={diffThemeName}
+            />
           </MarkdownCodeBlock>
         );
       },

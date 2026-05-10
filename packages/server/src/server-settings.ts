@@ -14,10 +14,10 @@ import {
   DEFAULT_GIT_TEXT_GENERATION_MODEL_BY_PROVIDER,
   DEFAULT_SERVER_SETTINGS,
   DEFAULT_GIT_TEXT_GENERATION_MODEL,
+  defaultInstanceIdForDriver,
   isProviderDriverKind,
   type ModelSelection,
   type ProviderInstanceConfig,
-  ProviderDriverKind,
   ProviderInstanceId,
   ServerSettings,
   ServerSettingsError,
@@ -48,6 +48,10 @@ import { ServerConfig } from "./config.ts";
 import { type DeepPartial, deepMerge } from "@multi/shared/Struct";
 import { fromLenientJson } from "@multi/shared/schema-json";
 import { applyServerSettingsPatch } from "@multi/shared/server-settings";
+import {
+  CANONICAL_PROVIDER_DRIVER_ORDER,
+  resolveProviderEnabled,
+} from "./provider/provider-settings.ts";
 
 export interface ServerSettingsShape {
   /** Start the settings runtime and attach file watching. */
@@ -110,14 +114,6 @@ export class ServerSettingsService extends Context.Service<
 
 const ServerSettingsJson = fromLenientJson(ServerSettings);
 
-type LegacyProviderSettings = ServerSettings["providers"][keyof ServerSettings["providers"]];
-
-const getLegacyProviderSettings = (
-  settings: ServerSettings,
-  provider: ProviderDriverKind,
-): LegacyProviderSettings | undefined =>
-  (settings.providers as Record<string, LegacyProviderSettings | undefined>)[provider];
-
 /**
  * Ensure the `textGenerationModelSelection` points to an enabled provider.
  * If the selected provider is disabled, fall back to the first enabled
@@ -134,7 +130,11 @@ function resolveTextGenerationProvider(settings: ServerSettings): ServerSettings
 
   if (
     isProviderDriverKind(selection.instanceId) &&
-    getLegacyProviderSettings(settings, selection.instanceId)?.enabled
+    resolveProviderEnabled({
+      settings,
+      driver: selection.instanceId,
+      instanceId: ProviderInstanceId.make(selection.instanceId),
+    })
   ) {
     return settings;
   }
@@ -143,21 +143,40 @@ function resolveTextGenerationProvider(settings: ServerSettings): ServerSettings
 }
 
 function fallbackTextGenerationProvider(settings: ServerSettings): ServerSettings {
-  const fallbackEntry = Object.entries(settings.providers).find(([, provider]) => provider.enabled);
-  const fallback = fallbackEntry ? ProviderDriverKind.make(fallbackEntry[0]) : undefined;
-  if (!fallback) {
-    return settings;
+  for (const driver of CANONICAL_PROVIDER_DRIVER_ORDER) {
+    const instanceId = defaultInstanceIdForDriver(driver);
+    if (!resolveProviderEnabled({ settings, driver, instanceId })) {
+      continue;
+    }
+    return {
+      ...settings,
+      textGenerationModelSelection: {
+        instanceId,
+        model:
+          DEFAULT_GIT_TEXT_GENERATION_MODEL_BY_PROVIDER[driver] ??
+          DEFAULT_GIT_TEXT_GENERATION_MODEL,
+      } satisfies ModelSelection,
+    };
   }
 
-  return {
-    ...settings,
-    textGenerationModelSelection: {
-      instanceId: ProviderInstanceId.make(fallback),
-      model:
-        DEFAULT_GIT_TEXT_GENERATION_MODEL_BY_PROVIDER[fallback] ??
-        DEFAULT_GIT_TEXT_GENERATION_MODEL,
-    } satisfies ModelSelection,
-  };
+  for (const [rawInstanceId, instance] of Object.entries(settings.providerInstances)) {
+    if (instance.enabled === false) {
+      continue;
+    }
+    const model = DEFAULT_GIT_TEXT_GENERATION_MODEL_BY_PROVIDER[instance.driver];
+    if (!model) {
+      continue;
+    }
+    return {
+      ...settings,
+      textGenerationModelSelection: {
+        instanceId: ProviderInstanceId.make(rawInstanceId),
+        model,
+      } satisfies ModelSelection,
+    };
+  }
+
+  return settings;
 }
 
 // Values under these keys are compared as a whole — never stripped field-by-field.

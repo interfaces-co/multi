@@ -35,6 +35,7 @@ import { makeManagedServerProvider } from "./make-managed-server-provider.ts";
 import { CursorProvider } from "./CursorProvider.service.ts";
 import { AcpSessionRuntime } from "./acp/AcpSessionRuntime.ts";
 import { ServerSettingsService } from "../server-settings.ts";
+import { resolveCursorSettings } from "./provider-settings.ts";
 
 const PROVIDER = ProviderDriverKind.make("cursor");
 const CURSOR_PRESENTATION = {
@@ -998,7 +999,7 @@ const runCursorCommand = (args: ReadonlyArray<string>) =>
     const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
     const cursorSettings = yield* Effect.service(ServerSettingsService).pipe(
       Effect.flatMap((service) => service.getSettings),
-      Effect.map((settings) => settings.providers.cursor),
+      Effect.map(resolveCursorSettings),
     );
     const command = ChildProcess.make(cursorSettings.binaryPath, [...args], {
       shell: process.platform === "win32",
@@ -1033,7 +1034,7 @@ export const checkCursorProviderStatus = Effect.fn("checkCursorProviderStatus")(
   > {
     const cursorSettings = yield* Effect.service(ServerSettingsService).pipe(
       Effect.flatMap((service) => service.getSettings),
-      Effect.map((settings) => settings.providers.cursor),
+      Effect.map(resolveCursorSettings),
     );
     const checkedAt = new Date().toISOString();
     const fallbackModels = getCursorFallbackModels(cursorSettings);
@@ -1170,11 +1171,11 @@ export const CursorProviderLive = Layer.effect(
 
     return yield* makeManagedServerProvider<CursorSettings>({
       getSettings: serverSettings.getSettings.pipe(
-        Effect.map((settings) => settings.providers.cursor),
+        Effect.map(resolveCursorSettings),
         Effect.orDie,
       ),
       streamSettings: serverSettings.streamChanges.pipe(
-        Stream.map((settings) => settings.providers.cursor),
+        Stream.map((settings) => resolveCursorSettings(settings)),
       ),
       haveSettingsChanged: (previous, next) => !Equal.equals(previous, next),
       initialSnapshot: buildInitialCursorProviderSnapshot,

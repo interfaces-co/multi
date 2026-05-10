@@ -108,12 +108,15 @@ type CentralIconComponent = React.ComponentType<CentralIconBaseProps>;
 import { proposedPlanTitle } from "../../proposed-plan";
 import { getProviderInteractionModeToggle } from "../../provider-models";
 import {
-  deriveProviderInstanceEntries,
+  deriveProviderInstanceEntriesForSettings,
   resolveProviderDriverKindForInstanceSelection,
   sortProviderInstanceEntries,
   type ProviderInstanceEntry,
 } from "../../provider-instances";
-import { type AppModelOption, getAppModelOptionsForInstance } from "../../model-selection";
+import {
+  type AppModelOption,
+  getAppModelOptionsForInstance,
+} from "../../model-selection";
 import type { UnifiedSettings } from "@multi/contracts/settings";
 import type { SessionPhase, Thread } from "../../types";
 import type { PendingUserInputDraftAnswer } from "../../pending-user-input";
@@ -597,8 +600,11 @@ export const ChatComposer = memo(
     // configured instance (default built-in + any custom `providerInstances.*`),
     // sorted default-first per driver kind for a stable picker order.
     const providerInstanceEntries = useMemo<ReadonlyArray<ProviderInstanceEntry>>(
-      () => sortProviderInstanceEntries(deriveProviderInstanceEntries(providerStatuses)),
-      [providerStatuses],
+      () =>
+        sortProviderInstanceEntries(
+          deriveProviderInstanceEntriesForSettings(settings, providerStatuses),
+        ),
+      [providerStatuses, settings],
     );
     const selectedProviderByThreadId = composerDraft.activeProvider ?? null;
     const threadProvider =
@@ -642,7 +648,10 @@ export const ChatComposer = memo(
           return match.instanceId;
         }
       }
-      if (explicitSelectedInstanceId) {
+      if (
+        explicitSelectedInstanceId &&
+        !providerInstanceEntries.some((entry) => entry.instanceId === explicitSelectedInstanceId)
+      ) {
         return ProviderInstanceId.make(explicitSelectedInstanceId);
       }
       const byKind = providerInstanceEntries.find(

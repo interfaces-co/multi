@@ -4,8 +4,18 @@ import {
   scopeProjectRef,
   scopeThreadRef,
 } from "@multi/client-runtime";
-import type { EditorId, EnvironmentId, ThreadId } from "@multi/contracts";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  type EditorId,
+  type EnvironmentId,
+  type ModelSelection,
+  ProviderDriverKind,
+  ProviderInstanceId,
+  type ServerProvider,
+  type ThreadId,
+} from "@multi/contracts";
+import type { UnifiedSettings } from "@multi/contracts/settings";
+import { createModelSelection, normalizeModelSlug } from "@multi/shared/model";
+import { useMutation } from "@tanstack/react-query";
 import { Outlet, useNavigate, useParams, useRouter } from "@tanstack/react-router";
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -17,8 +27,9 @@ import { isElectron } from "~/env";
 import { useEnvironmentGitPanel } from "~/hooks/use-environment-git";
 import { useHandleNewThread } from "~/hooks/use-handle-new-thread";
 import { useRouteThreadId } from "~/hooks/use-route-thread-id";
-import { useServerAvailableEditors } from "~/rpc/server-state";
-import { useComposerDraftStore } from "~/composer-draft-store";
+import { getServerConfig, useServerAvailableEditors } from "~/rpc/server-state";
+import { deriveEffectiveComposerModelState, useComposerDraftStore } from "~/composer-draft-store";
+import { getComposerProviderState } from "~/components/chat/composer-provider-registry";
 import { readEnvironmentApi } from "~/environment-api";
 import {
   startNewThreadFromContext,
@@ -33,6 +44,11 @@ import {
   type GitAgentInterruptTarget,
   type GitAgentRun,
 } from "~/lib/git-agent-actions";
+import { getAppModelOptionsForInstance } from "~/model-selection";
+import {
+  deriveProviderInstanceEntriesForSettings,
+  sortProviderInstanceEntries,
+} from "~/provider-instances";
 import {
   shellPanelsActions,
   useSecondaryRail,
@@ -98,6 +114,116 @@ function needsSidebarAttention(sidebarThread: StoreSidebarThreadSummary | undefi
   if (!sidebarThread) return false;
   const label = resolveThreadStatusPill({ thread: sidebarThread })?.label;
   return label === "Pending Approval" || label === "Awaiting Input" || label === "Plan Ready";
+}
+
+function hasGitAgentStartFailure(thread: Thread, action: GitAgentAction): boolean {
+  const latestUserMessage = thread.messages.findLast((message) => message.role === "user");
+  if (!latestUserMessage || resolveGitAgentActionFromPrompt(latestUserMessage.text) !== action) {
+    return false;
+  }
+  return thread.activities.some(
+    (activity) =>
+      activity.kind === "provider.turn.start.failed" &&
+      activity.createdAt >= latestUserMessage.createdAt,
+  );
+}
+
+type ComposerModelDraft = Readonly<{
+  activeProvider: ProviderInstanceId | null;
+  modelSelectionByProvider: Partial<Record<ProviderInstanceId, ModelSelection>>;
+}>;
+
+function resolveGitAgentModelSelection(input: {
+  draft: ComposerModelDraft | null | undefined;
+  providers: ReadonlyArray<ServerProvider>;
+  settings: UnifiedSettings;
+  sessionProviderInstanceId: ProviderInstanceId | null | undefined;
+  threadModelSelection: ModelSelection | null | undefined;
+  projectModelSelection: ModelSelection | null | undefined;
+}): ModelSelection | undefined {
+  const providerInstanceEntries = sortProviderInstanceEntries(
+    deriveProviderInstanceEntriesForSettings(input.settings, input.providers),
+  );
+  const candidateInstanceIds: Array<ProviderInstanceId | null | undefined> = [
+    input.draft?.activeProvider,
+    input.sessionProviderInstanceId,
+    input.threadModelSelection?.instanceId,
+    input.projectModelSelection?.instanceId,
+  ];
+  const explicitInstanceId = candidateInstanceIds.find((instanceId) => Boolean(instanceId)) ?? null;
+  const explicitProvider =
+    providerInstanceEntries.find((entry) => entry.instanceId === explicitInstanceId)?.driverKind ??
+    ProviderDriverKind.make("codex");
+
+  let selectedInstanceId: ProviderInstanceId | undefined;
+  for (const candidate of candidateInstanceIds) {
+    if (!candidate) {
+      continue;
+    }
+    const match = providerInstanceEntries.find(
+      (entry) => entry.instanceId === candidate && entry.enabled,
+    );
+    if (match) {
+      selectedInstanceId = match.instanceId;
+      break;
+    }
+  }
+  if (
+    selectedInstanceId === undefined &&
+    explicitInstanceId !== null &&
+    !providerInstanceEntries.some((entry) => entry.instanceId === explicitInstanceId)
+  ) {
+    selectedInstanceId = explicitInstanceId;
+  }
+  selectedInstanceId ??= providerInstanceEntries.find(
+    (entry) => entry.enabled && entry.driverKind === explicitProvider,
+  )?.instanceId;
+  selectedInstanceId ??= providerInstanceEntries.find((entry) => entry.enabled)?.instanceId;
+  selectedInstanceId ??=
+    input.threadModelSelection?.instanceId ??
+    input.projectModelSelection?.instanceId ??
+    ProviderInstanceId.make("codex");
+
+  const selectedEntry = providerInstanceEntries.find(
+    (entry) => entry.instanceId === selectedInstanceId,
+  );
+  const selectedProvider = selectedEntry?.driverKind ?? explicitProvider;
+  const effectiveModelState = deriveEffectiveComposerModelState({
+    draft: input.draft,
+    providers: input.providers,
+    selectedProvider,
+    selectedInstanceId,
+    threadModelSelection: input.threadModelSelection,
+    projectModelSelection: input.projectModelSelection,
+    settings: input.settings,
+  });
+  const instanceModelOptions = selectedEntry
+    ? getAppModelOptionsForInstance(input.settings, selectedEntry)
+    : [];
+  const instanceModelSlugs = new Set(instanceModelOptions.map((option) => option.slug));
+  const normalizedModel = normalizeModelSlug(effectiveModelState.selectedModel, selectedProvider);
+  const selectedModel = instanceModelSlugs.has(effectiveModelState.selectedModel)
+    ? effectiveModelState.selectedModel
+    : normalizedModel && instanceModelSlugs.has(normalizedModel)
+      ? normalizedModel
+      : (instanceModelOptions[0]?.slug ?? effectiveModelState.selectedModel);
+  if (!selectedModel) {
+    return input.threadModelSelection ?? input.projectModelSelection ?? undefined;
+  }
+
+  const providerState = getComposerProviderState({
+    provider: selectedProvider,
+    model: selectedModel,
+    models: selectedEntry?.models ?? [],
+    prompt: "",
+    modelOptions: effectiveModelState.modelOptions?.[selectedProvider],
+  });
+
+  return createModelSelection(
+    selectedInstanceId,
+    selectedModel,
+    providerState.modelOptionsForDispatch,
+  );
 }
 
 function toSummary(
@@ -168,7 +294,6 @@ function SettingsShellHost(props: { children?: ReactNode }) {
 
 function ChatShellHost(props: { children?: ReactNode }) {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const router = useRouter();
   const openAddProject = useCommandPaletteStore((store) => store.openAddProject);
   const routeThreadId = useRouteThreadId();
@@ -194,7 +319,8 @@ function ChatShellHost(props: { children?: ReactNode }) {
     defaultProjectRef,
     handleNewThread,
   } = useHandleNewThread();
-  const defaultThreadEnvMode = useSettings((settings) => settings.defaultThreadEnvMode);
+  const settings = useSettings();
+  const defaultThreadEnvMode = settings.defaultThreadEnvMode;
 
   const selectedId =
     routeTarget?.kind === "draft" ? routeTarget.draftId : (routeTarget?.threadRef.threadId ?? null);
@@ -479,13 +605,11 @@ function ChatShellHost(props: { children?: ReactNode }) {
       }
 
       prefetchThreadNavigation({
-        project: projectById.get(thread.projectId),
-        queryClient,
         router,
         thread,
       });
     },
-    [drafts, projectById, queryClient, router, threads],
+    [drafts, projectById, router, threads],
   );
 
   const startGitAgentAction = useCallback(
@@ -560,8 +684,25 @@ function ChatShellHost(props: { children?: ReactNode }) {
         throw new Error("Environment API unavailable.");
       }
 
-      const modelSelection =
-        currentServerThread?.modelSelection ?? project.defaultModelSelection ?? undefined;
+      const composerDraftKey =
+        currentServerThread !== null
+          ? scopedThreadKey(scopeThreadRef(currentServerThread.environmentId, currentServerThread.id))
+          : routeTarget?.kind === "draft"
+            ? routeTarget.draftId
+            : null;
+      const composerDraft =
+        composerDraftKey !== null
+          ? useComposerDraftStore.getState().draftsByThreadKey[composerDraftKey]
+          : undefined;
+      const serverConfig = getServerConfig();
+      const modelSelection = resolveGitAgentModelSelection({
+        draft: composerDraft,
+        providers: serverConfig?.providers ?? [],
+        settings,
+        sessionProviderInstanceId: currentServerThread?.session?.providerInstanceId,
+        threadModelSelection: currentServerThread?.modelSelection,
+        projectModelSelection: project.defaultModelSelection,
+      });
       if (!modelSelection) {
         throw new Error("Choose a model before running this Git action.");
       }
@@ -653,6 +794,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
       projects,
       routeActiveThread,
       routeTarget,
+      settings,
     ],
   );
   const gitAgentActionMutation = useMutation({
@@ -673,6 +815,9 @@ function ChatShellHost(props: { children?: ReactNode }) {
         null,
       activeGitAgentRun?.target.threadId ?? gitAgentOrchestrationHandoff?.target.threadId ?? null,
     ] as const,
+    onMutate: () => {
+      setGitAgentOrchestrationHandoff(null);
+    },
     mutationFn: async (target: GitAgentInterruptTarget) => {
       const api = readEnvironmentApi(target.environmentId);
       if (!api) {
@@ -689,12 +834,40 @@ function ChatShellHost(props: { children?: ReactNode }) {
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Failed to stop Git action.");
     },
+    onSettled: () => {
+      setGitAgentOrchestrationHandoff(null);
+    },
   });
   useEffect(() => {
     if (activeGitAgentRun !== null) {
       setGitAgentOrchestrationHandoff(null);
+      return;
     }
-  }, [activeGitAgentRun]);
+    if (gitAgentOrchestrationHandoff === null || gitAgentActionMutation.isPending) {
+      return;
+    }
+    const handoffThread = threads.find(
+      (thread) =>
+        thread.environmentId === gitAgentOrchestrationHandoff.target.environmentId &&
+        thread.id === gitAgentOrchestrationHandoff.target.threadId,
+    );
+    if (!handoffThread) {
+      return;
+    }
+    const orchestrationStatus = handoffThread.session?.orchestrationStatus ?? null;
+    if (orchestrationStatus === "starting" || orchestrationStatus === "running") {
+      return;
+    }
+    const latestTurnState = handoffThread.latestTurn?.state ?? null;
+    if (
+      latestTurnState === "completed" ||
+      latestTurnState === "interrupted" ||
+      latestTurnState === "error" ||
+      hasGitAgentStartFailure(handoffThread, gitAgentOrchestrationHandoff.action)
+    ) {
+      setGitAgentOrchestrationHandoff(null);
+    }
+  }, [activeGitAgentRun, gitAgentActionMutation.isPending, gitAgentOrchestrationHandoff, threads]);
   const pendingGitAgentAction = resolvePendingGitAgentAction({
     activeRun: activeGitAgentRun,
     mutationIsPending: gitAgentActionMutation.isPending,
@@ -708,6 +881,8 @@ function ChatShellHost(props: { children?: ReactNode }) {
   const stopGitAgentAction = gitAgentInterruptTarget
     ? () => interruptGitAgentActionMutation.mutate(gitAgentInterruptTarget)
     : null;
+  const stoppingGitAgentAction =
+    interruptGitAgentActionMutation.isPending && pendingGitAgentAction !== null;
 
   const chatLeft = (
     <div className="agent-window__left-content thread-rail-pad flex min-h-0 flex-1 flex-col px-0">
@@ -738,7 +913,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
         availableEditors={availableEditors}
         onGitAgentAction={(action) => gitAgentActionMutation.mutate(action)}
         onStopGitAgentAction={stopGitAgentAction}
-        stoppingGitAgentAction={interruptGitAgentActionMutation.isPending}
+        stoppingGitAgentAction={stoppingGitAgentAction}
         pendingGitAgentAction={pendingGitAgentAction}
       />
     );

@@ -7,6 +7,7 @@ import {
   type ServerProviderModel,
   type ServerProviderState,
 } from "@multi/contracts";
+import type { UnifiedSettings } from "@multi/contracts/settings";
 
 import { formatProviderDriverKindLabel } from "./provider-models";
 
@@ -87,6 +88,57 @@ export function deriveProviderInstanceEntries(
       models: snapshot.models,
     } satisfies ProviderInstanceEntry;
   });
+}
+
+export function resolveProviderInstanceEnabled(
+  settings: UnifiedSettings,
+  entry: Pick<ProviderInstanceEntry, "instanceId" | "driverKind" | "enabled" | "isDefault">,
+): boolean {
+  const instance = settings.providerInstances?.[entry.instanceId];
+  if (instance?.driver === entry.driverKind) {
+    return instance.enabled ?? true;
+  }
+
+  if (entry.isDefault) {
+    const defaultProviderConfigs = settings.providers as Record<
+      string,
+      { readonly enabled: boolean } | undefined
+    >;
+    return defaultProviderConfigs[entry.driverKind]?.enabled ?? entry.enabled;
+  }
+
+  return entry.enabled;
+}
+
+function normalizeProviderInstanceEntryState(
+  settings: UnifiedSettings,
+  entry: ProviderInstanceEntry,
+): ProviderInstanceEntry {
+  const enabled = resolveProviderInstanceEnabled(settings, entry);
+  const status = enabled ? entry.status : ("disabled" as const);
+  if (enabled === entry.enabled && status === entry.status) {
+    return entry;
+  }
+
+  return {
+    ...entry,
+    enabled,
+    status,
+    snapshot: {
+      ...entry.snapshot,
+      enabled,
+      status,
+    },
+  };
+}
+
+export function deriveProviderInstanceEntriesForSettings(
+  settings: UnifiedSettings,
+  providers: ReadonlyArray<ServerProvider>,
+): ReadonlyArray<ProviderInstanceEntry> {
+  return deriveProviderInstanceEntries(providers).map((entry) =>
+    normalizeProviderInstanceEntryState(settings, entry),
+  );
 }
 
 export function sortProviderInstanceEntries(

@@ -1,33 +1,32 @@
 "use client";
 
-import { FileTree as PierreFileTree, useFileTree } from "@pierre/trees/react";
-import type { GitStatus, GitStatusEntry } from "@pierre/trees";
+import type {
+  FileTreeDirectoryHandle,
+  FileTreeItemHandle,
+  GitStatus,
+  GitStatusEntry,
+} from "@pierre/trees";
 import type {
   EditorId,
   EnvironmentId,
   GitWorkingTreeFileStatus,
   ProjectEntry,
 } from "@multi/contracts";
-import { useQuery } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { IconArrowRotateClockwise } from "central-icons";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { resolveAndPersistPreferredEditor } from "~/editor-preferences";
 import { useGitStatus } from "~/lib/git-status-state";
 import { ensureNativeApi } from "~/lib/native-runtime-api";
-import { projectListEntriesQueryOptions } from "~/lib/project-react-query";
+import { projectListDirectoryQueryOptions } from "~/lib/project-react-query";
 import { cn } from "~/lib/utils";
 import { useTheme } from "~/hooks/use-theme";
-
-import { TREE_UNSAFE_CSS, useWorkbenchTreeHostStyle } from "./pierre-workbench-tree";
+import { normalizeTreePath, Tree, useTreeModel } from "../../tree";
 import { WorkbenchIconButton } from "../shell/workbench-icon-button";
 
-const EMPTY_PROJECT_ENTRIES: readonly ProjectEntry[] = [];
-
-function normalizeTreePath(path: string): string {
-  return path.replace(/\\/g, "/");
-}
+const DIRECTORY_PLACEHOLDER_FILE_NAME = "Loading...";
 
 function basename(path: string | null): string {
   if (!path) return "Files";
@@ -39,6 +38,43 @@ function basename(path: string | null): string {
 function projectEntryToTreePath(entry: ProjectEntry): string {
   const p = normalizeTreePath(entry.path);
   return entry.kind === "directory" ? `${p}/` : p;
+}
+
+function treeDirectoryPathToRelativeDir(path: string): string {
+  return normalizeTreePath(path).replace(/\/+$/g, "");
+}
+
+function directoryPlaceholderPath(relativeDir: string): string {
+  const normalizedDir = treeDirectoryPathToRelativeDir(relativeDir);
+  return normalizedDir
+    ? `${normalizedDir}/${DIRECTORY_PLACEHOLDER_FILE_NAME}`
+    : DIRECTORY_PLACEHOLDER_FILE_NAME;
+}
+
+function isDirectoryPlaceholderPath(path: string): boolean {
+  return normalizeTreePath(path).endsWith(`/${DIRECTORY_PLACEHOLDER_FILE_NAME}`);
+}
+
+function isDirectoryHandle(item: FileTreeItemHandle | null): item is FileTreeDirectoryHandle {
+  return item?.isDirectory() === true;
+}
+
+function entriesToTreePaths(
+  entries: readonly ProjectEntry[],
+  loadedDirectories: ReadonlySet<string>,
+): string[] {
+  const paths: string[] = [];
+  for (const entry of entries) {
+    const treePath = projectEntryToTreePath(entry);
+    paths.push(treePath);
+    if (
+      entry.kind === "directory" &&
+      !loadedDirectories.has(treeDirectoryPathToRelativeDir(entry.path))
+    ) {
+      paths.push(directoryPlaceholderPath(entry.path));
+    }
+  }
+  return paths;
 }
 
 function joinProjectPath(cwd: string, relativePath: string): string {
@@ -85,6 +121,22 @@ function toGitStatusEntries(status: ReturnType<typeof useGitStatus>["data"]): Gi
   }));
 }
 
+function getExpandedDirectoryPaths(
+  model: ReturnType<typeof useTreeModel>["model"],
+  treePaths: readonly string[],
+): string[] {
+  return treePaths.filter((treePath) => {
+    if (!treePath.endsWith("/")) {
+      return false;
+    }
+    const item = model.getItem(treePath);
+    if (!isDirectoryHandle(item)) {
+      return false;
+    }
+    return item.isExpanded();
+  });
+}
+
 export function ProjectFileTree(props: {
   cwd: string | null;
   environmentId: EnvironmentId | null;
@@ -94,20 +146,27 @@ export function ProjectFileTree(props: {
   selectedPath?: string | null;
   title?: string;
   className?: string;
+  active?: boolean;
 }) {
   const filePathSetRef = useRef<ReadonlySet<string>>(new Set());
   const availableEditorsRef = useRef(props.availableEditors);
   const cwdRef = useRef(props.cwd);
   const onOpenFileRef = useRef(props.onOpenFile);
+  const loadContextRef = useRef({ cwd: props.cwd, environmentId: props.environmentId });
+  const loadedDirectoriesRef = useRef<Set<string>>(new Set());
+  const loadingDirectoriesRef = useRef<Set<string>>(new Set());
   const lastOpenedPathRef = useRef<string | null>(null);
   const suppressSelectionOpenRef = useRef<string | null>(null);
   const { resolvedTheme } = useTheme();
-
-  const treeHostStyle = useWorkbenchTreeHostStyle(resolvedTheme);
+  const queryClient = useQueryClient();
+  const [treePaths, setTreePaths] = useState<string[]>([]);
+  const [loadError, setLoadError] = useState<unknown>(null);
+  const [, setLoadRevision] = useState(0);
 
   availableEditorsRef.current = props.availableEditors;
   cwdRef.current = props.cwd;
   onOpenFileRef.current = props.onOpenFile;
+  loadContextRef.current = { cwd: props.cwd, environmentId: props.environmentId };
 
   const openPath = useCallback((relativePath: string) => {
     const cwd = cwdRef.current;
@@ -131,17 +190,12 @@ export function ProjectFileTree(props: {
     }
   }, []);
 
-  const { model } = useFileTree({
+  const { model } = useTreeModel({
     paths: [],
-    density: "compact",
-    itemHeight: 22,
-    flattenEmptyDirectories: true,
     fileTreeSearchMode: "collapse-non-matches",
-    initialExpansion: 1,
-    icons: "complete",
+    initialExpansion: "closed",
     search: true,
     searchBlurBehavior: "retain",
-    unsafeCSS: TREE_UNSAFE_CSS,
     onSelectionChange: (selectedPaths) => {
       const raw = selectedPaths[0] ?? null;
       const selectedPath = raw ? normalizeTreePath(raw) : null;
@@ -167,44 +221,124 @@ export function ProjectFileTree(props: {
     },
   });
 
-  const entriesQuery = useQuery(
-    projectListEntriesQueryOptions({
-      environmentId: props.environmentId,
-      cwd: props.cwd,
-      enabled: Boolean(props.environmentId && props.cwd),
-    }),
+  const loadDirectory = useCallback(
+    async (relativeDir: string) => {
+      const cwd = props.cwd;
+      const environmentId = props.environmentId;
+      const normalizedRelativeDir = treeDirectoryPathToRelativeDir(relativeDir);
+      if (!props.active || !cwd || !environmentId) {
+        return;
+      }
+      if (
+        loadedDirectoriesRef.current.has(normalizedRelativeDir) ||
+        loadingDirectoriesRef.current.has(normalizedRelativeDir)
+      ) {
+        return;
+      }
+
+      loadingDirectoriesRef.current.add(normalizedRelativeDir);
+      setLoadRevision((revision) => revision + 1);
+      try {
+        const result = await queryClient.fetchQuery(
+          projectListDirectoryQueryOptions({
+            environmentId,
+            cwd,
+            relativeDir: normalizedRelativeDir,
+          }),
+        );
+        if (
+          loadContextRef.current.cwd !== cwd ||
+          loadContextRef.current.environmentId !== environmentId
+        ) {
+          return;
+        }
+
+        loadedDirectoriesRef.current.add(normalizedRelativeDir);
+        setLoadError(null);
+        setTreePaths((currentPaths) => {
+          const nextPaths = new Set(
+            currentPaths.filter((path) => path !== directoryPlaceholderPath(normalizedRelativeDir)),
+          );
+          for (const treePath of entriesToTreePaths(result.entries, loadedDirectoriesRef.current)) {
+            nextPaths.add(treePath);
+          }
+          return [...nextPaths];
+        });
+      } catch (error) {
+        if (
+          loadContextRef.current.cwd === cwd &&
+          loadContextRef.current.environmentId === environmentId
+        ) {
+          setLoadError(error);
+        }
+      } finally {
+        loadingDirectoriesRef.current.delete(normalizedRelativeDir);
+        setLoadRevision((revision) => revision + 1);
+      }
+    },
+    [props.active, props.cwd, props.environmentId, queryClient],
   );
   const gitStatus = useGitStatus({ environmentId: props.environmentId, cwd: props.cwd });
 
-  const entries = entriesQuery.data?.entries ?? EMPTY_PROJECT_ENTRIES;
-  const truncated = entriesQuery.data?.truncated ?? false;
-  const treePaths = useMemo(() => entries.map(projectEntryToTreePath), [entries]);
-  const topLevelExpandedPaths = useMemo(
-    () =>
-      entries
-        .filter((entry) => {
-          if (entry.kind !== "directory") return false;
-          return !normalizeTreePath(entry.path).includes("/");
-        })
-        .map((entry) => normalizeTreePath(entry.path)),
-    [entries],
+  const loadedEntryCount = useMemo(
+    () => treePaths.filter((path) => !isDirectoryPlaceholderPath(path)).length,
+    [treePaths],
   );
   const filePathSet = useMemo(
     () =>
       new Set(
-        entries
-          .filter((entry) => entry.kind === "file")
-          .map((entry) => normalizeTreePath(entry.path)),
+        treePaths
+          .filter((path) => !path.endsWith("/") && !isDirectoryPlaceholderPath(path))
+          .map((path) => normalizeTreePath(path)),
       ),
-    [entries],
+    [treePaths],
   );
   const gitStatusEntries = useMemo(() => toGitStatusEntries(gitStatus.data), [gitStatus.data]);
+  const isLoading =
+    loadingDirectoriesRef.current.size > 0 ||
+    (props.active === true &&
+      props.cwd !== null &&
+      props.environmentId !== null &&
+      !loadedDirectoriesRef.current.has(""));
 
   filePathSetRef.current = filePathSet;
 
   useEffect(() => {
-    model.resetPaths(treePaths, { initialExpandedPaths: topLevelExpandedPaths });
-  }, [model, topLevelExpandedPaths, treePaths]);
+    const expandedPaths = getExpandedDirectoryPaths(model, treePaths);
+    model.resetPaths(treePaths, { initialExpandedPaths: expandedPaths });
+  }, [model, treePaths]);
+
+  useEffect(() => {
+    loadedDirectoriesRef.current = new Set();
+    loadingDirectoriesRef.current = new Set();
+    setTreePaths([]);
+    setLoadError(null);
+    setLoadRevision((revision) => revision + 1);
+  }, [props.cwd, props.environmentId]);
+
+  useEffect(() => {
+    if (!props.active || !props.cwd || !props.environmentId) {
+      return;
+    }
+    void loadDirectory("");
+  }, [loadDirectory, props.active, props.cwd, props.environmentId]);
+
+  useEffect(() => {
+    return model.subscribe(() => {
+      if (!props.active || !props.cwd || !props.environmentId) {
+        return;
+      }
+      for (const treePath of treePaths) {
+        if (!treePath.endsWith("/")) {
+          continue;
+        }
+        const item = model.getItem(treePath);
+        if (isDirectoryHandle(item) && item.isExpanded()) {
+          void loadDirectory(treeDirectoryPathToRelativeDir(treePath));
+        }
+      }
+    });
+  }, [loadDirectory, model, props.active, props.cwd, props.environmentId, treePaths]);
 
   useEffect(() => {
     const externalSelected = props.selectedPath ? normalizeTreePath(props.selectedPath) : null;
@@ -258,27 +392,29 @@ export function ProjectFileTree(props: {
         </span>
         <span className="min-w-0 flex-1" />
         <span className="shrink-0 text-[11px]/[13px] text-multi-fg-quaternary tabular-nums">
-          {formatEntryCount(entries.length, truncated)}
+          {formatEntryCount(loadedEntryCount, false)}
         </span>
         <WorkbenchIconButton
           aria-label="Refresh files"
           chrome="panel"
           onClick={() => {
-            void entriesQuery.refetch();
+            loadedDirectoriesRef.current = new Set();
+            loadingDirectoriesRef.current = new Set();
+            setTreePaths([]);
+            setLoadError(null);
+            setLoadRevision((revision) => revision + 1);
+            void loadDirectory("");
           }}
         >
-          <IconArrowRotateClockwise
-            className={cn("size-3.5", entriesQuery.isFetching && "animate-spin")}
-          />
+          <IconArrowRotateClockwise className={cn("size-3.5", isLoading && "animate-spin")} />
         </WorkbenchIconButton>
       </div>
 
       <div className="min-h-0 flex-1 overflow-hidden">
         {props.cwd && props.environmentId ? (
-          <PierreFileTree
+          <Tree
             model={model}
-            className="block h-full w-full"
-            style={treeHostStyle}
+            resolvedTheme={resolvedTheme}
             renderContextMenu={(item, context) => (
               <div
                 className="min-w-32 rounded-multi-control border border-multi-border/70 bg-multi-bubble-opaque p-1 font-multi text-[12px]/[16px] text-foreground shadow-multi-popup"
@@ -299,11 +435,11 @@ export function ProjectFileTree(props: {
           />
         ) : (
           <div className="px-3 py-2 text-[11px]/[14px] text-muted-foreground/55">
-            Add a project project to browse files.
+            Add a project to browse files.
           </div>
         )}
 
-        {entriesQuery.isError ? (
+        {loadError ? (
           <div className="px-3 py-2 text-[11px]/[14px] text-destructive/80">
             Unable to load files.
           </div>

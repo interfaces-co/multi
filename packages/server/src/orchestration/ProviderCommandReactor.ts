@@ -2,6 +2,7 @@ import {
   type ChatAttachment,
   CommandId,
   EventId,
+  type MessageId,
   type ModelSelection,
   type OrchestrationEvent,
   ProviderDriverKind,
@@ -202,6 +203,7 @@ const make = Effect.gen(function* () {
     readonly detail: string;
     readonly turnId: TurnId | null;
     readonly createdAt: string;
+    readonly messageId?: MessageId;
     readonly requestId?: string;
   }) =>
     orchestrationEngine.dispatch({
@@ -215,6 +217,7 @@ const make = Effect.gen(function* () {
         summary: input.summary,
         payload: {
           detail: input.detail,
+          ...(input.messageId ? { messageId: input.messageId } : {}),
           ...(input.requestId ? { requestId: input.requestId } : {}),
         },
         turnId: input.turnId,
@@ -563,6 +566,7 @@ const make = Effect.gen(function* () {
         detail: `User message '${event.payload.messageId}' was not found for turn start request.`,
         turnId: null,
         createdAt: event.payload.createdAt,
+        messageId: event.payload.messageId,
       });
       return;
     }
@@ -627,6 +631,7 @@ const make = Effect.gen(function* () {
           detail: Cause.pretty(cause),
           turnId: null,
           createdAt: event.payload.createdAt,
+          messageId: event.payload.messageId,
         }),
       ),
     );
@@ -651,8 +656,10 @@ const make = Effect.gen(function* () {
       });
     }
 
-    // Orchestration turn ids are not provider turn ids, so interrupt by session.
-    yield* providerService.interruptTurn({ threadId: event.payload.threadId });
+    yield* providerService.interruptTurn({
+      threadId: event.payload.threadId,
+      ...(event.payload.turnId !== undefined ? { turnId: event.payload.turnId } : {}),
+    });
   });
 
   const processApprovalResponseRequested = Effect.fn("processApprovalResponseRequested")(function* (

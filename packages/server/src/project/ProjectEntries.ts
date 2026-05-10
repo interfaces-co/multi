@@ -25,7 +25,6 @@ import { ProjectPaths } from "./ProjectPaths.service.ts";
 const PROJECT_CACHE_TTL_MS = 15_000;
 const PROJECT_CACHE_MAX_KEYS = 4;
 const PROJECT_INDEX_MAX_ENTRIES = 25_000;
-const PROJECT_LIST_DEFAULT_LIMIT = PROJECT_INDEX_MAX_ENTRIES;
 const PROJECT_SCAN_READDIR_CONCURRENCY = 32;
 const IGNORED_DIRECTORY_NAMES = new Set([
   ".git",
@@ -97,6 +96,11 @@ function toProjectEntry(entry: SearchableProjectEntry): ProjectEntry {
     kind: entry.kind,
     ...(entry.parentPath ? { parentPath: entry.parentPath } : {}),
   };
+}
+
+function normalizeRelativeDirectoryPath(input: string): string {
+  const normalized = toPosixPath(input.trim()).replace(/\/+$/g, "");
+  return normalized === "." ? "" : normalized;
 }
 
 function scoreEntry(entry: SearchableProjectEntry, query: string): number | null {
@@ -419,6 +423,51 @@ export const makeProjectEntries = Effect.gen(function* () {
     );
   });
 
+  const resolveDirectoryTarget = Effect.fn("ProjectEntries.resolveDirectoryTarget")(function* (
+    cwd: string,
+    rawRelativeDir: string,
+  ): Effect.fn.Return<
+    { readonly absoluteDir: string; readonly relativeDir: string },
+    ProjectEntriesError
+  > {
+    const relativeDir = normalizeRelativeDirectoryPath(rawRelativeDir);
+    if (relativeDir.length === 0) {
+      return {
+        absoluteDir: cwd,
+        relativeDir: "",
+      };
+    }
+
+    if (path.isAbsolute(relativeDir) || isWindowsAbsolutePath(relativeDir)) {
+      return yield* new ProjectEntriesError({
+        cwd,
+        operation: "projectEntries.resolveDirectoryTarget",
+        detail: "Project directory path must be relative to the project root.",
+      });
+    }
+
+    return yield* projectPaths
+      .resolveRelativePathWithinRoot({
+        projectRoot: cwd,
+        relativePath: relativeDir,
+      })
+      .pipe(
+        Effect.map(({ absolutePath, relativePath }) => ({
+          absoluteDir: absolutePath,
+          relativeDir: relativePath,
+        })),
+        Effect.mapError(
+          (cause) =>
+            new ProjectEntriesError({
+              cwd,
+              operation: "projectEntries.resolveDirectoryTarget",
+              detail: cause.message,
+              cause,
+            }),
+        ),
+      );
+  });
+
   const invalidate: ProjectEntriesShape["invalidate"] = Effect.fn("ProjectEntries.invalidate")(
     function* (cwd) {
       const normalizedCwd = yield* normalizeProjectRoot(cwd).pipe(
@@ -506,26 +555,81 @@ export const makeProjectEntries = Effect.gen(function* () {
     },
   );
 
-  const list: ProjectEntriesShape["list"] = Effect.fn("ProjectEntries.list")(function* (input) {
+  const listDirectory: ProjectEntriesShape["listDirectory"] = Effect.fn(
+    "ProjectEntries.listDirectory",
+  )(function* (input) {
     const normalizedCwd = yield* normalizeProjectRoot(input.cwd);
-    return yield* Cache.get(projectIndexCache, normalizedCwd).pipe(
-      Effect.map((index) => {
-        const limit = input.limit ?? PROJECT_LIST_DEFAULT_LIMIT;
-        const entries = index.entries
-          .map(toProjectEntry)
-          .toSorted((left, right) => left.path.localeCompare(right.path));
-        return {
-          entries: entries.slice(0, limit),
-          truncated: index.truncated || entries.length > limit,
-        };
-      }),
+    const { absoluteDir, relativeDir } = yield* resolveDirectoryTarget(
+      normalizedCwd,
+      input.relativeDir,
     );
+    const shouldFilterWithGitIgnore = yield* isInsideGitWorkTree(normalizedCwd);
+
+    const dirents = yield* Effect.tryPromise({
+      try: () => fsPromises.readdir(absoluteDir, { withFileTypes: true }),
+      catch: (cause) =>
+        new ProjectEntriesError({
+          cwd: normalizedCwd,
+          operation: "projectEntries.listDirectory.readDirectory",
+          detail: cause instanceof Error ? cause.message : String(cause),
+          cause,
+        }),
+    });
+
+    const candidates: Array<{ readonly dirent: Dirent; readonly relativePath: string }> = [];
+    for (const dirent of dirents) {
+      if (!dirent.name || dirent.name === "." || dirent.name === "..") {
+        continue;
+      }
+      if (dirent.isDirectory() && IGNORED_DIRECTORY_NAMES.has(dirent.name)) {
+        continue;
+      }
+      if (!dirent.isDirectory() && !dirent.isFile()) {
+        continue;
+      }
+
+      const relativePath = toPosixPath(
+        relativeDir ? path.join(relativeDir, dirent.name) : dirent.name,
+      );
+      if (isPathInIgnoredDirectory(relativePath)) {
+        continue;
+      }
+      candidates.push({ dirent, relativePath });
+    }
+
+    const candidatePaths = candidates.map((candidate) => candidate.relativePath);
+    const allowedPathSet = shouldFilterWithGitIgnore
+      ? new Set(yield* filterGitIgnoredPaths(normalizedCwd, candidatePaths))
+      : null;
+
+    const entries = candidates
+      .filter((candidate) => !allowedPathSet || allowedPathSet.has(candidate.relativePath))
+      .map(
+        (candidate): ProjectEntry => ({
+          path: candidate.relativePath,
+          kind: candidate.dirent.isDirectory() ? "directory" : "file",
+          ...(parentPathOf(candidate.relativePath)
+            ? { parentPath: parentPathOf(candidate.relativePath) }
+            : {}),
+        }),
+      )
+      .toSorted((left, right) => {
+        if (left.kind !== right.kind) {
+          return left.kind === "directory" ? -1 : 1;
+        }
+        return left.path.localeCompare(right.path);
+      });
+
+    return {
+      entries,
+      truncated: false,
+    };
   });
 
   return {
     browse,
     invalidate,
-    list,
+    listDirectory,
     search,
   } satisfies ProjectEntriesShape;
 });

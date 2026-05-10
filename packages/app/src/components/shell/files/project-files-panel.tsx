@@ -17,7 +17,7 @@ import { PIERRE_WORKBENCH_CODE_UNSAFE_CSS } from "~/lib/pierre-workbench-code-cs
 import { projectReadFileQueryOptions } from "~/lib/project-react-query";
 import { resolveDiffThemeName } from "~/lib/diff-rendering";
 import { useTheme } from "~/hooks/use-theme";
-import { shellPanelsActions, useSecondaryRail } from "~/lib/shell-panels-store";
+import { shellPanelsActions, useActiveTab, useSecondaryRail } from "~/lib/shell-panels-store";
 import { ProjectFileTree } from "./project-file-tree";
 import { WorkbenchIconButton } from "../shell/workbench-icon-button";
 import { RightWorkbenchLayout } from "../shell/right-workbench-layout";
@@ -105,6 +105,7 @@ function SourcePreview(props: {
   environmentId: EnvironmentId | null;
   selectedPath: string | null;
   wordWrap: boolean;
+  active: boolean;
 }) {
   const { resolvedTheme } = useTheme();
   const fileQuery = useQuery(
@@ -112,7 +113,7 @@ function SourcePreview(props: {
       cwd: props.cwd,
       environmentId: props.environmentId,
       relativePath: props.selectedPath,
-      enabled: Boolean(props.cwd && props.environmentId && props.selectedPath),
+      enabled: props.active && Boolean(props.cwd && props.environmentId && props.selectedPath),
     }),
   );
   const fileOptions = useMemo<FileOptions<undefined>>(
@@ -198,7 +199,10 @@ export function ProjectFilesPanel(props: {
 }) {
   const [mode, setMode] = useState<FilePaneMode>("browse");
   const [history, setHistory] = useState<PreviewHistory>(EMPTY_PREVIEW_HISTORY);
+  const activeTab = useActiveTab();
   const { open: fileRailOpen } = useSecondaryRail(props.cwd, "files");
+  const isFilesPanelActive = activeTab === "files";
+  const isFileTreeActive = isFilesPanelActive && fileRailOpen;
   const selectedPath = history.index >= 0 ? (history.paths[history.index] ?? null) : null;
   const canGoBack = history.index > 0;
   const canGoForward = history.index >= 0 && history.index < history.paths.length - 1;
@@ -232,6 +236,7 @@ export function ProjectFilesPanel(props: {
       onOpenFile={openPreviewPath}
       searchOpen={mode === "search"}
       selectedPath={selectedPath}
+      active={isFileTreeActive}
       className="min-h-36 flex-1 border-b-0 bg-[color-mix(in_srgb,var(--multi-bg-elevated)_78%,transparent)]"
     />
   );
@@ -293,6 +298,7 @@ export function ProjectFilesPanel(props: {
                 environmentId={props.environmentId}
                 selectedPath={selectedPath}
                 wordWrap
+                active={isFilesPanelActive}
               />
             ) : (
               <EmptyFilePreview

@@ -8,6 +8,7 @@ import type {
 } from "@multi/contracts";
 import * as Effect from "effect/Effect";
 import * as Random from "effect/Random";
+import * as Result from "effect/Result";
 
 export const WORKTREE_BRANCH_PREFIX = "multi";
 const TEMP_WORKTREE_BRANCH_PATTERN = new RegExp(`^${WORKTREE_BRANCH_PREFIX}\\/[0-9a-f]{8}$`);
@@ -105,17 +106,18 @@ export function normalizeGitRemoteUrl(value: string): string {
     .toLowerCase();
 
   if (/^(?:ssh|https?|git):\/\//i.test(normalized)) {
-    try {
-      const url = new URL(normalized);
-      const repositoryPath = url.pathname
-        .split("/")
-        .filter((segment) => segment.length > 0)
-        .join("/");
-      if (url.hostname && repositoryPath.includes("/")) {
-        return `${url.hostname}/${repositoryPath}`;
-      }
-    } catch {
+    const parsed = Result.try(() => new URL(normalized));
+    if (Result.isFailure(parsed)) {
       return normalized;
+    }
+
+    const url = parsed.success;
+    const repositoryPath = url.pathname
+      .split("/")
+      .filter((segment) => segment.length > 0)
+      .join("/");
+    if (url.hostname && repositoryPath.includes("/")) {
+      return `${url.hostname}/${repositoryPath}`;
     }
   }
 
@@ -206,11 +208,8 @@ function parseGitRemoteHost(remoteUrl: string): string | null {
     return hostWithPath.slice(0, separatorIndex).toLowerCase();
   }
 
-  try {
-    return new URL(trimmed).hostname.toLowerCase();
-  } catch {
-    return null;
-  }
+  const parsed = Result.try(() => new URL(trimmed));
+  return Result.isSuccess(parsed) ? parsed.success.hostname.toLowerCase() : null;
 }
 
 function toBaseUrl(host: string): string {

@@ -39,6 +39,7 @@ import {
   resolveClaudeEffort,
 } from "../provider/ClaudeProvider.ts";
 import { ServerSettingsService } from "../server-settings.ts";
+import { resolveClaudeSettings } from "../provider/provider-settings.ts";
 
 const CLAUDE_TIMEOUT_MS = 180_000;
 
@@ -113,7 +114,7 @@ const makeClaudeTextGeneration = Effect.gen(function* () {
 
     const claudeSettings = yield* Effect.map(
       serverSettingsService.getSettings,
-      (settings) => settings.providers.claudeAgent,
+      (settings) => resolveClaudeSettings(settings, modelSelection.instanceId),
     ).pipe(Effect.catch(() => Effect.undefined));
 
     const runClaudeCommand = Effect.fn("runClaudeJson.runClaudeCommand")(function* () {

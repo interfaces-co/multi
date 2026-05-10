@@ -12,8 +12,8 @@ import type { Effect } from "effect";
 import type {
   FilesystemBrowseInput,
   FilesystemBrowseResult,
-  ProjectListEntriesInput,
-  ProjectListEntriesResult,
+  ProjectListDirectoryInput,
+  ProjectListDirectoryResult,
   ProjectSearchEntriesInput,
   ProjectSearchEntriesResult,
 } from "@multi/contracts";
@@ -60,11 +60,11 @@ export interface ProjectEntriesShape {
   ) => Effect.Effect<ProjectSearchEntriesResult, ProjectEntriesError>;
 
   /**
-   * List indexed project entries for explorer/file-tree presentation.
+   * List immediate children for explorer/file-tree presentation.
    */
-  readonly list: (
-    input: ProjectListEntriesInput,
-  ) => Effect.Effect<ProjectListEntriesResult, ProjectEntriesError>;
+  readonly listDirectory: (
+    input: ProjectListDirectoryInput,
+  ) => Effect.Effect<ProjectListDirectoryResult, ProjectEntriesError>;
 
   /**
    * Drop any cached project entries for the given project root.

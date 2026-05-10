@@ -32,6 +32,7 @@ import { buildServerProvider } from "./provider-snapshot.ts";
 import { CodexProvider } from "./CodexProvider.service.ts";
 import { expandHomePath } from "../path-expansion.ts";
 import { ServerSettingsService } from "../server-settings.ts";
+import { resolveCodexSettings } from "./provider-settings.ts";
 import packageJson from "../../package.json" with { type: "json" };
 
 const PROVIDER = ProviderDriverKind.make("codex");
@@ -402,7 +403,7 @@ export const checkCodexProviderStatus = Effect.fn("checkCodexProviderStatus")(fu
 > {
   const codexSettings = yield* Effect.service(ServerSettingsService).pipe(
     Effect.flatMap((service) => service.getSettings),
-    Effect.map((settings) => settings.providers.codex),
+    Effect.map(resolveCodexSettings),
   );
   const checkedAt = DateTime.formatIso(yield* DateTime.now);
   const emptyModels = emptyCodexModelsFromSettings(codexSettings);
@@ -504,11 +505,11 @@ export const CodexProviderLive = Layer.effect(
 
     return yield* makeManagedServerProvider<CodexSettings>({
       getSettings: serverSettings.getSettings.pipe(
-        Effect.map((settings) => settings.providers.codex),
+        Effect.map(resolveCodexSettings),
         Effect.orDie,
       ),
       streamSettings: serverSettings.streamChanges.pipe(
-        Stream.map((settings) => settings.providers.codex),
+        Stream.map((settings) => resolveCodexSettings(settings)),
       ),
       haveSettingsChanged: (previous, next) => !Equal.equals(previous, next),
       initialSnapshot: makePendingCodexProvider,

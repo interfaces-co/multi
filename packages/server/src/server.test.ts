@@ -50,7 +50,7 @@ import { vi } from "vitest";
 
 import { ServerConfigShape } from "./config.ts";
 import { deriveServerPaths, ServerConfig } from "./config.ts";
-import { makeRoutesLayer } from "./server.ts";
+import { makeRoutesLayer } from "./server-runtime.ts";
 import { resolveAttachmentRelativePath } from "./attachment-paths.ts";
 import {
   CheckpointDiffQuery,
@@ -1996,7 +1996,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
     }).pipe(Effect.provide(NodeHttpServer.layerTest)),
   );
 
-  it.effect("routes websocket rpc projects.listEntries", () =>
+  it.effect("routes websocket rpc projects.listDirectory", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
@@ -2009,13 +2009,16 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       const wsUrl = yield* getWsServerUrl("/ws");
       const response = yield* Effect.scoped(
         withWsRpcClient(wsUrl, (client) =>
-          client[WS_METHODS.projectsListEntries]({
+          client[WS_METHODS.projectsListDirectory]({
             cwd: projectDir,
+            relativeDir: "",
           }),
         ),
       );
 
-      assert.isTrue(response.entries.some((entry) => entry.path === "src/index.ts"));
+      assert.isTrue(
+        response.entries.some((entry) => entry.path === "src" && entry.kind === "directory"),
+      );
       assert.equal(response.truncated, false);
     }).pipe(Effect.provide(NodeHttpServer.layerTest)),
   );

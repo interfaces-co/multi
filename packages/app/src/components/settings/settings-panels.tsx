@@ -72,6 +72,7 @@ import { Text } from "@multi/ui/text";
 import { toastManager } from "~/app/toast";
 import {
   deriveProviderInstanceEntries,
+  deriveProviderInstanceEntriesForSettings,
   sortProviderInstanceEntries,
 } from "../../provider-instances";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@multi/ui/tooltip";
@@ -1096,7 +1097,7 @@ export function ModelsSettingsPanel() {
   const textGenModel = textGenerationModelSelection.model;
   const textGenModelOptions = textGenerationModelSelection.options;
   const gitModelInstanceEntries = sortProviderInstanceEntries(
-    deriveProviderInstanceEntries(serverProviders),
+    deriveProviderInstanceEntriesForSettings(settings, serverProviders),
   );
   const textGenInstanceEntry = gitModelInstanceEntries.find(
     (entry) => entry.instanceId === textGenInstanceId,
@@ -1160,26 +1161,26 @@ export function ModelsSettingsPanel() {
   );
 
   for (const providerSettings of visibleProviderSettings) {
-    type LegacyProviderSettings = (typeof settings.providers)[keyof typeof settings.providers];
-    const legacyProviders = settings.providers as Record<string, LegacyProviderSettings>;
-    const defaultLegacyProviders = DEFAULT_UNIFIED_SETTINGS.providers as Record<
+    type DefaultProviderSettings = (typeof settings.providers)[keyof typeof settings.providers];
+    const defaultProviderConfigs = settings.providers as Record<string, DefaultProviderSettings>;
+    const factoryDefaultProviderConfigs = DEFAULT_UNIFIED_SETTINGS.providers as Record<
       string,
-      LegacyProviderSettings
+      DefaultProviderSettings
     >;
     const driver = providerSettings.provider;
     const defaultInstanceId = defaultInstanceIdForDriver(driver);
     const explicitInstance = settings.providerInstances?.[defaultInstanceId];
-    const legacyConfig = legacyProviders[providerSettings.provider]!;
-    const defaultLegacyConfig = defaultLegacyProviders[providerSettings.provider]!;
+    const defaultConfig = defaultProviderConfigs[providerSettings.provider]!;
+    const factoryDefaultConfig = factoryDefaultProviderConfigs[providerSettings.provider]!;
     const effectiveInstance: ProviderInstanceConfig =
       explicitInstance ??
       ({
         driver,
-        enabled: legacyConfig.enabled,
-        config: legacyConfig,
+        enabled: defaultConfig.enabled,
+        config: defaultConfig,
       } satisfies ProviderInstanceConfig);
     const isDirty =
-      explicitInstance !== undefined || !Equal.equals(legacyConfig, defaultLegacyConfig);
+      explicitInstance !== undefined || !Equal.equals(defaultConfig, factoryDefaultConfig);
     rows.push({
       instanceId: defaultInstanceId,
       instance: effectiveInstance,
@@ -1220,8 +1221,6 @@ export function ModelsSettingsPanel() {
         settings,
         instanceId: row.instanceId,
         instance: next,
-        driver: row.driver,
-        isDefault: row.isDefault,
         textGenerationModelSelection: options?.textGenerationModelSelection,
       }),
     );
@@ -1275,18 +1274,18 @@ export function ModelsSettingsPanel() {
   };
 
   const resetDefaultInstance = (driverKind: ProviderDriverKind) => {
-    type LegacyProviderSettings = (typeof settings.providers)[keyof typeof settings.providers];
-    const defaultLegacyProviders = DEFAULT_UNIFIED_SETTINGS.providers as Record<
+    type DefaultProviderSettings = (typeof settings.providers)[keyof typeof settings.providers];
+    const factoryDefaultProviderConfigs = DEFAULT_UNIFIED_SETTINGS.providers as Record<
       string,
-      LegacyProviderSettings | undefined
+      DefaultProviderSettings | undefined
     >;
     const defaultInstanceId = defaultInstanceIdForDriver(driverKind);
-    const defaultLegacyProvider = defaultLegacyProviders[driverKind];
-    if (defaultLegacyProvider === undefined) return;
+    const factoryDefaultProviderConfig = factoryDefaultProviderConfigs[driverKind];
+    if (factoryDefaultProviderConfig === undefined) return;
     updateSettings({
       providers: {
         ...settings.providers,
-        [driverKind]: defaultLegacyProvider,
+        [driverKind]: factoryDefaultProviderConfig,
       } as typeof settings.providers,
       providerInstances: withoutProviderInstanceKey(settings.providerInstances, defaultInstanceId),
       providerModelPreferences: withoutProviderInstanceKey(
@@ -1451,9 +1450,22 @@ export function ModelsSettingsPanel() {
                 const isDisabling = next.enabled === false && wasEnabled;
                 const shouldClearTextGen = isDisabling && textGenInstanceId === row.instanceId;
                 if (shouldClearTextGen) {
-                  updateProviderInstance(row, next, {
-                    textGenerationModelSelection:
-                      DEFAULT_UNIFIED_SETTINGS.textGenerationModelSelection,
+                  const patch = buildProviderInstanceUpdatePatch({
+                    settings,
+                    instanceId: row.instanceId,
+                    instance: next,
+                  });
+                  updateSettings({
+                    ...patch,
+                    textGenerationModelSelection: resolveAppModelSelectionState(
+                      {
+                        ...settings,
+                        ...patch,
+                        textGenerationModelSelection:
+                          settings.textGenerationModelSelection ?? textGenerationModelSelection,
+                      },
+                      serverProviders,
+                    ),
                   });
                 } else {
                   updateProviderInstance(row, next);

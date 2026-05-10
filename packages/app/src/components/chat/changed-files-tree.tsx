@@ -1,13 +1,36 @@
 import { type TurnId } from "@multi/contracts";
-import { memo, useCallback, useMemo, useState } from "react";
-import { type TurnDiffFileChange } from "../../types";
-import { buildTurnDiffTree, type TurnDiffTreeNode } from "../../lib/turn-diff-tree";
-import { IconChevronRight, IconFolder1 } from "central-icons";
-import { cn } from "~/lib/utils";
-import { DiffStatLabel, hasNonZeroStat } from "./diff-stat-label";
-import { VscodeEntryIcon } from "./vscode-entry-icon";
+import { prepareFileTreeInput } from "@pierre/trees";
+import type { FileTreeRowDecoration, FileTreeRowDecorationRenderer } from "@pierre/trees";
+import { memo, useEffect, useMemo, useRef } from "react";
 
-const EMPTY_DIRECTORY_OVERRIDES: Record<string, boolean> = {};
+import { type TurnDiffFileChange } from "../../types";
+import { normalizeTreePath, Tree, useTreeModel } from "../tree";
+
+function readFileStatDecoration(file: TurnDiffFileChange): FileTreeRowDecoration | null {
+  if (typeof file.additions !== "number" || typeof file.deletions !== "number") {
+    return null;
+  }
+  if (file.additions === 0 && file.deletions === 0) {
+    return null;
+  }
+  const text = `+${file.additions}/-${file.deletions}`;
+  return { text, title: text };
+}
+
+function getEstimatedTreeHeight(fileCount: number): number {
+  return Math.min(Math.max(fileCount * 22, 28), 320);
+}
+
+function collectDirectoryPaths(paths: readonly string[]): string[] {
+  const directoryPaths = new Set<string>();
+  for (const path of paths) {
+    const segments = path.split("/").filter((segment) => segment.length > 0);
+    for (let index = 1; index < segments.length; index += 1) {
+      directoryPaths.add(segments.slice(0, index).join("/"));
+    }
+  }
+  return [...directoryPaths];
+}
 
 export const ChangedFilesTree = memo(function ChangedFilesTree(props: {
   turnId: TurnId;
@@ -17,115 +40,79 @@ export const ChangedFilesTree = memo(function ChangedFilesTree(props: {
   onOpenTurnDiff: (turnId: TurnId, filePath?: string) => void;
 }) {
   const { files, allDirectoriesExpanded, onOpenTurnDiff, resolvedTheme, turnId } = props;
-  const treeNodes = useMemo(() => buildTurnDiffTree(files), [files]);
-  const directoryPathsKey = useMemo(
-    () => collectDirectoryPaths(treeNodes).join("\u0000"),
-    [treeNodes],
-  );
-  const expansionStateKey = `${allDirectoriesExpanded ? "expanded" : "collapsed"}\u0000${directoryPathsKey}`;
-  const [directoryExpansionState, setDirectoryExpansionState] = useState<{
-    key: string;
-    overrides: Record<string, boolean>;
-  }>(() => ({
-    key: expansionStateKey,
-    overrides: {},
-  }));
-  const expandedDirectories =
-    directoryExpansionState.key === expansionStateKey
-      ? directoryExpansionState.overrides
-      : EMPTY_DIRECTORY_OVERRIDES;
+  const filePathSetRef = useRef<ReadonlySet<string>>(new Set());
+  const onOpenTurnDiffRef = useRef(onOpenTurnDiff);
+  const rowDecorationsByPathRef = useRef<ReadonlyMap<string, FileTreeRowDecoration>>(new Map());
+  const turnIdRef = useRef(turnId);
+  const lastOpenedPathRef = useRef<string | null>(null);
 
-  const toggleDirectory = useCallback(
-    (pathValue: string) => {
-      setDirectoryExpansionState((current) => {
-        const nextOverrides = current.key === expansionStateKey ? current.overrides : {};
-        return {
-          key: expansionStateKey,
-          overrides: {
-            ...nextOverrides,
-            [pathValue]: !(nextOverrides[pathValue] ?? allDirectoriesExpanded),
-          },
-        };
-      });
-    },
-    [allDirectoriesExpanded, expansionStateKey],
+  onOpenTurnDiffRef.current = onOpenTurnDiff;
+  turnIdRef.current = turnId;
+
+  const treePaths = useMemo(
+    () => files.map((file) => normalizeTreePath(file.path)).filter((path) => path.length > 0),
+    [files],
   );
 
-  const renderTreeNode = (node: TurnDiffTreeNode, depth: number) => {
-    const leftPadding = 8 + depth * 14;
-    if (node.kind === "directory") {
-      const isExpanded = expandedDirectories[node.path] ?? allDirectoriesExpanded;
-      return (
-        <div key={`dir:${node.path}`}>
-          <button
-            type="button"
-            data-scroll-anchor-ignore
-            className="group flex w-full items-center gap-1.5 rounded-md py-1 pr-2 text-left hover:bg-background/80"
-            style={{ paddingLeft: `${leftPadding}px` }}
-            onClick={() => toggleDirectory(node.path)}
-          >
-            <IconChevronRight
-              aria-hidden="true"
-              className={cn(
-                "size-3.5 shrink-0 text-muted-foreground/70 transition-transform group-hover:text-foreground/80",
-                isExpanded && "rotate-90",
-              )}
-            />
-            <IconFolder1 className="size-3.5 shrink-0 text-muted-foreground/75" />
-            <span className="truncate font-mono text-[11px] text-muted-foreground/90 group-hover:text-foreground/90">
-              {node.name}
-            </span>
-            {hasNonZeroStat(node.stat) && (
-              <span className="ml-auto shrink-0 font-mono text-[10px] tabular-nums">
-                <DiffStatLabel additions={node.stat.additions} deletions={node.stat.deletions} />
-              </span>
-            )}
-          </button>
-          {isExpanded && (
-            <div className="space-y-0.5">
-              {node.children.map((childNode) => renderTreeNode(childNode, depth + 1))}
-            </div>
-          )}
-        </div>
-      );
+  const preparedInput = useMemo(() => prepareFileTreeInput(treePaths), [treePaths]);
+  const directoryPaths = useMemo(() => collectDirectoryPaths(treePaths), [treePaths]);
+  const filePathSet = useMemo(() => new Set(treePaths), [treePaths]);
+  const rowDecorationsByPath = useMemo(() => {
+    const decorations = new Map<string, FileTreeRowDecoration>();
+    for (const file of files) {
+      const path = normalizeTreePath(file.path);
+      const decoration = readFileStatDecoration(file);
+      if (decoration) {
+        decorations.set(path, decoration);
+      }
     }
+    return decorations;
+  }, [files]);
+  const renderRowDecoration = useMemo<FileTreeRowDecorationRenderer>(
+    () => ({ row }) =>
+      row.kind === "file" ? (rowDecorationsByPathRef.current.get(row.path) ?? null) : null,
+    [],
+  );
 
-    return (
-      <button
-        key={`file:${node.path}`}
-        type="button"
-        className="group flex w-full items-center gap-1.5 rounded-md py-1 pr-2 text-left hover:bg-background/80"
-        style={{ paddingLeft: `${leftPadding}px` }}
-        onClick={() => onOpenTurnDiff(turnId, node.path)}
-      >
-        <span aria-hidden="true" className="size-3.5 shrink-0" />
-        <VscodeEntryIcon
-          pathValue={node.path}
-          kind="file"
-          theme={resolvedTheme}
-          className="size-3.5 text-muted-foreground/70"
-        />
-        <span className="truncate font-mono text-[11px] text-muted-foreground/80 group-hover:text-foreground/90">
-          {node.name}
-        </span>
-        {node.stat && (
-          <span className="ml-auto shrink-0 font-mono text-[10px] tabular-nums">
-            <DiffStatLabel additions={node.stat.additions} deletions={node.stat.deletions} />
-          </span>
-        )}
-      </button>
-    );
-  };
+  const { model } = useTreeModel({
+    paths: [],
+    initialExpansion: allDirectoriesExpanded ? "open" : "closed",
+    renderRowDecoration,
+    onSelectionChange: (selectedPaths) => {
+      const path = selectedPaths[0] ?? null;
+      if (!path || path === lastOpenedPathRef.current || !filePathSetRef.current.has(path)) {
+        return;
+      }
+      lastOpenedPathRef.current = path;
+      onOpenTurnDiffRef.current(turnIdRef.current, path);
+    },
+  });
 
-  return <div className="space-y-0.5">{treeNodes.map((node) => renderTreeNode(node, 0))}</div>;
+  useEffect(() => {
+    filePathSetRef.current = filePathSet;
+  }, [filePathSet]);
+
+  useEffect(() => {
+    rowDecorationsByPathRef.current = rowDecorationsByPath;
+  }, [rowDecorationsByPath]);
+
+  useEffect(() => {
+    lastOpenedPathRef.current = null;
+  }, [turnId, treePaths]);
+
+  useEffect(() => {
+    model.resetPaths(treePaths, {
+      preparedInput,
+      initialExpandedPaths: allDirectoriesExpanded ? directoryPaths : [],
+    });
+  }, [allDirectoriesExpanded, directoryPaths, model, preparedInput, treePaths]);
+
+  return (
+    <div
+      className="min-h-0 overflow-hidden"
+      style={{ height: getEstimatedTreeHeight(treePaths.length) }}
+    >
+      <Tree model={model} resolvedTheme={resolvedTheme} />
+    </div>
+  );
 });
-
-function collectDirectoryPaths(nodes: ReadonlyArray<TurnDiffTreeNode>): string[] {
-  const paths: string[] = [];
-  for (const node of nodes) {
-    if (node.kind !== "directory") continue;
-    paths.push(node.path);
-    paths.push(...collectDirectoryPaths(node.children));
-  }
-  return paths;
-}

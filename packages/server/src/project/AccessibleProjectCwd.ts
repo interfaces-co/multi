@@ -48,14 +48,14 @@ function normalizeCandidates(
   return normalized;
 }
 
-function directoryFailure(cwd: string): string | undefined {
-  try {
-    const stat = statSync(cwd);
-    return stat.isDirectory() ? undefined : "Path is not a directory.";
-  } catch (cause) {
-    return cause instanceof Error ? cause.message : "Directory is not accessible.";
-  }
-}
+const directoryFailure = (cwd: string): Effect.Effect<string | undefined> =>
+  Effect.try({
+    try: () => statSync(cwd),
+    catch: (cause) => (cause instanceof Error ? cause.message : "Directory is not accessible."),
+  }).pipe(
+    Effect.map((stat) => (stat.isDirectory() ? undefined : "Path is not a directory.")),
+    Effect.catch((message) => Effect.succeed(message)),
+  );
 
 export const coerceAccessibleProjectCwd = Effect.fn("coerceAccessibleProjectCwd")(function* (
   input: CoerceAccessibleProjectCwdInput,
@@ -65,7 +65,7 @@ export const coerceAccessibleProjectCwd = Effect.fn("coerceAccessibleProjectCwd"
     [];
 
   for (const [index, candidate] of candidates.entries()) {
-    const failure = directoryFailure(candidate.cwd);
+    const failure = yield* directoryFailure(candidate.cwd);
     if (!failure) {
       if (index > 0) {
         yield* Effect.logWarning("project cwd fallback selected", {

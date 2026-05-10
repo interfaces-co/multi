@@ -1,7 +1,6 @@
 "use client";
 
 import { prepareFileTreeInput } from "@pierre/trees";
-import { FileTree as PierreFileTree, useFileTree } from "@pierre/trees/react";
 import type { GitStatus, GitStatusEntry } from "@pierre/trees";
 import { useEffect, useMemo, useRef } from "react";
 
@@ -9,12 +8,7 @@ import type { DiffRow } from "~/hooks/use-environment-git";
 import type { GitFileState } from "~/lib/ui-session-types";
 import { cn } from "~/lib/utils";
 import { useTheme } from "~/hooks/use-theme";
-
-import { TREE_UNSAFE_CSS, useWorkbenchTreeHostStyle } from "../files/pierre-workbench-tree";
-
-function normalizeTreePath(path: string): string {
-  return path.replace(/\\/g, "/");
-}
+import { normalizeTreePath, Tree, useTreeModel } from "../../tree";
 
 function gitFileStateToTreesStatus(state: GitFileState): GitStatus {
   switch (state) {
@@ -61,8 +55,6 @@ export function GitChangesFileTree(props: {
   const suppressSelectionOpenRef = useRef<string | null>(null);
   const { resolvedTheme } = useTheme();
 
-  const treeHostStyle = useWorkbenchTreeHostStyle(resolvedTheme);
-
   onSelectRef.current = props.onSelect;
 
   const sortedRows = useMemo(
@@ -95,17 +87,12 @@ export function GitChangesFileTree(props: {
       : null;
   const selectedKey = selectedPath !== null ? normalizeTreePath(selectedPath) : null;
 
-  const { model } = useFileTree({
+  const { model } = useTreeModel({
     paths: [],
-    density: "compact",
-    itemHeight: 22,
-    flattenEmptyDirectories: true,
     fileTreeSearchMode: "collapse-non-matches",
     initialExpansion: "open",
-    icons: "complete",
     search: true,
     searchBlurBehavior: "retain",
-    unsafeCSS: TREE_UNSAFE_CSS,
     onSelectionChange: (selectedPaths) => {
       const path = selectedPaths[0] ?? null;
       if (!path || path === lastOpenedPathRef.current || !filePathSetRef.current.has(path)) {
@@ -181,7 +168,7 @@ export function GitChangesFileTree(props: {
       </div>
 
       <div className="min-h-0 flex-1 overflow-hidden">
-        <PierreFileTree model={model} className="block h-full w-full" style={treeHostStyle} />
+        <Tree model={model} resolvedTheme={resolvedTheme} />
       </div>
     </section>
   );

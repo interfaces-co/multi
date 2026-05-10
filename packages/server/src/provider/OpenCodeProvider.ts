@@ -26,6 +26,7 @@ import {
   type OpenCodeInventory,
 } from "./opencodeRuntime.ts";
 import type { Agent, ProviderListResponse } from "@opencode-ai/sdk/v2";
+import { resolveOpenCodeSettings } from "./provider-settings.ts";
 
 const PROVIDER = ProviderDriverKind.make("opencode");
 const OPENCODE_PRESENTATION = {
@@ -483,13 +484,13 @@ export const OpenCodeProviderLive = Layer.effect(
     });
 
     const getProviderSettings = serverSettings.getSettings.pipe(
-      Effect.map((settings) => settings.providers.opencode),
+      Effect.map(resolveOpenCodeSettings),
     );
 
     return yield* makeManagedServerProvider<OpenCodeSettings>({
       getSettings: getProviderSettings.pipe(Effect.orDie),
       streamSettings: serverSettings.streamChanges.pipe(
-        Stream.map((settings) => settings.providers.opencode),
+        Stream.map((settings) => resolveOpenCodeSettings(settings)),
       ),
       haveSettingsChanged: (previous, next) => !Equal.equals(previous, next),
       initialSnapshot: makePendingOpenCodeProvider,

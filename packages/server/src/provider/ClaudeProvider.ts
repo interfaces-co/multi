@@ -43,6 +43,7 @@ import { makeManagedServerProvider } from "./make-managed-server-provider.ts";
 import { ClaudeProvider } from "./ClaudeProvider.service.ts";
 import { ServerSettingsService } from "../server-settings.ts";
 import { ServerSettingsError } from "@multi/contracts";
+import { resolveClaudeSettings } from "./provider-settings.ts";
 
 const DEFAULT_CLAUDE_MODEL_CAPABILITIES: ModelCapabilities = createModelCapabilities({
   optionDescriptors: [],
@@ -623,7 +624,7 @@ const probeClaudeCapabilities = (binaryPath: string) => {
 const runClaudeCommand = Effect.fn("runClaudeCommand")(function* (args: ReadonlyArray<string>) {
   const claudeSettings = yield* Effect.service(ServerSettingsService).pipe(
     Effect.flatMap((service) => service.getSettings),
-    Effect.map((settings) => settings.providers.claudeAgent),
+    Effect.map(resolveClaudeSettings),
   );
   const command = ChildProcess.make(claudeSettings.binaryPath, [...args], {
     shell: process.platform === "win32",
@@ -643,7 +644,7 @@ export const checkClaudeProviderStatus = Effect.fn("checkClaudeProviderStatus")(
 > {
   const claudeSettings = yield* Effect.service(ServerSettingsService).pipe(
     Effect.flatMap((service) => service.getSettings),
-    Effect.map((settings) => settings.providers.claudeAgent),
+    Effect.map(resolveClaudeSettings),
   );
   const checkedAt = new Date().toISOString();
   const allModels = providerModelsFromSettings(
@@ -916,11 +917,11 @@ export const ClaudeProviderLive = Layer.effect(
 
     return yield* makeManagedServerProvider<ClaudeSettings>({
       getSettings: serverSettings.getSettings.pipe(
-        Effect.map((settings) => settings.providers.claudeAgent),
+        Effect.map(resolveClaudeSettings),
         Effect.orDie,
       ),
       streamSettings: serverSettings.streamChanges.pipe(
-        Stream.map((settings) => settings.providers.claudeAgent),
+        Stream.map((settings) => resolveClaudeSettings(settings)),
       ),
       haveSettingsChanged: (previous, next) => !Equal.equals(previous, next),
       initialSnapshot: makePendingClaudeProvider,

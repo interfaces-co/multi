@@ -43,6 +43,7 @@ import type * as EffectAcpSchema from "effect-acp/schema";
 import { resolveAttachmentPath } from "../attachment-store.ts";
 import { ServerConfig } from "../config.ts";
 import { ServerSettingsService } from "../server-settings.ts";
+import { resolveCursorSettings } from "./provider-settings.ts";
 import {
   ProviderAdapterProcessError,
   ProviderAdapterRequestError,
@@ -108,6 +109,7 @@ interface CursorSessionContext {
   readonly pendingApprovals: Map<ApprovalRequestId, PendingApproval>;
   readonly pendingUserInputs: Map<ApprovalRequestId, PendingUserInput>;
   readonly turns: Array<{ id: TurnId; items: Array<unknown> }>;
+  readonly interruptedTurnIds: Set<TurnId>;
   lastPlanFingerprint: string | undefined;
   activeTurnId: TurnId | undefined;
   stopped: boolean;
@@ -456,7 +458,7 @@ function makeCursorAdapter(options?: CursorAdapterLiveOptions) {
           }
 
           const cursorSettings = yield* serverSettingsService.getSettings.pipe(
-            Effect.map((settings) => settings.providers.cursor),
+            Effect.map((settings) => resolveCursorSettings(settings, input.providerInstanceId)),
             Effect.mapError(
               (error) =>
                 new ProviderAdapterProcessError({
@@ -698,6 +700,7 @@ function makeCursorAdapter(options?: CursorAdapterLiveOptions) {
             pendingApprovals,
             pendingUserInputs,
             turns: [],
+            interruptedTurnIds: new Set(),
             lastPlanFingerprint: undefined,
             activeTurnId: undefined,
             stopped: false,
@@ -902,7 +905,7 @@ function makeCursorAdapter(options?: CursorAdapterLiveOptions) {
           });
         }
 
-        const result = yield* ctx.acp
+        const promptExit = yield* ctx.acp
           .prompt({
             prompt: promptParts,
           })
@@ -910,15 +913,35 @@ function makeCursorAdapter(options?: CursorAdapterLiveOptions) {
             Effect.mapError((error) =>
               mapAcpToAdapterError(PROVIDER, input.threadId, "session/prompt", error),
             ),
+            Effect.exit,
           );
+        if (Exit.isFailure(promptExit)) {
+          if (ctx.interruptedTurnIds.delete(turnId)) {
+            return {
+              threadId: input.threadId,
+              turnId,
+              resumeCursor: ctx.session.resumeCursor,
+            };
+          }
+          return yield* Effect.failCause(promptExit.cause);
+        }
+        if (ctx.interruptedTurnIds.delete(turnId)) {
+          return {
+            threadId: input.threadId,
+            turnId,
+            resumeCursor: ctx.session.resumeCursor,
+          };
+        }
 
+        const result = promptExit.value;
         ctx.turns.push({ id: turnId, items: [{ prompt: promptParts, result }] });
         ctx.session = {
           ...ctx.session,
-          activeTurnId: turnId,
+          activeTurnId: undefined,
           updatedAt: yield* nowIso,
           model: resolvedModel,
         };
+        ctx.activeTurnId = undefined;
 
         yield* offerRuntimeEvent({
           type: "turn.completed",
@@ -939,18 +962,32 @@ function makeCursorAdapter(options?: CursorAdapterLiveOptions) {
         };
       });
 
-    const interruptTurn: CursorAdapterShape["interruptTurn"] = (threadId) =>
+    const interruptTurn: CursorAdapterShape["interruptTurn"] = (threadId, turnId) =>
       Effect.gen(function* () {
         const ctx = yield* requireSession(threadId);
         yield* settlePendingApprovalsAsCancelled(ctx.pendingApprovals);
         yield* settlePendingUserInputsAsEmptyAnswers(ctx.pendingUserInputs);
-        yield* Effect.ignore(
-          ctx.acp.cancel.pipe(
-            Effect.mapError((error) =>
-              mapAcpToAdapterError(PROVIDER, threadId, "session/cancel", error),
-            ),
-          ),
-        );
+        const activeTurnId = ctx.activeTurnId ?? turnId;
+        if (activeTurnId !== undefined) {
+          ctx.interruptedTurnIds.add(activeTurnId);
+        }
+        ctx.activeTurnId = undefined;
+        ctx.session = {
+          ...ctx.session,
+          activeTurnId: undefined,
+          updatedAt: yield* nowIso,
+        };
+        if (activeTurnId !== undefined) {
+          yield* offerRuntimeEvent({
+            type: "turn.aborted",
+            ...(yield* makeEventStamp()),
+            provider: PROVIDER,
+            threadId,
+            turnId: activeTurnId,
+            payload: { reason: "Interrupted by user." },
+          });
+        }
+        yield* stopSessionInternal(ctx);
       });
 
     const respondToRequest: CursorAdapterShape["respondToRequest"] = (

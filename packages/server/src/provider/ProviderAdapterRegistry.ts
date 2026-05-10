@@ -29,6 +29,7 @@ import { CursorAdapter } from "./CursorAdapter.service.ts";
 import { OpenCodeAdapter } from "./OpenCodeAdapter.service.ts";
 import { createBuiltInAdapterList } from "./builtInProviderCatalog.ts";
 import { ServerSettingsService } from "../server-settings.ts";
+import { resolveProviderEnabled } from "./provider-settings.ts";
 
 export interface ProviderAdapterRegistryLiveOptions {
   readonly adapters?: ReadonlyArray<ProviderAdapterShape<ProviderAdapterError>>;
@@ -84,6 +85,7 @@ const makeProviderAdapterRegistry = Effect.fn("makeProviderAdapterRegistry")(fun
 
   const getInstanceInfo: ProviderAdapterRegistryShape["getInstanceInfo"] = (instanceId) =>
     Effect.gen(function* () {
+      const settings = yield* getSettingsOrDefault;
       const instanceConfig = yield* getProviderInstanceConfig(instanceId);
       const driverKind = instanceConfig?.driver ?? ProviderDriverKind.make(instanceId);
       yield* getByProvider(driverKind);
@@ -92,7 +94,7 @@ const makeProviderAdapterRegistry = Effect.fn("makeProviderAdapterRegistry")(fun
         driverKind,
         displayName: instanceConfig?.displayName,
         accentColor: instanceConfig?.accentColor,
-        enabled: instanceConfig?.enabled ?? true,
+        enabled: resolveProviderEnabled({ settings, driver: driverKind, instanceId }),
       };
     });
 

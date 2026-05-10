@@ -104,55 +104,78 @@ const isFdReady = (fd: number) =>
   );
 
 const makeBootstrapInputStream = (fd: number) =>
-  Effect.try<Readable, BootstrapError>({
-    try: () => {
-      const fdPath = resolveFdPath(fd);
-      if (fdPath === undefined) {
-        return makeDirectBootstrapStream(fd);
-      }
+  Effect.gen(function* () {
+    const fdPath = resolveFdPath(fd);
+    if (fdPath === undefined) {
+      return yield* makeDirectBootstrapStream(fd);
+    }
 
-      let streamFd: number | undefined;
-      try {
+    let streamFd: number | undefined;
+    return yield* Effect.try<Readable, { readonly error: unknown; readonly streamFd?: number }>({
+      try: () => {
         streamFd = NFS.openSync(fdPath, "r");
         return NFS.createReadStream("", {
           fd: streamFd,
           encoding: "utf8",
           autoClose: true,
         });
-      } catch (error) {
+      },
+      catch: (error) => ({
+        error,
+        ...(streamFd !== undefined ? { streamFd } : {}),
+      }),
+    }).pipe(
+      Effect.catch(({ error, streamFd: openedStreamFd }) => {
         if (isBootstrapFdPathDuplicationError(error)) {
-          if (streamFd !== undefined) {
-            NFS.closeSync(streamFd);
+          if (openedStreamFd !== undefined) {
+            Result.try(() => NFS.closeSync(openedStreamFd));
           }
           return makeDirectBootstrapStream(fd);
         }
-        throw error;
-      }
-    },
-    catch: (error) =>
-      new BootstrapError({
-        message: "Failed to duplicate bootstrap fd.",
-        cause: error,
+
+        return Effect.fail(
+          new BootstrapError({
+            message: "Failed to duplicate bootstrap fd.",
+            cause: error,
+          }),
+        );
       }),
+    );
   });
 
-const makeDirectBootstrapStream = (fd: number): Readable => {
-  try {
-    return NFS.createReadStream("", {
-      fd,
-      encoding: "utf8",
-      autoClose: true,
-    });
-  } catch {
-    const stream = new Net.Socket({
-      fd,
-      readable: true,
-      writable: false,
-    });
-    stream.setEncoding("utf8");
-    return stream;
-  }
-};
+const makeDirectBootstrapStream = (fd: number): Effect.Effect<Readable, BootstrapError> =>
+  Effect.try({
+    try: () =>
+      NFS.createReadStream("", {
+        fd,
+        encoding: "utf8",
+        autoClose: true,
+      }),
+    catch: (cause) =>
+      new BootstrapError({
+        message: "Failed to create direct bootstrap read stream.",
+        cause,
+      }),
+  }).pipe(
+    Effect.catch(() =>
+      Effect.try({
+        try: () => {
+          const stream = new Net.Socket({
+            fd,
+            readable: true,
+            writable: false,
+          });
+          stream.setEncoding("utf8");
+          return stream;
+        },
+        catch: (cause) =>
+          new BootstrapError({
+            message: "Failed to duplicate bootstrap fd.",
+            cause,
+          }),
+      }),
+    ),
+  );
 
 const isBootstrapFdPathDuplicationError = Predicate.compose(
   Predicate.hasProperty("code"),

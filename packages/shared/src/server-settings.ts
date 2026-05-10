@@ -1,5 +1,5 @@
 import { ServerSettings, type ServerSettingsPatch } from "@multi/contracts";
-import { Schema } from "effect";
+import { Result, Schema } from "effect";
 import { deepMerge } from "./Struct";
 import { fromLenientJson } from "./schema-json";
 import { createModelSelection } from "./model";
@@ -33,12 +33,10 @@ export function extractPersistedServerObservabilitySettings(input: {
 export function parsePersistedServerObservabilitySettings(
   raw: string,
 ): PersistedServerObservabilitySettings {
-  try {
-    const decoded = Schema.decodeUnknownSync(ServerSettingsJson)(raw);
-    return extractPersistedServerObservabilitySettings(decoded);
-  } catch {
-    return { otlpTracesUrl: undefined, otlpMetricsUrl: undefined };
-  }
+  const decoded = Result.try(() => Schema.decodeUnknownSync(ServerSettingsJson)(raw));
+  return Result.isSuccess(decoded)
+    ? extractPersistedServerObservabilitySettings(decoded.success)
+    : { otlpTracesUrl: undefined, otlpMetricsUrl: undefined };
 }
 
 function shouldReplaceTextGenerationModelSelection(
