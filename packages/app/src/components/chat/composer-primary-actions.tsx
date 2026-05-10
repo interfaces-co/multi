@@ -1,5 +1,6 @@
 import { memo } from "react";
-import { IconChevronDownSmall, IconChevronLeft } from "central-icons";
+import { IconArrowUp, IconChevronDownSmall, IconChevronLeft, IconStop } from "central-icons";
+import type { AgentWindowSendWhileStreamingBehavior } from "@multi/contracts/settings";
 import { cn } from "~/lib/utils";
 import { Button } from "@multi/ui/button";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@multi/ui/menu";
@@ -23,6 +24,8 @@ interface ComposerPrimaryActionsProps {
   isConnecting: boolean;
   isPreparingWorktree: boolean;
   hasSendableContent: boolean;
+  sendWhileStreamingBehavior: AgentWindowSendWhileStreamingBehavior;
+  submitActionLabel?: string | undefined;
   onPreviousPendingQuestion: () => void;
   onInterrupt: () => void;
   onImplementPlanInNewThread: () => void;
@@ -57,6 +60,8 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
   isConnecting,
   isPreparingWorktree,
   hasSendableContent,
+  sendWhileStreamingBehavior,
+  submitActionLabel,
   onPreviousPendingQuestion,
   onInterrupt,
   onImplementPlanInNewThread,
@@ -113,7 +118,15 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
   }
 
   if (isRunning) {
-    return (
+    const runningSendLabel =
+      submitActionLabel ??
+      (sendWhileStreamingBehavior === "queue"
+        ? "Queue message"
+        : sendWhileStreamingBehavior === "stop-and-send"
+          ? "Stop and send message"
+          : "Send message");
+    const showRunningSendAction = hasSendableContent;
+    const stopButton = (
       <button
         type="button"
         className={cn(
@@ -123,17 +136,31 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
         onClick={onInterrupt}
         aria-label="Stop generation"
       >
-        {dockSingleRow ? (
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true">
-            <rect x="2" y="2" width="6" height="6" rx="1.25" />
-          </svg>
-        ) : (
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
-            <rect x="2" y="2" width="8" height="8" rx="1.5" />
-          </svg>
-        )}
+        <IconStop className={dockSingleRow ? "size-3" : "size-3.5"} />
       </button>
     );
+
+    if (showRunningSendAction) {
+      return (
+        <div className={cn("flex items-center justify-end", compact ? "gap-1.5" : "gap-2")}>
+          {stopButton}
+          <button
+            type="submit"
+            className={cn(
+              "multi-composer-bar-control-button ui-prompt-input-submit-button flex enabled:cursor-pointer items-center justify-center rounded-full bg-foreground text-background transition-[color,opacity,transform] duration-150 hover:opacity-90 motion-reduce:transition-opacity motion-reduce:active:scale-100 active:scale-[0.96] disabled:pointer-events-none disabled:opacity-30 disabled:hover:opacity-30",
+              circularControlClass,
+            )}
+            disabled={isSendBusy || isConnecting || !hasSendableContent}
+            aria-label={runningSendLabel}
+            title={runningSendLabel}
+          >
+            <IconArrowUp className={dockSingleRow ? "size-3" : "size-3.5"} />
+          </button>
+        </div>
+      );
+    }
+
+    return stopButton;
   }
 
   if (showPlanFollowUpPrompt) {
@@ -203,8 +230,9 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
             ? "Preparing worktree"
             : isSendBusy
               ? "Sending"
-              : "Send message"
+              : (submitActionLabel ?? "Send message")
       }
+      title={submitActionLabel ?? "Send message"}
     >
       {isConnecting || isSendBusy ? (
         dockSingleRow ? (
@@ -246,26 +274,8 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
             />
           </svg>
         )
-      ) : dockSingleRow ? (
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-          <path
-            d="M6 9.5V2.5M6 2.5L2.5 6M6 2.5L9.5 6"
-            stroke="currentColor"
-            strokeWidth="1.65"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
       ) : (
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-          <path
-            d="M7 11.5V2.5M7 2.5L3 6.5M7 2.5L11 6.5"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+        <IconArrowUp className={dockSingleRow ? "size-3" : "size-3.5"} />
       )}
     </button>
   );

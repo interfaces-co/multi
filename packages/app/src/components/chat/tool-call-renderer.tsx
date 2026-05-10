@@ -905,10 +905,7 @@ function EditToolCall({
         {hasContent ? (
           <button
             type="button"
-            className={cn(
-              toolCallLineVariants({ clickable: true }),
-              "w-fit max-w-full min-w-0",
-            )}
+            className={cn(toolCallLineVariants({ clickable: true }), "w-fit max-w-full min-w-0")}
             aria-label={isExpanded ? "Collapse edit details" : "Expand edit details"}
             aria-expanded={isExpanded}
             onClick={toggleExpanded}
@@ -986,9 +983,13 @@ function EditStats({ stats }: { stats: ToolCallModel["tool"]["value"]["stats"] |
   if (additions === 0 && deletions === 0) return null;
 
   return (
-    <span className="ml-1 inline-flex shrink-0 gap-1">
-      {additions > 0 ? <span className="text-multi-fg-green-primary">+{additions}</span> : null}
-      {deletions > 0 ? <span className="text-multi-fg-red-primary">-{deletions}</span> : null}
+    <span className="ml-1 inline-flex shrink-0 gap-1 tabular-nums">
+      {additions > 0 ? (
+        <span className="text-[var(--multi-diff-addition)]">+{additions}</span>
+      ) : null}
+      {deletions > 0 ? (
+        <span className="text-[var(--multi-diff-deletion)]">-{deletions}</span>
+      ) : null}
     </span>
   );
 }

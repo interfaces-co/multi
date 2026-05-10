@@ -110,9 +110,7 @@ function toToolCall(workEntry: WorkLogEntry, projectRoot: string | undefined): T
         workEntry.detail?.trim() ||
         "subagent"
       : resolveToolDetails(workEntry, projectRoot);
-  const commandArtifact = workEntry.artifacts?.find(
-    (artifact) => artifact.type === "command",
-  );
+  const commandArtifact = workEntry.artifacts?.find((artifact) => artifact.type === "command");
   const diffArtifact =
     workEntry.artifacts?.find(
       (artifact): artifact is ToolDiffArtifact =>

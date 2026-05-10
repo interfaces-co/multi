@@ -65,6 +65,7 @@ import { WsTransport } from "../../rpc/ws-transport";
 import { createWsRpcClient, type WsRpcClient } from "../../rpc/ws-rpc-client";
 import { traceBrowserEvent } from "~/observability/browserDebug";
 import { deriveLogicalProjectKey, getProjectOrderKey } from "~/logical-project";
+import { dispatchNextQueuedComposerItemForThread } from "~/composer-queue-dispatch";
 
 type EnvironmentServiceState = {
   readonly queryClient: QueryClient;
@@ -643,6 +644,28 @@ function refreshGitStatusForThreadActivityEffects(
   }
 }
 
+function collectQueueDrainThreadIds(events: ReadonlyArray<OrchestrationEvent>): ThreadId[] {
+  const threadIds = new Set<ThreadId>();
+  for (const event of events) {
+    switch (event.type) {
+      case "thread.session-set": {
+        if (
+          event.payload.session.status !== "running" &&
+          event.payload.session.status !== "starting"
+        ) {
+          threadIds.add(event.payload.threadId);
+        }
+        break;
+      }
+      case "thread.turn-diff-completed": {
+        threadIds.add(event.payload.threadId);
+        break;
+      }
+    }
+  }
+  return [...threadIds];
+}
+
 function applyRecoveredEventBatch(
   events: ReadonlyArray<OrchestrationEvent>,
   environmentId: EnvironmentId,
@@ -652,6 +675,7 @@ function applyRecoveredEventBatch(
   }
 
   const batchEffects = deriveOrchestrationBatchEffects(events);
+  const queueDrainThreadIds = collectQueueDrainThreadIds(events);
   const uiEvents = coalesceOrchestrationUiEvents(events);
   const needsProjectUiSync = events.some(
     (event) =>
@@ -666,6 +690,9 @@ function applyRecoveredEventBatch(
   }
 
   useStore.getState().applyOrchestrationEvents(uiEvents, environmentId);
+  for (const threadId of queueDrainThreadIds) {
+    void dispatchNextQueuedComposerItemForThread(environmentId, threadId);
+  }
   refreshGitStatusForThreadActivityEffects(environmentId, batchEffects.gitRefreshThreadIds);
   if (needsProjectUiSync) {
     const projects = selectProjectsAcrossEnvironments(useStore.getState());

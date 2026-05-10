@@ -303,9 +303,9 @@ const make = Effect.gen(function* () {
       return yield* new DesktopServerExposureNoNetworkAddressError({ port: previous.port });
     }
 
-    const change = yield* desktopSettings.setServerExposureMode(mode).pipe(
-      Effect.mapError((cause) => new DesktopServerExposurePersistenceError({ cause })),
-    );
+    const change = yield* desktopSettings
+      .setServerExposureMode(mode)
+      .pipe(Effect.mapError((cause) => new DesktopServerExposurePersistenceError({ cause })));
 
     yield* Ref.set(stateRef, resolved.state);
     return {

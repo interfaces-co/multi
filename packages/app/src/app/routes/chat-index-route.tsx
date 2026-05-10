@@ -20,6 +20,7 @@ export function ChatIndexRouteView() {
   const setProjectlessDraftThreadId = useComposerDraftStore(
     (store) => store.setProjectlessDraftThreadId,
   );
+  const applyStickyState = useComposerDraftStore((store) => store.applyStickyState);
 
   useEffect(() => {
     if (!activeEnvironmentId || !bootstrapComplete) {
@@ -55,6 +56,7 @@ export function ChatIndexRouteView() {
         runtimeMode: DEFAULT_RUNTIME_MODE,
         interactionMode: DEFAULT_INTERACTION_MODE,
       });
+      applyStickyState(draftId);
     }
     void navigate({
       to: "/draft/$draftId",
@@ -64,6 +66,7 @@ export function ChatIndexRouteView() {
   }, [
     activeEnvironmentId,
     bootstrapComplete,
+    applyStickyState,
     getProjectlessDraftSession,
     navigate,
     setProjectlessDraftThreadId,

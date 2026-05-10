@@ -112,9 +112,8 @@ const makeClaudeTextGeneration = Effect.gen(function* () {
       ...(fastMode ? { fastMode: true } : {}),
     };
 
-    const claudeSettings = yield* Effect.map(
-      serverSettingsService.getSettings,
-      (settings) => resolveClaudeSettings(settings, modelSelection.instanceId),
+    const claudeSettings = yield* Effect.map(serverSettingsService.getSettings, (settings) =>
+      resolveClaudeSettings(settings, modelSelection.instanceId),
     ).pipe(Effect.catch(() => Effect.undefined));
 
     const runClaudeCommand = Effect.fn("runClaudeJson.runClaudeCommand")(function* () {

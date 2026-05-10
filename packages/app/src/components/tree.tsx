@@ -41,11 +41,13 @@ function treeHostLayout(): TreeHostStyle {
     "--trees-border-radius-override": "4px",
     "--trees-focus-ring-width-override": "1px",
     "--trees-focus-ring-offset-override": "-1px",
-    "--trees-item-margin-x-override": "8px",
+    "--trees-item-margin-x-override": "4px",
     "--trees-item-padding-x-override": "4px",
-    "--trees-level-gap-override": "12px",
+    "--trees-level-gap-override": "8px",
     "--trees-gap-override": "4px",
+    "--trees-item-row-gap-override": "2px",
     "--trees-icon-width-override": "14px",
+    "--trees-padding-inline-override": "8px",
   };
 }
 
@@ -79,7 +81,9 @@ export function Tree({ className, resolvedTheme, style, ...props }: TreeProps) {
     [resolvedTheme, style],
   );
 
-  return <PierreFileTree {...props} className={cn("block h-full w-full", className)} style={hostStyle} />;
+  return (
+    <PierreFileTree {...props} className={cn("block h-full w-full", className)} style={hostStyle} />
+  );
 }
 
 export function normalizeTreePath(path: string): string {

@@ -162,7 +162,7 @@ function GitPanelInner(props: {
   const files = git.rows;
   const viewed = useGitViewed(git.cwd);
   const navigate = useNavigate();
-  const { open: gitRailOpen } = useSecondaryRail(git.cwd, "git");
+  const { open: gitRailOpen, width: gitRailWidth } = useSecondaryRail(git.cwd, "git");
   const [diffStyle, setDiffStyle] = useDiffStylePreference();
   const [pending, setPending] = useState<DiffRow | null>(null);
   const [discardAllPending, setDiscardAllPending] = useState(false);
@@ -172,6 +172,7 @@ function GitPanelInner(props: {
   const [selectedId, setSelectedId] = useState<string | null>(() => files[0]?.id ?? null);
   const allDiffCardsCollapsed =
     files.length > 0 && files.every((row) => !git.expandedIds.has(row.id));
+  const diffLayoutKey = gitRailOpen ? `rail:${gitRailWidth}` : "rail:closed";
   const gitRef = useRef(git);
   gitRef.current = git;
 
@@ -304,7 +305,7 @@ function GitPanelInner(props: {
             className="editor-panel-inner flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-(--glass-editor-surface-background)"
           >
             {props.reviewingTurnDiff ? (
-              <GitReviewDiffSurface />
+              <GitReviewDiffSurface layoutKey={diffLayoutKey} />
             ) : files.length === 0 ? (
               <div className="flex flex-1 items-center justify-center text-detail text-muted-foreground/60">
                 No files to compare.
@@ -333,6 +334,7 @@ function GitPanelInner(props: {
                     onToggleViewed={() => viewed.toggleViewed(file.path)}
                     onRevert={() => setPending(file)}
                     requestPrefetchForIdRef={prefetchRef}
+                    diffLayoutKey={diffLayoutKey}
                   />
                 ))}
               </Virtualizer>
@@ -397,11 +399,11 @@ function ReviewModeHeader(props: { onClose: () => void }) {
   );
 }
 
-function GitReviewDiffSurface() {
+function GitReviewDiffSurface(props: { layoutKey?: string }) {
   return (
     <DiffWorkerPoolProvider>
       <Suspense fallback={<DiffPanelLoadingState label="Loading checkpoint diff..." />}>
-        <ReviewDiffPanel mode="sheet" />
+        <ReviewDiffPanel key={props.layoutKey} mode="sheet" />
       </Suspense>
     </DiffWorkerPoolProvider>
   );
@@ -623,10 +625,10 @@ function ChangesHeader(props: {
       </span>
       <div className="flex shrink-0 items-center gap-1 text-detail tabular-nums">
         {props.add > 0 && (
-          <span className="font-medium text-multi-fg-green-primary">+{props.add}</span>
+          <span className="font-medium text-[var(--multi-diff-addition)]">+{props.add}</span>
         )}
         {props.del > 0 && (
-          <span className="font-medium text-multi-fg-red-primary">-{props.del}</span>
+          <span className="font-medium text-[var(--multi-diff-deletion)]">-{props.del}</span>
         )}
       </div>
     </WorkbenchChromeRow>

@@ -528,9 +528,11 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
         normalizeCodexModelSlug(input.model),
         context.account,
       );
+      const requestedServiceTier = input.serviceTier?.trim().toLowerCase();
+      const serviceTier = requestedServiceTier === "priority" ? "fast" : requestedServiceTier;
       const sessionOverrides = {
         model: normalizedModel ?? null,
-        ...(input.serviceTier !== undefined ? { serviceTier: input.serviceTier } : {}),
+        ...(serviceTier === "fast" || serviceTier === "flex" ? { serviceTier } : {}),
         cwd: input.cwd ?? null,
         ...mapCodexRuntimeMode(input.runtimeMode ?? "full-access"),
       };
@@ -721,8 +723,10 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
     if (normalizedModel) {
       turnStartParams.model = normalizedModel;
     }
-    if (input.serviceTier !== undefined) {
-      turnStartParams.serviceTier = input.serviceTier;
+    const requestedServiceTier = input.serviceTier?.trim().toLowerCase();
+    const serviceTier = requestedServiceTier === "priority" ? "fast" : requestedServiceTier;
+    if (serviceTier === "fast" || serviceTier === "flex") {
+      turnStartParams.serviceTier = serviceTier;
     }
     if (input.effort) {
       turnStartParams.effort = input.effort;

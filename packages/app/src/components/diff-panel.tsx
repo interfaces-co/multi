@@ -306,17 +306,20 @@ export default function DiffPanel({ mode = "inline" }: DiffPanelProps) {
     [activeCwd],
   );
 
-  const selectTurn = useCallback((turnId: TurnIdType) => {
-    if (!activeThread) return;
-    void navigate({
-      to: "/$environmentId/$threadId",
-      params: buildThreadRouteParams(scopeThreadRef(activeThread.environmentId, activeThread.id)),
-      search: (previous) => {
-        const rest = stripDiffSearchParams(previous);
-        return { ...rest, diff: "1", diffTurnId: turnId };
-      },
-    });
-  }, [activeThread, navigate]);
+  const selectTurn = useCallback(
+    (turnId: TurnIdType) => {
+      if (!activeThread) return;
+      void navigate({
+        to: "/$environmentId/$threadId",
+        params: buildThreadRouteParams(scopeThreadRef(activeThread.environmentId, activeThread.id)),
+        search: (previous) => {
+          const rest = stripDiffSearchParams(previous);
+          return { ...rest, diff: "1", diffTurnId: turnId };
+        },
+      });
+    },
+    [activeThread, navigate],
+  );
   const selectWholeConversation = useCallback(() => {
     if (!activeThread) return;
     void navigate({

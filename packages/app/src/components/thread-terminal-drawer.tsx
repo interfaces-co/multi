@@ -565,10 +565,7 @@ export function TerminalViewport({
         cols: activeTerminal.cols,
         rows: activeTerminal.rows,
       });
-      if (
-        lastSyncedSize.cols === nextSize.cols &&
-        lastSyncedSize.rows === nextSize.rows
-      ) {
+      if (lastSyncedSize.cols === nextSize.cols && lastSyncedSize.rows === nextSize.rows) {
         return;
       }
       lastSyncedSize = nextSize;
@@ -815,9 +812,7 @@ export function TerminalViewport({
       window.cancelAnimationFrame(frame);
     };
   }, [drawerHeight, environmentId, resizeEpoch, terminalId, threadId]);
-  return (
-    <div ref={containerRef} className="relative h-full w-full overflow-hidden bg-transparent" />
-  );
+  return <div ref={containerRef} className="thread-terminal-viewport relative h-full w-full" />;
 }
 
 interface ThreadTerminalDrawerProps {
@@ -1131,7 +1126,7 @@ export default function ThreadTerminalDrawer({
 
   return (
     <aside
-      className="thread-terminal-drawer relative flex min-w-0 shrink-0 flex-col overflow-hidden border-t border-border/80 bg-background"
+      className="thread-terminal-drawer relative flex min-w-0 shrink-0 flex-col overflow-hidden border-t"
       style={{ height: `${drawerHeight}px` }}
     >
       <div
@@ -1144,9 +1139,9 @@ export default function ThreadTerminalDrawer({
 
       {!hasTerminalSidebar && (
         <div className="pointer-events-none absolute right-2 top-2 z-20">
-          <div className="pointer-events-auto inline-flex items-center overflow-hidden rounded-md border border-border/80 bg-background/70">
+          <div className="pointer-events-auto inline-flex items-center overflow-hidden rounded-md border border-(--multi-terminal-border) bg-(--multi-terminal-toolbar-background) shadow-[0_1px_2px_color-mix(in_srgb,var(--multi-shadow-primary,black)_12%,transparent)]">
             <TerminalActionButton
-              className={`p-1 text-foreground/90 transition-colors ${
+              className={`p-1 text-(--multi-terminal-muted-foreground) transition-colors hover:bg-(--multi-terminal-hover-background) hover:text-(--multi-terminal-foreground) ${
                 hasReachedSplitLimit
                   ? "cursor-not-allowed opacity-45 hover:bg-transparent"
                   : "hover:bg-accent"
@@ -1156,17 +1151,17 @@ export default function ThreadTerminalDrawer({
             >
               <IconSplit className="size-3.25" />
             </TerminalActionButton>
-            <div className="h-4 w-px bg-border/80" />
+            <div className="h-4 w-px bg-(--multi-terminal-border-subtle)" />
             <TerminalActionButton
-              className="p-1 text-foreground/90 transition-colors hover:bg-accent"
+              className="p-1 text-(--multi-terminal-muted-foreground) transition-colors hover:bg-(--multi-terminal-hover-background) hover:text-(--multi-terminal-foreground)"
               onClick={onNewTerminalAction}
               label={newTerminalActionLabel}
             >
               <IconPlusLarge className="size-3.25" />
             </TerminalActionButton>
-            <div className="h-4 w-px bg-border/80" />
+            <div className="h-4 w-px bg-(--multi-terminal-border-subtle)" />
             <TerminalActionButton
-              className="p-1 text-foreground/90 transition-colors hover:bg-accent"
+              className="p-1 text-(--multi-terminal-muted-foreground) transition-colors hover:bg-(--multi-terminal-hover-background) hover:text-(--multi-terminal-foreground)"
               onClick={() => onCloseTerminal(resolvedActiveTerminalId)}
               label={closeTerminalActionLabel}
             >
@@ -1189,9 +1184,8 @@ export default function ThreadTerminalDrawer({
                 {visibleTerminalIds.map((terminalId) => (
                   <div
                     key={terminalId}
-                    className={`min-h-0 min-w-0 border-l first:border-l-0 ${
-                      terminalId === resolvedActiveTerminalId ? "border-border" : "border-border/70"
-                    }`}
+                    data-active={terminalId === resolvedActiveTerminalId ? "true" : "false"}
+                    className="min-h-0 min-w-0 border-(--multi-terminal-border-subtle) border-l first:border-l-0 data-[active=true]:border-(--multi-terminal-border)"
                     onMouseDown={() => {
                       if (terminalId !== resolvedActiveTerminalId) {
                         onActiveTerminalChange(terminalId);
@@ -1241,11 +1235,11 @@ export default function ThreadTerminalDrawer({
           </div>
 
           {hasTerminalSidebar && (
-            <aside className="flex w-36 min-w-36 flex-col border border-border/70 bg-muted/10">
-              <div className="flex h-[22px] items-stretch justify-end border-b border-border/70">
+            <aside className="flex w-36 min-w-36 flex-col border border-(--multi-terminal-border) bg-(--multi-terminal-sidebar-background)">
+              <div className="flex h-[22px] items-stretch justify-end border-(--multi-terminal-border-subtle) border-b bg-(--multi-terminal-toolbar-background)">
                 <div className="inline-flex h-full items-stretch">
                   <TerminalActionButton
-                    className={`inline-flex h-full items-center px-1 text-foreground/90 transition-colors ${
+                    className={`inline-flex h-full items-center px-1 text-(--multi-terminal-muted-foreground) transition-colors hover:bg-(--multi-terminal-hover-background) hover:text-(--multi-terminal-foreground) ${
                       hasReachedSplitLimit
                         ? "cursor-not-allowed opacity-45 hover:bg-transparent"
                         : "hover:bg-accent/70"
@@ -1256,14 +1250,14 @@ export default function ThreadTerminalDrawer({
                     <IconSplit className="size-3.25" />
                   </TerminalActionButton>
                   <TerminalActionButton
-                    className="inline-flex h-full items-center border-l border-border/70 px-1 text-foreground/90 transition-colors hover:bg-accent/70"
+                    className="inline-flex h-full items-center border-(--multi-terminal-border-subtle) border-l px-1 text-(--multi-terminal-muted-foreground) transition-colors hover:bg-(--multi-terminal-hover-background) hover:text-(--multi-terminal-foreground)"
                     onClick={onNewTerminalAction}
                     label={newTerminalActionLabel}
                   >
                     <IconPlusLarge className="size-3.25" />
                   </TerminalActionButton>
                   <TerminalActionButton
-                    className="inline-flex h-full items-center border-l border-border/70 px-1 text-foreground/90 transition-colors hover:bg-accent/70"
+                    className="inline-flex h-full items-center border-(--multi-terminal-border-subtle) border-l px-1 text-(--multi-terminal-muted-foreground) transition-colors hover:bg-(--multi-terminal-hover-background) hover:text-(--multi-terminal-foreground)"
                     onClick={() => onCloseTerminal(resolvedActiveTerminalId)}
                     label={closeTerminalActionLabel}
                   >
@@ -1285,11 +1279,8 @@ export default function ThreadTerminalDrawer({
                       {showGroupHeaders && (
                         <button
                           type="button"
-                          className={`flex w-full items-center rounded px-1 py-0.5 text-[10px] uppercase tracking-[0.08em] ${
-                            isGroupActive
-                              ? "bg-accent/70 text-foreground"
-                              : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                          }`}
+                          data-active={isGroupActive ? "true" : "false"}
+                          className="flex w-full items-center rounded px-1 py-0.5 text-[10px] text-(--multi-terminal-muted-foreground) uppercase tracking-[0.08em] hover:bg-(--multi-terminal-hover-background) hover:text-(--multi-terminal-foreground) data-[active=true]:bg-(--multi-terminal-active-background) data-[active=true]:text-(--multi-terminal-foreground)"
                           onClick={() => onActiveTerminalChange(groupActiveTerminalId)}
                         >
                           {terminalGroup.terminalIds.length > 1
@@ -1309,11 +1300,8 @@ export default function ThreadTerminalDrawer({
                           return (
                             <div
                               key={terminalId}
-                              className={`group flex items-center gap-1 rounded px-1 py-0.5 text-[11px] ${
-                                isActive
-                                  ? "bg-accent text-foreground"
-                                  : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                              }`}
+                              data-active={isActive ? "true" : "false"}
+                              className="group flex items-center gap-1 rounded px-1 py-0.5 text-[11px] text-(--multi-terminal-muted-foreground) hover:bg-(--multi-terminal-hover-background) hover:text-(--multi-terminal-foreground) data-[active=true]:bg-(--multi-terminal-active-background) data-[active=true]:text-(--multi-terminal-foreground)"
                             >
                               {showGroupHeaders && (
                                 <span className="text-[10px] text-muted-foreground/80">└</span>
@@ -1335,7 +1323,7 @@ export default function ThreadTerminalDrawer({
                                     render={
                                       <button
                                         type="button"
-                                        className="inline-flex size-3.5 items-center justify-center rounded text-xs font-medium leading-none text-muted-foreground opacity-0 transition hover:bg-accent hover:text-foreground group-hover:opacity-100"
+                                        className="inline-flex size-3.5 items-center justify-center rounded text-xs font-medium leading-none text-(--multi-terminal-muted-foreground) opacity-0 transition hover:bg-(--multi-terminal-hover-background) hover:text-(--multi-terminal-foreground) group-hover:opacity-100"
                                         onClick={() => onCloseTerminal(terminalId)}
                                         aria-label={closeTerminalLabel}
                                       />

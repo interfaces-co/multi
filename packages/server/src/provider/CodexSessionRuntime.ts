@@ -84,7 +84,7 @@ export interface CodexSessionRuntimeOptions {
   readonly cwd: string;
   readonly runtimeMode: RuntimeMode;
   readonly model?: string;
-  readonly serviceTier?: EffectCodexSchema.V2ThreadStartParams__ServiceTier | undefined;
+  readonly serviceTier?: string | null | undefined;
   readonly resumeCursor?: CodexResumeCursor;
 }
 
@@ -92,7 +92,7 @@ export interface CodexSessionRuntimeSendTurnInput {
   readonly input?: string;
   readonly attachments?: ReadonlyArray<{ readonly type: "image"; readonly url: string }>;
   readonly model?: string;
-  readonly serviceTier?: EffectCodexSchema.V2TurnStartParams__ServiceTier | undefined;
+  readonly serviceTier?: string | null | undefined;
   readonly effort?: EffectCodexSchema.V2TurnStartParams__ReasoningEffort | undefined;
   readonly interactionMode?: ProviderInteractionMode;
 }
@@ -266,15 +266,16 @@ function buildThreadStartParams(input: {
   readonly cwd: string;
   readonly runtimeMode: RuntimeMode;
   readonly model: string | undefined;
-  readonly serviceTier: EffectCodexSchema.V2ThreadStartParams__ServiceTier | undefined;
+  readonly serviceTier: string | null | undefined;
 }): EffectCodexSchema.V2ThreadStartParams {
   const config = runtimeModeToThreadConfig(input.runtimeMode);
+  const serviceTier = input.serviceTier === "priority" ? "fast" : input.serviceTier;
   return {
     cwd: input.cwd,
     approvalPolicy: config.approvalPolicy,
     sandbox: config.sandbox,
     ...(input.model ? { model: input.model } : {}),
-    ...(input.serviceTier ? { serviceTier: input.serviceTier } : {}),
+    ...(serviceTier === "fast" || serviceTier === "flex" ? { serviceTier } : {}),
   };
 }
 
@@ -327,7 +328,7 @@ export function buildTurnStartParams(input: {
   readonly prompt?: string;
   readonly attachments?: ReadonlyArray<{ readonly type: "image"; readonly url: string }>;
   readonly model?: string;
-  readonly serviceTier?: EffectCodexSchema.V2TurnStartParams__ServiceTier;
+  readonly serviceTier?: string | null;
   readonly effort?: EffectCodexSchema.V2TurnStartParams__ReasoningEffort;
   readonly interactionMode?: ProviderInteractionMode;
 }): Effect.Effect<
@@ -346,6 +347,7 @@ export function buildTurnStartParams(input: {
   }
 
   const config = runtimeModeToThreadConfig(input.runtimeMode);
+  const serviceTier = input.serviceTier === "priority" ? "fast" : input.serviceTier;
   const collaborationMode = buildCodexCollaborationMode({
     ...(input.interactionMode ? { interactionMode: input.interactionMode } : {}),
     ...(input.model ? { model: input.model } : {}),
@@ -358,7 +360,7 @@ export function buildTurnStartParams(input: {
     approvalPolicy: config.approvalPolicy,
     sandboxPolicy: runtimeModeToTurnSandboxPolicy(input.runtimeMode),
     ...(input.model ? { model: input.model } : {}),
-    ...(input.serviceTier ? { serviceTier: input.serviceTier } : {}),
+    ...(serviceTier === "fast" || serviceTier === "flex" ? { serviceTier } : {}),
     ...(input.effort ? { effort: input.effort } : {}),
     ...(collaborationMode ? { collaborationMode } : {}),
   }).pipe(
@@ -413,7 +415,7 @@ export const openCodexThread = (input: {
   readonly runtimeMode: RuntimeMode;
   readonly cwd: string;
   readonly requestedModel: string | undefined;
-  readonly serviceTier: EffectCodexSchema.V2ThreadStartParams__ServiceTier | undefined;
+  readonly serviceTier: string | null | undefined;
   readonly resumeThreadId: string | undefined;
 }): Effect.Effect<CodexThreadOpenResponse, CodexErrors.CodexAppServerError> => {
   const resumeThreadId = input.resumeThreadId;

@@ -7,6 +7,8 @@
   --multi-font-ui:
     -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", system-ui, sans-serif;
   --multi-font-mono: "SF Mono", "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
+  --multi-font-smoothing-webkit: antialiased;
+  --multi-font-smoothing-moz: grayscale;
   --multi-header-height: var(--multi-header-height-user, 32px);
   --multi-titlebar-control-height: 22px;
   --multi-titlebar-control-row-top: calc(
@@ -341,6 +343,10 @@ html.multi-reduce-transparency {
 }
 
 .agent-window {
+  --multi-agent-window-font-smoothing-webkit: var(--multi-font-smoothing-webkit);
+  --multi-agent-window-font-smoothing-moz: var(--multi-font-smoothing-moz);
+  -webkit-font-smoothing: var(--multi-agent-window-font-smoothing-webkit);
+  -moz-osx-font-smoothing: var(--multi-agent-window-font-smoothing-moz);
   --multi-shell-sash-hit-width: 4px;
   --multi-shell-sash-stripe-width: 4px;
   --multi-shell-sash-hover-shade: color-mix(in srgb, var(--multi-stroke-focused) 38%, transparent);
@@ -424,6 +430,60 @@ html.multi-reduce-transparency {
   );
   --multi-workbench-terminal-background: var(--multi-workbench-panel-background);
   --multi-workbench-terminal-foreground: var(--foreground);
+  --multi-terminal-shell-background: color-mix(
+    in srgb,
+    var(--multi-workbench-panel-background) 96%,
+    var(--background)
+  );
+  --multi-terminal-background: color-mix(
+    in srgb,
+    var(--multi-workbench-panel-background) 98%,
+    var(--background)
+  );
+  --multi-terminal-sidebar-background: color-mix(
+    in srgb,
+    var(--multi-workbench-panel-background) 82%,
+    var(--multi-color-sidebar)
+  );
+  --multi-terminal-toolbar-background: color-mix(
+    in srgb,
+    var(--multi-workbench-panel-background) 90%,
+    transparent
+  );
+  --multi-terminal-border: color-mix(in srgb, var(--foreground) 12%, transparent);
+  --multi-terminal-border-subtle: color-mix(in srgb, var(--foreground) 8%, transparent);
+  --multi-terminal-hover-background: color-mix(in srgb, var(--foreground) 6%, transparent);
+  --multi-terminal-active-background: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --multi-terminal-foreground: color-mix(in srgb, var(--foreground) 86%, transparent);
+  --multi-terminal-muted-foreground: color-mix(in srgb, var(--foreground) 54%, transparent);
+  --multi-terminal-cursor: var(--multi-terminal-foreground);
+  --multi-terminal-cursor-accent: var(--multi-terminal-background);
+  --multi-terminal-selection-background: color-mix(in srgb, var(--primary) 28%, transparent);
+  --multi-terminal-selection-foreground: var(--foreground);
+  --multi-terminal-selection-inactive-background: color-mix(
+    in srgb,
+    var(--foreground) 16%,
+    transparent
+  );
+  --multi-terminal-scrollbar-background: color-mix(in srgb, var(--foreground) 18%, transparent);
+  --multi-terminal-scrollbar-hover-background: color-mix(in srgb, var(--foreground) 34%, transparent);
+  --multi-terminal-scrollbar-active-background: color-mix(in srgb, var(--foreground) 46%, transparent);
+  --multi-terminal-ansi-black: #000000;
+  --multi-terminal-ansi-red: #cd3131;
+  --multi-terminal-ansi-green: #0dbc79;
+  --multi-terminal-ansi-yellow: #bf8803;
+  --multi-terminal-ansi-blue: #0451a5;
+  --multi-terminal-ansi-magenta: #bc05bc;
+  --multi-terminal-ansi-cyan: #0598bc;
+  --multi-terminal-ansi-white: #e5e5e5;
+  --multi-terminal-ansi-bright-black: #666666;
+  --multi-terminal-ansi-bright-red: #cd3131;
+  --multi-terminal-ansi-bright-green: #14ce14;
+  --multi-terminal-ansi-bright-yellow: #b5ba00;
+  --multi-terminal-ansi-bright-blue: #0451a5;
+  --multi-terminal-ansi-bright-magenta: #bc05bc;
+  --multi-terminal-ansi-bright-cyan: #0598bc;
+  --multi-terminal-ansi-bright-white: #a5a5a5;
   --multi-workbench-toolbar-hover-background: var(--multi-color-hover);
   --composer-tab-label-max-width: 200px;
   --agent-sidebar-cell-hover-actions-width: 60px;
@@ -431,6 +491,62 @@ html.multi-reduce-transparency {
   --conversation-text-font-size: 13px;
   --conversation-tool-card-padding-x: 8px;
   --meta-agent-overlay-height: 0px;
+}
+
+.agent-window[data-agent-window-font-smoothing="antialiased"] {
+  --multi-agent-window-font-smoothing-webkit: antialiased;
+  --multi-agent-window-font-smoothing-moz: grayscale;
+}
+
+.agent-window[data-agent-window-font-smoothing="subpixel"] {
+  --multi-agent-window-font-smoothing-webkit: subpixel-antialiased;
+  --multi-agent-window-font-smoothing-moz: auto;
+}
+
+.dark .agent-window {
+  --multi-terminal-shell-background: color-mix(
+    in srgb,
+    var(--multi-workbench-panel-background) 94%,
+    var(--background)
+  );
+  --multi-terminal-background: color-mix(
+    in srgb,
+    var(--multi-workbench-panel-background) 96%,
+    #1e1e1e
+  );
+  --multi-terminal-sidebar-background: color-mix(
+    in srgb,
+    var(--multi-workbench-panel-background) 84%,
+    var(--background)
+  );
+  --multi-terminal-toolbar-background: color-mix(
+    in srgb,
+    var(--multi-workbench-panel-background) 88%,
+    transparent
+  );
+  --multi-terminal-border: color-mix(in srgb, white 13%, transparent);
+  --multi-terminal-border-subtle: color-mix(in srgb, white 8%, transparent);
+  --multi-terminal-hover-background: color-mix(in srgb, white 7%, transparent);
+  --multi-terminal-active-background: color-mix(in srgb, white 11%, transparent);
+  --multi-terminal-foreground: #cccccc;
+  --multi-terminal-muted-foreground: #8f8f8f;
+  --multi-terminal-selection-background: rgba(38, 79, 120, 0.75);
+  --multi-terminal-selection-foreground: #ffffff;
+  --multi-terminal-selection-inactive-background: rgba(59, 59, 59, 0.75);
+  --multi-terminal-scrollbar-background: rgba(121, 121, 121, 0.28);
+  --multi-terminal-scrollbar-hover-background: rgba(100, 100, 100, 0.7);
+  --multi-terminal-scrollbar-active-background: rgba(191, 191, 191, 0.4);
+  --multi-terminal-ansi-yellow: #e5e510;
+  --multi-terminal-ansi-blue: #2472c8;
+  --multi-terminal-ansi-magenta: #bc3fbc;
+  --multi-terminal-ansi-cyan: #11a8cd;
+  --multi-terminal-ansi-bright-red: #f14c4c;
+  --multi-terminal-ansi-bright-green: #23d18b;
+  --multi-terminal-ansi-bright-yellow: #f5f543;
+  --multi-terminal-ansi-bright-blue: #3b8eea;
+  --multi-terminal-ansi-bright-magenta: #d670d6;
+  --multi-terminal-ansi-bright-cyan: #29b8db;
+  --multi-terminal-ansi-bright-white: #ffffff;
 }
 
 /*

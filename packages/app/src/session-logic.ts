@@ -230,9 +230,7 @@ export function formatDuration(durationMs: number): string {
     ...(hours > 0 ? { hours } : {}),
     ...(minutes > 0 ? { minutes } : {}),
     ...(seconds > 0 ? { seconds } : {}),
-    ...(hours === 0 && minutes === 0 && seconds < 10 && milliseconds > 0
-      ? { milliseconds }
-      : {}),
+    ...(hours === 0 && minutes === 0 && seconds < 10 && milliseconds > 0 ? { milliseconds } : {}),
   });
 }
 
@@ -889,25 +887,29 @@ function collapseDerivedWorkLogEntries(
   entries: ReadonlyArray<DerivedWorkLogEntry>,
 ): DerivedWorkLogEntry[] {
   const collapsed: DerivedWorkLogEntry[] = [];
-  const activeLifecycleIndexByWorkEntryId = new Map<string, number>();
+  const lifecycleIndexByWorkEntryId = new Map<string, number>();
 
   for (const entry of entries) {
     const workEntryId = activeToolLifecycleWorkEntryId(entry);
-    const activeIndex = workEntryId ? activeLifecycleIndexByWorkEntryId.get(workEntryId) : undefined;
-    const activeEntry = activeIndex === undefined ? undefined : collapsed[activeIndex];
+    const existingIndex = workEntryId ? lifecycleIndexByWorkEntryId.get(workEntryId) : undefined;
+    const existingEntry = existingIndex === undefined ? undefined : collapsed[existingIndex];
     if (
-      activeIndex !== undefined &&
-      activeEntry &&
-      shouldCollapseToolLifecycleEntries(activeEntry, entry)
+      existingIndex !== undefined &&
+      existingEntry &&
+      shouldCollapseToolLifecycleEntries(existingEntry, entry)
     ) {
-      const merged = mergeDerivedWorkLogEntries(activeEntry, entry);
-      collapsed[activeIndex] = merged;
-      trackActiveToolLifecycleEntry(activeLifecycleIndexByWorkEntryId, merged, activeIndex);
+      const merged = mergeDerivedWorkLogEntries(existingEntry, entry);
+      collapsed[existingIndex] = merged;
+      if (workEntryId) {
+        lifecycleIndexByWorkEntryId.set(workEntryId, existingIndex);
+      }
       continue;
     }
 
     collapsed.push(entry);
-    trackActiveToolLifecycleEntry(activeLifecycleIndexByWorkEntryId, entry, collapsed.length - 1);
+    if (workEntryId) {
+      lifecycleIndexByWorkEntryId.set(workEntryId, collapsed.length - 1);
+    }
   }
   return collapsed;
 }
@@ -922,22 +924,6 @@ function activeToolLifecycleWorkEntryId(entry: DerivedWorkLogEntry): string | un
   return entry.id;
 }
 
-function trackActiveToolLifecycleEntry(
-  activeLifecycleIndexByWorkEntryId: Map<string, number>,
-  entry: DerivedWorkLogEntry,
-  index: number,
-): void {
-  const workEntryId = activeToolLifecycleWorkEntryId(entry);
-  if (!workEntryId) {
-    return;
-  }
-  if (entry.activityKind === "tool.completed") {
-    activeLifecycleIndexByWorkEntryId.delete(workEntryId);
-    return;
-  }
-  activeLifecycleIndexByWorkEntryId.set(workEntryId, index);
-}
-
 function shouldCollapseToolLifecycleEntries(
   previous: DerivedWorkLogEntry,
   next: DerivedWorkLogEntry,
@@ -949,9 +935,6 @@ function shouldCollapseToolLifecycleEntries(
     return false;
   }
   if (!isToolLifecycleActivityKind(next.activityKind)) {
-    return false;
-  }
-  if (previous.activityKind === "tool.completed") {
     return false;
   }
   if (next.activityKind === "tool.started") {
@@ -984,7 +967,12 @@ function mergeDerivedWorkLogEntries(
   const toolTitle = next.toolTitle ?? previous.toolTitle;
   const itemType = next.itemType ?? previous.itemType;
   const requestKind = next.requestKind ?? previous.requestKind;
-  const status = next.status ?? previous.status;
+  const status =
+    previous.status === "error" || next.status === "error"
+      ? "error"
+      : previous.status === "completed" || next.status === "completed"
+        ? "completed"
+        : (next.status ?? previous.status);
   const toolCallId = next.toolCallId ?? previous.toolCallId;
   const artifacts = mergeToolDisplayArtifacts(previous.artifacts, next.artifacts);
   const subagents = mergeSubagents(previous.subagents, next.subagents);
@@ -1211,11 +1199,7 @@ function extractAcpDiffContents(payload: Record<string, unknown> | null): AcpDif
   return contents;
 }
 
-function collectAcpDiffContents(
-  value: unknown,
-  target: AcpDiffContent[],
-  depth: number,
-): void {
+function collectAcpDiffContents(value: unknown, target: AcpDiffContent[], depth: number): void {
   if (depth > 4) {
     return;
   }
@@ -1385,7 +1369,9 @@ function sumFileDiffDeletions(fileDiff: FileDiffMetadata): number {
   return fileDiff.hunks.reduce((total, hunk) => total + hunk.deletionLines, 0);
 }
 
-function summarizeDiffArtifactFiles(files: ReadonlyArray<ToolDiffArtifactFile>): string | undefined {
+function summarizeDiffArtifactFiles(
+  files: ReadonlyArray<ToolDiffArtifactFile>,
+): string | undefined {
   const firstPath = files[0]?.path;
   if (!firstPath) {
     return undefined;
@@ -1517,7 +1503,13 @@ function hasCommandArtifactMetadata(
   );
 }
 
-const COMMAND_METADATA_NESTED_KEYS = ["item", "result", "rawOutput", "metadata", "details"] as const;
+const COMMAND_METADATA_NESTED_KEYS = [
+  "item",
+  "result",
+  "rawOutput",
+  "metadata",
+  "details",
+] as const;
 
 function findNumericMetadata(
   value: Record<string, unknown> | null,
@@ -1588,9 +1580,7 @@ function findStringMetadata(
   return undefined;
 }
 
-function extractChangedFilesFromArtifacts(
-  artifacts: ReadonlyArray<ToolDisplayArtifact>,
-): string[] {
+function extractChangedFilesFromArtifacts(artifacts: ReadonlyArray<ToolDisplayArtifact>): string[] {
   const changedFiles: string[] = [];
   const seen = new Set<string>();
   for (const artifact of artifacts) {

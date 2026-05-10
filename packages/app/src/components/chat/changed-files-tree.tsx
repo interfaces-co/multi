@@ -69,8 +69,9 @@ export const ChangedFilesTree = memo(function ChangedFilesTree(props: {
     return decorations;
   }, [files]);
   const renderRowDecoration = useMemo<FileTreeRowDecorationRenderer>(
-    () => ({ row }) =>
-      row.kind === "file" ? (rowDecorationsByPathRef.current.get(row.path) ?? null) : null,
+    () =>
+      ({ row }) =>
+        row.kind === "file" ? (rowDecorationsByPathRef.current.get(row.path) ?? null) : null,
     [],
   );
 

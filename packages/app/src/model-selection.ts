@@ -254,9 +254,8 @@ export function resolveAppModelSelectionState(
     (entry) =>
       entry.instanceId === selection.instanceId && isProviderInstanceSelectable(settings, entry),
   );
-  const entry = selectedEntry ?? entries.find(
-    (candidate) => isProviderInstanceSelectable(settings, candidate),
-  );
+  const entry =
+    selectedEntry ?? entries.find((candidate) => isProviderInstanceSelectable(settings, candidate));
   if (entry) {
     const selectedModel = selectedEntry ? selection.model : null;
     const model =

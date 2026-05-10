@@ -2,14 +2,18 @@ import {
   type EnvironmentId,
   ProjectId,
   type ModelSelection,
+  type ProviderDriverKind,
   type ScopedThreadRef,
+  type ServerProvider,
   type ThreadId,
   type TurnId,
 } from "@multi/contracts";
+import { applyClaudePromptEffortPrefix } from "@multi/shared/model";
 import { type ChatMessage, type SessionPhase, type Thread, type ThreadSession } from "../types";
 import { type ComposerImageAttachment, type DraftThreadState } from "../composer-draft-store";
 import { Schema } from "effect";
 import { selectThreadByRef, useStore } from "../store";
+import { getProviderModelCapabilities } from "../provider-models";
 import {
   filterTerminalContextsWithText,
   stripInlineTerminalContextPlaceholders,
@@ -20,7 +24,28 @@ import type { DraftThreadEnvMode } from "../composer-draft-store";
 export const LAST_INVOKED_SCRIPT_BY_PROJECT_KEY = "multi:last-invoked-script-by-project";
 export const MAX_HIDDEN_MOUNTED_TERMINAL_THREADS = 10;
 
+export const IMAGE_ONLY_BOOTSTRAP_PROMPT =
+  "[User attached one or more images without additional text. Respond using the conversation context and the attached image(s).]";
+
 export const LastInvokedScriptByProjectSchema = Schema.Record(ProjectId, Schema.String);
+
+export function formatOutgoingPrompt(params: {
+  provider: ProviderDriverKind;
+  model: string | null;
+  models: ReadonlyArray<ServerProvider["models"][number]>;
+  effort: string | null;
+  text: string;
+}): string {
+  const caps = getProviderModelCapabilities(params.models, params.model, params.provider);
+  const promptInjectedValues =
+    caps.optionDescriptors
+      ?.filter((descriptor) => descriptor.type === "select")
+      .flatMap((descriptor) => descriptor.promptInjectedValues ?? []) ?? [];
+  if (params.effort && promptInjectedValues.includes(params.effort)) {
+    return applyClaudePromptEffortPrefix(params.text, params.effort);
+  }
+  return params.text;
+}
 
 export function buildLocalDraftThread(
   threadId: ThreadId,

@@ -9,10 +9,7 @@ import {
   setSavedEnvironmentRegistry,
   setSavedEnvironmentSecret,
 } from "./methods/savedEnvironments";
-import {
-  getServerExposureState,
-  setServerExposureMode,
-} from "./methods/serverExposure";
+import { getServerExposureState, setServerExposureMode } from "./methods/serverExposure";
 import {
   checkForUpdate,
   downloadUpdate,

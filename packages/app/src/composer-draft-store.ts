@@ -27,7 +27,6 @@ import * as Schema from "effect/Schema";
 import * as Equal from "effect/Equal";
 import { DeepMutable } from "effect/Types";
 import { createModelSelection, normalizeModelSlug } from "@multi/shared/model";
-import { useMemo } from "react";
 import { getLocalStorageItem } from "./hooks/use-local-storage";
 import { resolveAppModelSelection, resolveAppModelSelectionForInstance } from "./model-selection";
 import { DEFAULT_INTERACTION_MODE, DEFAULT_RUNTIME_MODE, type ChatImageAttachment } from "./types";
@@ -38,7 +37,6 @@ import {
 } from "./lib/terminal-context";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { useShallow } from "zustand/react/shallow";
 import { createDebouncedStorage, createMemoryStorage } from "./lib/storage";
 import { getDefaultServerModel } from "./provider-models";
 import { UnifiedSettings } from "@multi/contracts/settings";
@@ -243,7 +241,7 @@ export interface ComposerThreadDraftState {
  * Unlike a real server thread, a draft session can still change target
  * environment/worktree configuration before the first send.
  */
-export interface DraftSessionState {
+export interface DraftThreadState {
   threadId: ThreadId;
   environmentId: EnvironmentId;
   projectId: ProjectId | null;
@@ -257,12 +255,10 @@ export interface DraftSessionState {
   promotedTo?: ScopedThreadRef | null;
 }
 
-export type DraftThreadState = DraftSessionState;
-
 /**
  * Draft session metadata paired with its stable draft-session identity.
  */
-interface ProjectDraftSession extends DraftSessionState {
+interface ProjectDraftSession extends DraftThreadState {
   draftId: DraftId;
 }
 
@@ -297,9 +293,9 @@ interface ComposerDraftStoreState {
   getDraftThreadByProjectRef: (projectRef: ScopedProjectRef) => ProjectDraftSession | null;
   getDraftSessionByProjectRef: (projectRef: ScopedProjectRef) => ProjectDraftSession | null;
   /** Reads mutable draft-session metadata by `DraftId`. */
-  getDraftSession: (draftId: DraftId) => DraftSessionState | null;
+  getDraftSession: (draftId: DraftId) => DraftThreadState | null;
   /** Resolves a server-thread ref back to a matching draft session when one exists. */
-  getDraftSessionByRef: (threadRef: ScopedThreadRef) => DraftSessionState | null;
+  getDraftSessionByRef: (threadRef: ScopedThreadRef) => DraftThreadState | null;
   getDraftThreadByRef: (threadRef: ScopedThreadRef) => DraftThreadState | null;
   getDraftThread: (threadRef: ComposerThreadTarget) => DraftThreadState | null;
   listDraftThreadKeys: () => string[];
@@ -432,11 +428,6 @@ export interface EffectiveComposerModelState {
   modelOptions: ProviderOptionSelectionsByProvider | null;
 }
 
-interface ComposerDraftModelState {
-  activeProvider: ProviderInstanceId | null;
-  modelSelectionByProvider: Partial<Record<ProviderInstanceId, ModelSelection>>;
-}
-
 function providerSelectionsFromModelSelection(
   modelSelection: ModelSelection | null | undefined,
 ): ProviderOptionSelectionsByProvider | null {
@@ -497,11 +488,6 @@ Object.freeze(EMPTY_IDS);
 Object.freeze(EMPTY_PERSISTED_ATTACHMENTS);
 const EMPTY_MODEL_SELECTION_BY_PROVIDER: Partial<Record<ProviderDriverKind, ModelSelection>> =
   Object.freeze({});
-const EMPTY_COMPOSER_DRAFT_MODEL_STATE = Object.freeze<ComposerDraftModelState>({
-  activeProvider: null,
-  modelSelectionByProvider: EMPTY_MODEL_SELECTION_BY_PROVIDER,
-});
-
 const EMPTY_THREAD_DRAFT = Object.freeze<ComposerThreadDraftState>({
   prompt: "",
   promptDoc: null,
@@ -879,12 +865,8 @@ export function deriveEffectiveComposerModelState(input: {
   projectModelSelection: ModelSelection | null | undefined;
   settings: UnifiedSettings;
 }): EffectiveComposerModelState {
-  const settingsModelSelection = input.settings.composerModelSelection;
   const baseModelCandidate =
-    input.threadModelSelection?.model ??
-    input.projectModelSelection?.model ??
-    settingsModelSelection?.model ??
-    null;
+    input.threadModelSelection?.model ?? input.projectModelSelection?.model ?? null;
   const baseModel =
     (input.selectedInstanceId
       ? resolveAppModelSelectionForInstance(
@@ -933,7 +915,6 @@ export function deriveEffectiveComposerModelState(input: {
     modelSelectionByProviderToOptions(input.draft?.modelSelectionByProvider) ??
     providerSelectionsFromModelSelection(input.threadModelSelection) ??
     providerSelectionsFromModelSelection(input.projectModelSelection) ??
-    providerSelectionsFromModelSelection(settingsModelSelection) ??
     null;
 
   return {
@@ -1167,7 +1148,7 @@ function isComposerThreadKeyInUse(mappings: Record<string, string>, threadKey: s
 
 function toProjectDraftSession(
   draftId: DraftId,
-  draftSession: DraftSessionState,
+  draftSession: DraftThreadState,
 ): ProjectDraftSession {
   return {
     draftId,
@@ -3104,62 +3085,6 @@ export function useComposerThreadDraft(threadRef: ComposerThreadTarget): Compose
   });
 }
 
-export function useComposerDraftModelState(
-  threadRef: ComposerThreadTarget,
-): ComposerDraftModelState {
-  return useComposerDraftStore(
-    useShallow((state) => {
-      const draft = getComposerDraftState(state, threadRef);
-      return draft
-        ? {
-            activeProvider: draft.activeProvider,
-            modelSelectionByProvider: draft.modelSelectionByProvider,
-          }
-        : EMPTY_COMPOSER_DRAFT_MODEL_STATE;
-    }),
-  );
-}
-
-export function useEffectiveComposerModelState(input: {
-  threadRef?: ComposerThreadTarget;
-  draftId?: DraftId;
-  providers: ReadonlyArray<ServerProvider>;
-  selectedProvider: ProviderDriverKind;
-  /**
-   * When supplied, the draft's saved selection for this instance takes
-   * precedence over the driver-kind bucket — so a custom `codex_personal`
-   * instance reads its own model, not the default Codex's.
-   */
-  selectedInstanceId?: ProviderInstanceId | null | undefined;
-  threadModelSelection: ModelSelection | null | undefined;
-  projectModelSelection: ModelSelection | null | undefined;
-  settings: UnifiedSettings;
-}): EffectiveComposerModelState {
-  const draft = useComposerDraftModelState(input.threadRef ?? input.draftId ?? DraftId.make(""));
-
-  return useMemo(
-    () =>
-      deriveEffectiveComposerModelState({
-        draft,
-        providers: input.providers,
-        selectedProvider: input.selectedProvider,
-        selectedInstanceId: input.selectedInstanceId,
-        threadModelSelection: input.threadModelSelection,
-        projectModelSelection: input.projectModelSelection,
-        settings: input.settings,
-      }),
-    [
-      draft,
-      input.providers,
-      input.settings,
-      input.projectModelSelection,
-      input.selectedInstanceId,
-      input.selectedProvider,
-      input.threadModelSelection,
-    ],
-  );
-}
-
 /**
  * Mark a draft thread as promoting once the server has materialized the same thread id.
  *
@@ -3217,13 +3142,5 @@ export function finalizePromotedDraftThreadByRef(threadRef: ScopedThreadRef): vo
     ) {
       draftStore.finalizePromotedDraftThread(DraftId.make(draftId));
     }
-  }
-}
-
-export function finalizePromotedDraftThreadsByRef(
-  serverThreadRefs: Iterable<ScopedThreadRef>,
-): void {
-  for (const threadRef of serverThreadRefs) {
-    finalizePromotedDraftThreadByRef(threadRef);
   }
 }

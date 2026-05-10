@@ -93,8 +93,8 @@ importers:
         specifier: ^1.4.1
         version: 1.4.1(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@chenglou/pretext':
-        specifier: ^0.0.6
-        version: 0.0.6
+        specifier: ^0.0.7
+        version: 0.0.7
       '@effect/atom-react':
         specifier: 'catalog:'
         version: 4.0.0-beta.45(effect@4.0.0-beta.45)(react@19.2.6)(scheduler@0.27.0)
@@ -180,8 +180,8 @@ importers:
         specifier: ^2.5.0
         version: 2.5.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       tailwind-merge:
-        specifier: ^3.5.0
-        version: 3.5.0
+        specifier: ^3.6.0
+        version: 3.6.0
       zustand:
         specifier: ^5.0.13
         version: 5.0.13(@types/react@19.2.14)(react@19.2.6)(use-sync-external-store@1.6.0(react@19.2.6))
@@ -390,8 +390,8 @@ importers:
         specifier: 'catalog:'
         version: 4.0.0-beta.45(effect@4.0.0-beta.45)
       '@opencode-ai/sdk':
-        specifier: ^1.14.44
-        version: 1.14.44
+        specifier: ^1.14.46
+        version: 1.14.46
       '@pierre/diffs':
         specifier: ^1.1.21
         version: 1.1.21(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -482,8 +482,8 @@ importers:
         specifier: ^19.2.6
         version: 19.2.6
       tailwind-merge:
-        specifier: ^3.5.0
-        version: 3.5.0
+        specifier: ^3.6.0
+        version: 3.6.0
     devDependencies:
       '@types/react':
         specifier: ^19.2.14
@@ -766,8 +766,8 @@ packages:
     peerDependencies:
       react: '>=14.0.0 <= 19'
 
-  '@chenglou/pretext@0.0.6':
-    resolution: {integrity: sha512-U10s4tFeyu3oVHfXuNWwZSKqHXefhaigpcBkGj60qQFRJ+yUoQ+ez3cGJelP7BWDAB58HCgjcTSmOcg+77afBQ==}
+  '@chenglou/pretext@0.0.7':
+    resolution: {integrity: sha512-FV5hj3fGqpBlzbANUbR+s+6XuNRrghVVyuNs33zdH2SzU7MvK+7GlW6xREjDCreixKbexEn7OEkDgAFeWuu5Hg==}
 
   '@chevrotain/cst-dts-gen@12.0.0':
     resolution: {integrity: sha512-fSL4KXjTl7cDgf0B5Rip9Q05BOrYvkJV/RrBTE/bKDN096E4hN/ySpcBK5B24T76dlQ2i32Zc3PAE27jFnFrKg==}
@@ -1052,8 +1052,8 @@ packages:
   '@open-draft/until@2.1.0':
     resolution: {integrity: sha512-U69T3ItWHvLwGg5eJ0n3I62nWuE6ilHlmz7zM0npLBRvPRd7e6NYmg54vvRtP5mZG7kZqZCFVdsTWo7BPtBujg==}
 
-  '@opencode-ai/sdk@1.14.44':
-    resolution: {integrity: sha512-hpMCYhwEWk2B1b9THHYy5GRlrCJ9g67pvSyLt9O2b2pYj0HE6v8MeVOhg6ucn2T4QBIoVJ3ZDWnh7ApaeunNWg==}
+  '@opencode-ai/sdk@1.14.46':
+    resolution: {integrity: sha512-7KOMuoCkNI+bLOw3GCg0nWZ5m7A/MzNsyLfTbZYmE/DIaUqkV2LNRULtrW6PHL1WtYVmJEFPws4dbw/4dVxjzA==}
 
   '@oven/bun-darwin-aarch64@1.3.13':
     resolution: {integrity: sha512-qAS6Hg8Q14ckfBuqJ2Zh7gBQSVSUHeibSq4OFqBTv6DzyJuxYlr0sdYQzmYmnbPxbqobekqUDTa/4XEaqRi7vg==}
@@ -4740,6 +4740,9 @@ packages:
   tailwind-merge@3.5.0:
     resolution: {integrity: sha512-I8K9wewnVDkL1NTGoqWmVEIlUcB9gFriAEkXkfCjX5ib8ezGxtR3xD7iZIxrfArjEsH7F1CHD4RFUtxefdqV/A==}
 
+  tailwind-merge@3.6.0:
+    resolution: {integrity: sha512-uxL7qAVQriqRQPAyK3pj66VqskWqoZ37PW94jwOTwNfq/z9oyu1V+eqrZqtR2+fCiXdYOZe/Modt8GtvqNzu+w==}
+
   tailwindcss@4.3.0:
     resolution: {integrity: sha512-y6nxMGB1nMW9R6k96e5gdIFzcfL/gTJRNaqGes1YvkLnPVXzWgbqFF2yLC0T8G774n24cx3Pe8XrKoniCOAH+Q==}
 
@@ -5454,7 +5457,7 @@ snapshots:
     dependencies:
       react: 19.2.6
 
-  '@chenglou/pretext@0.0.6': {}
+  '@chenglou/pretext@0.0.7': {}
 
   '@chevrotain/cst-dts-gen@12.0.0':
     dependencies:
@@ -5746,7 +5749,7 @@ snapshots:
 
   '@open-draft/until@2.1.0': {}
 
-  '@opencode-ai/sdk@1.14.44':
+  '@opencode-ai/sdk@1.14.46':
     dependencies:
       cross-spawn: 7.0.6
 
@@ -9626,6 +9629,8 @@ snapshots:
   tagged-tag@1.0.0: {}
 
   tailwind-merge@3.5.0: {}
+
+  tailwind-merge@3.6.0: {}
 
   tailwindcss@4.3.0: {}
 

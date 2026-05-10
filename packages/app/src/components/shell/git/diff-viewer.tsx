@@ -16,6 +16,7 @@ interface Props {
   diffStyle?: "unified" | "split";
   className?: string;
   collapsed?: boolean;
+  layoutKey?: string;
 }
 
 export const DiffViewer = memo(function DiffViewer(props: Props) {
@@ -28,6 +29,7 @@ export const DiffViewer = memo(function DiffViewer(props: Props) {
       <div className={cn("min-h-0 min-w-0 w-full overflow-auto", props.className)}>
         <div className="web-component min-h-0 min-w-0 w-full overflow-auto" data-diffs-container>
           <PatchDiff
+            key={props.layoutKey}
             patch={patch}
             options={{
               theme,

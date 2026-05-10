@@ -504,10 +504,7 @@ export const CodexProviderLive = Layer.effect(
     );
 
     return yield* makeManagedServerProvider<CodexSettings>({
-      getSettings: serverSettings.getSettings.pipe(
-        Effect.map(resolveCodexSettings),
-        Effect.orDie,
-      ),
+      getSettings: serverSettings.getSettings.pipe(Effect.map(resolveCodexSettings), Effect.orDie),
       streamSettings: serverSettings.streamChanges.pipe(
         Stream.map((settings) => resolveCodexSettings(settings)),
       ),

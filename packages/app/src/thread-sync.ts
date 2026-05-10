@@ -1329,7 +1329,8 @@ export function applyThreadDetailEvent(
           error: sanitizeThreadErrorMessage(session.lastError),
           latestTurn:
             session.status === "running" && session.activeTurnId !== null
-              ? (settledLatestTurn ?? buildLatestTurn({
+              ? (settledLatestTurn ??
+                buildLatestTurn({
                   previous: thread.latestTurn,
                   turnId: session.activeTurnId,
                   state: "running",

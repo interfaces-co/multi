@@ -206,11 +206,11 @@ body {
 }
 
 .git-diff-card__stat-plus {
-  color: var(--multi-fg-green-primary);
+  color: var(--multi-diff-addition);
 }
 
 .git-diff-card__stat-minus {
-  color: var(--multi-fg-red-primary);
+  color: var(--multi-diff-deletion);
 }
 
 .git-diff-card__action {
@@ -379,7 +379,9 @@ body {
 
 .multi-shell-titlebar-right-toggle {
   right: var(--multi-shell-titlebar-gutter);
-  top: var(--multi-shell-titlebar-control-y);
+  top: calc(
+    (var(--multi-workbench-chrome-row-height) - var(--multi-shell-titlebar-control-size)) / 2
+  );
 }
 
 .multi-workbench-titlebar-end-space {
@@ -391,6 +393,44 @@ body {
   --multi-workbench-terminal-background: var(--multi-workbench-panel-background);
   --multi-workbench-terminal-foreground: var(--foreground);
   min-height: 0;
+}
+
+.agent-window .thread-terminal-drawer {
+  background: var(--multi-terminal-shell-background);
+  border-color: var(--multi-terminal-border);
+  color: var(--multi-terminal-foreground);
+}
+
+.agent-window .thread-terminal-viewport,
+.agent-window .workbench-terminal-viewport {
+  contain: layout paint style;
+  overflow: hidden;
+  background: var(--multi-terminal-background);
+}
+
+.agent-window .thread-terminal-viewport .xterm,
+.agent-window .workbench-terminal-viewport .xterm {
+  height: 100%;
+  background: var(--multi-terminal-background);
+  color: var(--multi-terminal-foreground);
+  font-feature-settings:
+    "liga" 0,
+    "calt" 0;
+  font-variant-ligatures: none;
+  -webkit-font-smoothing: var(--multi-agent-window-font-smoothing-webkit);
+  -moz-osx-font-smoothing: var(--multi-agent-window-font-smoothing-moz);
+}
+
+.agent-window .thread-terminal-viewport .xterm-viewport,
+.agent-window .thread-terminal-viewport .xterm-screen,
+.agent-window .workbench-terminal-viewport .xterm-viewport,
+.agent-window .workbench-terminal-viewport .xterm-screen {
+  background: transparent !important;
+}
+
+.agent-window .thread-terminal-viewport .xterm-viewport,
+.agent-window .workbench-terminal-viewport .xterm-viewport {
+  scrollbar-color: var(--multi-terminal-scrollbar-background) transparent;
 }
 
 /* Composite pane title band — full-width under the 35px tool island. */

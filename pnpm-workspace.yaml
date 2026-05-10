@@ -3,7 +3,7 @@ packages:
   - "scripts"
 
 allowBuilds:
-  '@central-icons-react/round-outlined-radius-2-stroke-1.5': true
+  "@central-icons-react/round-outlined-radius-2-stroke-1.5": true
   bun: true
   electron: true
   msgpackr-extract: false

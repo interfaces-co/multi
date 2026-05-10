@@ -6,9 +6,12 @@ import {
   IconPlusLarge,
 } from "central-icons";
 import { useQueryClient } from "@tanstack/react-query";
+import { useDebouncer } from "@tanstack/react-pacer";
 import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   type DesktopUpdateChannel,
+  type AgentWindowSendWhileStreamingBehavior,
+  type AgentWindowUsageSummaryDisplay,
   defaultInstanceIdForDriver,
   type ProviderInstanceConfig,
   type ProviderInstanceId,
@@ -20,7 +23,6 @@ import { DEFAULT_UNIFIED_SETTINGS } from "@multi/contracts/settings";
 import { createModelSelection } from "@multi/shared/model";
 import { Equal } from "effect";
 import { APP_VERSION } from "../../branding";
-import { resolveComposerModelSelection } from "../../composer-model-selection";
 import {
   readAppearanceSnapshot,
   resetAppearanceSettings,
@@ -115,6 +117,21 @@ const TIMESTAMP_FORMAT_LABELS = {
   "12-hour": "12-hour",
   "24-hour": "24-hour",
 } as const;
+
+const AGENT_WINDOW_SEND_WHILE_STREAMING_BEHAVIOR_LABELS: Record<
+  AgentWindowSendWhileStreamingBehavior,
+  string
+> = {
+  queue: "Queue",
+  "stop-and-send": "Stop and send",
+  send: "Send immediately",
+};
+
+const AGENT_WINDOW_USAGE_SUMMARY_DISPLAY_LABELS: Record<AgentWindowUsageSummaryDisplay, string> = {
+  auto: "Auto",
+  always: "Always",
+  never: "Never",
+};
 
 type ProviderSettingsDescriptor = {
   provider: typeof ProviderDriverKind.Type;
@@ -311,7 +328,7 @@ function AboutVersionSection() {
             <TooltipTrigger
               render={
                 <Button
-                  size="sm"
+                  size="default"
                   variant={action === "install" ? "default" : "outline"}
                   disabled={buttonDisabled}
                   onClick={handleButtonClick}
@@ -336,6 +353,7 @@ function AboutVersionSection() {
           >
             <SelectTrigger
               size="xs"
+              variant="outline"
               className="w-full sm:w-40"
               aria-label="Update track"
               disabled={!hasDesktopBridge || isChangingUpdateChannel}
@@ -369,6 +387,10 @@ export function useSettingsRestore(onRestored?: () => void) {
     settings.textGenerationModelSelection ?? null,
     DEFAULT_UNIFIED_SETTINGS.textGenerationModelSelection ?? null,
   );
+  const isAgentWindowAppearanceDirty =
+    settings.agentWindowFontSmoothingAntialiased !==
+      DEFAULT_UNIFIED_SETTINGS.agentWindowFontSmoothingAntialiased ||
+    settings.agentWindowChatMaxWidth !== DEFAULT_UNIFIED_SETTINGS.agentWindowChatMaxWidth;
   const isAppearanceDirty = !Equal.equals(appearance, DEFAULT_APPEARANCE_SNAPSHOT);
   const areProviderSettingsDirty = PROVIDER_SETTINGS.some((providerSettings) => {
     const provider = providerSettings.provider as keyof typeof DEFAULT_UNIFIED_SETTINGS.providers;
@@ -392,6 +414,14 @@ export function useSettingsRestore(onRestored?: () => void) {
       ...(settings.defaultThreadEnvMode !== DEFAULT_UNIFIED_SETTINGS.defaultThreadEnvMode
         ? ["New thread mode"]
         : []),
+      ...(settings.agentWindowSendWhileStreamingBehavior !==
+      DEFAULT_UNIFIED_SETTINGS.agentWindowSendWhileStreamingBehavior
+        ? ["Running send behavior"]
+        : []),
+      ...(settings.agentWindowUsageSummaryDisplay !==
+      DEFAULT_UNIFIED_SETTINGS.agentWindowUsageSummaryDisplay
+        ? ["Usage summary"]
+        : []),
       ...(settings.addProjectBaseDirectory !== DEFAULT_UNIFIED_SETTINGS.addProjectBaseDirectory
         ? ["Add project base directory"]
         : []),
@@ -401,14 +431,18 @@ export function useSettingsRestore(onRestored?: () => void) {
       ...(settings.confirmThreadDelete !== DEFAULT_UNIFIED_SETTINGS.confirmThreadDelete
         ? ["Delete confirmation"]
         : []),
+      ...(isAgentWindowAppearanceDirty ? ["Agent Window"] : []),
       ...(isAppearanceDirty ? ["Appearance"] : []),
       ...(isGitWritingModelDirty ? ["Git writing model"] : []),
       ...(areProviderSettingsDirty ? ["Providers"] : []),
     ],
     [
       areProviderSettingsDirty,
+      isAgentWindowAppearanceDirty,
       isAppearanceDirty,
       isGitWritingModelDirty,
+      settings.agentWindowSendWhileStreamingBehavior,
+      settings.agentWindowUsageSummaryDisplay,
       settings.confirmThreadArchive,
       settings.confirmThreadDelete,
       settings.addProjectBaseDirectory,
@@ -484,17 +518,21 @@ function NumberStepper(props: {
   label: string;
   value: number;
   min: number;
-  max: number;
+  max?: number;
   onChange: (value: number) => void;
 }) {
-  const set = (next: number) => props.onChange(Math.min(props.max, Math.max(props.min, next)));
+  const set = (next: number) => {
+    if (!Number.isFinite(next)) return;
+    const boundedMin = Math.max(props.min, Math.round(next));
+    props.onChange(props.max === undefined ? boundedMin : Math.min(props.max, boundedMin));
+  };
 
   return (
-    <div className="inline-flex h-8 min-h-8 items-stretch overflow-hidden rounded-multi-control border border-multi-stroke-tertiary bg-multi-bg-quinary text-[12px]/[16px] shadow-none">
+    <div className="inline-flex h-7 min-h-7 items-stretch overflow-hidden rounded-multi-control border border-multi-stroke-tertiary bg-multi-bg-quinary text-[12px]/[16px] shadow-none">
       <Button
         type="button"
         variant="ghost"
-        className="h-8 min-h-8 w-8 shrink-0 rounded-none border-transparent px-0 text-multi-fg-tertiary shadow-none hover:bg-multi-bg-quaternary hover:text-multi-fg-primary"
+        className="h-7 min-h-7 w-7 shrink-0 rounded-none border-transparent px-0 text-multi-fg-tertiary shadow-none hover:bg-multi-bg-quaternary hover:text-multi-fg-primary"
         aria-label={`Decrease ${props.label}`}
         onClick={() => set(props.value - 1)}
       >
@@ -502,9 +540,10 @@ function NumberStepper(props: {
       </Button>
       <input
         aria-label={props.label}
-        className="-mx-px h-full min-h-8 w-10 shrink-0 border-x border-multi-stroke-tertiary bg-transparent py-1 text-center tabular-nums outline-none focus-visible:relative focus-visible:z-[1] focus-visible:border-multi-stroke-secondary"
+        className="-mx-px h-full min-h-7 w-14 shrink-0 border-x border-multi-stroke-tertiary bg-transparent px-0 py-0 text-center leading-7 tabular-nums outline-none [appearance:textfield] focus-visible:relative focus-visible:z-[1] focus-visible:border-multi-stroke-focused [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none"
         max={props.max}
         min={props.min}
+        inputMode="numeric"
         type="number"
         value={props.value}
         onChange={(event) => set(Number(event.target.value))}
@@ -512,13 +551,42 @@ function NumberStepper(props: {
       <Button
         type="button"
         variant="ghost"
-        className="h-8 min-h-8 w-8 shrink-0 rounded-none border-transparent px-0 text-multi-fg-tertiary shadow-none hover:bg-multi-bg-quaternary hover:text-multi-fg-primary"
+        className="h-7 min-h-7 w-7 shrink-0 rounded-none border-transparent px-0 text-multi-fg-tertiary shadow-none hover:bg-multi-bg-quaternary hover:text-multi-fg-primary"
         aria-label={`Increase ${props.label}`}
         onClick={() => set(props.value + 1)}
       >
         +
       </Button>
     </div>
+  );
+}
+
+function FontFamilyInput(props: {
+  label: string;
+  value: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+}) {
+  const [draftValue, setDraftValue] = useState(props.value);
+  const commitValue = useDebouncer(props.onChange, {
+    wait: 350,
+    onUnmount: (debouncer) => debouncer.flush(),
+  });
+
+  return (
+    <Input
+      size="sm"
+      className="w-full border-multi-stroke-tertiary bg-multi-bg-quinary shadow-none has-focus-visible:border-multi-stroke-focused has-focus-visible:ring-1 has-focus-visible:ring-multi-stroke-focused sm:w-36"
+      value={draftValue}
+      placeholder={props.placeholder}
+      aria-label={props.label}
+      onBlur={() => commitValue.flush()}
+      onChange={(event) => {
+        const nextValue = event.target.value;
+        setDraftValue(nextValue);
+        commitValue.maybeExecute(nextValue);
+      }}
+    />
   );
 }
 
@@ -597,7 +665,12 @@ export function GeneralSettingsPanel() {
                 }
               }}
             >
-              <SelectTrigger size="xs" className="w-full sm:w-34" aria-label="Timestamp format">
+              <SelectTrigger
+                size="xs"
+                variant="outline"
+                className="w-full sm:w-34"
+                aria-label="Timestamp format"
+              >
                 <SelectValue>{TIMESTAMP_FORMAT_LABELS[settings.timestampFormat]}</SelectValue>
               </SelectTrigger>
               <SelectPopup align="end" alignItemWithTrigger={false}>
@@ -633,7 +706,7 @@ export function GeneralSettingsPanel() {
           control={
             <Input
               size="sm"
-              className="w-full sm:w-34"
+              className="w-full border-multi-stroke-tertiary bg-multi-bg-quinary shadow-none has-focus-visible:border-multi-stroke-focused has-focus-visible:ring-1 has-focus-visible:ring-multi-stroke-focused sm:w-34"
               value={settings.addProjectBaseDirectory}
               onChange={(event) => updateSettings({ addProjectBaseDirectory: event.target.value })}
               placeholder="~/"
@@ -667,7 +740,7 @@ export function GeneralSettingsPanel() {
           }
           control={
             <Button
-              size="sm"
+              size="default"
               variant="outline"
               disabled={!keybindingsConfigPath || openingPathByTarget.keybindings}
               onClick={() =>
@@ -715,7 +788,7 @@ export function GeneralSettingsPanel() {
           }
           control={
             <Button
-              size="sm"
+              size="default"
               variant="outline"
               disabled={!logsDirectoryPath || openingPathByTarget.logsDirectory}
               onClick={() =>
@@ -738,6 +811,8 @@ export function GeneralSettingsPanel() {
 export function AppearanceSettingsPanel() {
   const { theme, setTheme } = useTheme();
   const appearance = useAppearanceSettingsSnapshot();
+  const settings = useSettings();
+  const { updateSettings } = useUpdateSettings();
 
   return (
     <SettingsPageContainer>
@@ -757,7 +832,12 @@ export function AppearanceSettingsPanel() {
                 if (value === "system" || value === "light" || value === "dark") setTheme(value);
               }}
             >
-              <SelectTrigger size="xs" className="w-full sm:w-28" aria-label="Theme preference">
+              <SelectTrigger
+                size="xs"
+                variant="outline"
+                className="w-full sm:w-28"
+                aria-label="Theme preference"
+              >
                 <SelectValue>
                   {THEME_OPTIONS.find((option) => option.value === theme)?.label ?? "System"}
                 </SelectValue>
@@ -868,13 +948,12 @@ export function AppearanceSettingsPanel() {
           title="UI Font Family"
           description="Override the Multi user interface typeface."
           control={
-            <Input
-              size="sm"
-              className="w-full sm:w-36"
+            <FontFamilyInput
+              key={appearance.uiFont}
+              label="UI Font Family"
               value={appearance.uiFont}
               placeholder="System font"
-              aria-label="UI Font Family"
-              onChange={(event) => setUiFontFamily(event.target.value)}
+              onChange={setUiFontFamily}
             />
           }
         />
@@ -882,13 +961,12 @@ export function AppearanceSettingsPanel() {
           title="Code Font Family"
           description="Override the font for code editors and diffs."
           control={
-            <Input
-              size="sm"
-              className="w-full sm:w-36"
+            <FontFamilyInput
+              key={appearance.codeFont}
+              label="Code Font Family"
               value={appearance.codeFont}
               placeholder="System monospace"
-              aria-label="Code Font Family"
-              onChange={(event) => setCodeFontFamily(event.target.value)}
+              onChange={setCodeFontFamily}
             />
           }
         >
@@ -907,6 +985,61 @@ export function AppearanceSettingsPanel() {
             </div>
           </div>
         </SettingsRow>
+      </SettingsSection>
+
+      <SettingsSection title="Agent Window">
+        <SettingsRow
+          title="Font Smoothing"
+          description="Use native macOS grayscale antialiasing in the Agent Window."
+          resetAction={
+            settings.agentWindowFontSmoothingAntialiased !==
+            DEFAULT_UNIFIED_SETTINGS.agentWindowFontSmoothingAntialiased ? (
+              <SettingResetButton
+                label="Agent Window font smoothing"
+                onClick={() =>
+                  updateSettings({
+                    agentWindowFontSmoothingAntialiased:
+                      DEFAULT_UNIFIED_SETTINGS.agentWindowFontSmoothingAntialiased,
+                  })
+                }
+              />
+            ) : null
+          }
+          control={
+            <Switch
+              checked={settings.agentWindowFontSmoothingAntialiased}
+              aria-label="Agent Window Font Smoothing"
+              onCheckedChange={(checked) =>
+                updateSettings({ agentWindowFontSmoothingAntialiased: Boolean(checked) })
+              }
+            />
+          }
+        />
+        <SettingsRow
+          title="Chat Max Width"
+          description="Maximum width of Agent Window chat content in pixels."
+          resetAction={
+            settings.agentWindowChatMaxWidth !==
+            DEFAULT_UNIFIED_SETTINGS.agentWindowChatMaxWidth ? (
+              <SettingResetButton
+                label="Agent Window chat max width"
+                onClick={() =>
+                  updateSettings({
+                    agentWindowChatMaxWidth: DEFAULT_UNIFIED_SETTINGS.agentWindowChatMaxWidth,
+                  })
+                }
+              />
+            ) : null
+          }
+          control={
+            <NumberStepper
+              label="Agent Window Chat Max Width"
+              min={1}
+              value={settings.agentWindowChatMaxWidth}
+              onChange={(value) => updateSettings({ agentWindowChatMaxWidth: value })}
+            />
+          }
+        />
       </SettingsSection>
     </SettingsPageContainer>
   );
@@ -946,6 +1079,114 @@ export function AgentsSettingsPanel() {
           }
         />
         <SettingsRow
+          title="Send while running"
+          description="Choose what the composer submit action does while an agent turn is active."
+          resetAction={
+            settings.agentWindowSendWhileStreamingBehavior !==
+            DEFAULT_UNIFIED_SETTINGS.agentWindowSendWhileStreamingBehavior ? (
+              <SettingResetButton
+                label="send while running"
+                onClick={() =>
+                  updateSettings({
+                    agentWindowSendWhileStreamingBehavior:
+                      DEFAULT_UNIFIED_SETTINGS.agentWindowSendWhileStreamingBehavior,
+                  })
+                }
+              />
+            ) : null
+          }
+          control={
+            <Select
+              value={settings.agentWindowSendWhileStreamingBehavior}
+              onValueChange={(value) => {
+                if (value === "queue" || value === "stop-and-send" || value === "send") {
+                  updateSettings({ agentWindowSendWhileStreamingBehavior: value });
+                }
+              }}
+            >
+              <SelectTrigger
+                size="xs"
+                variant="outline"
+                className="w-full sm:w-40"
+                aria-label="Send while running"
+              >
+                <SelectValue>
+                  {
+                    AGENT_WINDOW_SEND_WHILE_STREAMING_BEHAVIOR_LABELS[
+                      settings.agentWindowSendWhileStreamingBehavior
+                    ]
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectPopup align="end" alignItemWithTrigger={false}>
+                <SelectItem hideIndicator value="queue">
+                  {AGENT_WINDOW_SEND_WHILE_STREAMING_BEHAVIOR_LABELS.queue}
+                </SelectItem>
+                <SelectItem hideIndicator value="stop-and-send">
+                  {AGENT_WINDOW_SEND_WHILE_STREAMING_BEHAVIOR_LABELS["stop-and-send"]}
+                </SelectItem>
+                <SelectItem hideIndicator value="send">
+                  {AGENT_WINDOW_SEND_WHILE_STREAMING_BEHAVIOR_LABELS.send}
+                </SelectItem>
+              </SelectPopup>
+            </Select>
+          }
+        />
+        <SettingsRow
+          title="Usage summary"
+          description="Auto shows context usage after 50%; Always shows it whenever data exists."
+          resetAction={
+            settings.agentWindowUsageSummaryDisplay !==
+            DEFAULT_UNIFIED_SETTINGS.agentWindowUsageSummaryDisplay ? (
+              <SettingResetButton
+                label="usage summary"
+                onClick={() =>
+                  updateSettings({
+                    agentWindowUsageSummaryDisplay:
+                      DEFAULT_UNIFIED_SETTINGS.agentWindowUsageSummaryDisplay,
+                  })
+                }
+              />
+            ) : null
+          }
+          control={
+            <Select
+              value={settings.agentWindowUsageSummaryDisplay}
+              onValueChange={(value) => {
+                if (value === "auto" || value === "always" || value === "never") {
+                  updateSettings({ agentWindowUsageSummaryDisplay: value });
+                }
+              }}
+            >
+              <SelectTrigger
+                size="xs"
+                variant="outline"
+                className="w-full sm:w-34"
+                aria-label="Usage summary"
+              >
+                <SelectValue>
+                  {
+                    AGENT_WINDOW_USAGE_SUMMARY_DISPLAY_LABELS[
+                      settings.agentWindowUsageSummaryDisplay
+                    ]
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectPopup align="end" alignItemWithTrigger={false}>
+                <SelectItem hideIndicator value="auto">
+                  {AGENT_WINDOW_USAGE_SUMMARY_DISPLAY_LABELS.auto}
+                </SelectItem>
+                <SelectItem hideIndicator value="always">
+                  {AGENT_WINDOW_USAGE_SUMMARY_DISPLAY_LABELS.always}
+                </SelectItem>
+                <SelectItem hideIndicator value="never">
+                  {AGENT_WINDOW_USAGE_SUMMARY_DISPLAY_LABELS.never}
+                </SelectItem>
+              </SelectPopup>
+            </Select>
+          }
+        />
+        <SettingsRow
           title="New threads"
           description="Pick the default project mode for newly created draft threads."
           resetAction={
@@ -969,7 +1210,12 @@ export function AgentsSettingsPanel() {
                 }
               }}
             >
-              <SelectTrigger size="xs" className="w-full sm:w-34" aria-label="Default thread mode">
+              <SelectTrigger
+                size="xs"
+                variant="outline"
+                className="w-full sm:w-34"
+                aria-label="Default thread mode"
+              >
                 <SelectValue>
                   {settings.defaultThreadEnvMode === "worktree" ? "New worktree" : "Local"}
                 </SelectValue>
@@ -1092,21 +1338,6 @@ export function ModelsSettingsPanel() {
   const refreshingRef = useRef(false);
 
   const visibleProviderSettings = PROVIDER_SETTINGS;
-
-  const composerModelSelection = resolveComposerModelSelection({
-    draft: null,
-    providers: serverProviders,
-    settings,
-    sessionProviderInstanceId: null,
-    threadModelSelection: null,
-    projectModelSelection: null,
-  });
-  const composerInstanceId = composerModelSelection.selectedInstanceId;
-  const composerModel = composerModelSelection.selectedModel;
-  const composerModelOptions = composerModelSelection.modelSelection.options;
-  const composerProvider = composerModelSelection.selectedProvider;
-  const composerInstanceEntry = composerModelSelection.selectedProviderEntry;
-  const composerModelOptionsByInstance = composerModelSelection.modelOptionsByInstance;
   const textGenerationModelSelection = resolveAppModelSelectionState(settings, serverProviders);
   const textGenInstanceId = textGenerationModelSelection.instanceId;
   const textGenModel = textGenerationModelSelection.model;
@@ -1124,10 +1355,6 @@ export function ModelsSettingsPanel() {
     serverProviders,
     textGenInstanceId,
     textGenModel,
-  );
-  const isComposerModelDirty = !Equal.equals(
-    settings.composerModelSelection ?? null,
-    DEFAULT_UNIFIED_SETTINGS.composerModelSelection ?? null,
   );
   const isGitWritingModelDirty = !Equal.equals(
     settings.textGenerationModelSelection ?? null,
@@ -1318,60 +1545,6 @@ export function ModelsSettingsPanel() {
   return (
     <SettingsPageContainer>
       <SettingsSection title="Models">
-        <SettingsRow
-          title="Composer default model"
-          description="Configure the default model used for new composer threads when a project or thread has no override."
-          resetAction={
-            isComposerModelDirty ? (
-              <SettingResetButton
-                label="composer default model"
-                onClick={() =>
-                  updateSettings({
-                    composerModelSelection: null,
-                  })
-                }
-              />
-            ) : null
-          }
-          control={
-            <div className="flex flex-wrap items-center justify-end gap-1.5">
-              <ProviderModelPicker
-                activeInstanceId={composerInstanceId}
-                model={composerModel}
-                instanceEntries={modelInstanceEntries}
-                modelOptionsByInstance={composerModelOptionsByInstance}
-                triggerVariant="outline"
-                triggerClassName="min-w-0 max-w-none shrink-0 text-foreground/90 hover:text-foreground"
-                onInstanceModelChange={(instanceId, model) => {
-                  updateSettings({
-                    composerModelSelection: createModelSelection(instanceId, model),
-                  });
-                }}
-              />
-              <TraitsPicker
-                provider={composerProvider}
-                models={composerInstanceEntry?.models ?? []}
-                model={composerModel}
-                prompt=""
-                onPromptChange={() => {}}
-                modelOptions={composerModelOptions}
-                allowPromptInjectedEffort={false}
-                triggerVariant="outline"
-                triggerClassName="min-w-0 max-w-none shrink-0 text-foreground/90 hover:text-foreground"
-                onModelOptionsChange={(nextOptions) => {
-                  updateSettings({
-                    composerModelSelection: createModelSelection(
-                      composerInstanceId,
-                      composerModel,
-                      nextOptions,
-                    ),
-                  });
-                }}
-              />
-            </div>
-          }
-        />
-
         <SettingsRow
           title="Text generation model"
           description="Configure the model used for generated commit messages, PR titles, and similar Git text."

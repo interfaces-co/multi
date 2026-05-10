@@ -68,7 +68,7 @@ export function SettingsRow({
     <div
       className={cn(
         "border-t border-(color:--multi-stroke-quaternary) px-2.5 first:border-t-0 sm:px-3",
-        children ? "pt-3 pb-0" : "py-2.5",
+        children ? "py-3" : "py-2.5",
       )}
     >
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

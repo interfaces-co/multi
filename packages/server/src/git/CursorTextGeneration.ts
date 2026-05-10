@@ -78,9 +78,8 @@ const makeCursorTextGeneration = Effect.gen(function* () {
     modelSelection: ModelSelection;
   }): Effect.Effect<S["Type"], TextGenerationError, S["DecodingServices"]> =>
     Effect.gen(function* () {
-      const cursorSettings = yield* Effect.map(
-        serverSettingsService.getSettings,
-        (settings) => resolveCursorSettings(settings, modelSelection.instanceId),
+      const cursorSettings = yield* Effect.map(serverSettingsService.getSettings, (settings) =>
+        resolveCursorSettings(settings, modelSelection.instanceId),
       ).pipe(Effect.catch(() => Effect.undefined));
 
       const outputRef = yield* Ref.make("");

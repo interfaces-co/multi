@@ -28,7 +28,38 @@ export const SidebarProjectGroupingMode = Schema.Literals([
 export type SidebarProjectGroupingMode = typeof SidebarProjectGroupingMode.Type;
 export const DEFAULT_SIDEBAR_PROJECT_GROUPING_MODE: SidebarProjectGroupingMode = "repository";
 
+export const DEFAULT_AGENT_WINDOW_FONT_SMOOTHING_ANTIALIASED = true;
+export const DEFAULT_AGENT_WINDOW_CHAT_MAX_WIDTH = 840;
+export const AgentWindowChatMaxWidth = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1));
+export type AgentWindowChatMaxWidth = typeof AgentWindowChatMaxWidth.Type;
+
+export const AgentWindowSendWhileStreamingBehavior = Schema.Literals([
+  "queue",
+  "stop-and-send",
+  "send",
+]);
+export type AgentWindowSendWhileStreamingBehavior =
+  typeof AgentWindowSendWhileStreamingBehavior.Type;
+export const DEFAULT_AGENT_WINDOW_SEND_WHILE_STREAMING_BEHAVIOR: AgentWindowSendWhileStreamingBehavior =
+  "queue";
+
+export const AgentWindowUsageSummaryDisplay = Schema.Literals(["auto", "always", "never"]);
+export type AgentWindowUsageSummaryDisplay = typeof AgentWindowUsageSummaryDisplay.Type;
+export const DEFAULT_AGENT_WINDOW_USAGE_SUMMARY_DISPLAY: AgentWindowUsageSummaryDisplay = "auto";
+
 export const ClientSettingsSchema = Schema.Struct({
+  agentWindowChatMaxWidth: AgentWindowChatMaxWidth.pipe(
+    Schema.withDecodingDefault(Effect.succeed(DEFAULT_AGENT_WINDOW_CHAT_MAX_WIDTH)),
+  ),
+  agentWindowFontSmoothingAntialiased: Schema.Boolean.pipe(
+    Schema.withDecodingDefault(Effect.succeed(DEFAULT_AGENT_WINDOW_FONT_SMOOTHING_ANTIALIASED)),
+  ),
+  agentWindowSendWhileStreamingBehavior: AgentWindowSendWhileStreamingBehavior.pipe(
+    Schema.withDecodingDefault(Effect.succeed(DEFAULT_AGENT_WINDOW_SEND_WHILE_STREAMING_BEHAVIOR)),
+  ),
+  agentWindowUsageSummaryDisplay: AgentWindowUsageSummaryDisplay.pipe(
+    Schema.withDecodingDefault(Effect.succeed(DEFAULT_AGENT_WINDOW_USAGE_SUMMARY_DISPLAY)),
+  ),
   autoOpenPlanSidebar: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
   confirmThreadArchive: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
   confirmThreadDelete: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
@@ -323,9 +354,6 @@ export const ServerSettings = Schema.Struct({
       }),
     ),
   ),
-  composerModelSelection: Schema.NullOr(ModelSelection).pipe(
-    Schema.withDecodingDefault(Effect.succeed(null)),
-  ),
 
   // Provider specific settings
   providers: Schema.Struct({
@@ -408,7 +436,6 @@ export const ServerSettingsPatch = Schema.Struct({
   defaultThreadEnvMode: Schema.optionalKey(ThreadEnvMode),
   addProjectBaseDirectory: Schema.optionalKey(Schema.String),
   textGenerationModelSelection: Schema.optionalKey(ModelSelectionPatch),
-  composerModelSelection: Schema.optionalKey(Schema.NullOr(ModelSelectionPatch)),
   observability: Schema.optionalKey(
     Schema.Struct({
       otlpTracesUrl: Schema.optionalKey(Schema.String),
@@ -428,6 +455,10 @@ export const ServerSettingsPatch = Schema.Struct({
 export type ServerSettingsPatch = typeof ServerSettingsPatch.Type;
 
 export const ClientSettingsPatch = Schema.Struct({
+  agentWindowChatMaxWidth: Schema.optionalKey(AgentWindowChatMaxWidth),
+  agentWindowFontSmoothingAntialiased: Schema.optionalKey(Schema.Boolean),
+  agentWindowSendWhileStreamingBehavior: Schema.optionalKey(AgentWindowSendWhileStreamingBehavior),
+  agentWindowUsageSummaryDisplay: Schema.optionalKey(AgentWindowUsageSummaryDisplay),
   autoOpenPlanSidebar: Schema.optionalKey(Schema.Boolean),
   confirmThreadArchive: Schema.optionalKey(Schema.Boolean),
   confirmThreadDelete: Schema.optionalKey(Schema.Boolean),

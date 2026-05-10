@@ -14,10 +14,7 @@ import {
   type EffectiveComposerModelState,
 } from "./composer-draft-store";
 import { getComposerProviderState } from "./components/chat/composer-provider-registry";
-import {
-  getAppModelOptionsForInstance,
-  type AppModelOption,
-} from "./model-selection";
+import { getAppModelOptionsForInstance, type AppModelOption } from "./model-selection";
 import {
   deriveProviderInstanceEntriesForSettings,
   resolveProviderDriverKindForInstanceSelection,
@@ -25,7 +22,7 @@ import {
   type ProviderInstanceEntry,
 } from "./provider-instances";
 
-export type ComposerModelDraft = Pick<
+type ComposerModelDraft = Pick<
   ComposerThreadDraftState,
   "activeProvider" | "modelSelectionByProvider"
 >;
@@ -98,12 +95,10 @@ export function resolveComposerModelSelection(
   const providerInstanceEntries = sortProviderInstanceEntries(
     deriveProviderInstanceEntriesForSettings(input.settings, input.providers),
   );
-  const settingsModelSelection = input.settings.composerModelSelection;
   const threadProvider =
     input.sessionProviderInstanceId ??
     input.threadModelSelection?.instanceId ??
     input.projectModelSelection?.instanceId ??
-    settingsModelSelection?.instanceId ??
     null;
   const explicitSelectedInstanceId = input.draft?.activeProvider ?? threadProvider;
   const selectedProvider =
@@ -120,7 +115,6 @@ export function resolveComposerModelSelection(
       input.sessionProviderInstanceId,
       input.threadModelSelection?.instanceId,
       input.projectModelSelection?.instanceId,
-      settingsModelSelection?.instanceId,
     ],
     explicitSelectedInstanceId,
     threadModelSelection: input.threadModelSelection,

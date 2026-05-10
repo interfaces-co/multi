@@ -6,10 +6,7 @@ import { threadHasStarted } from "~/components/chat-view.logic";
 import { finalizePromotedDraftThreadByRef, useComposerDraftStore } from "~/composer-draft-store";
 import { selectEnvironmentState, selectThreadExistsByRef, useStore } from "~/store";
 import { createThreadSelectorByRef } from "~/store-selectors";
-import {
-  clearLastChatRouteTarget,
-  writeLastChatRouteTarget,
-} from "~/chat-route-persistence";
+import { clearLastChatRouteTarget, writeLastChatRouteTarget } from "~/chat-route-persistence";
 import { resolveThreadRouteRef } from "~/thread-routes";
 import { traceBrowserEvent } from "~/observability/browserDebug";
 

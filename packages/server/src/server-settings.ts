@@ -180,10 +180,7 @@ function fallbackTextGenerationProvider(settings: ServerSettings): ServerSetting
 }
 
 // Values under these keys are compared as a whole — never stripped field-by-field.
-const ATOMIC_SETTINGS_KEYS: ReadonlySet<string> = new Set([
-  "textGenerationModelSelection",
-  "composerModelSelection",
-]);
+const ATOMIC_SETTINGS_KEYS: ReadonlySet<string> = new Set(["textGenerationModelSelection"]);
 
 function stripDefaultServerSettings(current: unknown, defaults: unknown): unknown | undefined {
   if (Array.isArray(current) || Array.isArray(defaults)) {

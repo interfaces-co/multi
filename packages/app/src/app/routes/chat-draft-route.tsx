@@ -5,10 +5,7 @@ import { threadHasStarted } from "~/components/chat-view.logic";
 import { useComposerDraftStore, DraftId } from "~/composer-draft-store";
 import { createThreadSelectorAcrossEnvironments } from "~/store-selectors";
 import { useStore } from "~/store";
-import {
-  clearLastChatRouteTarget,
-  writeLastChatRouteTarget,
-} from "~/chat-route-persistence";
+import { clearLastChatRouteTarget, writeLastChatRouteTarget } from "~/chat-route-persistence";
 import { buildThreadRouteParams } from "~/thread-routes";
 import { traceBrowserEvent } from "~/observability/browserDebug";
 

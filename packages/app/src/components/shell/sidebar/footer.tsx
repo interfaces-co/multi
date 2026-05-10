@@ -21,7 +21,10 @@ export function ShellSidebarFooter(props: { settings?: boolean }) {
       onClick={() => {
         const lastChatRouteTarget = readLastChatRouteTarget();
         if (lastChatRouteTarget?.kind === "draft") {
-          void navigate({ to: "/draft/$draftId", params: { draftId: lastChatRouteTarget.draftId } });
+          void navigate({
+            to: "/draft/$draftId",
+            params: { draftId: lastChatRouteTarget.draftId },
+          });
           return;
         }
         if (lastChatRouteTarget?.kind === "server") {

@@ -37,6 +37,7 @@ export function GitDiffCard(props: {
   onToggleViewed: () => void;
   onRevert: () => void;
   requestPrefetchForIdRef: MutableRefObject<(id: string) => void>;
+  diffLayoutKey: string;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const prefetchedRef = useRef(false);
@@ -186,6 +187,7 @@ export function GitDiffCard(props: {
               prevPath={props.file.prevPath}
               diffStyle={props.diffStyle}
               className="h-full min-h-[12rem]"
+              layoutKey={props.diffLayoutKey}
             />
           )}
         </div>

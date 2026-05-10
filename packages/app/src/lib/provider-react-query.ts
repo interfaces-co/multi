@@ -97,7 +97,9 @@ function isDiffOutputTooLargeMessage(message: string): boolean {
 function normalizeCheckpointErrorMessage(error: unknown): string {
   const messages = collectCheckpointErrorMessages(error);
   const message =
-    messages.find((candidate) => !isGenericCheckpointWrapperMessage(candidate)) ?? messages[0] ?? "";
+    messages.find((candidate) => !isGenericCheckpointWrapperMessage(candidate)) ??
+    messages[0] ??
+    "";
   if (message.length === 0) {
     return "Failed to load checkpoint diff.";
   }

@@ -531,7 +531,9 @@ function ChatShellHost(props: { children?: ReactNode }) {
 
       const composerDraftKey =
         currentServerThread !== null
-          ? scopedThreadKey(scopeThreadRef(currentServerThread.environmentId, currentServerThread.id))
+          ? scopedThreadKey(
+              scopeThreadRef(currentServerThread.environmentId, currentServerThread.id),
+            )
           : routeTarget?.kind === "draft"
             ? routeTarget.draftId
             : null;

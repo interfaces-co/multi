@@ -256,9 +256,7 @@ export const makeRoutesLayer = Layer.mergeAll(
  * utilities that need to run Effect services behind an explicit boundary.
  */
 export class ServerRuntime<R, ER> {
-  private constructor(
-    private readonly runtime: ManagedRuntime.ManagedRuntime<R, ER>,
-  ) {}
+  private constructor(private readonly runtime: ManagedRuntime.ManagedRuntime<R, ER>) {}
 
   static make<R, ER>(layer: Layer.Layer<R, ER, never>): ServerRuntime<R, ER> {
     return new ServerRuntime(ManagedRuntime.make(layer));

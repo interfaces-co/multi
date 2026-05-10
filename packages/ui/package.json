@@ -183,7 +183,7 @@
     "central-icons": "npm:@central-icons-react/round-outlined-radius-2-stroke-1.5@^1.1.232",
     "class-variance-authority": "^0.7.1",
     "react": "^19.2.6",
-    "tailwind-merge": "^3.5.0"
+    "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",

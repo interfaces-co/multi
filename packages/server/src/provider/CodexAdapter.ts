@@ -1376,6 +1376,19 @@ const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
               }),
           ),
         );
+        const configuredServiceTier = getModelSelectionStringOptionValue(
+          input.modelSelection,
+          "serviceTier",
+        )
+          ?.trim()
+          .toLowerCase();
+        const startServiceTier =
+          configuredServiceTier === "priority"
+            ? "fast"
+            : (configuredServiceTier ??
+              (getModelSelectionBooleanOptionValue(input.modelSelection, "fastMode") === true
+                ? "fast"
+                : undefined));
         const runtimeInput: CodexSessionRuntimeOptions = {
           threadId: input.threadId,
           cwd: input.cwd ?? process.cwd(),
@@ -1386,8 +1399,8 @@ const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
             : {}),
           runtimeMode: input.runtimeMode,
           ...(input.modelSelection ? { model: input.modelSelection.model } : {}),
-          ...(getModelSelectionBooleanOptionValue(input.modelSelection, "fastMode") === true
-            ? { serviceTier: "fast" }
+          ...(startServiceTier === "fast" || startServiceTier === "flex"
+            ? { serviceTier: startServiceTier }
             : {}),
         };
         const sessionScope = yield* Scope.make("sequential");
@@ -1503,7 +1516,19 @@ const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
       input.modelSelection,
       "reasoningEffort",
     );
-    const fastMode = getModelSelectionBooleanOptionValue(input.modelSelection, "fastMode");
+    const configuredServiceTier = getModelSelectionStringOptionValue(
+      input.modelSelection,
+      "serviceTier",
+    )
+      ?.trim()
+      .toLowerCase();
+    const serviceTier =
+      configuredServiceTier === "priority"
+        ? "fast"
+        : (configuredServiceTier ??
+          (getModelSelectionBooleanOptionValue(input.modelSelection, "fastMode") === true
+            ? "fast"
+            : undefined));
     return yield* session.runtime
       .sendTurn({
         ...(input.input !== undefined ? { input: input.input } : {}),
@@ -1513,7 +1538,7 @@ const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
               effort: reasoningEffort as EffectCodexSchema.V2TurnStartParams__ReasoningEffort,
             }
           : {}),
-        ...(fastMode === true ? { serviceTier: "fast" } : {}),
+        ...(serviceTier === "fast" || serviceTier === "flex" ? { serviceTier } : {}),
         ...(input.interactionMode !== undefined ? { interactionMode: input.interactionMode } : {}),
         ...(codexAttachments.length > 0 ? { attachments: codexAttachments } : {}),
       })

@@ -198,6 +198,14 @@
   * {
     @apply border-border outline-ring/50;
   }
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+    -webkit-font-smoothing: inherit;
+    -moz-osx-font-smoothing: inherit;
+  }
   html {
     background-color: var(--app-background);
   }
@@ -275,8 +283,8 @@ body {
   font-family: var(--multi-font-ui);
   font-size: var(--multi-ui-font-size-user, 13px);
   font-synthesis: none;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  -webkit-font-smoothing: var(--multi-font-smoothing-webkit, antialiased);
+  -moz-osx-font-smoothing: var(--multi-font-smoothing-moz, grayscale);
   margin: 0;
   padding: 0;
   min-height: 100vh;

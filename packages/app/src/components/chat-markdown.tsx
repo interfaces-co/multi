@@ -232,12 +232,7 @@ interface ShikiCodeBlockProps {
   themeName: DiffThemeName;
 }
 
-function ShikiCodeBlock({
-  className,
-  code,
-  codeProps,
-  themeName,
-}: ShikiCodeBlockProps) {
+function ShikiCodeBlock({ className, code, codeProps, themeName }: ShikiCodeBlockProps) {
   const language = extractFenceLanguage(className);
   const cacheKey = createHighlightCacheKey(code, language, themeName);
   const cachedHighlightedHtml = highlightedCodeCache.get(cacheKey);

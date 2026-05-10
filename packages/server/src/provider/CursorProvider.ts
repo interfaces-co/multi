@@ -1170,10 +1170,7 @@ export const CursorProviderLive = Layer.effect(
     );
 
     return yield* makeManagedServerProvider<CursorSettings>({
-      getSettings: serverSettings.getSettings.pipe(
-        Effect.map(resolveCursorSettings),
-        Effect.orDie,
-      ),
+      getSettings: serverSettings.getSettings.pipe(Effect.map(resolveCursorSettings), Effect.orDie),
       streamSettings: serverSettings.streamChanges.pipe(
         Stream.map((settings) => resolveCursorSettings(settings)),
       ),

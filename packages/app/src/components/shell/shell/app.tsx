@@ -12,6 +12,7 @@ import { cva } from "class-variance-authority";
 import { type CSSProperties, type ReactNode, useCallback, useEffect, useRef } from "react";
 
 import { isElectron, isElectronHost } from "~/env";
+import { useSettings } from "~/hooks/use-settings";
 import {
   type WorkbenchTab,
   RIGHT_WORKBENCH_WIDTH_LIMITS,
@@ -397,6 +398,10 @@ export function AppShell(props: {
   const storedRightOpen = useRightOpen();
   const rightWidth = useRightWidth();
   const muted = useIsMuted();
+  const agentWindowChatMaxWidth = useSettings((settings) => settings.agentWindowChatMaxWidth);
+  const agentWindowFontSmoothingAntialiased = useSettings(
+    (settings) => settings.agentWindowFontSmoothingAntialiased,
+  );
   const shellRightOpen =
     showRight &&
     resolveEffectiveRightOpen({
@@ -417,6 +422,7 @@ export function AppShell(props: {
     "--multi-shell-titlebar-control-size": "var(--multi-titlebar-control-height)",
     "--multi-shell-titlebar-control-y": "var(--multi-titlebar-control-row-top)",
     "--multi-shell-titlebar-gutter": "8px",
+    "--multi-composer-max-width": `${agentWindowChatMaxWidth}px`,
   };
 
   useEffect(() => {
@@ -442,6 +448,9 @@ export function AppShell(props: {
       data-shell-right-open={shellRightOpen ? "true" : "false"}
       data-shell-platform={electron ? "electron" : "web"}
       data-shell-chrome="glass"
+      data-agent-window-font-smoothing={
+        agentWindowFontSmoothingAntialiased ? "antialiased" : "subpixel"
+      }
       style={shellStyle}
     >
       <LeftAside>{props.left}</LeftAside>

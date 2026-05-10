@@ -916,10 +916,7 @@ export const ClaudeProviderLive = Layer.effect(
     );
 
     return yield* makeManagedServerProvider<ClaudeSettings>({
-      getSettings: serverSettings.getSettings.pipe(
-        Effect.map(resolveClaudeSettings),
-        Effect.orDie,
-      ),
+      getSettings: serverSettings.getSettings.pipe(Effect.map(resolveClaudeSettings), Effect.orDie),
       streamSettings: serverSettings.streamChanges.pipe(
         Stream.map((settings) => resolveClaudeSettings(settings)),
       ),

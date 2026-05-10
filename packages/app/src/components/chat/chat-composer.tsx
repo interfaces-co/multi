@@ -94,6 +94,7 @@ import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "@mu
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@multi/ui/tooltip";
 import { toastManager } from "~/app/toast";
 import {
+  IconArrowUp,
   IconExclamationCircle,
   IconLock,
   IconPencilLine,
@@ -106,6 +107,7 @@ import {
 type CentralIconComponent = React.ComponentType<CentralIconBaseProps>;
 import { proposedPlanTitle } from "../../proposed-plan";
 import { getProviderInteractionModeToggle } from "../../provider-models";
+import type { QueuedComposerItem, QueuedComposerItemId } from "../../composer-queue-store";
 import type { UnifiedSettings } from "@multi/contracts/settings";
 import type { SessionPhase, Thread } from "../../types";
 import type { PendingUserInputDraftAnswer } from "../../pending-user-input";
@@ -115,6 +117,11 @@ import { formatProviderSkillDisplayName } from "../../provider-skill-presentatio
 import { searchProviderSkills } from "../../provider-skill-search";
 
 const IMAGE_SIZE_LIMIT_LABEL = `${Math.round(PROVIDER_SEND_TURN_MAX_IMAGE_BYTES / (1024 * 1024))}MB`;
+const EMPTY_QUEUED_COMPOSER_ITEMS: QueuedComposerItem[] = [];
+Object.freeze(EMPTY_QUEUED_COMPOSER_ITEMS);
+
+const ignoreQueuedComposerItem = (_itemId: QueuedComposerItemId): void => undefined;
+const ignoreQueuedComposerEditCancel = (): void => undefined;
 
 const runtimeModeConfig: Record<
   RuntimeMode,
@@ -295,6 +302,8 @@ const ComposerFooterPrimaryActions = memo(function ComposerFooterPrimaryActions(
   isConnecting: boolean;
   submitDisabled: boolean;
   hasSendableContent: boolean;
+  sendWhileStreamingBehavior: UnifiedSettings["agentWindowSendWhileStreamingBehavior"];
+  submitActionLabel?: string | undefined;
   onPreviousPendingQuestion: () => void;
   onInterrupt: () => void;
   onImplementPlanInNewThread: () => void;
@@ -316,11 +325,134 @@ const ComposerFooterPrimaryActions = memo(function ComposerFooterPrimaryActions(
         isConnecting={props.isConnecting}
         isPreparingWorktree={props.isPreparingWorktree}
         hasSendableContent={props.hasSendableContent && !props.submitDisabled}
+        sendWhileStreamingBehavior={props.sendWhileStreamingBehavior}
+        submitActionLabel={props.submitActionLabel}
         onPreviousPendingQuestion={props.onPreviousPendingQuestion}
         onInterrupt={props.onInterrupt}
         onImplementPlanInNewThread={props.onImplementPlanInNewThread}
       />
     </>
+  );
+});
+
+function formatQueuedComposerItemPreview(item: QueuedComposerItem): string {
+  const prompt = item.sendContext.prompt.trim().replace(/\s+/g, " ");
+  if (prompt.length > 0) {
+    return prompt;
+  }
+  const imageCount = item.sendContext.images.length;
+  if (imageCount > 0) {
+    return imageCount === 1
+      ? (item.sendContext.images[0]?.name ?? "Image")
+      : `${imageCount} images`;
+  }
+  const terminalContextCount = item.sendContext.terminalContexts.length;
+  if (terminalContextCount > 0) {
+    return terminalContextCount === 1
+      ? "Terminal context"
+      : `${terminalContextCount} terminal contexts`;
+  }
+  return "Queued message";
+}
+
+function formatQueuedComposerItemMeta(item: QueuedComposerItem, index: number): string {
+  const parts = [`#${index + 1}`];
+  if (item.sendContext.images.length > 0) {
+    parts.push(`${item.sendContext.images.length} img`);
+  }
+  if (item.sendContext.terminalContexts.length > 0) {
+    parts.push(`${item.sendContext.terminalContexts.length} ctx`);
+  }
+  return parts.join(" / ");
+}
+
+const QueuedComposerItemsPanel = memo(function QueuedComposerItemsPanel(props: {
+  items: readonly QueuedComposerItem[];
+  editingItemId: QueuedComposerItemId | null;
+  isBusy: boolean;
+  onBeginEdit: (itemId: QueuedComposerItemId) => void;
+  onCancelEdit: () => void;
+  onRemove: (itemId: QueuedComposerItemId) => void;
+  onSendNow: (itemId: QueuedComposerItemId) => void;
+}) {
+  if (props.items.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="border-b border-border/60 px-2.5 py-2 sm:px-3">
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <span className="text-[11px]/[14px] font-medium text-muted-foreground">
+          Queued ({props.items.length})
+        </span>
+        {props.editingItemId ? (
+          <button
+            type="button"
+            className="rounded-multi-control px-1.5 py-0.5 text-[11px]/[14px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-1 focus-visible:ring-multi-stroke-focused focus-visible:outline-none"
+            onClick={props.onCancelEdit}
+          >
+            Cancel edit
+          </button>
+        ) : null}
+      </div>
+      <div className="flex max-h-36 flex-col gap-1 overflow-y-auto pr-1">
+        {props.items.map((item, index) => {
+          const isEditing = props.editingItemId === item.id;
+          return (
+            <div
+              key={item.id}
+              className={cn(
+                "flex min-h-9 items-center gap-2 rounded-md border px-2 py-1.5",
+                isEditing
+                  ? "border-primary/50 bg-primary/10"
+                  : "border-border/70 bg-muted/25",
+              )}
+            >
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[12px]/[16px] text-foreground">
+                  {formatQueuedComposerItemPreview(item)}
+                </div>
+                <div className="mt-0.5 flex items-center gap-1.5 text-[10px]/[12px] text-muted-foreground">
+                  <span>{formatQueuedComposerItemMeta(item, index)}</span>
+                  {isEditing ? <span>Editing</span> : null}
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-0.5">
+                <button
+                  type="button"
+                  className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-background hover:text-foreground focus-visible:ring-1 focus-visible:ring-multi-stroke-focused focus-visible:outline-none disabled:pointer-events-none disabled:opacity-40"
+                  onClick={() => props.onBeginEdit(item.id)}
+                  disabled={isEditing}
+                  aria-label="Edit queued message"
+                  title="Edit queued message"
+                >
+                  <IconPencilLine className="size-3.5" />
+                </button>
+                <button
+                  type="button"
+                  className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-background hover:text-foreground focus-visible:ring-1 focus-visible:ring-multi-stroke-focused focus-visible:outline-none disabled:pointer-events-none disabled:opacity-40"
+                  onClick={() => props.onSendNow(item.id)}
+                  disabled={props.isBusy || isEditing}
+                  aria-label="Send queued message now"
+                  title="Send queued message now"
+                >
+                  <IconArrowUp className="size-3.5" />
+                </button>
+                <button
+                  type="button"
+                  className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-background hover:text-foreground focus-visible:ring-1 focus-visible:ring-multi-stroke-focused focus-visible:outline-none"
+                  onClick={() => props.onRemove(item.id)}
+                  aria-label="Remove queued message"
+                  title="Remove queued message"
+                >
+                  <IconCrossMediumDefault className="size-3" />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 });
 
@@ -389,6 +521,8 @@ export interface ChatComposerProps {
   isSendBusy: boolean;
   isPreparingWorktree: boolean;
   submitDisabled?: boolean | undefined;
+  queuedComposerItems?: QueuedComposerItem[] | undefined;
+  editingQueuedComposerItemId?: QueuedComposerItemId | null | undefined;
 
   // Pending approvals / inputs
   activePendingApproval: PendingApproval | null;
@@ -463,6 +597,10 @@ export interface ChatComposerProps {
   ) => void;
 
   onProviderModelSelect: (instanceId: ProviderInstanceId, model: string) => void;
+  onBeginEditQueuedComposerItem?: ((itemId: QueuedComposerItemId) => void) | undefined;
+  onCancelEditingQueuedComposerItem?: (() => void) | undefined;
+  onRemoveQueuedComposerItem?: ((itemId: QueuedComposerItemId) => void) | undefined;
+  onSendQueuedComposerItemNow?: ((itemId: QueuedComposerItemId) => void) | undefined;
   toggleInteractionMode: () => void;
   handleRuntimeModeChange: (mode: RuntimeMode) => void;
   handleInteractionModeChange: (mode: ProviderInteractionMode) => void;
@@ -498,6 +636,8 @@ export const ChatComposer = memo(
       isSendBusy,
       isPreparingWorktree,
       submitDisabled = false,
+      queuedComposerItems = EMPTY_QUEUED_COMPOSER_ITEMS,
+      editingQueuedComposerItemId = null,
       activePendingApproval,
       pendingApprovals,
       pendingUserInputs,
@@ -538,6 +678,10 @@ export const ChatComposer = memo(
       onPreviousActivePendingUserInputQuestion,
       onChangeActivePendingUserInputCustomAnswer,
       onProviderModelSelect,
+      onBeginEditQueuedComposerItem,
+      onCancelEditingQueuedComposerItem,
+      onRemoveQueuedComposerItem,
+      onSendQueuedComposerItemNow,
       toggleInteractionMode,
       handleRuntimeModeChange,
       handleInteractionModeChange,
@@ -547,6 +691,14 @@ export const ChatComposer = memo(
       setThreadError,
       onExpandImage,
     } = props;
+    const handleBeginEditQueuedComposerItem =
+      onBeginEditQueuedComposerItem ?? ignoreQueuedComposerItem;
+    const handleCancelEditingQueuedComposerItem =
+      onCancelEditingQueuedComposerItem ?? ignoreQueuedComposerEditCancel;
+    const handleRemoveQueuedComposerItem =
+      onRemoveQueuedComposerItem ?? ignoreQueuedComposerItem;
+    const handleSendQueuedComposerItemNow =
+      onSendQueuedComposerItemNow ?? ignoreQueuedComposerItem;
     const composerVariant = variant === "hero" ? "expanded" : "compact";
     const modelPickerPlacement =
       modelPickerPlacementProp ?? (composerVariant === "compact" ? "top-start" : "bottom-start");
@@ -655,6 +807,17 @@ export const ChatComposer = memo(
       () => deriveLatestContextWindowSnapshot(activeThreadActivities ?? []),
       [activeThreadActivities],
     );
+    const visibleContextWindow = useMemo(() => {
+      if (!activeContextWindow || settings.agentWindowUsageSummaryDisplay === "never") {
+        return null;
+      }
+      if (settings.agentWindowUsageSummaryDisplay === "always") {
+        return activeContextWindow;
+      }
+      return activeContextWindow.usedPercentage !== null && activeContextWindow.usedPercentage >= 50
+        ? activeContextWindow
+        : null;
+    }, [activeContextWindow, settings.agentWindowUsageSummaryDisplay]);
 
     // ------------------------------------------------------------------
     // Composer-local state
@@ -873,6 +1036,9 @@ export const ChatComposer = memo(
 
     const isComposerApprovalState = activePendingApproval !== null;
     const activePendingUserInput = pendingUserInputs[0] ?? null;
+    const hasQueuedComposerItems = queuedComposerItems.length > 0;
+    const isEditingQueuedComposerItem = editingQueuedComposerItemId !== null;
+    const canSubmitQueuedComposerItem = hasQueuedComposerItems && !isEditingQueuedComposerItem;
     const hasComposerHeader =
       isComposerApprovalState ||
       pendingUserInputs.length > 0 ||
@@ -881,6 +1047,7 @@ export const ChatComposer = memo(
     const isDockComposerExpanded =
       composerVariant === "compact" &&
       (hasComposerHeader ||
+        hasQueuedComposerItems ||
         composerImages.length > 0 ||
         activePendingProgress !== null ||
         isComposerEditorMultiline);
@@ -892,7 +1059,7 @@ export const ChatComposer = memo(
         return `pending:${activePendingProgress.questionIndex}:${activePendingProgress.isLastQuestion}:${activePendingIsResponding}`;
       }
       if (phase === "running") {
-        return "running";
+        return `running:${settings.agentWindowSendWhileStreamingBehavior}:${composerSendState.hasSendableContent}:${canSubmitQueuedComposerItem}`;
       }
       if (showPlanFollowUpPrompt) {
         return prompt.trim().length > 0 ? "plan:refine" : "plan:implement";
@@ -902,11 +1069,13 @@ export const ChatComposer = memo(
       activePendingIsResponding,
       activePendingProgress,
       composerSendState.hasSendableContent,
+      canSubmitQueuedComposerItem,
       isConnecting,
       isPreparingWorktree,
       isSendBusy,
       phase,
       prompt,
+      settings.agentWindowSendWhileStreamingBehavior,
       showPlanFollowUpPrompt,
     ]);
 
@@ -1871,6 +2040,8 @@ export const ChatComposer = memo(
         planTitle={proposedPlanTitle(activeProposedPlan.planMarkdown) ?? null}
       />
     ) : null;
+    const showQueuedComposerItems =
+      hasQueuedComposerItems && !isComposerApprovalState && pendingUserInputs.length === 0;
 
     // Render
     // ------------------------------------------------------------------
@@ -1952,6 +2123,17 @@ export const ChatComposer = memo(
                   </span>
                 </button>
               </>
+            ) : null}
+            {showQueuedComposerItems ? (
+              <QueuedComposerItemsPanel
+                items={queuedComposerItems}
+                editingItemId={editingQueuedComposerItemId}
+                isBusy={isConnecting || isSendBusy}
+                onBeginEdit={handleBeginEditQueuedComposerItem}
+                onCancelEdit={handleCancelEditingQueuedComposerItem}
+                onRemove={handleRemoveQueuedComposerItem}
+                onSendNow={handleSendQueuedComposerItemNow}
+              />
             ) : null}
             <div
               className={cn(
@@ -2059,6 +2241,8 @@ export const ChatComposer = memo(
                       ? "Type your own answer, or leave this blank to use the selected option"
                       : showPlanFollowUpPrompt && activeProposedPlan
                         ? "Add feedback to refine the plan, or leave this blank to implement it"
+                        : isEditingQueuedComposerItem
+                          ? "Editing queued message..."
                         : phase === "disconnected"
                           ? "Ask for follow-up changes or attach images"
                           : composerVariant === "compact"
@@ -2209,7 +2393,7 @@ export const ChatComposer = memo(
                   <ComposerFooterPrimaryActions
                     compact={isComposerPrimaryActionsCompact}
                     dockSingleRow={composerVariant === "compact" && !isDockComposerExpanded}
-                    activeContextWindow={activeContextWindow}
+                    activeContextWindow={visibleContextWindow}
                     pendingAction={pendingPrimaryAction}
                     isRunning={phase === "running"}
                     showPlanFollowUpPrompt={
@@ -2220,7 +2404,13 @@ export const ChatComposer = memo(
                     isConnecting={isConnecting}
                     isPreparingWorktree={isPreparingWorktree}
                     submitDisabled={submitDisabled}
-                    hasSendableContent={composerSendState.hasSendableContent}
+                    hasSendableContent={
+                      composerSendState.hasSendableContent || canSubmitQueuedComposerItem
+                    }
+                    sendWhileStreamingBehavior={settings.agentWindowSendWhileStreamingBehavior}
+                    submitActionLabel={
+                      isEditingQueuedComposerItem ? "Save queued message" : undefined
+                    }
                     onPreviousPendingQuestion={onPreviousActivePendingUserInputQuestion}
                     onInterrupt={handleInterruptPrimaryAction}
                     onImplementPlanInNewThread={handleImplementPlanInNewThreadPrimaryAction}
