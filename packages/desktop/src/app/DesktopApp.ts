@@ -1,6 +1,8 @@
 import * as Cause from "effect/Cause";
 import * as Data from "effect/Data";
+import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
+import * as FileSystem from "effect/FileSystem";
 import * as Option from "effect/Option";
 import * as Random from "effect/Random";
 import * as Ref from "effect/Ref";
@@ -24,6 +26,7 @@ import * as DesktopState from "./DesktopState";
 import * as DesktopUpdates from "../updates/DesktopUpdates";
 
 const DEFAULT_DESKTOP_BACKEND_PORT = 3773;
+const DESKTOP_BACKEND_SHUTDOWN_TIMEOUT = Duration.seconds(5);
 const MAX_TCP_PORT = 65_535;
 const DESKTOP_BACKEND_PORT_PROBE_HOSTS = ["127.0.0.1", "0.0.0.0", "::"] as const;
 
@@ -198,7 +201,11 @@ const startup = Effect.gen(function* () {
 
   yield* shellEnvironment.installIntoProcess;
   const userDataPath = yield* appIdentity.resolveUserDataPath;
+  const fileSystem = yield* FileSystem.FileSystem;
+  yield* fileSystem.makeDirectory(userDataPath, { recursive: true });
+  yield* electronApp.appendCommandLineSwitch("user-data-dir", userDataPath);
   yield* electronApp.setPath("userData", userDataPath);
+  yield* electronApp.setPath("sessionData", userDataPath);
   yield* logStartupInfo("runtime logging configured", { logDir: environment.logDir });
   const settings = yield* desktopSettings.load;
   yield* electronTheme.setSource(settings.themeSource);
@@ -232,7 +239,9 @@ const scopedProgram = Effect.scoped(
     const backendManager = yield* DesktopBackendManager.DesktopBackendManager;
 
     yield* Effect.addFinalizer(() =>
-      backendManager.stop().pipe(Effect.ensuring(shutdown.markComplete)),
+      backendManager
+        .stop({ timeout: DESKTOP_BACKEND_SHUTDOWN_TIMEOUT })
+        .pipe(Effect.ensuring(shutdown.markComplete)),
     );
 
     yield* startup;

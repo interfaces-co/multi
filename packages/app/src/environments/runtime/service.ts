@@ -27,6 +27,7 @@ import { ensureLocalApi } from "~/local-api";
 import { collectActiveTerminalThreadIds } from "~/lib/terminal-state-cleanup";
 import { deriveOrchestrationBatchEffects } from "~/orchestration-event-effects";
 import { refreshGitStatus } from "~/lib/git-status-state";
+import { invalidateGitPatchQueries } from "~/lib/native-git-react-query";
 import { projectQueryKeys } from "~/lib/project-react-query";
 import { providerQueryKeys } from "~/lib/provider-react-query";
 import { getPrimaryKnownEnvironment } from "../primary";
@@ -640,7 +641,18 @@ function refreshGitStatusForThreadActivityEffects(
     }
 
     refreshedCwds.add(cwd);
-    void refreshGitStatus({ environmentId, cwd });
+    void (async () => {
+      try {
+        await refreshGitStatus({ environmentId, cwd }, undefined, { force: true });
+      } finally {
+        // Status rows and patch queries must move together; stale patch data can ask Git
+        // for a path that was valid in an older status snapshot and now has no diff.
+        const queryClient = activeService?.queryClient;
+        if (queryClient) {
+          await invalidateGitPatchQueries(queryClient, { environmentId, cwd });
+        }
+      }
+    })().catch(() => undefined);
   }
 }
 

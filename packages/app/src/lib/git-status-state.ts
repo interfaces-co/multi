@@ -22,6 +22,7 @@ interface GitStatusState {
   readonly isPending: boolean;
 }
 
+type GitStatusRefreshClient = Pick<WsRpcClient["git"], "refreshStatus">;
 type GitStatusClient = Pick<WsRpcClient["git"], "onStatus" | "refreshStatus">;
 interface ResolvedGitStatusClient {
   readonly clientIdentity: string;
@@ -36,6 +37,10 @@ interface WatchedGitStatus {
 interface GitStatusTarget {
   readonly environmentId: EnvironmentId | null;
   readonly cwd: string | null;
+}
+
+interface RefreshGitStatusOptions {
+  readonly force?: boolean;
 }
 
 const EMPTY_GIT_STATUS_STATE = Object.freeze<GitStatusState>({
@@ -118,7 +123,8 @@ export function watchGitStatus(target: GitStatusTarget, client?: GitStatusClient
 
 export function refreshGitStatus(
   target: GitStatusTarget,
-  client?: GitStatusClient,
+  client?: GitStatusRefreshClient,
+  options?: RefreshGitStatusOptions,
 ): Promise<GitStatusResult | null> {
   const targetKey = getGitStatusTargetKey(target);
   if (targetKey === null || target.cwd === null) {
@@ -136,7 +142,7 @@ export function refreshGitStatus(
   }
 
   const lastRequestedAt = gitStatusLastRefreshAtByKey.get(targetKey) ?? 0;
-  if (Date.now() - lastRequestedAt < GIT_STATUS_REFRESH_DEBOUNCE_MS) {
+  if (!options?.force && Date.now() - lastRequestedAt < GIT_STATUS_REFRESH_DEBOUNCE_MS) {
     return Promise.resolve(getGitStatusSnapshot(target).data);
   }
 

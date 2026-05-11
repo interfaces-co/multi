@@ -792,6 +792,93 @@ routing.layer("ProviderServiceLive routing", (it) => {
     }),
   );
 
+  it.effect("does not recover stale sessions when interrupting a turn", () =>
+    Effect.gen(function* () {
+      const provider = yield* ProviderService;
+
+      const initial = yield* provider.startSession(asThreadId("thread-interrupt-stale"), {
+        provider: "codex",
+        providerInstanceId: "codex",
+        threadId: asThreadId("thread-interrupt-stale"),
+        cwd: "/tmp/project",
+        runtimeMode: "full-access",
+      });
+      yield* routing.codex.stopAll();
+      routing.codex.startSession.mockClear();
+      routing.codex.interruptTurn.mockClear();
+
+      yield* provider.interruptTurn({
+        threadId: initial.threadId,
+        turnId: asTurnId("turn-stale"),
+      });
+
+      assert.equal(routing.codex.startSession.mock.calls.length, 0);
+      assert.equal(routing.codex.interruptTurn.mock.calls.length, 0);
+    }),
+  );
+
+  it.effect("marks inactive sessions stopped without calling the adapter stop", () =>
+    Effect.gen(function* () {
+      const provider = yield* ProviderService;
+      const runtimeRepository = yield* ProviderSessionRuntimeRepository;
+
+      const initial = yield* provider.startSession(asThreadId("thread-stop-inactive"), {
+        provider: "codex",
+        providerInstanceId: "codex",
+        threadId: asThreadId("thread-stop-inactive"),
+        cwd: "/tmp/project",
+        runtimeMode: "full-access",
+      });
+      yield* routing.codex.stopAll();
+      routing.codex.stopSession.mockClear();
+
+      yield* provider.stopSession({ threadId: initial.threadId });
+
+      assert.equal(routing.codex.stopSession.mock.calls.length, 0);
+      const persistedAfterStop = yield* runtimeRepository.getByThreadId({
+        threadId: initial.threadId,
+      });
+      assert.equal(Option.isSome(persistedAfterStop), true);
+      if (Option.isSome(persistedAfterStop)) {
+        assert.equal(persistedAfterStop.value.status, "stopped");
+      }
+    }),
+  );
+
+  it.effect("marks sessions stopped even when adapter stop fails", () =>
+    Effect.gen(function* () {
+      const provider = yield* ProviderService;
+      const runtimeRepository = yield* ProviderSessionRuntimeRepository;
+
+      const initial = yield* provider.startSession(asThreadId("thread-stop-failure"), {
+        provider: "codex",
+        providerInstanceId: "codex",
+        threadId: asThreadId("thread-stop-failure"),
+        cwd: "/tmp/project",
+        runtimeMode: "full-access",
+      });
+      routing.codex.stopSession.mockImplementationOnce((threadId) =>
+        Effect.fail(
+          new ProviderAdapterSessionNotFoundError({
+            provider: "codex",
+            threadId,
+          }),
+        ),
+      );
+
+      const failure = yield* Effect.flip(provider.stopSession({ threadId: initial.threadId }));
+      assert.instanceOf(failure, ProviderAdapterSessionNotFoundError);
+
+      const persistedAfterStop = yield* runtimeRepository.getByThreadId({
+        threadId: initial.threadId,
+      });
+      assert.equal(Option.isSome(persistedAfterStop), true);
+      if (Option.isSome(persistedAfterStop)) {
+        assert.equal(persistedAfterStop.value.status, "stopped");
+      }
+    }),
+  );
+
   it.effect("routes explicit claudeAgent provider session starts to the claude adapter", () =>
     Effect.gen(function* () {
       const provider = yield* ProviderService;

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { QueryClient } from "@tanstack/react-query";
+import { EnvironmentId, type GitStatusResult } from "@multi/contracts";
 
-import { type DiffRow, syncRows } from "./use-environment-git";
+import { gitQueryKeys } from "../lib/native-git-react-query";
+import { type DiffRow, revalidateGitPanelPatches, syncRows } from "./use-environment-git";
 
 function row(id: string, part?: Partial<DiffRow>) {
   return {
@@ -36,5 +39,49 @@ describe("syncRows", () => {
 
     expect([...out.ids]).toEqual(["a"]);
     expect([...out.drop]).toEqual([]);
+  });
+});
+
+describe("revalidateGitPanelPatches", () => {
+  it("invalidates cached patch data even when row metadata is unchanged", async () => {
+    const queryClient = new QueryClient();
+    const environmentId = EnvironmentId.make("environment-a");
+    const cwd = "/repo/a";
+    const patchQueryKey = gitQueryKeys.patch(environmentId, cwd, "src/a.ts", "modified");
+    const status: GitStatusResult = {
+      isRepo: true,
+      hasOriginRemote: true,
+      isDefaultBranch: false,
+      branch: "feature/git-panel",
+      hasWorkingTreeChanges: true,
+      workingTree: {
+        files: [
+          {
+            path: "src/a.ts",
+            insertions: 1,
+            deletions: 0,
+            status: "modified",
+          },
+        ],
+        insertions: 1,
+        deletions: 0,
+      },
+      hasUpstream: true,
+      aheadCount: 0,
+      behindCount: 0,
+      pr: null,
+    };
+    const api = {
+      refreshStatus: async () => status,
+    };
+    queryClient.setQueryData(patchQueryKey, {
+      kind: "patch",
+      patch: "old diff",
+      message: null,
+    });
+
+    await revalidateGitPanelPatches({ environmentId, cwd, api, queryClient });
+
+    expect(queryClient.getQueryState(patchQueryKey)?.isInvalidated).toBe(true);
   });
 });

@@ -1,6 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 import {
   EnvironmentId,
+  EventId,
   ProjectId,
   ThreadId,
   TurnId,
@@ -15,6 +16,7 @@ const mockCreateWsRpcClient = vi.fn();
 const mockWaitForSavedEnvironmentRegistryHydration = vi.fn();
 const mockListSavedEnvironmentRecords = vi.fn();
 const mockSavedEnvironmentRegistrySubscribe = vi.fn();
+const mockRefreshGitStatus = vi.fn();
 
 function MockWsTransport() {
   return undefined;
@@ -71,8 +73,14 @@ vi.mock("../../rpc/ws-transport", () => ({
   WsTransport: MockWsTransport,
 }));
 
+vi.mock("~/lib/git-status-state", () => ({
+  refreshGitStatus: mockRefreshGitStatus,
+}));
+
 function makeThreadShellSnapshot(params: {
   readonly threadId: ThreadId;
+  readonly projectCwd?: string;
+  readonly worktreePath?: string | null;
   readonly sessionStatus?:
     | "idle"
     | "starting"
@@ -87,10 +95,27 @@ function makeThreadShellSnapshot(params: {
 }): OrchestrationShellSnapshot {
   const projectId = ProjectId.make("project-1");
   const turnId = TurnId.make("turn-1");
+  const projectCwd = params.projectCwd ?? null;
 
   return {
     snapshotSequence: 1,
-    projects: [],
+    projects:
+      projectCwd === null
+        ? []
+        : [
+            {
+              id: projectId,
+              title: "Project",
+              projectRoot: projectCwd,
+              defaultModelSelection: {
+                instanceId: "codex",
+                model: "gpt-5-codex",
+              },
+              scripts: [],
+              createdAt: "2026-04-13T00:00:00.000Z",
+              updatedAt: "2026-04-13T00:00:00.000Z",
+            },
+          ],
     updatedAt: "2026-04-13T00:00:00.000Z",
     threads: [
       {
@@ -104,7 +129,7 @@ function makeThreadShellSnapshot(params: {
         runtimeMode: "full-access",
         interactionMode: "default",
         branch: null,
-        worktreePath: null,
+        worktreePath: params.worktreePath ?? null,
         latestTurn:
           params.sessionStatus === "running"
             ? {
@@ -147,6 +172,7 @@ describe("retainThreadDetailSubscription", () => {
 
     mockThreadUnsubscribe.mockImplementation(() => undefined);
     mockSubscribeThread.mockImplementation(() => mockThreadUnsubscribe);
+    mockRefreshGitStatus.mockResolvedValue(undefined);
     mockCreateWsRpcClient.mockReturnValue({
       orchestration: {
         subscribeThread: mockSubscribeThread,
@@ -294,6 +320,84 @@ describe("retainThreadDetailSubscription", () => {
     expect(mockThreadUnsubscribe).toHaveBeenCalledTimes(1);
 
     stop();
+  });
+
+  it("refreshes git status and invalidates patch queries after file-change detail activity", async () => {
+    const {
+      retainThreadDetailSubscription,
+      startEnvironmentConnectionService,
+      resetEnvironmentServiceForTests,
+    } = await import("./service");
+    const queryClient = new QueryClient();
+    const environmentId = EnvironmentId.make("env-1");
+    const threadId = ThreadId.make("thread-git-refresh");
+    const patchQueryKey = [
+      "git",
+      "patch",
+      environmentId,
+      "/repo",
+      "src/a.ts",
+      "modified",
+      null,
+    ] as const;
+    queryClient.setQueryData(patchQueryKey, { kind: "patch", patch: "diff", message: null });
+
+    const stop = startEnvironmentConnectionService(queryClient);
+    const connectionInput = mockCreateEnvironmentConnection.mock.calls[0]?.[0];
+    expect(connectionInput).toBeDefined();
+    connectionInput.syncShellSnapshot(
+      makeThreadShellSnapshot({
+        threadId,
+        projectCwd: "/repo",
+      }),
+      environmentId,
+    );
+
+    const release = retainThreadDetailSubscription(environmentId, threadId);
+    const threadListener = mockSubscribeThread.mock.calls[0]?.[1];
+    expect(threadListener).toBeDefined();
+
+    threadListener({
+      kind: "event",
+      event: {
+        sequence: 2,
+        eventId: EventId.make("event-1"),
+        aggregateKind: "thread",
+        aggregateId: threadId,
+        occurredAt: "2026-04-13T00:00:01.000Z",
+        commandId: null,
+        causationEventId: null,
+        correlationId: null,
+        metadata: {},
+        type: "thread.activity-appended",
+        payload: {
+          threadId,
+          activity: {
+            id: EventId.make("activity-1"),
+            tone: "tool",
+            kind: "tool.completed",
+            summary: "Edited file",
+            payload: { itemType: "file_change" },
+            turnId: null,
+            createdAt: "2026-04-13T00:00:01.000Z",
+          },
+        },
+      },
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(mockRefreshGitStatus).toHaveBeenCalledWith(
+      { environmentId, cwd: "/repo" },
+      undefined,
+      { force: true },
+    );
+    expect(queryClient.getQueryState(patchQueryKey)?.isInvalidated).toBe(true);
+
+    release();
+    stop();
+    await resetEnvironmentServiceForTests();
   });
 });
 

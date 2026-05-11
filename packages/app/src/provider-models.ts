@@ -89,10 +89,11 @@ export function getDefaultServerModel(
 ): string {
   const models = getProviderModels(providers, provider);
   const selectableModels = models.filter((model) => model.selectable !== false);
+  const configuredDefaultModel = DEFAULT_MODEL_BY_PROVIDER[provider] ?? DEFAULT_MODEL;
   return (
+    selectableModels.find((model) => model.slug === configuredDefaultModel)?.slug ??
     selectableModels.find((model) => !model.isCustom)?.slug ??
     selectableModels[0]?.slug ??
-    DEFAULT_MODEL_BY_PROVIDER[provider] ??
-    DEFAULT_MODEL
+    configuredDefaultModel
   );
 }

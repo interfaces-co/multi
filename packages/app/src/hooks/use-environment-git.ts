@@ -5,15 +5,16 @@ import {
   type GitWorkingTreeFileStatus,
 } from "@multi/contracts";
 import type { GitFileState } from "~/lib/ui-session-types";
-import { useQueries, useQueryClient } from "@tanstack/react-query";
+import { type QueryClient, useQueries, useQueryClient } from "@tanstack/react-query";
 import * as Schema from "effect/Schema";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { readNativeGitApi } from "../lib/native-git-api";
+import { readNativeGitApi, type NativeGitApi } from "../lib/native-git-api";
 import { refreshGitStatus, useGitStatus } from "../lib/git-status-state";
 import {
   gitPatchQueryOptions,
   gitQueryKeys,
+  invalidateGitPatchQueries,
   type GitPatchData,
 } from "../lib/native-git-react-query";
 import { useShellLayoutStore } from "../lib/shell-layout-store";
@@ -22,6 +23,7 @@ import { useShellState } from "./use-shell-cwd";
 
 const DiffStyle = Schema.Literals(["unified", "split"]);
 const MAX_ACTIVE_GIT_PATCH_QUERIES = 80;
+const GIT_PANEL_FOCUS_REFRESH_DEBOUNCE_MS = 500;
 
 export function useDiffStylePreference() {
   return useLocalStorage<"unified" | "split", "unified" | "split">(
@@ -211,6 +213,17 @@ export function syncRows(prev: DiffRow[], next: DiffRow[]) {
   return { ids, drop };
 }
 
+export async function revalidateGitPanelPatches(input: {
+  environmentId: EnvironmentId | null;
+  cwd: string;
+  api: Pick<NativeGitApi, "refreshStatus">;
+  queryClient: QueryClient;
+}): Promise<void> {
+  const target = { environmentId: input.environmentId, cwd: input.cwd };
+  await refreshGitStatus(target, input.api, { force: true });
+  await invalidateGitPatchQueries(input.queryClient, target);
+}
+
 export function deriveGitPanelViewState(input: {
   cwd: string | null;
   status: GitStatusSnapshot;
@@ -373,7 +386,7 @@ export function useEnvironmentGitPanel(
     return hit(paths, cwd, cwd, rows)?.id ?? null;
   }, [cwd, paths, rows]);
 
-  const refresh = useCallback(async () => {
+  const revalidate = useCallback(async () => {
     if (!cwd) {
       return;
     }
@@ -383,8 +396,50 @@ export function useEnvironmentGitPanel(
       return;
     }
 
-    await refreshGitStatus({ environmentId: environmentId ?? null, cwd }, api);
-  }, [cwd, environmentId]);
+    await revalidateGitPanelPatches({
+      environmentId: environmentId ?? null,
+      cwd,
+      api,
+      queryClient,
+    });
+  }, [cwd, environmentId, queryClient]);
+
+  const refresh = useCallback(async () => {
+    await revalidate();
+  }, [revalidate]);
+
+  useEffect(() => {
+    if (!cwd) {
+      return;
+    }
+
+    let refreshTimeout: number | null = null;
+    const scheduleRevalidation = () => {
+      if (refreshTimeout !== null) {
+        window.clearTimeout(refreshTimeout);
+      }
+      refreshTimeout = window.setTimeout(() => {
+        refreshTimeout = null;
+        void revalidate().catch(() => undefined);
+      }, GIT_PANEL_FOCUS_REFRESH_DEBOUNCE_MS);
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        scheduleRevalidation();
+      }
+    };
+
+    window.addEventListener("focus", scheduleRevalidation);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      if (refreshTimeout !== null) {
+        window.clearTimeout(refreshTimeout);
+      }
+      window.removeEventListener("focus", scheduleRevalidation);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [cwd, revalidate]);
 
   const init = useCallback(async () => {
     if (!cwd) {
@@ -397,8 +452,8 @@ export function useEnvironmentGitPanel(
     }
 
     await api.init({ cwd });
-    await refreshGitStatus({ environmentId: environmentId ?? null, cwd }, api);
-  }, [cwd, environmentId]);
+    await revalidate();
+  }, [cwd, environmentId, revalidate]);
 
   const discard = useCallback(
     async (pathsToDiscard: string[]) => {
@@ -416,9 +471,9 @@ export function useEnvironmentGitPanel(
       }
 
       await api.discardPaths({ cwd, paths: pathsToDiscard });
-      await refreshGitStatus({ environmentId: environmentId ?? null, cwd }, api);
+      await revalidate();
     },
-    [cwd, environmentId],
+    [cwd, environmentId, revalidate],
   );
 
   const requestDiff = useCallback(

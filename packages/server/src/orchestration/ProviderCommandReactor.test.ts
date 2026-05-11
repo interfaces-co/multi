@@ -179,15 +179,12 @@ describe("ProviderCommandReactor", () => {
         turnId: asTurnId("turn-1"),
       }),
     );
-    const interruptTurn = vi.fn((_: unknown) => Effect.void);
+    const interruptTurn = vi.fn<ProviderServiceShape["interruptTurn"]>(() => Effect.void);
     const respondToRequest = vi.fn<ProviderServiceShape["respondToRequest"]>(() => Effect.void);
     const respondToUserInput = vi.fn<ProviderServiceShape["respondToUserInput"]>(() => Effect.void);
-    const stopSession = vi.fn((input: unknown) =>
+    const stopSession = vi.fn<ProviderServiceShape["stopSession"]>((input) =>
       Effect.sync(() => {
-        const threadId =
-          typeof input === "object" && input !== null && "threadId" in input
-            ? (input as { threadId?: ThreadId }).threadId
-            : undefined;
+        const threadId = input.threadId;
         if (!threadId) {
           return;
         }
@@ -1410,6 +1407,67 @@ describe("ProviderCommandReactor", () => {
     await waitFor(() => harness.interruptTurn.mock.calls.length === 1);
     expect(harness.interruptTurn.mock.calls[0]?.[0]).toEqual({
       threadId: "thread-1",
+      turnId: "turn-1",
+    });
+  });
+
+  it("surfaces provider interrupt failures as thread activity", async () => {
+    const harness = await createHarness();
+    const now = new Date().toISOString();
+    harness.interruptTurn.mockImplementationOnce(() =>
+      Effect.fail(
+        new ProviderAdapterRequestError({
+          provider: "codex",
+          method: "turn/interrupt",
+          detail: "interrupt failed",
+        }),
+      ),
+    );
+
+    await Effect.runPromise(
+      harness.engine.dispatch({
+        type: "thread.session.set",
+        commandId: CommandId.make("cmd-session-set-for-interrupt-error"),
+        threadId: ThreadId.make("thread-1"),
+        session: {
+          threadId: ThreadId.make("thread-1"),
+          status: "running",
+          providerName: "codex",
+          runtimeMode: "approval-required",
+          activeTurnId: asTurnId("turn-1"),
+          lastError: null,
+          updatedAt: now,
+        },
+        createdAt: now,
+      }),
+    );
+
+    await Effect.runPromise(
+      harness.engine.dispatch({
+        type: "thread.turn.interrupt",
+        commandId: CommandId.make("cmd-turn-interrupt-error"),
+        threadId: ThreadId.make("thread-1"),
+        turnId: asTurnId("turn-1"),
+        createdAt: now,
+      }),
+    );
+
+    await waitFor(async () => {
+      const readModel = await Effect.runPromise(harness.engine.getReadModel());
+      const thread = readModel.threads.find((entry) => entry.id === ThreadId.make("thread-1"));
+      if (!thread) return false;
+      return thread.activities.some(
+        (activity) => activity.kind === "provider.turn.interrupt.failed",
+      );
+    });
+
+    const readModel = await Effect.runPromise(harness.engine.getReadModel());
+    const thread = readModel.threads.find((entry) => entry.id === ThreadId.make("thread-1"));
+    const failureActivity = thread?.activities.find(
+      (activity) => activity.kind === "provider.turn.interrupt.failed",
+    );
+    expect(failureActivity?.payload).toMatchObject({
+      detail: expect.stringContaining("interrupt failed"),
     });
   });
 
@@ -1796,5 +1854,67 @@ describe("ProviderCommandReactor", () => {
     expect(thread?.session?.status).toBe("stopped");
     expect(thread?.session?.threadId).toBe("thread-1");
     expect(thread?.session?.activeTurnId).toBeNull();
+  });
+
+  it("clears thread session state and records activity when provider stop fails", async () => {
+    const harness = await createHarness();
+    const now = new Date().toISOString();
+    harness.stopSession.mockImplementationOnce(() =>
+      Effect.fail(
+        new ProviderAdapterRequestError({
+          provider: "codex",
+          method: "session/stop",
+          detail: "stop failed",
+        }),
+      ),
+    );
+
+    await Effect.runPromise(
+      harness.engine.dispatch({
+        type: "thread.session.set",
+        commandId: CommandId.make("cmd-session-set-for-stop-error"),
+        threadId: ThreadId.make("thread-1"),
+        session: {
+          threadId: ThreadId.make("thread-1"),
+          status: "running",
+          providerName: "codex",
+          runtimeMode: "approval-required",
+          activeTurnId: asTurnId("turn-1"),
+          lastError: null,
+          updatedAt: now,
+        },
+        createdAt: now,
+      }),
+    );
+
+    await Effect.runPromise(
+      harness.engine.dispatch({
+        type: "thread.session.stop",
+        commandId: CommandId.make("cmd-session-stop-error"),
+        threadId: ThreadId.make("thread-1"),
+        createdAt: now,
+      }),
+    );
+
+    await waitFor(async () => {
+      const readModel = await Effect.runPromise(harness.engine.getReadModel());
+      const thread = readModel.threads.find((entry) => entry.id === ThreadId.make("thread-1"));
+      if (!thread) return false;
+      return (
+        thread.session?.status === "stopped" &&
+        thread.activities.some((activity) => activity.kind === "provider.session.stop.failed")
+      );
+    });
+
+    const readModel = await Effect.runPromise(harness.engine.getReadModel());
+    const thread = readModel.threads.find((entry) => entry.id === ThreadId.make("thread-1"));
+    expect(thread?.session?.status).toBe("stopped");
+    expect(thread?.session?.activeTurnId).toBeNull();
+    const failureActivity = thread?.activities.find(
+      (activity) => activity.kind === "provider.session.stop.failed",
+    );
+    expect(failureActivity?.payload).toMatchObject({
+      detail: expect.stringContaining("stop failed"),
+    });
   });
 });

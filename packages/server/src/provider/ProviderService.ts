@@ -624,7 +624,7 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
         const routed = yield* resolveRoutableSession({
           threadId: input.threadId,
           operation: "ProviderService.interruptTurn",
-          allowRecovery: true,
+          allowRecovery: false,
         });
         metricProvider = routed.adapter.provider;
         yield* Effect.annotateCurrentSpan({
@@ -633,6 +633,9 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
           "provider.thread_id": input.threadId,
           "provider.turn_id": input.turnId,
         });
+        if (!routed.isActive) {
+          return;
+        }
         yield* routed.adapter.interruptTurn(routed.threadId, input.turnId);
         yield* analytics.record("provider.turn.interrupted", {
           provider: routed.adapter.provider,
@@ -741,10 +744,7 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
           "provider.kind": routed.adapter.provider,
           "provider.thread_id": input.threadId,
         });
-        if (routed.isActive) {
-          yield* routed.adapter.stopSession(routed.threadId);
-        }
-        yield* directory.upsert({
+        const persistStopped = directory.upsert({
           threadId: input.threadId,
           provider: ProviderDriverKind.make(routed.adapter.provider),
           providerInstanceId: routed.instanceId,
@@ -753,6 +753,14 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
             activeTurnId: null,
           },
         });
+        if (routed.isActive) {
+          yield* routed.adapter.stopSession(routed.threadId).pipe(
+            Effect.catchCause((cause) =>
+              persistStopped.pipe(Effect.andThen(Effect.failCause(cause))),
+            ),
+          );
+        }
+        yield* persistStopped;
         yield* analytics.record("provider.session.stopped", {
           provider: routed.adapter.provider,
         });

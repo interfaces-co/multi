@@ -440,6 +440,34 @@ function runtimeEventToActivities(
       ];
     }
 
+    case "files.persisted": {
+      if (event.payload.files.length === 0) {
+        return [];
+      }
+
+      // Keep connector-specific write notifications on the canonical file-change path.
+      // The app uses these activities to refresh git status and invalidate per-file patches.
+      return [
+        {
+          id: event.eventId,
+          createdAt: event.createdAt,
+          tone: "tool",
+          kind: "tool.completed",
+          summary: "Files persisted",
+          payload: {
+            itemType: "file_change",
+            status: "completed",
+            data: {
+              files: event.payload.files,
+              ...(event.payload.failed ? { failed: event.payload.failed } : {}),
+            },
+          },
+          turnId: toTurnId(event.turnId) ?? null,
+          ...maybeSequence,
+        },
+      ];
+    }
+
     case "item.updated": {
       if (!isToolLifecycleItemType(event.payload.itemType)) {
         return [];
@@ -960,6 +988,7 @@ const make = Effect.fn("make")(function* () {
         case "turn.started":
           return !conflictsWithActiveTurn;
         case "turn.completed":
+        case "turn.aborted":
           if (conflictsWithActiveTurn || missingTurnForActiveTurn) {
             return false;
           }
@@ -984,12 +1013,15 @@ const make = Effect.fn("make")(function* () {
       event.type === "session.exited" ||
       event.type === "thread.started" ||
       event.type === "turn.started" ||
-      event.type === "turn.completed"
+      event.type === "turn.completed" ||
+      event.type === "turn.aborted"
     ) {
       const nextActiveTurnId =
         event.type === "turn.started"
           ? (eventTurnId ?? null)
-          : event.type === "turn.completed" || event.type === "session.exited"
+          : event.type === "turn.completed" ||
+              event.type === "turn.aborted" ||
+              event.type === "session.exited"
             ? null
             : activeTurnId;
       const status = (() => {
@@ -1000,6 +1032,8 @@ const make = Effect.fn("make")(function* () {
             return "running";
           case "session.exited":
             return "stopped";
+          case "turn.aborted":
+            return "ready";
           case "turn.completed":
             return normalizeRuntimeTurnState(event.payload.state) === "failed" ? "error" : "ready";
           case "session.started":
@@ -1164,7 +1198,7 @@ const make = Effect.fn("make")(function* () {
       });
     }
 
-    if (event.type === "turn.completed") {
+    if (event.type === "turn.completed" || event.type === "turn.aborted") {
       const turnId = toTurnId(event.turnId);
       if (turnId) {
         const assistantMessageIds = yield* getAssistantMessageIdsForTurn(thread.id, turnId);

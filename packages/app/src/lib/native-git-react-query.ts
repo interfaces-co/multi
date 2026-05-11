@@ -1,5 +1,5 @@
 import type { EnvironmentId } from "@multi/contracts";
-import { queryOptions } from "@tanstack/react-query";
+import { queryOptions, type QueryClient } from "@tanstack/react-query";
 
 import type { GitFileState } from "~/lib/ui-session-types";
 import { readNativeGitApi } from "~/lib/native-git-api";
@@ -13,6 +13,8 @@ export interface GitPatchData {
 const GIT_PATCH_CACHE_GC_TIME_MS = 2 * 60 * 1000;
 
 export const gitQueryKeys = {
+  patchesForCwd: (environmentId: EnvironmentId | null, cwd: string) =>
+    ["git", "patch", environmentId ?? null, cwd] as const,
   patch: (
     environmentId: EnvironmentId | null,
     cwd: string,
@@ -24,6 +26,18 @@ export const gitQueryKeys = {
       ? (["git", "patch", environmentId ?? null, cwd, path, state, prevPath ?? null] as const)
       : (["git", "patch", environmentId ?? null, cwd, path] as const),
 };
+
+export function invalidateGitPatchQueries(
+  queryClient: QueryClient,
+  input: {
+    environmentId: EnvironmentId | null;
+    cwd: string;
+  },
+) {
+  return queryClient.invalidateQueries({
+    queryKey: gitQueryKeys.patchesForCwd(input.environmentId, input.cwd),
+  });
+}
 
 export function gitPatchQueryOptions(input: {
   environmentId: EnvironmentId | null;

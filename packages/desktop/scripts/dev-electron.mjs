@@ -1,5 +1,6 @@
 import { spawn, spawnSync } from "node:child_process";
-import { watch } from "node:fs";
+import { mkdirSync, watch } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 
 import { desktopDir, resolveElectronPath } from "./electron-launcher.mjs";
@@ -39,6 +40,21 @@ await waitForResources({
 const childEnv = { ...process.env };
 delete childEnv.ELECTRON_RUN_AS_NODE;
 
+function resolveDevUserDataDir() {
+  if (process.platform === "win32") {
+    return join(process.env.APPDATA ?? join(homedir(), "AppData", "Roaming"), "multi-dev");
+  }
+
+  if (process.platform === "darwin") {
+    return join(homedir(), "Library", "Application Support", "multi-dev");
+  }
+
+  return join(process.env.XDG_CONFIG_HOME ?? join(homedir(), ".config"), "multi-dev");
+}
+
+const devUserDataDir = resolveDevUserDataDir();
+mkdirSync(devUserDataDir, { recursive: true });
+
 let shuttingDown = false;
 let restartTimer = null;
 let currentApp = null;
@@ -69,7 +85,7 @@ function startApp() {
 
   const app = spawn(
     resolveElectronPath(),
-    [`--multi-dev-root=${desktopDir}`, "dist-electron/main.cjs"],
+    [`--user-data-dir=${devUserDataDir}`, `--multi-dev-root=${desktopDir}`, "dist-electron/main.cjs"],
     {
       cwd: desktopDir,
       env: childEnv,

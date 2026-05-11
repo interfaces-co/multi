@@ -651,10 +651,23 @@ const make = Effect.gen(function* () {
       });
     }
 
-    yield* providerService.interruptTurn({
-      threadId: event.payload.threadId,
-      ...(event.payload.turnId !== undefined ? { turnId: event.payload.turnId } : {}),
-    });
+    yield* providerService
+      .interruptTurn({
+        threadId: event.payload.threadId,
+        ...(event.payload.turnId !== undefined ? { turnId: event.payload.turnId } : {}),
+      })
+      .pipe(
+        Effect.catchCause((cause) =>
+          appendProviderFailureActivity({
+            threadId: event.payload.threadId,
+            kind: "provider.turn.interrupt.failed",
+            summary: "Provider turn interrupt failed",
+            detail: Cause.pretty(cause),
+            turnId: event.payload.turnId ?? null,
+            createdAt: event.payload.createdAt,
+          }),
+        ),
+      );
   });
 
   const processApprovalResponseRequested = Effect.fn("processApprovalResponseRequested")(function* (
@@ -759,7 +772,18 @@ const make = Effect.gen(function* () {
 
     const now = event.payload.createdAt;
     if (thread.session && thread.session.status !== "stopped") {
-      yield* providerService.stopSession({ threadId: thread.id });
+      yield* providerService.stopSession({ threadId: thread.id }).pipe(
+        Effect.catchCause((cause) =>
+          appendProviderFailureActivity({
+            threadId: thread.id,
+            kind: "provider.session.stop.failed",
+            summary: "Provider session stop failed",
+            detail: Cause.pretty(cause),
+            turnId: null,
+            createdAt: now,
+          }),
+        ),
+      );
     }
 
     yield* setThreadSession({

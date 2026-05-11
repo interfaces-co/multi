@@ -238,6 +238,15 @@ describe("gitStatusState", () => {
     release();
   });
 
+  it("allows a forced refresh inside the debounce window", async () => {
+    await refreshGitStatus(TARGET, gitClient);
+    await refreshGitStatus(TARGET, gitClient, { force: true });
+
+    expect(gitClient.refreshStatus).toHaveBeenCalledTimes(2);
+    expect(gitClient.refreshStatus).toHaveBeenNthCalledWith(1, { cwd: "/repo" });
+    expect(gitClient.refreshStatus).toHaveBeenNthCalledWith(2, { cwd: "/repo" });
+  });
+
   it("keeps git status subscriptions isolated by environment when cwds match", () => {
     const localListeners = new Set<(event: GitStatusResult) => void>();
     const remoteListeners = new Set<(event: GitStatusResult) => void>();

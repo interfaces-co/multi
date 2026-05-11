@@ -1237,9 +1237,12 @@ export function makeOpenCodeAdapterLive(options?: OpenCodeAdapterLiveOptions) {
           yield* runOpenCodeSdk("session.abort", () =>
             context.client.session.abort({ sessionID: context.openCodeSessionId }),
           ).pipe(Effect.mapError(toRequestError));
-          if (turnId ?? context.activeTurnId) {
+          const effectiveTurnId = turnId ?? context.activeTurnId;
+          context.activeTurnId = undefined;
+          updateProviderSession(context, { status: "ready" }, { clearActiveTurnId: true });
+          if (effectiveTurnId) {
             yield* emit({
-              ...buildEventBase({ threadId, turnId: turnId ?? context.activeTurnId }),
+              ...buildEventBase({ threadId, turnId: effectiveTurnId }),
               type: "turn.aborted",
               payload: {
                 reason: "Interrupted by user.",
