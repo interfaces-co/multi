@@ -86,6 +86,7 @@ import {
 } from "./settings-layout";
 import { ProjectFavicon } from "../project-favicon";
 import {
+  applyProvidersUpdated,
   useServerAvailableEditors,
   useServerKeybindingsConfigPath,
   useServerObservability,
@@ -1334,7 +1335,7 @@ export function ModelsSettingsPanel() {
   const [isRefreshingProviders, setIsRefreshingProviders] = useState(false);
   const [isAddInstanceDialogOpen, setIsAddInstanceDialogOpen] = useState(false);
   const [openInstanceDetails, setOpenInstanceDetails] = useState<Record<string, boolean>>({});
-  const refreshingRef = useRef(false);
+  const refreshingRef = useRef<Promise<void> | null>(null);
 
   const visibleProviderSettings = PROVIDER_SETTINGS;
   const textGenerationModelSelection = resolveAppModelSelectionState(settings, serverProviders);
@@ -1361,18 +1362,20 @@ export function ModelsSettingsPanel() {
   );
 
   const refreshProviders = useCallback(() => {
-    if (refreshingRef.current) return;
-    refreshingRef.current = true;
+    if (refreshingRef.current) return refreshingRef.current;
     setIsRefreshingProviders(true);
-    void ensureLocalApi()
+    const refresh = ensureLocalApi()
       .server.refreshProviders()
+      .then((payload) => applyProvidersUpdated(payload))
       .catch((error: unknown) => {
         console.warn("Failed to refresh providers", error);
       })
       .finally(() => {
-        refreshingRef.current = false;
+        refreshingRef.current = null;
         setIsRefreshingProviders(false);
       });
+    refreshingRef.current = refresh;
+    return refresh;
   }, []);
 
   interface InstanceRow {
@@ -1461,7 +1464,7 @@ export function ModelsSettingsPanel() {
       >[0]["textGenerationModelSelection"];
     },
   ) => {
-    updateSettings(
+    return updateSettings(
       buildProviderInstanceUpdatePatch({
         settings,
         instanceId: row.instanceId,
@@ -1527,7 +1530,7 @@ export function ModelsSettingsPanel() {
     const defaultInstanceId = defaultInstanceIdForDriver(driverKind);
     const factoryDefaultProviderConfig = factoryDefaultProviderConfigs[driverKind];
     if (factoryDefaultProviderConfig === undefined) return;
-    updateSettings({
+    void updateSettings({
       providers: {
         ...settings.providers,
         [driverKind]: factoryDefaultProviderConfig,
@@ -1538,6 +1541,8 @@ export function ModelsSettingsPanel() {
         defaultInstanceId,
       ),
       favorites: withoutProviderInstanceFavorites(settings.favorites ?? [], defaultInstanceId),
+    }).catch((error: unknown) => {
+      console.warn("Failed to reset provider settings", error);
     });
   };
 
@@ -1700,7 +1705,7 @@ export function ModelsSettingsPanel() {
                     instanceId: row.instanceId,
                     instance: next,
                   });
-                  updateSettings({
+                  void updateSettings({
                     ...patch,
                     textGenerationModelSelection: resolveAppModelSelectionState(
                       {
@@ -1711,9 +1716,13 @@ export function ModelsSettingsPanel() {
                       },
                       serverProviders,
                     ),
+                  }).catch((error: unknown) => {
+                    console.warn("Failed to update provider settings", error);
                   });
                 } else {
-                  updateProviderInstance(row, next);
+                  void updateProviderInstance(row, next).catch((error: unknown) => {
+                    console.warn("Failed to update provider settings", error);
+                  });
                 }
               }}
               onDelete={row.isDefault ? undefined : () => deleteProviderInstance(row.instanceId)}

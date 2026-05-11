@@ -40,7 +40,6 @@ import { resolveCursorSettings } from "./provider-settings.ts";
 const PROVIDER = ProviderDriverKind.make("cursor");
 const CURSOR_PRESENTATION = {
   displayName: "Cursor",
-  badgeLabel: "Early Access",
   showInteractionModeToggle: true,
 } as const;
 const EMPTY_CAPABILITIES: ModelCapabilities = createModelCapabilities({

@@ -1033,6 +1033,7 @@ export function makeOpenCodeAdapterLive(options?: OpenCodeAdapterLiveOptions) {
                 // process automatically. No manual `server.close()` needed.
                 const server = yield* openCodeRuntime.connectToOpenCodeServer({
                   binaryPath,
+                  environment: openCodeSettings.environment,
                   serverUrl,
                 });
                 const client = openCodeRuntime.createOpenCodeSdkClient({

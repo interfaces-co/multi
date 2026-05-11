@@ -4,6 +4,7 @@ import {
   CursorSettings,
   DEFAULT_SERVER_SETTINGS,
   OpenCodeSettings,
+  type ProviderInstanceEnvironment,
   ProviderDriverKind,
   type ProviderInstanceConfig,
   type ProviderInstanceId,
@@ -23,6 +24,10 @@ export const CANONICAL_PROVIDER_DRIVER_ORDER = [
   CURSOR_PROVIDER,
   OPENCODE_PROVIDER,
 ] as const satisfies ReadonlyArray<ProviderDriverKind>;
+
+export type ResolvedOpenCodeSettings = typeof OpenCodeSettings.Type & {
+  readonly environment: ProviderInstanceEnvironment;
+};
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -138,17 +143,22 @@ export function resolveCursorSettings(
 export function resolveOpenCodeSettings(
   settings: ServerSettings,
   instanceId: ProviderInstanceId = defaultInstanceIdForDriver(OPENCODE_PROVIDER),
-): typeof OpenCodeSettings.Type {
-  return Schema.decodeUnknownSync(OpenCodeSettings)(
+): ResolvedOpenCodeSettings {
+  const instance = resolveProviderInstanceConfig({
+    settings,
+    driver: OPENCODE_PROVIDER,
+    instanceId,
+  });
+  const resolved = Schema.decodeUnknownSync(OpenCodeSettings)(
     resolveSettingsRecord({
       fallback: fallbackOpenCodeSettings(settings, instanceId),
-      instance: resolveProviderInstanceConfig({
-        settings,
-        driver: OPENCODE_PROVIDER,
-        instanceId,
-      }),
+      instance,
     }),
   );
+  return {
+    ...resolved,
+    environment: instance?.environment ?? [],
+  };
 }
 
 export function resolveProviderEnabled(input: {

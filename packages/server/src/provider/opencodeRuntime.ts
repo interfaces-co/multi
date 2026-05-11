@@ -1,6 +1,11 @@
 import { pathToFileURL } from "node:url";
 
-import type { ChatAttachment, ProviderApprovalDecision, RuntimeMode } from "@multi/contracts";
+import type {
+  ChatAttachment,
+  ProviderApprovalDecision,
+  ProviderInstanceEnvironment,
+  RuntimeMode,
+} from "@multi/contracts";
 import {
   createOpencodeClient,
   type Agent,
@@ -73,6 +78,8 @@ export function openCodeRuntimeErrorDetail(cause: unknown): string {
   return String(cause);
 }
 
+export type OpenCodeEnvironmentEntry = readonly [name: string, value: string];
+
 export const runOpenCodeSdk = <A>(
   operation: string,
   fn: () => Promise<A>,
@@ -108,6 +115,7 @@ export interface OpenCodeRuntimeShape {
    */
   readonly startOpenCodeServerProcess: (input: {
     readonly binaryPath: string;
+    readonly environment?: ProviderInstanceEnvironment;
     readonly port?: number;
     readonly hostname?: string;
     readonly timeoutMs?: number;
@@ -119,6 +127,7 @@ export interface OpenCodeRuntimeShape {
    */
   readonly connectToOpenCodeServer: (input: {
     readonly binaryPath: string;
+    readonly environment?: ProviderInstanceEnvironment;
     readonly serverUrl?: string | null;
     readonly port?: number;
     readonly hostname?: string;
@@ -126,6 +135,7 @@ export interface OpenCodeRuntimeShape {
   }) => Effect.Effect<OpenCodeServerConnection, OpenCodeRuntimeError, Scope.Scope>;
   readonly runOpenCodeCommand: (input: {
     readonly binaryPath: string;
+    readonly environment?: ProviderInstanceEnvironment;
     readonly args: ReadonlyArray<string>;
   }) => Effect.Effect<OpenCodeCommandResult, OpenCodeRuntimeError>;
   readonly createOpenCodeSdkClient: (input: {
@@ -147,6 +157,45 @@ function parseServerUrlFromOutput(output: string): string | null {
     return match?.[1] ?? null;
   }
   return null;
+}
+
+export function normalizeOpenCodeEnvironment(
+  environment: ProviderInstanceEnvironment | undefined,
+): ReadonlyArray<OpenCodeEnvironmentEntry> {
+  const entries = new Map<string, string>();
+  for (const variable of environment ?? []) {
+    const name = variable.name.trim();
+    if (name.length === 0 || variable.valueRedacted === true) {
+      continue;
+    }
+    entries.set(name, variable.value);
+  }
+  return Array.from(entries.entries()).toSorted(([left], [right]) => left.localeCompare(right));
+}
+
+export function openCodeEnvironmentsEqual(
+  left: ProviderInstanceEnvironment | undefined,
+  right: ProviderInstanceEnvironment | undefined,
+): boolean {
+  const normalizedLeft = normalizeOpenCodeEnvironment(left);
+  const normalizedRight = normalizeOpenCodeEnvironment(right);
+  if (normalizedLeft.length !== normalizedRight.length) {
+    return false;
+  }
+  return normalizedLeft.every(
+    ([name, value], index) =>
+      normalizedRight[index]?.[0] === name && normalizedRight[index]?.[1] === value,
+  );
+}
+
+export function makeOpenCodeProcessEnv(
+  environment: ProviderInstanceEnvironment | undefined,
+): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...process.env };
+  for (const [name, value] of normalizeOpenCodeEnvironment(environment)) {
+    env[name] = value;
+  }
+  return env;
 }
 
 export function parseOpenCodeModelSlug(
@@ -273,7 +322,7 @@ const makeOpenCodeRuntime = Effect.gen(function* () {
       const child = yield* spawner.spawn(
         ChildProcess.make(input.binaryPath, [...input.args], {
           shell: process.platform === "win32",
-          env: process.env,
+          env: makeOpenCodeProcessEnv(input.environment),
         }),
       );
       const [stdout, stderr, code] = yield* Effect.all(
@@ -331,7 +380,7 @@ const makeOpenCodeRuntime = Effect.gen(function* () {
           ChildProcess.make(input.binaryPath, args, {
             detached: process.platform !== "win32",
             env: {
-              ...process.env,
+              ...makeOpenCodeProcessEnv(input.environment),
               OPENCODE_CONFIG_CONTENT: JSON.stringify({}),
             },
           }),
@@ -471,6 +520,7 @@ const makeOpenCodeRuntime = Effect.gen(function* () {
 
     return startOpenCodeServerProcess({
       binaryPath: input.binaryPath,
+      ...(input.environment !== undefined ? { environment: input.environment } : {}),
       ...(input.port !== undefined ? { port: input.port } : {}),
       ...(input.hostname !== undefined ? { hostname: input.hostname } : {}),
       ...(input.timeoutMs !== undefined ? { timeoutMs: input.timeoutMs } : {}),

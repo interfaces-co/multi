@@ -21,14 +21,16 @@ import {
 import { compareCliVersions } from "./cliVersion.ts";
 import { OpenCodeProvider } from "./OpenCodeProvider.service.ts";
 import {
+  makeOpenCodeProcessEnv,
   OpenCodeRuntime,
   openCodeRuntimeErrorDetail,
   type OpenCodeInventory,
 } from "./opencodeRuntime.ts";
 import type { Agent, ProviderListResponse } from "@opencode-ai/sdk/v2";
-import { resolveOpenCodeSettings } from "./provider-settings.ts";
+import { resolveOpenCodeSettings, type ResolvedOpenCodeSettings } from "./provider-settings.ts";
 
 const PROVIDER = ProviderDriverKind.make("opencode");
+const OPENCODE_ZEN_PROVIDER_IDS = new Set(["opencode", "opencode-go"]);
 const OPENCODE_PRESENTATION = {
   displayName: "OpenCode",
   showInteractionModeToggle: false,
@@ -157,7 +159,7 @@ function inferDefaultVariant(
   if (providerID === "anthropic" || providerID.startsWith("google")) {
     return variants.includes("high") ? "high" : undefined;
   }
-  if (providerID === "openai" || providerID === "opencode") {
+  if (providerID === "openai" || OPENCODE_ZEN_PROVIDER_IDS.has(providerID)) {
     return variants.includes("medium") ? "medium" : variants.includes("high") ? "high" : undefined;
   }
   return undefined;
@@ -221,6 +223,7 @@ function openCodeCapabilitiesForModel(input: {
 }
 
 type OpenCodeUpstreamProvider = ProviderListResponse["all"][number];
+type OpenCodeProbeStatus = Exclude<ServerProvider["status"], "disabled">;
 
 function connectedOpenCodeProviders(
   providerList: ProviderListResponse,
@@ -231,7 +234,7 @@ function connectedOpenCodeProviders(
 
 function isPublicOpenCodeZenProvider(provider: OpenCodeUpstreamProvider): boolean {
   return (
-    provider.id === "opencode" &&
+    OPENCODE_ZEN_PROVIDER_IDS.has(provider.id) &&
     provider.source === "custom" &&
     provider.key === undefined &&
     provider.options.apiKey === "public"
@@ -247,9 +250,11 @@ function formatOpenCodeProviderConnection(provider: OpenCodeUpstreamProvider): s
 function summarizeOpenCodeInventory(input: {
   readonly providerList: ProviderListResponse;
   readonly isExternalServer: boolean;
+  readonly hasOpenCodeApiKey: boolean;
 }): {
   readonly connectedCount: number;
-  readonly hasAuthenticatedUpstream: boolean;
+  readonly authStatus: ServerProvider["auth"]["status"];
+  readonly status: OpenCodeProbeStatus;
   readonly message: string;
 } {
   const connectedProviders = connectedOpenCodeProviders(input.providerList);
@@ -257,7 +262,8 @@ function summarizeOpenCodeInventory(input: {
   if (connectedCount === 0) {
     return {
       connectedCount,
-      hasAuthenticatedUpstream: false,
+      authStatus: "unknown",
+      status: "warning",
       message: input.isExternalServer
         ? "Connected to the configured OpenCode server, but it did not report any connected upstream providers."
         : "OpenCode is available, but it did not report any connected upstream providers.",
@@ -278,9 +284,14 @@ function summarizeOpenCodeInventory(input: {
 
   return {
     connectedCount,
-    hasAuthenticatedUpstream,
+    authStatus: publicOnly ? "unknown" : hasAuthenticatedUpstream ? "authenticated" : "unknown",
+    status: publicOnly ? "warning" : "ready",
     message: publicOnly
-      ? `${providerSummary} available through ${connectionTarget}. Connect OpenCode Zen with an API key to unlock paid models.`
+      ? input.isExternalServer
+        ? `${providerSummary} reported by ${connectionTarget}. The server is using OpenCode Zen public fallback, so paid Zen and Go models are unavailable. Configure OPENCODE_API_KEY for that OpenCode server, then refresh providers.`
+        : input.hasOpenCodeApiKey
+          ? `${providerSummary} reported by ${connectionTarget}. Multi found OPENCODE_API_KEY, but OpenCode still reported its public fallback. Restart OpenCode provider status and check OpenCode logs if this persists.`
+          : `${providerSummary} reported by ${connectionTarget}. Multi did not find OPENCODE_API_KEY in its desktop login-shell environment or this provider instance, so paid Zen and Go models are unavailable. Add OPENCODE_API_KEY to your shell profile or this provider instance, restart Multi, then refresh providers.`
       : `${providerSummary} connected through ${connectionTarget}.`,
   };
 }
@@ -371,7 +382,7 @@ export const OpenCodeProviderLive = Layer.effect(
     const openCodeRuntime = yield* OpenCodeRuntime;
 
     const checkOpenCodeProviderStatus = Effect.fn("checkOpenCodeProviderStatus")(function* (input: {
-      readonly settings: OpenCodeSettings;
+      readonly settings: ResolvedOpenCodeSettings;
       readonly cwd: string;
     }): Effect.fn.Return<ServerProvider, never> {
       const checkedAt = new Date().toISOString();
@@ -435,6 +446,7 @@ export const OpenCodeProviderLive = Layer.effect(
           openCodeRuntime
             .runOpenCodeCommand({
               binaryPath: input.settings.binaryPath,
+              environment: input.settings.environment,
               args: ["--version"],
             })
             .pipe(
@@ -486,6 +498,7 @@ export const OpenCodeProviderLive = Layer.effect(
             const server = yield* openCodeRuntime
               .connectToOpenCodeServer({
                 binaryPath: input.settings.binaryPath,
+                environment: input.settings.environment,
                 serverUrl: input.settings.serverUrl,
               })
               .pipe(
@@ -526,6 +539,9 @@ export const OpenCodeProviderLive = Layer.effect(
       const inventorySummary = summarizeOpenCodeInventory({
         providerList: inventoryExit.value.providerList,
         isExternalServer,
+        hasOpenCodeApiKey:
+          (makeOpenCodeProcessEnv(input.settings.environment).OPENCODE_API_KEY?.trim().length ??
+            0) > 0,
       });
       return buildServerProvider({
         driver: PROVIDER,
@@ -536,13 +552,9 @@ export const OpenCodeProviderLive = Layer.effect(
         probe: {
           installed: true,
           version,
-          status: inventorySummary.connectedCount > 0 ? "ready" : "warning",
+          status: inventorySummary.status,
           auth: {
-            status: inventorySummary.hasAuthenticatedUpstream
-              ? "authenticated"
-              : inventorySummary.connectedCount > 0
-                ? "unauthenticated"
-                : "unknown",
+            status: inventorySummary.authStatus,
             type: "opencode",
           },
           message: inventorySummary.message,
@@ -554,7 +566,7 @@ export const OpenCodeProviderLive = Layer.effect(
       Effect.map(resolveOpenCodeSettings),
     );
 
-    return yield* makeManagedServerProvider<OpenCodeSettings>({
+    return yield* makeManagedServerProvider<ResolvedOpenCodeSettings>({
       getSettings: getProviderSettings.pipe(Effect.orDie),
       streamSettings: serverSettings.streamChanges.pipe(
         Stream.map((settings) => resolveOpenCodeSettings(settings)),

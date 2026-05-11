@@ -32,13 +32,7 @@ export interface ProviderClientDefinition {
   readonly label: string;
   readonly icon: Icon;
   readonly settingsSchema: ProviderSettingsSchema;
-  /**
-   * Optional short label rendered as a `variant="warning"` badge next to
-   * the instance title. Used to flag drivers that still ship under an
-   * early-access or preview gate — the flag is a property of the driver
-   * kind (not a specific instance), so every instance of that driver —
-   * built-in default or custom — advertises the same marker.
-   */
+  /** Optional short label rendered as a `variant="warning"` badge next to the instance title. */
   readonly badgeLabel?: string;
 }
 
@@ -59,7 +53,6 @@ export const PROVIDER_CLIENT_DEFINITIONS: readonly ProviderClientDefinition[] = 
     value: ProviderDriverKind.make("cursor"),
     label: "Cursor",
     icon: IconCursor,
-    badgeLabel: "Early Access",
     settingsSchema: CursorSettings,
   },
   {

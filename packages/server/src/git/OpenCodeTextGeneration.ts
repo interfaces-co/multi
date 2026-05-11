@@ -1,7 +1,12 @@
 import { Effect, Exit, Fiber, Layer, Schema, Scope } from "effect";
 import * as Semaphore from "effect/Semaphore";
 
-import { TextGenerationError, type ChatAttachment, type ModelSelection } from "@multi/contracts";
+import {
+  TextGenerationError,
+  type ChatAttachment,
+  type ModelSelection,
+  type ProviderInstanceEnvironment,
+} from "@multi/contracts";
 import { sanitizeBranchFragment, sanitizeFeatureBranchName } from "@multi/shared/git";
 import { getModelSelectionStringOptionValue } from "@multi/shared/model";
 
@@ -25,6 +30,7 @@ import {
   OpenCodeRuntime,
   type OpenCodeServerConnection,
   type OpenCodeServerProcess,
+  openCodeEnvironmentsEqual,
   openCodeRuntimeErrorDetail,
   parseOpenCodeModelSlug,
   toOpenCodeFileParts,
@@ -86,6 +92,7 @@ interface SharedOpenCodeTextGenerationServerState {
    */
   serverScope: Scope.Closeable | null;
   binaryPath: string | null;
+  environment: ProviderInstanceEnvironment | undefined;
   activeRequests: number;
   idleCloseFiber: Fiber.Fiber<void, never> | null;
 }
@@ -102,6 +109,7 @@ const makeOpenCodeTextGeneration = Effect.gen(function* () {
     server: null,
     serverScope: null,
     binaryPath: null,
+    environment: undefined,
     activeRequests: 0,
     idleCloseFiber: null,
   };
@@ -111,6 +119,7 @@ const makeOpenCodeTextGeneration = Effect.gen(function* () {
     sharedServerState.server = null;
     sharedServerState.serverScope = null;
     sharedServerState.binaryPath = null;
+    sharedServerState.environment = undefined;
     if (scope !== null) {
       yield* Scope.close(scope, Exit.void).pipe(Effect.ignore);
     }
@@ -147,6 +156,7 @@ const makeOpenCodeTextGeneration = Effect.gen(function* () {
 
   const acquireSharedServer = (input: {
     readonly binaryPath: string;
+    readonly environment: ProviderInstanceEnvironment;
     readonly operation:
       | "generateCommitMessage"
       | "generatePrContent"
@@ -159,8 +169,12 @@ const makeOpenCodeTextGeneration = Effect.gen(function* () {
 
         const existingServer = sharedServerState.server;
         if (existingServer !== null) {
+          const environmentMatches = openCodeEnvironmentsEqual(
+            sharedServerState.environment,
+            input.environment,
+          );
           if (
-            sharedServerState.binaryPath !== input.binaryPath &&
+            (sharedServerState.binaryPath !== input.binaryPath || !environmentMatches) &&
             sharedServerState.activeRequests === 0
           ) {
             yield* closeSharedServer();
@@ -172,6 +186,11 @@ const makeOpenCodeTextGeneration = Effect.gen(function* () {
                   " but active server uses " +
                   sharedServerState.binaryPath +
                   "; reusing existing server because there are active requests",
+              );
+            }
+            if (!environmentMatches) {
+              yield* Effect.logWarning(
+                "OpenCode shared server environment changed; reusing existing server because there are active requests",
               );
             }
             sharedServerState.activeRequests += 1;
@@ -199,6 +218,7 @@ const makeOpenCodeTextGeneration = Effect.gen(function* () {
                 openCodeRuntime
                   .startOpenCodeServerProcess({
                     binaryPath: input.binaryPath,
+                    environment: input.environment,
                   })
                   .pipe(
                     Effect.provideService(Scope.Scope, serverScope),
@@ -222,6 +242,7 @@ const makeOpenCodeTextGeneration = Effect.gen(function* () {
             sharedServerState.server = server;
             sharedServerState.serverScope = serverScope;
             sharedServerState.binaryPath = input.binaryPath;
+            sharedServerState.environment = input.environment;
             sharedServerState.activeRequests = 1;
             return server;
           }),
@@ -283,6 +304,7 @@ const makeOpenCodeTextGeneration = Effect.gen(function* () {
         serverUrl: "",
         serverPassword: "",
         customModels: [],
+        environment: [],
       })),
     );
 
@@ -347,6 +369,7 @@ const makeOpenCodeTextGeneration = Effect.gen(function* () {
         : yield* Effect.acquireUseRelease(
             acquireSharedServer({
               binaryPath: settings.binaryPath,
+              environment: settings.environment,
               operation: input.operation,
             }),
             runAgainstServer,

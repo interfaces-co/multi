@@ -20,7 +20,12 @@ import {
 import { ensureLocalApi } from "~/local-api";
 import { Struct } from "effect";
 import { deepMerge } from "@multi/shared/Struct";
-import { applySettingsUpdated, getServerConfig, useServerSettings } from "~/rpc/server-state";
+import {
+  applyProvidersUpdated,
+  applySettingsUpdated,
+  getServerConfig,
+  useServerSettings,
+} from "~/rpc/server-state";
 
 const CLIENT_SETTINGS_PERSISTENCE_ERROR_SCOPE = "[CLIENT_SETTINGS]";
 
@@ -148,16 +153,22 @@ export function useSettings<T = UnifiedSettings>(selector?: (s: UnifiedSettings)
  * persisted via RPC. Client keys go through client persistence.
  */
 export function useUpdateSettings() {
-  const updateSettings = useCallback((patch: Partial<UnifiedSettings>) => {
+  const updateSettings = useCallback(async (patch: Partial<UnifiedSettings>) => {
     const { serverPatch, clientPatch } = splitPatch(patch);
+    const writes: Promise<unknown>[] = [];
+    const refreshProvidersAfterWrite =
+      serverPatch.providers !== undefined || serverPatch.providerInstances !== undefined;
 
     if (Object.keys(serverPatch).length > 0) {
       const currentServerConfig = getServerConfig();
       if (currentServerConfig) {
         applySettingsUpdated(deepMerge(currentServerConfig.settings, serverPatch));
       }
-      // Fire-and-forget RPC — push will reconcile on success
-      void ensureLocalApi().server.updateSettings(serverPatch);
+      writes.push(
+        ensureLocalApi()
+          .server.updateSettings(serverPatch)
+          .then((settings) => applySettingsUpdated(settings)),
+      );
     }
 
     if (Object.keys(clientPatch).length > 0) {
@@ -165,6 +176,16 @@ export function useUpdateSettings() {
         ...getClientSettingsSnapshot(),
         ...clientPatch,
       });
+    }
+
+    await Promise.all(writes);
+    if (refreshProvidersAfterWrite) {
+      await ensureLocalApi()
+        .server.refreshProviders()
+        .then((payload) => applyProvidersUpdated(payload))
+        .catch((error: unknown) => {
+          console.warn("Failed to refresh providers after settings update", error);
+        });
     }
   }, []);
 
