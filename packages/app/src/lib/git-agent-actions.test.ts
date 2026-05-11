@@ -2,7 +2,6 @@ import { EnvironmentId, ThreadId, TurnId } from "@multi/contracts";
 import { describe, expect, it } from "vitest";
 
 import {
-  resolveGitAgentInterruptTarget,
   resolvePendingGitAgentAction,
   type GitAgentRun,
 } from "./git-agent-actions";
@@ -67,31 +66,3 @@ describe("resolvePendingGitAgentAction", () => {
   });
 });
 
-describe("resolveGitAgentInterruptTarget", () => {
-  it("prefers the active run target", () => {
-    expect(
-      resolveGitAgentInterruptTarget({
-        activeRun: active,
-        orchestrationHandoff: handoff,
-      }),
-    ).toEqual(active.target);
-  });
-
-  it("uses handoff when store has not caught up", () => {
-    expect(
-      resolveGitAgentInterruptTarget({
-        activeRun: null,
-        orchestrationHandoff: handoff,
-      }),
-    ).toEqual(handoff.target);
-  });
-
-  it("returns null when neither is set", () => {
-    expect(
-      resolveGitAgentInterruptTarget({
-        activeRun: null,
-        orchestrationHandoff: null,
-      }),
-    ).toBeNull();
-  });
-});

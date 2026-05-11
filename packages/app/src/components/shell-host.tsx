@@ -29,10 +29,8 @@ import {
 import {
   GIT_AGENT_ACTIONS,
   resolveGitAgentActionFromPrompt,
-  resolveGitAgentInterruptTarget,
   resolvePendingGitAgentAction,
   type GitAgentAction,
-  type GitAgentInterruptTarget,
   type GitAgentRun,
 } from "~/lib/git-agent-actions";
 import {
@@ -222,7 +220,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
   const projectByScopedKey = useMemo(
     () =>
       new Map(
-        projects.map((project: Project) => [
+        projects.map((project) => [
           scopedProjectKey(scopeProjectRef(project.environmentId, project.id)),
           project,
         ]),
@@ -259,7 +257,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
               projectId: null,
               projectCwd: DEFAULT_PROJECTLESS_CWD,
               updatedAt: draftThread.createdAt,
-            } satisfies SidebarDraftSummary,
+            },
           ];
         }
         const projectKey = projectScopedKeyFor(draftThread.environmentId, draftThread.projectId);
@@ -281,13 +279,13 @@ function ChatShellHost(props: { children?: ReactNode }) {
             projectId: draftThread.projectId,
             projectCwd: project.cwd,
             updatedAt: draftThread.createdAt,
-          } satisfies SidebarDraftSummary,
+          },
         ];
       });
   }, [composerDraftsByThreadKey, draftThreadsByThreadKey, projectByScopedKey]);
 
   const summaries = useMemo(() => {
-    return sidebarThreads.flatMap((thread): SidebarSectionThreadSummary[] => {
+    return sidebarThreads.flatMap((thread) => {
       if (thread.archivedAt !== null) {
         return [];
       }
@@ -307,7 +305,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
 
   const activeThread = routeActiveThread ?? null;
 
-  const activeGitAgentRun = useMemo((): GitAgentRun | null => {
+  const activeGitAgentRun = useMemo(() => {
     if (!activeThread) {
       return null;
     }
@@ -660,7 +658,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
     onMutate: () => {
       setGitAgentOrchestrationHandoff(null);
     },
-    mutationFn: async (target: GitAgentInterruptTarget) => {
+    mutationFn: async (target: GitAgentRun["target"]) => {
       const api = readEnvironmentApi(target.environmentId);
       if (!api) {
         throw new Error("Environment API unavailable.");
@@ -719,10 +717,8 @@ function ChatShellHost(props: { children?: ReactNode }) {
     mutationVariables: gitAgentActionMutation.variables,
     orchestrationHandoff: gitAgentOrchestrationHandoff,
   });
-  const gitAgentInterruptTarget = resolveGitAgentInterruptTarget({
-    activeRun: activeGitAgentRun,
-    orchestrationHandoff: gitAgentOrchestrationHandoff,
-  });
+  const gitAgentInterruptTarget =
+    activeGitAgentRun?.target ?? gitAgentOrchestrationHandoff?.target ?? null;
   const stopGitAgentAction = gitAgentInterruptTarget
     ? () => interruptGitAgentActionMutation.mutate(gitAgentInterruptTarget)
     : null;
