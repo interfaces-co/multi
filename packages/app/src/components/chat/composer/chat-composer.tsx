@@ -5,6 +5,7 @@ import type {
   ProjectEntry,
   ProviderApprovalDecision,
   ProviderInteractionMode,
+  KeybindingShortcut,
   ResolvedKeybindingsConfig,
   RuntimeMode,
   ScopedThreadRef,
@@ -31,6 +32,7 @@ import {
   type MouseEvent,
 } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useHotkey } from "@tanstack/react-hotkeys";
 import { useDebouncedValue } from "@tanstack/react-pacer";
 import { projectSearchEntriesQueryOptions } from "~/lib/project-react-query";
 import {
@@ -88,7 +90,7 @@ import { ContextWindowMeter } from "./context-window-meter";
 import { buildExpandedImagePreview, type ExpandedImagePreview } from "../message/expanded-image-preview";
 import { basenameOfPath } from "../../../vscode-icons";
 import { cn, randomUUID } from "~/lib/utils";
-import { resolveShortcutCommand } from "../../../keybindings";
+import { shortcutForCommand } from "../../../keybindings";
 import { Separator } from "@multi/ui/separator";
 import { Button } from "@multi/ui/button";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "@multi/ui/select";
@@ -148,6 +150,33 @@ const runtimeModeConfig: Record<
 const runtimeModeOptions = Object.keys(runtimeModeConfig) as RuntimeMode[];
 const COMPOSER_PATH_QUERY_DEBOUNCE_MS = 120;
 const EMPTY_PROJECT_ENTRIES: ProjectEntry[] = [];
+const DISABLED_COMPOSER_CYCLE_HOTKEY = { key: "Tab", shift: true } as const;
+
+function keybindingShortcutKeyForHotkey(shortcut: KeybindingShortcut): string {
+  if (shortcut.key === " ") return "Space";
+  if (shortcut.key === "escape") return "Escape";
+  if (shortcut.key === "tab") return "Tab";
+  if (shortcut.key === "enter") return "Enter";
+  if (shortcut.key === "arrowup") return "ArrowUp";
+  if (shortcut.key === "arrowdown") return "ArrowDown";
+  if (shortcut.key === "arrowleft") return "ArrowLeft";
+  if (shortcut.key === "arrowright") return "ArrowRight";
+  if (shortcut.key.length === 1) return shortcut.key.toUpperCase();
+  return shortcut.key;
+}
+
+function keybindingShortcutToHotkey(
+  shortcut: KeybindingShortcut,
+): Parameters<typeof useHotkey>[0] {
+  return {
+    key: keybindingShortcutKeyForHotkey(shortcut),
+    mod: shortcut.modKey,
+    ctrl: shortcut.ctrlKey,
+    shift: shortcut.shiftKey,
+    alt: shortcut.altKey,
+    meta: shortcut.metaKey,
+  };
+}
 
 const extendReplacementRangeForTrailingSpace = (
   text: string,
@@ -844,6 +873,7 @@ export const ChatComposer = memo(
     // Refs
     // ------------------------------------------------------------------
     const composerEditorRef = useRef<ComposerPromptEditorHandle>(null);
+    const composerEditorHotkeyRef = useRef<HTMLDivElement>(null);
     const composerFormRef = useRef<HTMLFormElement>(null);
     const composerImageInputRef = useRef<HTMLInputElement>(null);
     const composerFormHeightRef = useRef(0);
@@ -857,6 +887,26 @@ export const ChatComposer = memo(
     const dismissedComposerTriggerKeyRef = useRef<string | null>(null);
     const dragDepthRef = useRef(0);
     isComposerModelPickerOpenRef.current = isComposerModelPickerOpen;
+
+    const cycleInteractionModeHotkey = useMemo(() => {
+      const shortcut = shortcutForCommand(keybindings, "composer.cycleInteractionMode", {
+        context: { terminalOpen },
+      });
+      return shortcut ? keybindingShortcutToHotkey(shortcut) : null;
+    }, [keybindings, terminalOpen]);
+
+    useHotkey(
+      cycleInteractionModeHotkey ?? DISABLED_COMPOSER_CYCLE_HOTKEY,
+      () => {
+        toggleInteractionMode();
+      },
+      {
+        conflictBehavior: "allow",
+        enabled: cycleInteractionModeHotkey !== null,
+        ignoreInputs: false,
+        target: composerEditorHotkeyRef,
+      },
+    );
 
     const composerTriggerDismissKey = useCallback(
       (trigger: ComposerTrigger) =>
@@ -1805,13 +1855,6 @@ export const ChatComposer = memo(
           return true;
         }
       }
-      const command = resolveShortcutCommand(event, keybindings, {
-        context: { terminalOpen },
-      });
-      if (command === "composer.cycleInteractionMode") {
-        toggleInteractionMode();
-        return true;
-      }
       if (key === "Enter" && !event.shiftKey) {
         void onSend();
         return true;
@@ -2259,6 +2302,7 @@ export const ChatComposer = memo(
                 onMeasuredMultilineChange={setIsComposerEditorMultiline}
                 onChange={onPromptChange}
                 onCommandKeyDown={onComposerCommandKey}
+                hotkeyTargetRef={composerEditorHotkeyRef}
                 onPaste={onComposerPaste}
                 placeholder={
                   isComposerApprovalState

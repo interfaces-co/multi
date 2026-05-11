@@ -23,6 +23,7 @@
     "@pierre/diffs": "^1.1.21",
     "@pierre/theme": "^0.0.29",
     "@pierre/trees": "^1.0.0-beta.3",
+    "@tanstack/react-hotkeys": "^0.10.0",
     "@tanstack/react-pacer": "^0.22.0",
     "@tanstack/react-query": "^5.100.9",
     "@tanstack/react-router": "^1.169.2",

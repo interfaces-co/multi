@@ -174,6 +174,14 @@ function findEffectiveShortcutForCommand(
   return null;
 }
 
+export function shortcutForCommand(
+  keybindings: ResolvedKeybindingsConfig,
+  command: KeybindingCommand,
+  options?: ShortcutMatchOptions,
+): KeybindingShortcut | null {
+  return findEffectiveShortcutForCommand(keybindings, command, options);
+}
+
 function matchesCommandShortcut(
   event: ShortcutEventLike,
   keybindings: ResolvedKeybindingsConfig,

@@ -24,6 +24,7 @@ import {
   useRef,
   type ClipboardEventHandler,
   type ReactElement,
+  type RefObject,
 } from "react";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 
@@ -138,6 +139,7 @@ interface ComposerPromptEditorProps {
   disabled: boolean;
   placeholder: string;
   className?: string;
+  hotkeyTargetRef?: RefObject<HTMLDivElement | null>;
   onRemoveTerminalContext: (contextId: string) => void;
   onMeasuredMultilineChange?: (multiline: boolean) => void;
   onChange: (
@@ -1047,6 +1049,7 @@ export const ComposerPromptEditor = forwardRef<
     disabled,
     placeholder,
     className,
+    hotkeyTargetRef,
     onRemoveTerminalContext: _onRemoveTerminalContext,
     onMeasuredMultilineChange,
     onChange,
@@ -1420,7 +1423,7 @@ export const ComposerPromptEditor = forwardRef<
   );
 
   return (
-    <div className="composer-prompt-editor relative">
+    <div ref={hotkeyTargetRef} className="composer-prompt-editor relative">
       <EditorContent editor={editor} />
     </div>
   );
