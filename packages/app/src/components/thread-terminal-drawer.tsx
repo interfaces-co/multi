@@ -1088,28 +1088,32 @@ export default function ThreadTerminalDrawer({
     [syncHeight],
   );
 
+  const handleWindowResize = useEffectEvent(() => {
+    const clampedHeight = clampDrawerHeight(drawerHeightRef.current);
+    const changed = clampedHeight !== drawerHeightRef.current;
+    if (changed) {
+      setDrawerHeight(clampedHeight);
+      drawerHeightRef.current = clampedHeight;
+    }
+    if (!resizeStateRef.current) {
+      syncHeight(clampedHeight);
+    }
+    setResizeEpoch((value) => value + 1);
+  });
+
   useEffect(() => {
     if (!visible) {
       return;
     }
 
     const onWindowResize = () => {
-      const clampedHeight = clampDrawerHeight(drawerHeightRef.current);
-      const changed = clampedHeight !== drawerHeightRef.current;
-      if (changed) {
-        setDrawerHeight(clampedHeight);
-        drawerHeightRef.current = clampedHeight;
-      }
-      if (!resizeStateRef.current) {
-        syncHeight(clampedHeight);
-      }
-      setResizeEpoch((value) => value + 1);
+      handleWindowResize();
     };
     window.addEventListener("resize", onWindowResize);
     return () => {
       window.removeEventListener("resize", onWindowResize);
     };
-  }, [syncHeight, visible]);
+  }, [visible]);
 
   useEffect(() => {
     if (!visible) {
@@ -1185,6 +1189,7 @@ export default function ThreadTerminalDrawer({
                   <div
                     key={terminalId}
                     data-active={terminalId === resolvedActiveTerminalId ? "true" : "false"}
+                    role="presentation"
                     className="min-h-0 min-w-0 border-(--multi-terminal-border-subtle) border-l first:border-l-0 data-[active=true]:border-(--multi-terminal-border)"
                     onMouseDown={() => {
                       if (terminalId !== resolvedActiveTerminalId) {

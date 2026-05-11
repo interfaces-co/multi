@@ -700,10 +700,7 @@ const makeTerminalManager = Effect.fn("makeTerminalManager")(function* () {
   const ptyAdapter = yield* PtyAdapter;
   return yield* makeTerminalManagerWithOptions({
     logsDir: terminalLogsDir,
-    fallbackCwds: [
-      { label: "server.cwd", cwd },
-      { label: "process.cwd", cwd: process.cwd() },
-    ],
+    fallbackCwds: [{ label: "server.cwd", cwd }],
     ptyAdapter,
   });
 });

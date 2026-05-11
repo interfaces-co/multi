@@ -71,7 +71,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@m
 import { Input } from "@multi/ui/input";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "@multi/ui/select";
 import { Switch } from "@multi/ui/switch";
-import { Text } from "@multi/ui/text";
+import { Text, textVariants } from "@multi/ui/text";
 import { toastManager } from "~/app/toast";
 import {
   deriveProviderInstanceEntriesForSettings,
@@ -1837,9 +1837,16 @@ export function ArchivedThreadsPanel() {
                 }}
               >
                 <div className="min-w-0 flex-1">
-                  <Text render={<h3 />} size="base" tone="primary" weight="medium" truncate>
+                  <h3
+                    className={textVariants({
+                      size: "base",
+                      tone: "primary",
+                      weight: "medium",
+                      truncate: true,
+                    })}
+                  >
                     {thread.title}
-                  </Text>
+                  </h3>
                   <Text render={<p />} size="xs" tone="secondary" className="mt-0.5 block">
                     Archived {formatRelativeTimeLabel(thread.archivedAt ?? thread.createdAt)}
                     {" \u00b7 Created "}

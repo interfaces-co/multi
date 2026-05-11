@@ -192,7 +192,15 @@ function UserMessageBubbleSurface(props: UserMessageBubbleSurfaceProps) {
         {props.media ? (
           <div
             className="min-w-0"
+            role="presentation"
             onClick={
+              props.editable
+                ? (event) => {
+                    event.stopPropagation();
+                  }
+                : undefined
+            }
+            onKeyDown={
               props.editable
                 ? (event) => {
                     event.stopPropagation();

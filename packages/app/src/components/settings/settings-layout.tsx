@@ -3,7 +3,7 @@ import { type ReactNode, useEffect, useState } from "react";
 
 import { cn } from "../../lib/utils";
 import { Button } from "@multi/ui/button";
-import { Text } from "@multi/ui/text";
+import { Text, textVariants } from "@multi/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@multi/ui/tooltip";
 
 /** Re-render every `intervalMs`; return a stable timestamp snapshot for render-time relative labels. */
@@ -30,16 +30,15 @@ export function SettingsSection({
   return (
     <section className="space-y-2">
       <div className="flex min-h-5 items-center justify-between px-1.5">
-        <Text
-          render={<h2 />}
-          className="flex items-center gap-1.5"
-          size="xs"
-          tone="tertiary"
-          weight="medium"
+        <h2
+          className={cn(
+            textVariants({ size: "xs", tone: "tertiary", weight: "medium" }),
+            "flex items-center gap-1.5",
+          )}
         >
           {icon}
           {title}
-        </Text>
+        </h2>
         {headerAction}
       </div>
       <div className="relative overflow-hidden rounded-lg bg-multi-bg-quinary text-card-foreground">
@@ -74,9 +73,9 @@ export function SettingsRow({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex min-h-4 items-center gap-1.5">
-            <Text render={<h3 />} size="sm" tone="primary" weight="medium">
+            <h3 className={textVariants({ size: "sm", tone: "primary", weight: "medium" })}>
               {title}
-            </Text>
+            </h3>
             <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center">
               {resetAction}
             </span>

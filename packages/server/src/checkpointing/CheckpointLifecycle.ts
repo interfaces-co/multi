@@ -1,7 +1,6 @@
-import * as OS from "node:os";
-
 import {
   CommandId,
+  DEFAULT_PROJECTLESS_CWD,
   EventId,
   MessageId,
   type OrchestrationEvent,
@@ -173,7 +172,7 @@ const make = Effect.gen(function* () {
     });
     const threadCandidates =
       input.thread.projectId === null
-        ? ([{ label: "projectless.home", cwd: OS.homedir() }] as const)
+        ? ([{ label: "projectless.cwd", cwd: DEFAULT_PROJECTLESS_CWD }] as const)
         : ([
             { label: "thread.worktreePath", cwd: input.thread.worktreePath },
             { label: "project.projectRoot", cwd: project?.projectRoot },
@@ -189,10 +188,7 @@ const make = Effect.gen(function* () {
       fallbackCwds:
         input.thread.projectId === null
           ? []
-          : [
-              { label: "server.cwd", cwd: serverConfig.cwd },
-              { label: "process.cwd", cwd: process.cwd() },
-            ],
+          : [{ label: "server.cwd", cwd: serverConfig.cwd }],
       threadId: input.threadId,
       ...(input.thread.projectId === null ? {} : { projectId: input.thread.projectId }),
     });

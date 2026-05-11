@@ -88,19 +88,24 @@ const ProviderModelRow = memo(function ProviderModelRow({
 }: ProviderModelRowProps) {
   const capLabels = collectCapabilityLabels(model);
   const hasDetails = capLabels.length > 0 || model.name !== model.slug;
+  const selectable = model.selectable !== false;
 
   return (
     <div
       className={cn(
         "grid min-h-7 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 py-1",
-        isHidden && "text-muted-foreground",
+        (isHidden || !selectable) && "text-muted-foreground",
       )}
     >
       <div className="flex min-w-0 items-center gap-1">
         <span
           className={cn(
             "min-w-0 truncate text-xs",
-            isHidden ? "text-muted-foreground line-through" : "text-foreground/90",
+            isHidden
+              ? "text-muted-foreground line-through"
+              : selectable
+                ? "text-foreground/90"
+                : "text-muted-foreground",
           )}
         >
           {model.name}
@@ -136,6 +141,9 @@ const ProviderModelRow = memo(function ProviderModelRow({
           </Tooltip>
         ) : null}
         {isHidden ? <span className="text-[10px] text-muted-foreground">hidden</span> : null}
+        {!selectable ? (
+          <span className="text-[10px] text-muted-foreground">unavailable</span>
+        ) : null}
         {model.isCustom ? <span className="text-[10px] text-muted-foreground">custom</span> : null}
       </div>
       <div className="flex shrink-0 items-center gap-0.5">
@@ -309,6 +317,11 @@ export function ProviderModelsSection({
   const listRef = useRef<HTMLDivElement | null>(null);
   const hiddenModelSet = useMemo(() => new Set(hiddenModels), [hiddenModels]);
   const favoriteModelSet = useMemo(() => new Set(favoriteModels), [favoriteModels]);
+  const selectableModelCount = useMemo(
+    () => models.filter((model) => model.selectable !== false).length,
+    [models],
+  );
+  const unselectableModelCount = models.length - selectableModelCount;
   const orderedModels = useMemo(() => {
     return sortModelsForProviderInstance(models, {
       favoriteModels: favoriteModelSet,
@@ -423,7 +436,9 @@ export function ProviderModelsSection({
       <div className="border-t border-border/60 px-4 py-3 sm:px-5">
         <div className="text-xs font-medium text-foreground">Models</div>
         <div className="mt-1 text-xs text-muted-foreground">
-          {models.length} model{models.length === 1 ? "" : "s"} available.
+          {unselectableModelCount > 0
+            ? `${selectableModelCount} selectable, ${unselectableModelCount} unavailable.`
+            : `${models.length} model${models.length === 1 ? "" : "s"} available.`}
         </div>
         <div ref={listRef} className="mt-2 max-h-40 overflow-y-auto pb-1">
           {orderedModels.map((model, index) => {

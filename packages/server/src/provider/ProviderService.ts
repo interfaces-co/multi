@@ -21,6 +21,7 @@ import {
   ProviderStopSessionInput,
   ProviderDriverKind,
   ProviderInstanceId,
+  DEFAULT_PROJECTLESS_CWD,
   type ProviderRuntimeEvent,
   type ProviderSession,
 } from "@multi/contracts";
@@ -165,11 +166,10 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
     {
       label: "server.cwd",
       cwd: Option.match(serverConfigOption, {
-        onNone: () => undefined,
+        onNone: () => DEFAULT_PROJECTLESS_CWD,
         onSome: (serverConfig) => serverConfig.cwd,
       }),
     },
-    { label: "process.cwd", cwd: process.cwd() },
   ] as const;
 
   const coerceProviderCwd = (input: {
@@ -177,14 +177,12 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
     readonly cwd: string | undefined;
     readonly threadId: ThreadId;
   }) =>
-    input.cwd === undefined
-      ? Effect.sync(() => undefined)
-      : coerceAccessibleProjectCwd({
-          operation: input.operation,
-          candidates: [{ label: "provider.cwd", cwd: input.cwd }],
-          fallbackCwds: providerCwdFallbacks,
-          threadId: input.threadId,
-        });
+    coerceAccessibleProjectCwd({
+      operation: input.operation,
+      candidates: input.cwd === undefined ? [] : [{ label: "provider.cwd", cwd: input.cwd }],
+      fallbackCwds: providerCwdFallbacks,
+      threadId: input.threadId,
+    });
 
   const publishRuntimeEvent = (event: ProviderRuntimeEvent): Effect.Effect<void> =>
     Effect.succeed(event).pipe(

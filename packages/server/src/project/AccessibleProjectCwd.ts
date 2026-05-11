@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { Effect } from "effect";
 import type { ProjectId, ThreadId } from "@multi/contracts";
+import { expandHomePath } from "../path-expansion.ts";
 
 export interface ProjectCwdCandidate {
   readonly label: string;
@@ -34,7 +35,7 @@ function normalizeCandidates(
       continue;
     }
 
-    const cwd = path.resolve(trimmed);
+    const cwd = path.resolve(expandHomePath(trimmed));
     if (seen.has(cwd)) {
       continue;
     }

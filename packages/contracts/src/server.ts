@@ -55,6 +55,7 @@ export const ServerProviderModel = Schema.Struct({
   name: TrimmedNonEmptyString,
   shortName: Schema.optional(TrimmedNonEmptyString),
   subProvider: Schema.optional(TrimmedNonEmptyString),
+  selectable: Schema.optional(Schema.Boolean),
   isCustom: Schema.Boolean,
   capabilities: Schema.NullOr(ModelCapabilities),
 });

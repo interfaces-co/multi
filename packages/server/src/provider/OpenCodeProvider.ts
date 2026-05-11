@@ -220,6 +220,71 @@ function openCodeCapabilitiesForModel(input: {
   });
 }
 
+type OpenCodeUpstreamProvider = ProviderListResponse["all"][number];
+
+function connectedOpenCodeProviders(
+  providerList: ProviderListResponse,
+): ReadonlyArray<OpenCodeUpstreamProvider> {
+  const connected = new Set(providerList.connected);
+  return providerList.all.filter((provider) => connected.has(provider.id));
+}
+
+function isPublicOpenCodeZenProvider(provider: OpenCodeUpstreamProvider): boolean {
+  return (
+    provider.id === "opencode" &&
+    provider.source === "custom" &&
+    provider.key === undefined &&
+    provider.options.apiKey === "public"
+  );
+}
+
+function formatOpenCodeProviderConnection(provider: OpenCodeUpstreamProvider): string {
+  const modelCount = Object.keys(provider.models).length;
+  const publicLabel = isPublicOpenCodeZenProvider(provider) ? " public" : "";
+  return `${provider.name} (${modelCount}${publicLabel} model${modelCount === 1 ? "" : "s"})`;
+}
+
+function summarizeOpenCodeInventory(input: {
+  readonly providerList: ProviderListResponse;
+  readonly isExternalServer: boolean;
+}): {
+  readonly connectedCount: number;
+  readonly hasAuthenticatedUpstream: boolean;
+  readonly message: string;
+} {
+  const connectedProviders = connectedOpenCodeProviders(input.providerList);
+  const connectedCount = input.providerList.connected.length;
+  if (connectedCount === 0) {
+    return {
+      connectedCount,
+      hasAuthenticatedUpstream: false,
+      message: input.isExternalServer
+        ? "Connected to the configured OpenCode server, but it did not report any connected upstream providers."
+        : "OpenCode is available, but it did not report any connected upstream providers.",
+    };
+  }
+
+  const hasAuthenticatedUpstream = connectedProviders.some(
+    (provider) => !isPublicOpenCodeZenProvider(provider),
+  );
+  const connectionTarget = input.isExternalServer ? "the configured OpenCode server" : "OpenCode";
+  const providerSummary =
+    connectedProviders.length > 0
+      ? connectedProviders.map(formatOpenCodeProviderConnection).join(", ")
+      : `${connectedCount} upstream provider${connectedCount === 1 ? "" : "s"}`;
+  const publicOnly =
+    connectedProviders.length > 0 &&
+    connectedProviders.every((provider) => isPublicOpenCodeZenProvider(provider));
+
+  return {
+    connectedCount,
+    hasAuthenticatedUpstream,
+    message: publicOnly
+      ? `${providerSummary} available through ${connectionTarget}. Connect OpenCode Zen with an API key to unlock paid models.`
+      : `${providerSummary} connected through ${connectionTarget}.`,
+  };
+}
+
 function flattenOpenCodeModels(input: OpenCodeInventory): ReadonlyArray<ServerProviderModel> {
   const connected = new Set(input.providerList.connected);
   const models: Array<ServerProviderModel> = [];
@@ -458,7 +523,10 @@ export const OpenCodeProviderLive = Layer.effect(
         customModels,
         DEFAULT_OPENCODE_MODEL_CAPABILITIES,
       );
-      const connectedCount = inventoryExit.value.providerList.connected.length;
+      const inventorySummary = summarizeOpenCodeInventory({
+        providerList: inventoryExit.value.providerList,
+        isExternalServer,
+      });
       return buildServerProvider({
         driver: PROVIDER,
         presentation: OPENCODE_PRESENTATION,
@@ -468,17 +536,16 @@ export const OpenCodeProviderLive = Layer.effect(
         probe: {
           installed: true,
           version,
-          status: connectedCount > 0 ? "ready" : "warning",
+          status: inventorySummary.connectedCount > 0 ? "ready" : "warning",
           auth: {
-            status: connectedCount > 0 ? "authenticated" : "unknown",
+            status: inventorySummary.hasAuthenticatedUpstream
+              ? "authenticated"
+              : inventorySummary.connectedCount > 0
+                ? "unauthenticated"
+                : "unknown",
             type: "opencode",
           },
-          message:
-            connectedCount > 0
-              ? `${connectedCount} upstream provider${connectedCount === 1 ? "" : "s"} connected through ${isExternalServer ? "the configured OpenCode server" : "OpenCode"}.`
-              : isExternalServer
-                ? "Connected to the configured OpenCode server, but it did not report any connected upstream providers."
-                : "OpenCode is available, but it did not report any connected upstream providers.",
+          message: inventorySummary.message,
         },
       });
     });

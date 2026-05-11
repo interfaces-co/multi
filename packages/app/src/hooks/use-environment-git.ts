@@ -347,11 +347,14 @@ export function useEnvironmentGitPanel(
     const query = patchQueries[index];
     if (!query) continue;
 
-    if (query.data) {
+    const isFetching = query.isPending || query.fetchStatus === "fetching";
+    const isRetryingEmptyPatch = query.data?.kind === "empty" && isFetching;
+
+    if (query.data && !isRetryingEmptyPatch) {
       patchesByPath.set(row.path, query.data);
     }
 
-    if (!query.data && (query.isPending || query.fetchStatus === "fetching")) {
+    if ((!query.data || isRetryingEmptyPatch) && isFetching) {
       diffLoadingByPath.add(row.path);
     }
 

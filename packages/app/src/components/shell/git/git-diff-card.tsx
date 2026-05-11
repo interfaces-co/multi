@@ -5,7 +5,13 @@ import {
   IconChevronRightSmall,
   IconClipboard,
 } from "central-icons";
-import { type MouseEvent, type MutableRefObject, useEffect, useRef } from "react";
+import {
+  type KeyboardEvent,
+  type MouseEvent,
+  type MutableRefObject,
+  useEffect,
+  useRef,
+} from "react";
 import { toast } from "sonner";
 
 import { PretextOneLine } from "~/components/pretext-one-line";
@@ -75,6 +81,13 @@ export function GitDiffCard(props: {
   const { prefix, name } = splitPath(props.file.path);
   const pathLabel = prefix ? `${name} ${prefix}` : name;
   const showLoading = props.loading || (!props.loaded && !props.error);
+  const toggleExpanded = () => props.onExpandedChange(!props.expanded);
+  const toggleExpandedFromKeyboard = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget) return;
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    toggleExpanded();
+  };
 
   return (
     <div
@@ -89,13 +102,17 @@ export function GitDiffCard(props: {
             ? "border-[color-mix(in_srgb,var(--multi-stroke-tertiary)_82%,transparent)]"
             : "border-b-transparent",
         )}
-        onClick={() => props.onExpandedChange(!props.expanded)}
+        role="button"
+        tabIndex={0}
+        aria-expanded={props.expanded}
+        onClick={toggleExpanded}
+        onKeyDown={toggleExpandedFromKeyboard}
       >
         <button
           type="button"
           onClick={(event) => {
             event.stopPropagation();
-            props.onExpandedChange(!props.expanded);
+            toggleExpanded();
           }}
           className="group/git-diff-toggle inline-flex size-[14px] shrink-0 items-center justify-center text-multi-icon-tertiary focus-visible:rounded-[2px] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-multi-stroke-focused"
           aria-label={props.expanded ? "Collapse diff" : "Expand diff"}
@@ -173,12 +190,12 @@ export function GitDiffCard(props: {
       {props.expanded ? (
         <div className="git-diff-card__body select-text">
           {showLoading ? (
-            <div className="flex flex-col gap-2 px-3 py-3">
+            <div className="flex flex-col gap-2 p-3">
               <div className="h-3 w-full max-w-[14rem] animate-pulse rounded bg-muted/35" />
               <div className="h-3 w-full animate-pulse rounded bg-muted/28" />
             </div>
           ) : props.error ? (
-            <div className="px-3 py-3 text-detail text-destructive/90">{props.error}</div>
+            <div className="p-3 text-detail text-destructive/90">{props.error}</div>
           ) : (
             <DiffViewer
               filePatch={props.patch}

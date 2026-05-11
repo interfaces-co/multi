@@ -1391,7 +1391,7 @@ const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
                 : undefined));
         const runtimeInput: CodexSessionRuntimeOptions = {
           threadId: input.threadId,
-          cwd: input.cwd ?? process.cwd(),
+          cwd: input.cwd ?? serverConfig.cwd,
           binaryPath: codexSettings.binaryPath,
           ...(codexSettings.homePath ? { homePath: codexSettings.homePath } : {}),
           ...(Schema.is(CodexResumeCursorSchema)(input.resumeCursor)

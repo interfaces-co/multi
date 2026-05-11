@@ -61,6 +61,7 @@ export interface AppModelOption {
   name: string;
   shortName?: string;
   subProvider?: string;
+  selectable?: boolean;
   isCustom: boolean;
 }
 
@@ -72,7 +73,12 @@ function toAppModelOption(model: ServerProvider["models"][number]): AppModelOpti
   };
   if (model.shortName) option.shortName = model.shortName;
   if (model.subProvider) option.subProvider = model.subProvider;
+  if (model.selectable === false) option.selectable = false;
   return option;
+}
+
+function isAppModelOptionSelectable(option: Pick<AppModelOption, "selectable">): boolean {
+  return option.selectable !== false;
 }
 
 function readInstanceModelPreferences(
@@ -199,8 +205,9 @@ export function resolveAppModelSelection(
 ): string {
   const resolvedProvider = resolveSelectableProvider(providers, provider);
   const options = getAppModelOptions(settings, providers, resolvedProvider, selectedModel);
+  const selectableOptions = options.filter(isAppModelOptionSelectable);
   return (
-    resolveSelectableModel(resolvedProvider, selectedModel, options) ??
+    resolveSelectableModel(resolvedProvider, selectedModel, selectableOptions) ??
     getDefaultServerModel(providers, resolvedProvider)
   );
 }
@@ -216,10 +223,10 @@ export function resolveAppModelSelectionForInstance(
   );
   if (!entry) return null;
   const options = getAppModelOptionsForInstance(settings, entry);
+  const selectableOptions = options.filter(isAppModelOptionSelectable);
   return (
-    resolveSelectableModel(entry.driverKind, selectedModel, options) ??
-    options[0]?.slug ??
-    entry.models[0]?.slug ??
+    resolveSelectableModel(entry.driverKind, selectedModel, selectableOptions) ??
+    selectableOptions[0]?.slug ??
     null
   );
 }
@@ -258,9 +265,10 @@ export function resolveAppModelSelectionState(
     selectedEntry ?? entries.find((candidate) => isProviderInstanceSelectable(settings, candidate));
   if (entry) {
     const selectedModel = selectedEntry ? selection.model : null;
+    const selectableEntryModel = entry.models.find((entryModel) => entryModel.selectable !== false);
     const model =
       resolveAppModelSelectionForInstance(entry.instanceId, settings, providers, selectedModel) ??
-      entry.models[0]?.slug ??
+      selectableEntryModel?.slug ??
       DEFAULT_GIT_TEXT_GENERATION_MODEL_BY_PROVIDER[entry.driverKind];
     if (!model) {
       return createModelSelection(entry.instanceId, "", []);

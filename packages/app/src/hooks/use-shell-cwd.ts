@@ -1,5 +1,6 @@
 import { useMemo, useSyncExternalStore } from "react";
 import { useShallow } from "zustand/react/shallow";
+import { DEFAULT_PROJECTLESS_CWD } from "@multi/contracts";
 
 import { SHELL_LAYOUT_CHANGED_EVENT } from "../lib/shell-runtime-constants";
 import { readStoredProjectCwd } from "../lib/project-state";
@@ -36,7 +37,7 @@ export function resolveShellCwd(input: {
     ? (input.threads.find((item) => item.id === input.routeThreadId) ?? null)
     : null;
   if (thread?.projectId === null) {
-    return "~";
+    return DEFAULT_PROJECTLESS_CWD;
   }
   const storedProject = input.projects.find((item) => item.cwd === input.stored) ?? null;
   const threadProject = thread ? (byId.get(thread.projectId) ?? null) : null;

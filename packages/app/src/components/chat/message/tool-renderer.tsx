@@ -520,8 +520,6 @@ const ToolCallLine = memo(function ToolCallLine({
   onClick,
   linkable = false,
 }: ToolCallLineProps) {
-  const role = onClick ? "button" : undefined;
-  const tabIndex = onClick ? 0 : undefined;
   const content = (
     <>
       {Icon ? <Icon className="size-3.5 shrink-0 text-multi-fg-tertiary" /> : null}
@@ -541,21 +539,21 @@ const ToolCallLine = memo(function ToolCallLine({
     </>
   );
 
+  if (!onClick) {
+    return <div className={toolCallLineVariants({ clickable: false })}>{content}</div>;
+  }
+
   return (
     <div
-      role={role}
-      tabIndex={tabIndex}
-      className={toolCallLineVariants({ clickable: Boolean(onClick) })}
+      role="button"
+      tabIndex={0}
+      className={toolCallLineVariants({ clickable: true })}
       onClick={onClick}
-      onKeyDown={
-        onClick
-          ? (event) => {
-              if (event.key !== "Enter" && event.key !== " ") return;
-              event.preventDefault();
-              onClick();
-            }
-          : undefined
-      }
+      onKeyDown={(event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        onClick();
+      }}
     >
       {content}
     </div>
@@ -928,30 +926,39 @@ function EditToolCall({
           </button>
         ) : (
           <>
-            <div
-              className={toolCallLineVariants({ clickable: Boolean(onFileClick) })}
-              role={onFileClick ? "button" : undefined}
-              tabIndex={onFileClick ? 0 : undefined}
-              onClick={onFileClick ? () => onFileClick(path) : undefined}
-              onKeyDown={
-                onFileClick
-                  ? (event) => {
-                      if (event.key !== "Enter" && event.key !== " ") return;
-                      event.preventDefault();
-                      onFileClick(path);
-                    }
-                  : undefined
-              }
-            >
-              <IconFileEdit className="size-3.5 shrink-0 text-multi-fg-tertiary" />
-              <span className={toolCallLineActionVariants()}>{action}</span>
-              <PretextOneLine
-                text={path}
-                title={path}
-                truncate="middle"
-                className={editToolCallFilenameVariants({ loading, isDelete })}
-              />
-            </div>
+            {onFileClick ? (
+              <div
+                className={toolCallLineVariants({ clickable: true })}
+                role="button"
+                tabIndex={0}
+                onClick={() => onFileClick(path)}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter" && event.key !== " ") return;
+                  event.preventDefault();
+                  onFileClick(path);
+                }}
+              >
+                <IconFileEdit className="size-3.5 shrink-0 text-multi-fg-tertiary" />
+                <span className={toolCallLineActionVariants()}>{action}</span>
+                <PretextOneLine
+                  text={path}
+                  title={path}
+                  truncate="middle"
+                  className={editToolCallFilenameVariants({ loading, isDelete })}
+                />
+              </div>
+            ) : (
+              <div className={toolCallLineVariants({ clickable: false })}>
+                <IconFileEdit className="size-3.5 shrink-0 text-multi-fg-tertiary" />
+                <span className={toolCallLineActionVariants()}>{action}</span>
+                <PretextOneLine
+                  text={path}
+                  title={path}
+                  truncate="middle"
+                  className={editToolCallFilenameVariants({ loading, isDelete })}
+                />
+              </div>
+            )}
             <EditStats stats={stats} />
           </>
         )}

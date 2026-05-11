@@ -82,13 +82,16 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
 
   const activeInstanceId = props.activeInstanceId;
   const selectedInstanceOptions = props.modelOptionsByInstance.get(activeInstanceId) ?? [];
+  const selectableInstanceOptions = selectedInstanceOptions.filter(
+    (option) => option.selectable !== false,
+  );
   // If the current slug belongs to a different instance (for example after
   // a provider switch or disable), prefer the active instance's first
   // option so the trigger icon and label stay in sync instead of showing
   // a stale foreign slug.
   const selectedModel =
-    selectedInstanceOptions.find((option) => option.slug === props.model) ??
-    selectedInstanceOptions[0];
+    selectableInstanceOptions.find((option) => option.slug === props.model) ??
+    selectableInstanceOptions[0];
   const triggerTitle = selectedModel ? getTriggerDisplayModelName(selectedModel) : props.model;
   const triggerSubtitle = selectedModel?.subProvider;
   const triggerLabel = selectedModel ? getTriggerDisplayModelLabel(selectedModel) : props.model;

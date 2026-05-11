@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, type KeyboardEvent, useState } from "react";
 import { IconChevronLeft, IconChevronRight, IconCrossMediumDefault } from "central-icons";
 import { Button } from "@multi/ui/button";
 import type { ExpandedImagePreview } from "./expanded-image-preview";
@@ -9,51 +9,44 @@ interface ExpandedImageDialogProps {
 }
 
 export const ExpandedImageDialog = memo(function ExpandedImageDialog({
-  preview: initialPreview,
+  preview,
   onClose,
 }: ExpandedImageDialogProps) {
-  const [preview, setPreview] = useState(initialPreview);
+  const [index, setIndex] = useState(preview.index);
 
-  // Sync when the parent hands us a new preview reference.
-  useEffect(() => {
-    setPreview(initialPreview);
-  }, [initialPreview]);
+  const navigateImage = useCallback(
+    (direction: -1 | 1) => {
+      setIndex((existingIndex) => {
+        if (preview.images.length <= 1) return existingIndex;
+        const nextIndex =
+          (existingIndex + direction + preview.images.length) % preview.images.length;
+        return nextIndex === existingIndex ? existingIndex : nextIndex;
+      });
+    },
+    [preview.images.length],
+  );
 
-  const navigateImage = useCallback((direction: -1 | 1) => {
-    setPreview((existing) => {
-      if (existing.images.length <= 1) return existing;
-      const nextIndex =
-        (existing.index + direction + existing.images.length) % existing.images.length;
-      if (nextIndex === existing.index) return existing;
-      return { ...existing, index: nextIndex };
-    });
-  }, []);
-
-  useEffect(() => {
-    const onKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        event.stopPropagation();
-        onClose();
-        return;
-      }
-      if (preview.images.length <= 1) return;
-      if (event.key === "ArrowLeft") {
-        event.preventDefault();
-        event.stopPropagation();
-        navigateImage(-1);
-        return;
-      }
-      if (event.key !== "ArrowRight") return;
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape") {
       event.preventDefault();
       event.stopPropagation();
-      navigateImage(1);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [navigateImage, onClose, preview.images.length]);
+      onClose();
+      return;
+    }
+    if (preview.images.length <= 1) return;
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      event.stopPropagation();
+      navigateImage(-1);
+      return;
+    }
+    if (event.key !== "ArrowRight") return;
+    event.preventDefault();
+    event.stopPropagation();
+    navigateImage(1);
+  };
 
-  const item = preview.images[preview.index];
+  const item = preview.images[index];
   if (!item) return null;
 
   return (
@@ -62,6 +55,7 @@ export const ExpandedImageDialog = memo(function ExpandedImageDialog({
       role="dialog"
       aria-modal="true"
       aria-label="Expanded image preview"
+      onKeyDown={handleKeyDown}
     >
       <button
         type="button"
@@ -100,7 +94,7 @@ export const ExpandedImageDialog = memo(function ExpandedImageDialog({
         />
         <p className="mt-2 max-w-[92vw] truncate text-center text-xs text-muted-foreground/80">
           {item.name}
-          {preview.images.length > 1 ? ` (${preview.index + 1}/${preview.images.length})` : ""}
+          {preview.images.length > 1 ? ` (${index + 1}/${preview.images.length})` : ""}
         </p>
       </div>
       {preview.images.length > 1 && (

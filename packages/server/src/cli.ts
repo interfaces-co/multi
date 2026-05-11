@@ -3,6 +3,7 @@ import { parsePersistedServerObservabilitySettings } from "@multi/shared/server-
 import {
   AuthSessionId,
   CommandId,
+  DEFAULT_PROJECTLESS_CWD,
   OrchestrationReadModel,
   ProjectId,
   type ClientOrchestrationCommand,
@@ -286,7 +287,9 @@ export const resolveServerConfig = (
         ),
       ),
     );
-    const rawCwd = Option.getOrElse(normalizedFlags.cwd, () => process.cwd());
+    const rawCwd = Option.getOrElse(normalizedFlags.cwd, () =>
+      mode === "desktop" ? DEFAULT_PROJECTLESS_CWD : process.cwd(),
+    );
     const cwd = path.resolve(yield* expandHomePath(rawCwd.trim()));
     yield* fs.makeDirectory(cwd, { recursive: true });
     const derivedPaths = yield* deriveServerPaths(baseDir, devUrl);

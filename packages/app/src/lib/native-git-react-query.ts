@@ -70,7 +70,7 @@ export function gitPatchQueryOptions(input: {
       }
     },
     enabled: (input.enabled ?? true) && Boolean(input.cwd),
-    staleTime: Infinity,
+    staleTime: 0,
     gcTime: GIT_PATCH_CACHE_GC_TIME_MS,
   });
 }

@@ -70,10 +70,7 @@ const make = Effect.gen(function* () {
           { label: "thread.worktreePath", cwd: threadContext.value.worktreePath },
           { label: "project.projectRoot", cwd: threadContext.value.projectRoot },
         ],
-        fallbackCwds: [
-          { label: "server.cwd", cwd: serverConfig.cwd },
-          { label: "process.cwd", cwd: process.cwd() },
-        ],
+        fallbackCwds: [{ label: "server.cwd", cwd: serverConfig.cwd }],
         threadId: input.threadId,
         projectId: threadContext.value.projectId,
       });

@@ -4,7 +4,7 @@ import {
   scopeProjectRef,
   scopeThreadRef,
 } from "@multi/client-runtime";
-import { type EditorId, type EnvironmentId } from "@multi/contracts";
+import { DEFAULT_PROJECTLESS_CWD, type EditorId, type EnvironmentId } from "@multi/contracts";
 import { useMutation } from "@tanstack/react-query";
 import { Outlet, useNavigate, useParams, useRouter } from "@tanstack/react-router";
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
@@ -78,8 +78,6 @@ import { TerminalPanel } from "./shell/terminal/panel";
 import { TerminalRail } from "./shell/terminal/terminal-rail";
 import { TerminalWorkbenchSubChrome } from "./shell/terminal/workbench-subchrome";
 
-const PROJECTLESS_CWD = "~";
-
 function projectScopedKeyFor(
   environmentId: EnvironmentId,
   projectId: Project["id"] | null,
@@ -111,9 +109,9 @@ function toSummaryFromSidebarThread(
 ): SidebarSectionThreadSummary {
   const cwd =
     thread.projectId === null
-      ? PROJECTLESS_CWD
-      : (thread.worktreePath ?? project?.cwd ?? PROJECTLESS_CWD);
-  const projectCwd = thread.projectId === null ? PROJECTLESS_CWD : (project?.cwd ?? cwd);
+      ? DEFAULT_PROJECTLESS_CWD
+      : (thread.worktreePath ?? project?.cwd ?? DEFAULT_PROJECTLESS_CWD);
+  const projectCwd = thread.projectId === null ? DEFAULT_PROJECTLESS_CWD : (project?.cwd ?? cwd);
   const orchestrationStatus = thread.session?.orchestrationStatus ?? null;
   return {
     id: thread.id,
@@ -256,10 +254,10 @@ function ChatShellHost(props: { children?: ReactNode }) {
                 (composerDraft?.images.length ?? 0) +
                 (composerDraft?.persistedAttachments.length ?? 0),
               firstAttachmentName: firstAttachment?.name ?? null,
-              cwd: PROJECTLESS_CWD,
+              cwd: DEFAULT_PROJECTLESS_CWD,
               environmentId: draftThread.environmentId,
               projectId: null,
-              projectCwd: PROJECTLESS_CWD,
+              projectCwd: DEFAULT_PROJECTLESS_CWD,
               updatedAt: draftThread.createdAt,
             } satisfies SidebarDraftSummary,
           ];
@@ -337,7 +335,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
     useState<GitAgentRun | null>(null);
   const activeDraftCwd = activeDraftThread
     ? activeDraftThread.projectId === null
-      ? PROJECTLESS_CWD
+      ? DEFAULT_PROJECTLESS_CWD
       : (activeDraftThread.worktreePath ??
         (activeDraftThread.projectId
           ? projectByScopedKey.get(
@@ -355,7 +353,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
     activeDraftCwd ??
     (activeThread
       ? activeThread.projectId === null
-        ? PROJECTLESS_CWD
+        ? DEFAULT_PROJECTLESS_CWD
         : (activeThread.worktreePath ??
           (activeThread.projectId
             ? projectByScopedKey.get(

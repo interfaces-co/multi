@@ -32,6 +32,7 @@ type ModelPickerItem = {
   instanceDisplayName: string;
   instanceAccentColor?: string | undefined;
   continuationGroupKey?: string | undefined;
+  selectable?: boolean | undefined;
 };
 
 const EMPTY_MODEL_JUMP_LABELS = new Map<string, string>();
@@ -195,6 +196,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
           name: model.name,
           ...(model.shortName ? { shortName: model.shortName } : {}),
           ...(model.subProvider ? { subProvider: model.subProvider } : {}),
+          ...(model.selectable === false ? { selectable: false } : {}),
           instanceId,
           driverKind: entry.driverKind,
           instanceDisplayName: entry.displayName,
@@ -304,10 +306,11 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
       if (!entry) {
         return;
       }
+      const selectableOptions = options.filter((option) => option.selectable !== false);
       // `resolveSelectableModel` uses the driver kind for normalization
       // (slug casing etc.). Custom instances share their driver's
       // normalization rules, so pass the driver kind here.
-      const resolvedModel = resolveSelectableModel(entry.driverKind, modelSlug, options);
+      const resolvedModel = resolveSelectableModel(entry.driverKind, modelSlug, selectableOptions);
       if (resolvedModel) {
         onInstanceModelChange(instanceId, resolvedModel);
       }
@@ -320,12 +323,17 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
       string,
       NonNullable<ReturnType<typeof modelPickerJumpCommandForIndex>>
     >();
-    for (const [visibleModelIndex, model] of filteredModels.entries()) {
-      const jumpCommand = modelPickerJumpCommandForIndex(visibleModelIndex);
+    let selectableModelIndex = 0;
+    for (const model of filteredModels) {
+      if (model.selectable === false) {
+        continue;
+      }
+      const jumpCommand = modelPickerJumpCommandForIndex(selectableModelIndex);
       if (!jumpCommand) {
         return mapping;
       }
       mapping.set(`${model.instanceId}:${model.slug}`, jumpCommand);
+      selectableModelIndex += 1;
     }
     return mapping;
   }, [filteredModels]);
@@ -524,7 +532,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
                         useTriggerLabel={false}
                         showNewBadge={isModelPickerNewModel(model.driverKind, model.slug)}
                         jumpLabel={modelJumpLabelByKey.get(modelKey) ?? null}
-                        showFavoriteToggle
+                        showFavoriteToggle={model.selectable !== false}
                         isFavorite={favoritesSet.has(fk)}
                         onFavoriteClick={() => toggleModelFavorite(model.instanceId, model.slug)}
                       />

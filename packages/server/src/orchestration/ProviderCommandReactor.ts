@@ -1,6 +1,7 @@
 import {
   type ChatAttachment,
   CommandId,
+  DEFAULT_PROJECTLESS_CWD,
   EventId,
   type MessageId,
   type ModelSelection,
@@ -13,7 +14,6 @@ import {
   type RuntimeMode,
   type TurnId,
 } from "@multi/contracts";
-import * as OS from "node:os";
 import { isTemporaryWorktreeBranch, WORKTREE_BRANCH_PREFIX } from "@multi/shared/git";
 import {
   Cache,
@@ -46,6 +46,7 @@ import {
   coerceAccessibleProjectCwd,
   coerceThreadProjectCwd,
 } from "../project/AccessibleProjectCwd.ts";
+import { expandHomePath } from "../os-jank.ts";
 
 type ProviderIntentEvent = Extract<
   OrchestrationEvent,
@@ -185,7 +186,7 @@ const make = Effect.gen(function* () {
   const threadModelSelections = new Map<string, ModelSelection>();
   const getProjectlessChatCwd = Effect.fn("ProviderCommandReactor.getProjectlessChatCwd")(
     function* () {
-      const cwd = OS.homedir();
+      const cwd = yield* expandHomePath(DEFAULT_PROJECTLESS_CWD);
       yield* fileSystem.makeDirectory(cwd, { recursive: true });
       return cwd;
     },
@@ -279,10 +280,7 @@ const make = Effect.gen(function* () {
               worktreePath: thread.worktreePath,
             },
             projects: readModel.projects,
-            fallbackCwds: [
-              { label: "server.cwd", cwd: serverConfig.cwd },
-              { label: "process.cwd", cwd: process.cwd() },
-            ],
+            fallbackCwds: [{ label: "server.cwd", cwd: serverConfig.cwd }],
           });
 
     const resolveActiveSession = (threadId: ThreadId) =>
@@ -586,11 +584,8 @@ const make = Effect.gen(function* () {
                 worktreePath: thread.worktreePath,
               },
               projects: readModel.projects,
-              fallbackCwds: [
-                { label: "server.cwd", cwd: serverConfig.cwd },
-                { label: "process.cwd", cwd: process.cwd() },
-              ],
-            })) ?? process.cwd());
+              fallbackCwds: [{ label: "server.cwd", cwd: serverConfig.cwd }],
+            })) ?? serverConfig.cwd);
       const generationInput = {
         messageText: message.text,
         ...(message.attachments !== undefined ? { attachments: message.attachments } : {}),

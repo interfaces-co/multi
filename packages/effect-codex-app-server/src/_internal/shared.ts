@@ -6,6 +6,50 @@ import * as CodexError from "../errors.ts";
 
 const formatSchemaIssue = SchemaIssue.makeFormatterDefault();
 
+const LEGACY_CODEX_SERVICE_TIER_ALIASES: Readonly<Record<string, "fast" | "flex">> = {
+  priority: "fast",
+};
+
+function normalizeCodexServiceTierValue(value: unknown): unknown {
+  if (typeof value !== "string") {
+    return value;
+  }
+  return LEGACY_CODEX_SERVICE_TIER_ALIASES[value.trim().toLowerCase()] ?? value;
+}
+
+function normalizeCodexServiceTierPayload(payload: unknown): unknown {
+  if (Array.isArray(payload)) {
+    let changed = false;
+    const normalized = payload.map((item) => {
+      const next = normalizeCodexServiceTierPayload(item);
+      if (next !== item) {
+        changed = true;
+      }
+      return next;
+    });
+    return changed ? normalized : payload;
+  }
+
+  if (payload === null || typeof payload !== "object") {
+    return payload;
+  }
+
+  let changed = false;
+  const record = payload as Record<string, unknown>;
+  const normalized: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(record)) {
+    const next =
+      key === "serviceTier"
+        ? normalizeCodexServiceTierValue(value)
+        : normalizeCodexServiceTierPayload(value);
+    if (next !== value) {
+      changed = true;
+    }
+    normalized[key] = next;
+  }
+  return changed ? normalized : payload;
+}
+
 export const JsonRpcId = Schema.Union([Schema.Number, Schema.String]);
 
 export const JsonRpcError = Schema.Struct({
@@ -34,7 +78,7 @@ export const decodeOptionalPayload = <A, I>(
     );
   }
 
-  return Schema.decodeUnknownEffect(schema)(raw).pipe(
+  return Schema.decodeUnknownEffect(schema)(normalizeCodexServiceTierPayload(raw)).pipe(
     Effect.mapError((error) =>
       CodexError.CodexAppServerRequestError.invalidParams(
         `Invalid ${method} payload: ${formatSchemaIssue(error.issue)}`,
@@ -61,7 +105,7 @@ export const encodeOptionalPayload = <A, I>(
     );
   }
 
-  return Schema.encodeEffect(schema)(payload).pipe(
+  return Schema.encodeEffect(schema)(normalizeCodexServiceTierPayload(payload) as A).pipe(
     Effect.mapError((error) =>
       CodexError.CodexAppServerRequestError.invalidParams(
         `Invalid ${method} payload: ${formatSchemaIssue(error.issue)}`,

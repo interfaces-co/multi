@@ -30,6 +30,7 @@ export type ModelEsque = {
   name: string;
   shortName?: string | undefined;
   subProvider?: string | undefined;
+  selectable?: boolean | undefined;
 };
 
 export function getDisplayModelName(

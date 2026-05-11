@@ -1,9 +1,8 @@
-import * as OS from "node:os";
-
 import {
   ApprovalRequestId,
   type AssistantDeliveryMode,
   CommandId,
+  DEFAULT_PROJECTLESS_CWD,
   MessageId,
   type OrchestrationEvent,
   type OrchestrationProposedPlanId,
@@ -582,7 +581,7 @@ const make = Effect.fn("make")(function* () {
       thread.projectId === null
         ? yield* coerceAccessibleProjectCwd({
             operation: "ProviderRuntimeIngestion.isGitRepoForThread",
-            candidates: [{ label: "projectless.home", cwd: OS.homedir() }],
+            candidates: [{ label: "projectless.cwd", cwd: DEFAULT_PROJECTLESS_CWD }],
             threadId: thread.id,
           })
         : yield* coerceThreadProjectCwd({
@@ -593,10 +592,7 @@ const make = Effect.fn("make")(function* () {
               worktreePath: thread.worktreePath,
             },
             projects: readModel.projects,
-            fallbackCwds: [
-              { label: "server.cwd", cwd: serverConfig.cwd },
-              { label: "process.cwd", cwd: process.cwd() },
-            ],
+            fallbackCwds: [{ label: "server.cwd", cwd: serverConfig.cwd }],
           });
     if (!projectCwd) {
       return false;

@@ -65,7 +65,11 @@ import {
   togglePendingUserInputOptionSelection,
   type PendingUserInputDraftAnswer,
 } from "../../../pending-user-input";
-import { selectEnvironmentState, selectSidebarThreadsAcrossEnvironments, useStore } from "../../../store";
+import {
+  selectEnvironmentState,
+  selectSidebarThreadsAcrossEnvironments,
+  useStore,
+} from "../../../store";
 import { createProjectSelectorByRef, createThreadSelectorByRef } from "../../../store-selectors";
 import { useUiStateStore } from "../../../ui-state-store";
 import {
@@ -4293,7 +4297,11 @@ export default function ChatView(props: ChatViewProps) {
       ))}
 
       {expandedImage && (
-        <ExpandedImageDialog preview={expandedImage} onClose={closeExpandedImage} />
+        <ExpandedImageDialog
+          key={`${expandedImage.index}:${expandedImage.images.map((image) => image.src).join("\n")}`}
+          preview={expandedImage}
+          onClose={closeExpandedImage}
+        />
       )}
     </div>
   );

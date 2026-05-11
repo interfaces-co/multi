@@ -153,6 +153,7 @@ export default function ProjectScriptsControl({
   onDeleteScript,
 }: ProjectScriptsControlProps) {
   const addScriptFormId = React.useId();
+  const runOnWorktreeCreateId = React.useId();
   const [editingScriptId, setEditingScriptId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [name, setName] = useState("");
@@ -445,9 +446,13 @@ export default function ProjectScriptsControl({
                   onChange={(event) => setCommand(event.target.value)}
                 />
               </div>
-              <label className="flex items-center justify-between gap-3 rounded-md border border-border/70 px-3 py-2 text-sm">
+              <label
+                className="flex items-center justify-between gap-3 rounded-md border border-border/70 px-3 py-2 text-sm"
+                htmlFor={runOnWorktreeCreateId}
+              >
                 <span>Run automatically on worktree creation</span>
                 <Switch
+                  id={runOnWorktreeCreateId}
                   checked={runOnWorktreeCreate}
                   onCheckedChange={(checked) => setRunOnWorktreeCreate(Boolean(checked))}
                 />

@@ -19,6 +19,7 @@ import {
   type ProviderTurnStartResult,
   RuntimeMode,
   ProviderInteractionMode,
+  DEFAULT_PROJECTLESS_CWD,
 } from "@multi/contracts";
 import { normalizeModelSlug } from "@multi/shared/model";
 import { Cause, Effect, Context, Exit, Schema } from "effect";
@@ -34,6 +35,7 @@ import {
   type CodexAccountSnapshot,
 } from "./provider/codex-account";
 import { buildCodexInitializeParams, killCodexChildProcess } from "./provider/codex-app-server";
+import { expandHomePath } from "./path-expansion.ts";
 import {
   CodexAppServerInvalidResponseError,
   CodexAppServerJsonParseError,
@@ -448,7 +450,7 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
     let context: CodexSessionContext | undefined;
 
     try {
-      const resolvedCwd = input.cwd ?? process.cwd();
+      const resolvedCwd = input.cwd ?? expandHomePath(DEFAULT_PROJECTLESS_CWD);
 
       const session: ProviderSession = {
         provider: CODEX_DRIVER,

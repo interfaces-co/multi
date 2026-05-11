@@ -35,17 +35,22 @@ export const ModelListRow = memo(function ModelListRow(props: {
   onFavoriteClick?: () => void;
 }) {
   const ProviderIcon = PROVIDER_ICON_BY_PROVIDER[props.driverKind] ?? null;
+  const selectable = props.model.selectable !== false;
   const providerLabel = props.model.subProvider
     ? `${props.providerDisplayName} · ${props.model.subProvider}`
     : props.providerDisplayName;
+  const providerLine = selectable
+    ? providerLabel
+    : `${providerLabel} · Unavailable`;
 
   return (
     <ComboboxItem
+      disabled={!selectable}
       hideIndicator
       index={props.index}
       value={`${props.instanceId}:${props.model.slug}`}
       contentClassName="flex w-full items-start gap-1.5"
-      className="group w-full cursor-pointer rounded-[5px] px-1.5 py-1 text-[12px]/[16px] transition-colors hover:bg-multi-bg-quaternary data-highlighted:bg-multi-bg-quaternary data-selected:bg-multi-bg-active data-selected:text-multi-fg-primary"
+      className="group w-full cursor-pointer rounded-[5px] px-1.5 py-1 text-[12px]/[16px] transition-colors hover:bg-multi-bg-quaternary data-disabled:cursor-not-allowed data-highlighted:bg-multi-bg-quaternary data-selected:bg-multi-bg-active data-selected:text-multi-fg-primary"
     >
       <span
         aria-hidden="true"
@@ -120,7 +125,7 @@ export const ModelListRow = memo(function ModelListRow(props: {
               />
             ) : null}
             <span className="truncate text-[11px]/[14px] font-normal text-multi-fg-tertiary">
-              {providerLabel}
+              {providerLine}
             </span>
           </div>
         )}

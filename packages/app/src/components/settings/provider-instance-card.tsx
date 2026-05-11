@@ -428,22 +428,38 @@ export function ProviderInstanceCard({
   onModelOrderChange,
 }: ProviderInstanceCardProps) {
   const enabled = instance.enabled ?? true;
-  // The server-reported status wins when present; otherwise fall back to
-  // "disabled"/"warning" based on the local `enabled` flag so the dot
-  // reflects the persisted intent even before the first probe completes.
-  const statusKey: ProviderStatusKey =
-    (liveProvider?.status as ProviderStatusKey | undefined) ?? (enabled ? "warning" : "disabled");
+  const serverStatusIsStaleDisabled =
+    enabled && (liveProvider?.enabled === false || liveProvider?.status === "disabled");
+  // The local enabled intent wins over stale server snapshots so toggling
+  // either direction updates the status copy and dot immediately.
+  const statusKey: ProviderStatusKey = !enabled
+    ? "disabled"
+    : serverStatusIsStaleDisabled
+      ? "warning"
+      : ((liveProvider?.status as ProviderStatusKey | undefined) ?? "warning");
   const statusStyle = PROVIDER_STATUS_STYLES[statusKey];
-  const rawSummary = getProviderSummary(liveProvider);
   const authenticatedDetail =
-    liveProvider?.auth.status === "authenticated"
+    enabled && !serverStatusIsStaleDisabled && liveProvider?.auth.status === "authenticated"
       ? (liveProvider.auth.label ?? liveProvider.auth.type ?? null)
       : null;
-  const summary = rawSummary;
   const versionLabel = getProviderVersionLabel(liveProvider?.version);
   const FallbackIconComponent = driverOption?.icon;
   const displayName =
     instance.displayName?.trim() || driverOption?.label || String(instance.driver);
+  const summary = !enabled
+    ? {
+        headline: "Disabled",
+        detail:
+          liveProvider?.enabled === false
+            ? (liveProvider.message ?? `${displayName} is disabled in Multi settings.`)
+            : `${displayName} is disabled in Multi settings.`,
+      }
+    : serverStatusIsStaleDisabled
+      ? {
+          headline: "Checking provider status",
+          detail: "Waiting for the server to refresh after settings changed.",
+        }
+      : getProviderSummary(liveProvider);
   const accentColor = normalizeProviderAccentColor(instance.accentColor);
 
   // Narrow `instance.driver` for callers that key on the closed

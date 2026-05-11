@@ -1,5 +1,5 @@
 import { IconPlusLarge, IconQrCode } from "central-icons";
-import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import {
   type AuthClientSession,
   type AuthPairingLink,
@@ -531,6 +531,7 @@ const AuthorizedClientsHeaderAction = memo(function AuthorizedClientsHeaderActio
   isRevokingOtherClients,
   onRevokeOtherClients,
 }: AuthorizedClientsHeaderActionProps) {
+  const pairingLabelInputId = useId();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [pairingLabel, setPairingLabel] = useState("");
   const [isCreatingPairingLink, setIsCreatingPairingLink] = useState(false);
@@ -591,11 +592,12 @@ const AuthorizedClientsHeaderAction = memo(function AuthorizedClientsHeaderActio
             </DialogDescription>
           </DialogHeader>
           <DialogPanel>
-            <label className="block">
+            <label className="block" htmlFor={pairingLabelInputId}>
               <span className="mb-1.5 block text-xs font-medium text-foreground">
                 Client label (optional)
               </span>
               <Input
+                id={pairingLabelInputId}
                 value={pairingLabel}
                 onChange={(event) => setPairingLabel(event.target.value)}
                 placeholder="e.g. Living room iPad"
@@ -761,6 +763,10 @@ function SavedBackendListRow({
 
 export function ConnectionsSettings() {
   const desktopBridge = window.desktopBridge;
+  const savedBackendLabelInputId = useId();
+  const savedBackendPairingUrlInputId = useId();
+  const savedBackendHostInputId = useId();
+  const savedBackendPairingCodeInputId = useId();
   const [currentSessionRole, setCurrentSessionRole] = useState<"owner" | "client" | null>(
     desktopBridge ? "owner" : null,
   );
@@ -1340,11 +1346,12 @@ export function ConnectionsSettings() {
                     </p>
                   )}
                   <div className="space-y-3">
-                    <label className="block">
+                    <label className="block" htmlFor={savedBackendLabelInputId}>
                       <span className="mb-1.5 block text-xs font-medium text-foreground">
                         Label
                       </span>
                       <Input
+                        id={savedBackendLabelInputId}
                         value={savedBackendLabel}
                         onChange={(event) => setSavedBackendLabel(event.target.value)}
                         placeholder="My backend (optional)"
@@ -1353,11 +1360,12 @@ export function ConnectionsSettings() {
                       />
                     </label>
                     {savedBackendMode === "pairing-url" ? (
-                      <label className="block">
+                      <label className="block" htmlFor={savedBackendPairingUrlInputId}>
                         <span className="mb-1.5 block text-xs font-medium text-foreground">
                           Pairing URL
                         </span>
                         <Input
+                          id={savedBackendPairingUrlInputId}
                           value={savedBackendPairingUrl}
                           onChange={(event) => setSavedBackendPairingUrl(event.target.value)}
                           placeholder="https://backend.example.com/pair#token=..."
@@ -1370,11 +1378,12 @@ export function ConnectionsSettings() {
                       </label>
                     ) : (
                       <>
-                        <label className="block">
+                        <label className="block" htmlFor={savedBackendHostInputId}>
                           <span className="mb-1.5 block text-xs font-medium text-foreground">
                             Host
                           </span>
                           <Input
+                            id={savedBackendHostInputId}
                             value={savedBackendHost}
                             onChange={(event) => setSavedBackendHost(event.target.value)}
                             placeholder="https://backend.example.com"
@@ -1382,11 +1391,12 @@ export function ConnectionsSettings() {
                             spellCheck={false}
                           />
                         </label>
-                        <label className="block">
+                        <label className="block" htmlFor={savedBackendPairingCodeInputId}>
                           <span className="mb-1.5 block text-xs font-medium text-foreground">
                             Pairing code
                           </span>
                           <Input
+                            id={savedBackendPairingCodeInputId}
                             value={savedBackendPairingCode}
                             onChange={(event) => setSavedBackendPairingCode(event.target.value)}
                             placeholder="Pairing code"

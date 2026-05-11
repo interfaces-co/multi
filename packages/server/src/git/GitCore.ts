@@ -60,6 +60,7 @@ const STATUS_UPSTREAM_REFRESH_FAILURE_COOLDOWN = Duration.seconds(5);
 const STATUS_UPSTREAM_REFRESH_CACHE_CAPACITY = 2_048;
 const DEFAULT_BASE_BRANCH_CANDIDATES = ["main", "master"] as const;
 const GIT_LIST_BRANCHES_DEFAULT_LIMIT = 100;
+const GIT_LITERAL_PATHSPECS_ARG = "--literal-pathspecs";
 const NON_REPOSITORY_STATUS_DETAILS = Object.freeze<GitStatusDetails>({
   isRepo: false,
   hasOriginRemote: false,
@@ -102,28 +103,74 @@ function parseBranchAb(value: string): { ahead: number; behind: number } {
   };
 }
 
-function parseNumstatEntries(
+function parseNumstatCounts(
+  addedRaw: string | undefined,
+  deletedRaw: string | undefined,
+): { insertions: number; deletions: number } {
+  const added = Number.parseInt(addedRaw ?? "0", 10);
+  const deleted = Number.parseInt(deletedRaw ?? "0", 10);
+  return {
+    insertions: Number.isFinite(added) ? added : 0,
+    deletions: Number.isFinite(deleted) ? deleted : 0,
+  };
+}
+
+function parseNullTerminatedNumstatEntries(
+  stdout: string,
+): Array<{ path: string; insertions: number; deletions: number }> {
+  const entries: Array<{ path: string; insertions: number; deletions: number }> = [];
+  const records = splitNullSeparatedPaths(stdout, false);
+
+  for (let index = 0; index < records.length; index += 1) {
+    const record = records[index] ?? "";
+    const [addedRaw, deletedRaw, ...pathParts] = record.split("\t");
+    if (addedRaw === undefined || deletedRaw === undefined || pathParts.length === 0) {
+      continue;
+    }
+
+    let pathValue = pathParts.join("\t");
+    if (pathValue.length === 0) {
+      const renamedPath = records[index + 2];
+      if (!renamedPath) {
+        continue;
+      }
+      pathValue = renamedPath;
+      index += 2;
+    }
+
+    if (pathValue.length === 0) continue;
+    entries.push({
+      path: pathValue,
+      ...parseNumstatCounts(addedRaw, deletedRaw),
+    });
+  }
+
+  return entries;
+}
+
+function parseTextNumstatEntries(
   stdout: string,
 ): Array<{ path: string; insertions: number; deletions: number }> {
   const entries: Array<{ path: string; insertions: number; deletions: number }> = [];
   for (const line of stdout.split(/\r?\n/g)) {
     if (line.trim().length === 0) continue;
     const [addedRaw, deletedRaw, ...pathParts] = line.split("\t");
-    const rawPath =
-      pathParts.length > 1 ? (pathParts.at(-1) ?? "").trim() : pathParts.join("\t").trim();
+    const rawPath = pathParts.join("\t").trim();
     if (rawPath.length === 0) continue;
-    const added = Number.parseInt(addedRaw ?? "0", 10);
-    const deleted = Number.parseInt(deletedRaw ?? "0", 10);
-    const renameArrowIndex = rawPath.indexOf(" => ");
-    const normalizedPath =
-      renameArrowIndex >= 0 ? rawPath.slice(renameArrowIndex + " => ".length).trim() : rawPath;
     entries.push({
-      path: normalizedPath.length > 0 ? normalizedPath : rawPath,
-      insertions: Number.isFinite(added) ? added : 0,
-      deletions: Number.isFinite(deleted) ? deleted : 0,
+      path: rawPath,
+      ...parseNumstatCounts(addedRaw, deletedRaw),
     });
   }
   return entries;
+}
+
+function parseNumstatEntries(
+  stdout: string,
+): Array<{ path: string; insertions: number; deletions: number }> {
+  return stdout.includes("\0")
+    ? parseNullTerminatedNumstatEntries(stdout)
+    : parseTextNumstatEntries(stdout);
 }
 
 function parseFirstNumstatEntry(stdout: string): { insertions: number; deletions: number } | null {
@@ -1296,11 +1343,12 @@ export const makeGitCore = Effect.fn("makeGitCore")(function* (options?: {
     const [unstagedNumstatStdout, stagedNumstatStdout, defaultRefResult, hasOriginRemote] =
       yield* Effect.all(
         [
-          runGitStdout("GitCore.statusDetails.unstagedNumstat", cwd, ["diff", "--numstat"]),
+          runGitStdout("GitCore.statusDetails.unstagedNumstat", cwd, ["diff", "--numstat", "-z"]),
           runGitStdout("GitCore.statusDetails.stagedNumstat", cwd, [
             "diff",
             "--cached",
             "--numstat",
+            "-z",
           ]),
           executeGit(
             "GitCore.statusDetails.defaultRef",
@@ -1436,7 +1484,16 @@ export const makeGitCore = Effect.fn("makeGitCore")(function* (options?: {
           (yield* runGitStdoutWithOptions(
             "GitCore.statusDetails.untrackedNumstat",
             cwd,
-            ["diff", "--no-index", "--numstat", "--", "/dev/null", filePath],
+            [
+              GIT_LITERAL_PATHSPECS_ARG,
+              "diff",
+              "--no-index",
+              "--numstat",
+              "-z",
+              "--",
+              "/dev/null",
+              filePath,
+            ],
             {
               allowNonZeroExit: true,
               maxOutputBytes: PREPARED_COMMIT_PATCH_MAX_OUTPUT_BYTES,
@@ -1520,6 +1577,7 @@ export const makeGitCore = Effect.fn("makeGitCore")(function* (options?: {
         Effect.catch(() => Effect.void),
       );
       yield* runGit("GitCore.prepareCommitContext.addSelected", cwd, [
+        GIT_LITERAL_PATHSPECS_ARG,
         "add",
         "-A",
         "--",
@@ -1734,18 +1792,24 @@ export const makeGitCore = Effect.fn("makeGitCore")(function* (options?: {
   );
 
   const discardPaths: GitCoreShape["discardPaths"] = Effect.fn("discardPaths")(function* (input) {
-    yield* executeGit("GitCore.discardPaths.reset", input.cwd, ["reset", "--", ...input.paths], {
-      allowNonZeroExit: true,
-    });
+    yield* executeGit(
+      "GitCore.discardPaths.reset",
+      input.cwd,
+      [GIT_LITERAL_PATHSPECS_ARG, "reset", "--", ...input.paths],
+      {
+        allowNonZeroExit: true,
+      },
+    );
     yield* executeGit(
       "GitCore.discardPaths.checkout",
       input.cwd,
-      ["checkout", "--", ...input.paths],
+      [GIT_LITERAL_PATHSPECS_ARG, "checkout", "--", ...input.paths],
       {
         allowNonZeroExit: true,
       },
     );
     yield* executeGit("GitCore.discardPaths.clean", input.cwd, [
+      GIT_LITERAL_PATHSPECS_ARG,
       "clean",
       "-fd",
       "--",
@@ -1758,7 +1822,16 @@ export const makeGitCore = Effect.fn("makeGitCore")(function* (options?: {
     const unifiedDiff = yield* runGitStdoutWithOptions(
       "GitCore.getFilePatch",
       input.cwd,
-      ["diff", "--patch", "--minimal", "--find-renames=1%", "HEAD", "--", ...pathspec],
+      [
+        GIT_LITERAL_PATHSPECS_ARG,
+        "diff",
+        "--patch",
+        "--minimal",
+        "--find-renames=1%",
+        "HEAD",
+        "--",
+        ...pathspec,
+      ],
       {
         maxOutputBytes: PREPARED_COMMIT_PATCH_MAX_OUTPUT_BYTES,
         truncateOutputAtMaxBytes: true,
@@ -1771,7 +1844,15 @@ export const makeGitCore = Effect.fn("makeGitCore")(function* (options?: {
     const untrackedPaths = yield* runGitStdoutWithOptions(
       "GitCore.getFilePatch.untrackedPaths",
       input.cwd,
-      ["ls-files", "--others", "--exclude-standard", "-z", "--", input.path],
+      [
+        GIT_LITERAL_PATHSPECS_ARG,
+        "ls-files",
+        "--others",
+        "--exclude-standard",
+        "-z",
+        "--",
+        input.path,
+      ],
     );
     if (splitNullSeparatedPaths(untrackedPaths, false).length === 0) {
       if (input.prevPath) {
@@ -1789,7 +1870,16 @@ export const makeGitCore = Effect.fn("makeGitCore")(function* (options?: {
     const untrackedDiff = yield* runGitStdoutWithOptions(
       "GitCore.getFilePatch.untracked",
       input.cwd,
-      ["diff", "--no-index", "--patch", "--minimal", "--", "/dev/null", input.path],
+      [
+        GIT_LITERAL_PATHSPECS_ARG,
+        "diff",
+        "--no-index",
+        "--patch",
+        "--minimal",
+        "--",
+        "/dev/null",
+        input.path,
+      ],
       {
         allowNonZeroExit: true,
         maxOutputBytes: PREPARED_COMMIT_PATCH_MAX_OUTPUT_BYTES,

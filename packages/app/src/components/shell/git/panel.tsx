@@ -88,7 +88,7 @@ export function GitPanel(props: {
     case "idle":
     case "loading":
       return (
-        <div className="flex min-h-0 flex-1 flex-col gap-2 px-3 py-3">
+        <div className="flex min-h-0 flex-1 flex-col gap-2 p-3">
           <div className="h-3 w-24 animate-pulse rounded bg-muted/40" />
           <div className="h-3 w-full animate-pulse rounded bg-muted/30" />
           <div className="h-3 w-full animate-pulse rounded bg-muted/30" />
@@ -450,7 +450,12 @@ function LocalBranchBar(props: {
             </WorkbenchIconButton>
             {props.editorMenuOpen && (
               <>
-                <div className="fixed inset-0 z-40" onClick={() => props.onEditorMenuOpen(false)} />
+                <button
+                  type="button"
+                  className="fixed inset-0 z-40 cursor-default border-0 bg-transparent p-0"
+                  aria-label="Close editor options"
+                  onClick={() => props.onEditorMenuOpen(false)}
+                />
                 <div
                   className="absolute top-full right-0 z-50 mt-1 min-w-[176px] rounded-[6px] border border-multi-stroke-secondary bg-multi-bg-elevated p-[3px] text-multi-fg-primary shadow-multi-popup"
                   role="menu"
@@ -524,7 +529,12 @@ function LocalBranchBar(props: {
             </div>
             {props.commitMenuOpen && (
               <>
-                <div className="fixed inset-0 z-40" onClick={() => props.onCommitMenuOpen(false)} />
+                <button
+                  type="button"
+                  className="fixed inset-0 z-40 cursor-default border-0 bg-transparent p-0"
+                  aria-label="Close commit menu"
+                  onClick={() => props.onCommitMenuOpen(false)}
+                />
                 <div
                   className="absolute top-full right-0 z-50 mt-1 min-w-[180px] rounded-[6px] border border-multi-stroke-secondary bg-multi-bg-elevated p-[3px] text-multi-fg-primary shadow-multi-popup"
                   role="menu"

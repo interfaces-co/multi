@@ -7,6 +7,8 @@ const PROJECT_LIST_DIRECTORY_PATH_MAX_LENGTH = 512;
 const PROJECT_READ_FILE_PATH_MAX_LENGTH = 512;
 const PROJECT_WRITE_FILE_PATH_MAX_LENGTH = 512;
 
+export const DEFAULT_PROJECTLESS_CWD = "~/Documents";
+
 export const ProjectSearchEntriesInput = Schema.Struct({
   cwd: TrimmedNonEmptyString,
   query: TrimmedNonEmptyString.check(Schema.isMaxLength(256)),
