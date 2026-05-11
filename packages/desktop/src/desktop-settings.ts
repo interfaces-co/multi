@@ -1,21 +1,15 @@
 import * as FS from "node:fs";
 import * as Path from "node:path";
-import type {
-  DesktopServerExposureMode,
-  DesktopTheme,
-  DesktopUpdateChannel,
-} from "@multi/contracts";
+import type { DesktopServerExposureMode, DesktopTheme } from "@multi/contracts";
 
 export interface DesktopSettings {
   readonly serverExposureMode: DesktopServerExposureMode;
   readonly themeSource: DesktopTheme;
-  readonly updateChannel: DesktopUpdateChannel;
 }
 
 export const DEFAULT_DESKTOP_SETTINGS: DesktopSettings = {
   serverExposureMode: "local-only",
   themeSource: "system",
-  updateChannel: "latest",
 };
 
 export function setDesktopServerExposurePreference(
@@ -27,18 +21,6 @@ export function setDesktopServerExposurePreference(
     : {
         ...settings,
         serverExposureMode: requestedMode,
-      };
-}
-
-export function setDesktopUpdateChannelPreference(
-  settings: DesktopSettings,
-  requestedChannel: DesktopUpdateChannel,
-): DesktopSettings {
-  return settings.updateChannel === requestedChannel
-    ? settings
-    : {
-        ...settings,
-        updateChannel: requestedChannel,
       };
 }
 
@@ -64,7 +46,6 @@ export function readDesktopSettings(settingsPath: string): DesktopSettings {
     const parsed = JSON.parse(raw) as {
       readonly serverExposureMode?: unknown;
       readonly themeSource?: unknown;
-      readonly updateChannel?: unknown;
     };
 
     return {
@@ -74,7 +55,6 @@ export function readDesktopSettings(settingsPath: string): DesktopSettings {
         parsed.themeSource === "light" || parsed.themeSource === "dark"
           ? parsed.themeSource
           : "system",
-      updateChannel: parsed.updateChannel === "nightly" ? "nightly" : "latest",
     };
   } catch {
     return DEFAULT_DESKTOP_SETTINGS;

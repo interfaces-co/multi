@@ -30,6 +30,7 @@ import {
   parseCodexCliVersion,
 } from "./provider/codex-cli-version";
 import {
+  CODEX_DEFAULT_MODEL,
   readCodexAccountSnapshot,
   resolveCodexModelForAccount,
   type CodexAccountSnapshot,
@@ -55,7 +56,11 @@ import {
 } from "./codex-app-server-protocol";
 
 export { buildCodexInitializeParams } from "./provider/codex-app-server";
-export { readCodexAccountSnapshot, resolveCodexModelForAccount } from "./provider/codex-account";
+export {
+  CODEX_DEFAULT_MODEL,
+  readCodexAccountSnapshot,
+  resolveCodexModelForAccount,
+} from "./provider/codex-account";
 
 type PendingRequestKey = string;
 
@@ -323,18 +328,9 @@ function killChildTree(child: ChildProcessWithoutNullStreams): void {
 
 export function normalizeCodexModelSlug(
   model: string | undefined | null,
-  preferredId?: string,
+  _preferredId?: string,
 ): string | undefined {
-  const normalized = normalizeModelSlug(model);
-  if (!normalized) {
-    return undefined;
-  }
-
-  if (preferredId?.endsWith("-codex") && preferredId !== normalized) {
-    return preferredId;
-  }
-
-  return normalized;
+  return normalizeModelSlug(model) ?? undefined;
 }
 
 function buildCodexCollaborationMode(input: {
@@ -354,7 +350,7 @@ function buildCodexCollaborationMode(input: {
   if (input.interactionMode === undefined) {
     return undefined;
   }
-  const model = normalizeCodexModelSlug(input.model) ?? "gpt-5.3-codex";
+  const model = normalizeCodexModelSlug(input.model) ?? CODEX_DEFAULT_MODEL;
   return {
     mode: input.interactionMode,
     settings: {

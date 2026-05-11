@@ -15,7 +15,6 @@ import {
   downloadUpdate,
   getUpdateState,
   installUpdate,
-  setUpdateChannel,
 } from "./methods/updates";
 import {
   confirm,
@@ -53,7 +52,6 @@ export const installDesktopIpcHandlers = Effect.gen(function* () {
   yield* ipc.handle(openExternal);
 
   yield* ipc.handle(getUpdateState);
-  yield* ipc.handle(setUpdateChannel);
   yield* ipc.handle(downloadUpdate);
   yield* ipc.handle(installUpdate);
   yield* ipc.handle(checkForUpdate);

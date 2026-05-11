@@ -244,13 +244,13 @@ describe("process stderr events", () => {
 });
 
 describe("normalizeCodexModelSlug", () => {
-  it("maps 5.3 aliases to gpt-5.3-codex", () => {
-    expect(normalizeCodexModelSlug("5.3")).toBe("gpt-5.3-codex");
-    expect(normalizeCodexModelSlug("gpt-5.3")).toBe("gpt-5.3-codex");
+  it("keeps model slugs unchanged", () => {
+    expect(normalizeCodexModelSlug("5.3")).toBe("5.3");
+    expect(normalizeCodexModelSlug("gpt-5.3")).toBe("gpt-5.3");
   });
 
-  it("prefers codex id when model differs", () => {
-    expect(normalizeCodexModelSlug("gpt-5.3", "gpt-5.3-codex")).toBe("gpt-5.3-codex");
+  it("does not replace a model with a preferred id", () => {
+    expect(normalizeCodexModelSlug("gpt-5.3", "gpt-5.3-codex")).toBe("gpt-5.3");
   });
 
   it("keeps non-aliased models as-is", () => {
@@ -337,14 +337,14 @@ describe("readCodexAccountSnapshot", () => {
 });
 
 describe("resolveCodexModelForAccount", () => {
-  it("falls back from spark to default for unsupported chatgpt plans", () => {
+  it("keeps spark model for unsupported chatgpt plans", () => {
     expect(
       resolveCodexModelForAccount("gpt-5.3-codex-spark", {
         type: "chatgpt",
         planType: "plus",
         sparkEnabled: false,
       }),
-    ).toBe("gpt-5.3-codex");
+    ).toBe("gpt-5.3-codex-spark");
   });
 
   it("keeps spark for supported plans", () => {
@@ -357,14 +357,14 @@ describe("resolveCodexModelForAccount", () => {
     ).toBe("gpt-5.3-codex-spark");
   });
 
-  it("falls back from spark to default for api key auth", () => {
+  it("keeps spark model for api key auth", () => {
     expect(
       resolveCodexModelForAccount("gpt-5.3-codex-spark", {
         type: "apiKey",
         planType: null,
         sparkEnabled: false,
       }),
-    ).toBe("gpt-5.3-codex");
+    ).toBe("gpt-5.3-codex-spark");
   });
 });
 
@@ -382,7 +382,7 @@ describe("startSession", () => {
     });
   });
 
-  it("emits session/startFailed when resolving cwd throws before process launch", async () => {
+  it("emits session/startFailed when preflight throws before process launch", async () => {
     const manager = new CodexAppServerManager();
     const events: Array<{ method: string; kind: string; message?: string }> = [];
     manager.on("event", (event) => {
@@ -393,9 +393,20 @@ describe("startSession", () => {
       });
     });
 
-    const processCwd = vi.spyOn(process, "cwd").mockImplementation(() => {
-      throw new Error("cwd missing");
-    });
+    const preflight = vi
+      .spyOn(
+        manager as unknown as {
+          assertSupportedCodexCliVersion: (input: {
+            binaryPath: string;
+            cwd: string;
+            homePath?: string;
+          }) => void;
+        },
+        "assertSupportedCodexCliVersion",
+      )
+      .mockImplementation(() => {
+        throw new Error("cwd missing");
+      });
     try {
       await expect(
         manager.startSession({
@@ -412,7 +423,7 @@ describe("startSession", () => {
         message: "cwd missing",
       });
     } finally {
-      processCwd.mockRestore();
+      preflight.mockRestore();
       manager.stopAll();
     }
   });
@@ -510,7 +521,7 @@ describe("sendTurn", () => {
           url: "data:image/png;base64,AAAA",
         },
       ],
-      model: "gpt-5.3-codex",
+      model: "gpt-5.3",
       serviceTier: "fast",
       effort: "high",
     });

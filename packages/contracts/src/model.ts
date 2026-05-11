@@ -130,8 +130,8 @@ export const ModelCapabilities = Schema.Struct({
 });
 export type ModelCapabilities = typeof ModelCapabilities.Type;
 
-export const DEFAULT_MODEL = "gpt-5.3-codex";
-export const DEFAULT_GIT_TEXT_GENERATION_MODEL = "gpt-5.4-mini";
+export const DEFAULT_MODEL = "gpt-5.5";
+export const DEFAULT_GIT_TEXT_GENERATION_MODEL = DEFAULT_MODEL;
 
 export const DEFAULT_MODEL_BY_PROVIDER: Partial<Record<ProviderDriverKind, string>> = {
   [CODEX_DRIVER_KIND]: DEFAULT_MODEL,
@@ -153,14 +153,6 @@ export const DEFAULT_GIT_TEXT_GENERATION_MODEL_BY_PROVIDER: Partial<
 export const MODEL_SLUG_ALIASES_BY_PROVIDER: Partial<
   Record<ProviderDriverKind, Record<string, string>>
 > = {
-  [CODEX_DRIVER_KIND]: {
-    "gpt-5-codex": "gpt-5.4",
-    "5.4": "gpt-5.4",
-    "5.3": "gpt-5.3-codex",
-    "gpt-5.3": "gpt-5.3-codex",
-    "5.3-spark": "gpt-5.3-codex-spark",
-    "gpt-5.3-spark": "gpt-5.3-codex-spark",
-  },
   [CLAUDE_DRIVER_KIND]: {
     opus: "claude-opus-4-7",
     "opus-4.7": "claude-opus-4-7",

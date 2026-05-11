@@ -1,12 +1,9 @@
 import {
   type ApprovalRequestId,
-  DEFAULT_MODEL,
-  defaultInstanceIdForDriver,
   type EnvironmentId,
   type MessageId,
   type ModelSelection,
   type ProjectScript,
-  ProviderDriverKind,
   ProviderInstanceId,
   type ProjectId,
   type ProviderApprovalDecision,
@@ -1140,14 +1137,17 @@ export default function ChatView(props: ChatViewProps) {
         ? buildLocalDraftThread(
             threadId,
             draftThread,
-            fallbackDraftProject?.defaultModelSelection ?? {
-              instanceId: defaultInstanceIdForDriver(ProviderDriverKind.make("codex")),
-              model: DEFAULT_MODEL,
-            },
+            settings.textGenerationModelSelection ?? fallbackDraftProject?.defaultModelSelection,
             localDraftError,
           )
         : undefined,
-    [draftThread, fallbackDraftProject?.defaultModelSelection, localDraftError, threadId],
+    [
+      draftThread,
+      fallbackDraftProject?.defaultModelSelection,
+      localDraftError,
+      settings.textGenerationModelSelection,
+      threadId,
+    ],
   );
   const isServerThread = routeKind === "server" && serverThread !== undefined;
   const activeThread = isServerThread ? serverThread : localDraftThread;
@@ -3080,13 +3080,7 @@ export default function ChatView(props: ChatViewProps) {
         }
       }
       const title = truncate(titleSeed);
-      const threadCreateModelSelection: ModelSelection = {
-        instanceId: ctxSelectedModelSelection.instanceId,
-        model: ctxSelectedModel || activeProject?.defaultModelSelection?.model || DEFAULT_MODEL,
-        ...(ctxSelectedModelSelection.options
-          ? { options: ctxSelectedModelSelection.options }
-          : {}),
-      };
+      const threadCreateModelSelection = ctxSelectedModelSelection;
 
       // Auto-title from first message
       if (isFirstMessage && isServerThread) {

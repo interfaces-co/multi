@@ -6,16 +6,16 @@ import {
   resolveBuildOptions,
   resolveDesktopBuildIconAssets,
   resolveDesktopProductName,
-  resolveDesktopUpdateChannel,
+  resolveDesktopBuildVariant,
   resolveMockUpdateServerPort,
   resolveMockUpdateServerUrl,
 } from "./build-desktop-artifact.ts";
 import { BRAND_ASSET_PATHS } from "./lib/brand-assets.ts";
 
 it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
-  it("resolves the dedicated nightly updater channel from nightly versions", () => {
-    assert.equal(resolveDesktopUpdateChannel("0.0.17-nightly.20260413.42"), "nightly");
-    assert.equal(resolveDesktopUpdateChannel("0.0.17"), "latest");
+  it("resolves the nightly build variant from nightly versions", () => {
+    assert.equal(resolveDesktopBuildVariant("0.0.17-nightly.20260413.42"), "nightly");
+    assert.equal(resolveDesktopBuildVariant("0.0.17"), "stable");
   });
 
   it("switches desktop packaging product names to nightly for nightly builds", () => {

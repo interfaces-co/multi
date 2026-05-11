@@ -1,13 +1,7 @@
 "use client";
 
 import { scopeProjectRef, scopeThreadRef } from "@multi/client-runtime";
-import {
-  DEFAULT_MODEL,
-  DEFAULT_MODEL_BY_PROVIDER,
-  ProviderDriverKind,
-  defaultInstanceIdForDriver,
-  type ProjectId,
-} from "@multi/contracts";
+import { type ProjectId } from "@multi/contracts";
 import { toSafeThreadSegment } from "@multi/shared/thread-segments";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import {
@@ -480,10 +474,7 @@ function OpenCommandPaletteDialog() {
         title: inferProjectTitleFromPath(cwd),
         projectRoot: cwd,
         createProjectRootIfMissing: true,
-        defaultModelSelection: {
-          instanceId: defaultInstanceIdForDriver(ProviderDriverKind.make("codex")),
-          model: DEFAULT_MODEL_BY_PROVIDER[ProviderDriverKind.make("codex")] ?? DEFAULT_MODEL,
-        },
+        defaultModelSelection: settings.textGenerationModelSelection,
         createdAt: new Date().toISOString(),
       });
       writeStoredProjectCwd(cwd);

@@ -49,7 +49,6 @@ export interface ElectronUpdaterShape {
   readonly setFeedURL: (options: ElectronUpdaterFeedUrl) => Effect.Effect<void>;
   readonly setAutoDownload: (value: boolean) => Effect.Effect<void>;
   readonly setAutoInstallOnAppQuit: (value: boolean) => Effect.Effect<void>;
-  readonly setChannel: (channel: string) => Effect.Effect<void>;
   readonly setAllowPrerelease: (value: boolean) => Effect.Effect<void>;
   readonly allowDowngrade: Effect.Effect<boolean>;
   readonly setAllowDowngrade: (value: boolean) => Effect.Effect<void>;
@@ -84,11 +83,6 @@ export const layer = Layer.succeed(ElectronUpdater, {
   setAutoInstallOnAppQuit: (value) =>
     Effect.suspend(() => {
       autoUpdater.autoInstallOnAppQuit = value;
-      return Effect.void;
-    }),
-  setChannel: (channel) =>
-    Effect.suspend(() => {
-      autoUpdater.channel = channel;
       return Effect.void;
     }),
   setAllowPrerelease: (value) =>

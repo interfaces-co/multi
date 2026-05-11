@@ -384,13 +384,12 @@ function resolveDesktopRuntimeDependencies(
   return resolveCatalogDependencies(runtimeDependencies, catalog, "packages/desktop");
 }
 
-function resolveGitHubPublishConfig(updateChannel: "latest" | "nightly"):
+function resolveGitHubPublishConfig():
   | {
       readonly provider: "github";
       readonly owner: string;
       readonly repo: string;
-      readonly releaseType: "release" | "prerelease";
-      readonly channel?: "nightly";
+      readonly releaseType: "release";
     }
   | undefined {
   const rawRepo =
@@ -406,17 +405,16 @@ function resolveGitHubPublishConfig(updateChannel: "latest" | "nightly"):
     provider: "github",
     owner,
     repo,
-    releaseType: updateChannel === "nightly" ? "prerelease" : "release",
-    ...(updateChannel === "nightly" ? { channel: "nightly" as const } : {}),
+    releaseType: "release",
   };
 }
 
-export function resolveDesktopUpdateChannel(version: string): "latest" | "nightly" {
-  return /-nightly\.\d{8}\.\d+$/.test(version) ? "nightly" : "latest";
+export function resolveDesktopBuildVariant(version: string): "stable" | "nightly" {
+  return /-nightly\.\d{8}\.\d+$/.test(version) ? "nightly" : "stable";
 }
 
 export function resolveDesktopBuildIconAssets(version: string): DesktopBuildIconAssets {
-  if (resolveDesktopUpdateChannel(version) === "nightly") {
+  if (resolveDesktopBuildVariant(version) === "nightly") {
     return {
       macIconPng: BRAND_ASSET_PATHS.nightlyMacIconPng,
       linuxIconPng: BRAND_ASSET_PATHS.nightlyLinuxIconPng,
@@ -434,7 +432,7 @@ export function resolveMockUpdateServerUrl(mockUpdateServerPort: number | undefi
 }
 
 export function resolveDesktopProductName(version: string): string {
-  return resolveDesktopUpdateChannel(version) === "nightly"
+  return resolveDesktopBuildVariant(version) === "nightly"
     ? "Multi (Nightly)"
     : (desktopPackageJson.productName ?? "Multi");
 }
@@ -454,8 +452,7 @@ function createBuildConfig(
       buildResources: "packages/desktop/resources",
     },
   };
-  const updateChannel = resolveDesktopUpdateChannel(version);
-  const publishConfig = resolveGitHubPublishConfig(updateChannel);
+  const publishConfig = resolveGitHubPublishConfig();
   if (publishConfig) {
     buildConfig.publish = [publishConfig];
   } else if (mockUpdates) {

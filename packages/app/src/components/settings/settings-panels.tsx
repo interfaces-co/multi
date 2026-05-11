@@ -9,7 +9,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useDebouncer } from "@tanstack/react-pacer";
 import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
-  type DesktopUpdateChannel,
   type AgentWindowSendWhileStreamingBehavior,
   type AgentWindowUsageSummaryDisplay,
   defaultInstanceIdForDriver,
@@ -194,42 +193,8 @@ function AboutVersionTitle() {
 function AboutVersionSection() {
   const queryClient = useQueryClient();
   const updateStateQuery = useDesktopUpdateState();
-  const [isChangingUpdateChannel, setIsChangingUpdateChannel] = useState(false);
 
   const updateState = updateStateQuery.data ?? null;
-  const hasDesktopBridge = typeof window !== "undefined" && Boolean(window.desktopBridge);
-  const selectedUpdateChannel = updateState?.channel ?? "latest";
-
-  const handleUpdateChannelChange = useCallback(
-    (channel: DesktopUpdateChannel) => {
-      const bridge = window.desktopBridge;
-      if (
-        !bridge ||
-        typeof bridge.setUpdateChannel !== "function" ||
-        channel === selectedUpdateChannel
-      ) {
-        return;
-      }
-
-      setIsChangingUpdateChannel(true);
-      void bridge
-        .setUpdateChannel(channel)
-        .then((state) => {
-          setDesktopUpdateStateQueryData(queryClient, state);
-        })
-        .catch((error: unknown) => {
-          toastManager.add({
-            type: "error",
-            title: "Could not change update track",
-            description: error instanceof Error ? error.message : "Update track change failed.",
-          });
-        })
-        .finally(() => {
-          setIsChangingUpdateChannel(false);
-        });
-    },
-    [queryClient, selectedUpdateChannel],
-  );
 
   const handleButtonClick = useCallback(() => {
     const bridge = window.desktopBridge;
@@ -319,61 +284,27 @@ function AboutVersionSection() {
       : "Current version of the application.";
 
   return (
-    <>
-      <SettingsRow
-        title={<AboutVersionTitle />}
-        description={description}
-        control={
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  size="default"
-                  variant={action === "install" ? "default" : "outline"}
-                  disabled={buttonDisabled}
-                  onClick={handleButtonClick}
-                >
-                  {buttonLabel}
-                </Button>
-              }
-            />
-            {buttonTooltip ? <TooltipPopup>{buttonTooltip}</TooltipPopup> : null}
-          </Tooltip>
-        }
-      />
-      <SettingsRow
-        title="Update track"
-        description="Stable follows full releases. Nightly follows the nightly desktop channel and can switch back to stable immediately."
-        control={
-          <Select
-            value={selectedUpdateChannel}
-            onValueChange={(value) => {
-              handleUpdateChannelChange(value as DesktopUpdateChannel);
-            }}
-          >
-            <SelectTrigger
-              size="xs"
-              variant="outline"
-              className="w-full sm:w-40"
-              aria-label="Update track"
-              disabled={!hasDesktopBridge || isChangingUpdateChannel}
-            >
-              <SelectValue>
-                {selectedUpdateChannel === "nightly" ? "Nightly" : "Stable"}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectPopup align="end" alignItemWithTrigger={false}>
-              <SelectItem hideIndicator value="latest">
-                Stable
-              </SelectItem>
-              <SelectItem hideIndicator value="nightly">
-                Nightly
-              </SelectItem>
-            </SelectPopup>
-          </Select>
-        }
-      />
-    </>
+    <SettingsRow
+      title={<AboutVersionTitle />}
+      description={description}
+      control={
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                size="default"
+                variant={action === "install" ? "default" : "outline"}
+                disabled={buttonDisabled}
+                onClick={handleButtonClick}
+              >
+                {buttonLabel}
+              </Button>
+            }
+          />
+          {buttonTooltip ? <TooltipPopup>{buttonTooltip}</TooltipPopup> : null}
+        </Tooltip>
+      }
+    />
   );
 }
 
@@ -482,27 +413,24 @@ function SettingsSlider(props: {
   min: number;
   max: number;
   onChange: (value: number) => void;
-  swatchHue?: number;
+  showSwatch?: boolean;
   suffix?: string;
 }) {
   return (
     <div className="flex w-full items-center justify-end gap-2 sm:w-34">
       <input
         aria-label={props.label}
-        className="h-4 w-full accent-(--multi-hue-blue)"
+        className="h-4 w-full accent-(--multi-action)"
         max={props.max}
         min={props.min}
         type="range"
         value={props.value}
         onChange={(event) => props.onChange(Number(event.target.value))}
       />
-      {props.swatchHue !== undefined ? (
+      {props.showSwatch ? (
         <span
           aria-hidden
-          className="size-4 shrink-0 rounded-full"
-          style={{
-            background: `oklch(0.58 0.18 ${props.swatchHue})`,
-          }}
+          className="size-4 shrink-0 rounded-full bg-(--multi-action) shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--foreground)_16%,transparent)]"
         />
       ) : (
         <Text size="xs" tone="tertiary" className="w-8 shrink-0 text-right tabular-nums">
@@ -863,7 +791,7 @@ export function AppearanceSettingsPanel() {
               label="Tint hue"
               max={360}
               min={0}
-              swatchHue={appearance.hue}
+              showSwatch
               value={appearance.hue}
               onChange={setTintHue}
             />

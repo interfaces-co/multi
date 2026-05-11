@@ -1,7 +1,7 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { DEFAULT_MODEL_BY_PROVIDER, ProjectId, ThreadId } from "@multi/contracts";
 import { assert, it } from "@effect/vitest";
-import { Deferred, Effect, Fiber, Option, Ref, Stream } from "effect";
+import { Deferred, Effect, Fiber, Layer, Option, Ref, Stream } from "effect";
 
 import { ServerConfig } from "./config.ts";
 import {
@@ -9,6 +9,7 @@ import {
   type OrchestrationEngineShape,
 } from "./orchestration/OrchestrationEngine.service.ts";
 import { ThreadProjection } from "./orchestration/ThreadProjection.service.ts";
+import { ServerSettingsService } from "./server-settings.ts";
 import { AnalyticsService } from "./telemetry/AnalyticsService.service.ts";
 import {
   getAutoBootstrapDefaultModelSelection,
@@ -160,7 +161,7 @@ it.effect("resolveAutoBootstrapWelcomeTargets returns existing project and threa
           ),
         streamDomainEvents: Stream.empty,
       } satisfies OrchestrationEngineShape),
-      Effect.provide(NodeServices.layer),
+      Effect.provide(Layer.mergeAll(NodeServices.layer, ServerSettingsService.layerTest())),
     );
 
     assert.deepStrictEqual(targets, {
@@ -199,7 +200,7 @@ it.effect("resolveAutoBootstrapWelcomeTargets creates a project and thread when 
           ),
         streamDomainEvents: Stream.empty,
       } satisfies OrchestrationEngineShape),
-      Effect.provide(NodeServices.layer),
+      Effect.provide(Layer.mergeAll(NodeServices.layer, ServerSettingsService.layerTest())),
     );
 
     assert.equal(typeof targets.bootstrapProjectId, "string");

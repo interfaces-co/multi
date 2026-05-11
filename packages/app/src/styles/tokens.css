@@ -122,9 +122,11 @@
   --multi-radius-pill: var(--multi-radius-chip-user, 20px);
   /* Composer toolbar icons */
   --multi-composer-icon-size: var(--multi-composer-icon-size-user, 0.875rem);
-  --primary: oklch(0.488 0.217 var(--multi-user-hue, 264));
+  --multi-accent-hue: var(--multi-user-hue, 255);
+  --multi-accent-chroma: calc(0.04 + var(--multi-intensity, 33) / 100 * 0.058);
+  --primary: oklch(0.488 0.217 var(--multi-accent-hue));
   --primary-foreground: var(--color-white);
-  --ring: oklch(0.68 0.04 var(--multi-user-hue, 264) / 0.2);
+  --ring: oklch(0.68 0.04 var(--multi-accent-hue) / 0.2);
   /* Multi palette: hue/intensity/transparency controls */
   --multi-user-hue: 255;
   --multi-intensity: 33;
@@ -251,7 +253,7 @@
   --multi-shell-saturate: 160%;
   --multi-shell-sidebar-bg: var(--multi-color-sidebar);
   --multi-shell-surface-bg: var(--multi-color-surface);
-  --multi-action: oklch(0.697 0.059 248.687);
+  --multi-action: oklch(0.697 var(--multi-accent-chroma) var(--multi-accent-hue));
   --multi-radius-full: 9999px;
   /* Plan mode tokens */
   --multi-plan-mode-selected-border: color-mix(in srgb, var(--multi-action) 40%, transparent);
@@ -270,11 +272,18 @@
     var(--multi-plan-mode-selected-fg) 84%,
     var(--foreground)
   );
-  /* Diff colors */
+  /* Cursor-style diff core tokens */
   --multi-diff-addition: oklch(0.72 0.19 142);
   --multi-diff-deletion: oklch(0.63 0.24 18);
   --multi-diff-addition-bg: color-mix(in srgb, oklch(0.72 0.19 142) 10%, transparent);
   --multi-diff-deletion-bg: color-mix(in srgb, oklch(0.63 0.24 18) 10%, transparent);
+  --multi-git-diff-addition: #1f8a65;
+  --multi-git-diff-deletion: #cf2d56;
+  --multi-git-diff-editor-background: var(--multi-workbench-editor-surface-background);
+  --multi-git-diff-addition-line-background: #1f8a651f;
+  --multi-git-diff-addition-text-background: #1f8a6524;
+  --multi-git-diff-deletion-line-background: #cf2d5614;
+  --multi-git-diff-deletion-text-background: #cf2d561f;
 }
 
 [data-electron] {
@@ -286,9 +295,9 @@
 }
 
 .dark {
-  --primary: oklch(0.588 0.217 var(--multi-user-hue, 264));
+  --primary: oklch(0.588 0.217 var(--multi-accent-hue));
   --primary-foreground: var(--color-white);
-  --ring: oklch(0.68 0.04 var(--multi-user-hue, 264) / 0.2);
+  --ring: oklch(0.68 0.04 var(--multi-accent-hue) / 0.2);
   --multi-plan-mode-selected-fg: color-mix(in srgb, var(--multi-action) 72%, white);
   --multi-base-sidebar: color-mix(
     in srgb,
@@ -324,6 +333,12 @@
   --multi-diff-deletion: oklch(0.65 0.22 18);
   --multi-diff-addition-bg: color-mix(in srgb, oklch(0.65 0.17 142) 12%, transparent);
   --multi-diff-deletion-bg: color-mix(in srgb, oklch(0.65 0.22 18) 12%, transparent);
+  --multi-git-diff-addition: #3fa266;
+  --multi-git-diff-deletion: #fc6b83;
+  --multi-git-diff-addition-line-background: #3fa26633;
+  --multi-git-diff-addition-text-background: #3fa26622;
+  --multi-git-diff-deletion-line-background: #b8004933;
+  --multi-git-diff-deletion-text-background: #b8004922;
 }
 
 html.multi-reduce-transparency {

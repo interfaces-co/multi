@@ -209,9 +209,14 @@ export const resolveWelcomeBase = Effect.gen(function* () {
 
 export const resolveAutoBootstrapWelcomeTargets = Effect.gen(function* () {
   const serverConfig = yield* ServerConfig;
+  const serverSettings = yield* ServerSettingsService;
   const threadProjection = yield* ThreadProjection;
   const orchestrationEngine = yield* OrchestrationEngineService;
   const path = yield* Path.Path;
+  const composerDefaultModelSelection = yield* serverSettings.getSettings.pipe(
+    Effect.map((settings) => settings.textGenerationModelSelection),
+    Effect.catch(() => Effect.succeed(getAutoBootstrapDefaultModelSelection())),
+  );
 
   let bootstrapProjectId: ProjectId | undefined;
   let bootstrapThreadId: ThreadId | undefined;
@@ -228,7 +233,7 @@ export const resolveAutoBootstrapWelcomeTargets = Effect.gen(function* () {
         const createdAt = new Date().toISOString();
         nextProjectId = ProjectId.make(crypto.randomUUID());
         const bootstrapProjectTitle = path.basename(serverConfig.cwd) || "project";
-        nextProjectDefaultModelSelection = getAutoBootstrapDefaultModelSelection();
+        nextProjectDefaultModelSelection = composerDefaultModelSelection;
         yield* orchestrationEngine.dispatch({
           type: "project.create",
           commandId: CommandId.make(crypto.randomUUID()),
@@ -241,7 +246,7 @@ export const resolveAutoBootstrapWelcomeTargets = Effect.gen(function* () {
       } else {
         nextProjectId = existingProject.value.id;
         nextProjectDefaultModelSelection =
-          existingProject.value.defaultModelSelection ?? getAutoBootstrapDefaultModelSelection();
+          existingProject.value.defaultModelSelection ?? composerDefaultModelSelection;
       }
 
       const existingThreadId =

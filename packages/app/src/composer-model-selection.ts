@@ -98,6 +98,7 @@ export function resolveComposerModelSelection(
   const threadProvider =
     input.sessionProviderInstanceId ??
     input.threadModelSelection?.instanceId ??
+    input.settings.textGenerationModelSelection.instanceId ??
     input.projectModelSelection?.instanceId ??
     null;
   const explicitSelectedInstanceId = input.draft?.activeProvider ?? threadProvider;
@@ -114,6 +115,7 @@ export function resolveComposerModelSelection(
       input.draft?.activeProvider,
       input.sessionProviderInstanceId,
       input.threadModelSelection?.instanceId,
+      input.settings.textGenerationModelSelection.instanceId,
       input.projectModelSelection?.instanceId,
     ],
     explicitSelectedInstanceId,
@@ -126,6 +128,7 @@ export function resolveComposerModelSelection(
     selectedProvider,
     selectedInstanceId,
     threadModelSelection: input.threadModelSelection,
+    defaultModelSelection: input.settings.textGenerationModelSelection,
     projectModelSelection: input.projectModelSelection,
     settings: input.settings,
   });

@@ -1,10 +1,8 @@
 import {
   DesktopServerExposureModeSchema,
   DesktopThemeSchema,
-  DesktopUpdateChannelSchema,
   type DesktopServerExposureMode,
   type DesktopTheme,
-  type DesktopUpdateChannel,
 } from "@multi/contracts";
 import { fromLenientJson } from "@multi/shared/schema-json";
 import * as Context from "effect/Context";
@@ -20,13 +18,10 @@ import * as Schema from "effect/Schema";
 import * as SynchronizedRef from "effect/SynchronizedRef";
 
 import * as DesktopEnvironment from "../app/DesktopEnvironment";
-import { resolveDefaultDesktopUpdateChannel } from "../updates/updateChannels";
 
 export interface DesktopSettings {
   readonly serverExposureMode: DesktopServerExposureMode;
   readonly themeSource: DesktopTheme;
-  readonly updateChannel: DesktopUpdateChannel;
-  readonly updateChannelConfiguredByUser: boolean;
 }
 
 export interface DesktopSettingsChange {
@@ -37,15 +32,11 @@ export interface DesktopSettingsChange {
 export const DEFAULT_DESKTOP_SETTINGS: DesktopSettings = {
   serverExposureMode: "local-only",
   themeSource: "system",
-  updateChannel: "latest",
-  updateChannelConfiguredByUser: false,
 };
 
 const DesktopSettingsDocument = Schema.Struct({
   serverExposureMode: Schema.optionalKey(DesktopServerExposureModeSchema),
   themeSource: Schema.optionalKey(DesktopThemeSchema),
-  updateChannel: Schema.optionalKey(DesktopUpdateChannelSchema),
-  updateChannelConfiguredByUser: Schema.optionalKey(Schema.Boolean),
 });
 
 type DesktopSettingsDocument = typeof DesktopSettingsDocument.Type;
@@ -77,9 +68,6 @@ export interface DesktopAppSettingsShape {
   readonly setThemeSource: (
     theme: DesktopTheme,
   ) => Effect.Effect<DesktopSettingsChange, DesktopSettingsWriteError>;
-  readonly setUpdateChannel: (
-    channel: DesktopUpdateChannel,
-  ) => Effect.Effect<DesktopSettingsChange, DesktopSettingsWriteError>;
 }
 
 export class DesktopAppSettings extends Context.Service<
@@ -87,32 +75,18 @@ export class DesktopAppSettings extends Context.Service<
   DesktopAppSettingsShape
 >()("multi/desktop/AppSettings") {}
 
-export function resolveDefaultDesktopSettings(appVersion: string): DesktopSettings {
-  return {
-    ...DEFAULT_DESKTOP_SETTINGS,
-    updateChannel: resolveDefaultDesktopUpdateChannel(appVersion),
-  };
+export function resolveDefaultDesktopSettings(_appVersion: string): DesktopSettings {
+  return DEFAULT_DESKTOP_SETTINGS;
 }
 
 function normalizeDesktopSettingsDocument(
   parsed: DesktopSettingsDocument,
-  appVersion: string,
+  _appVersion: string,
 ): DesktopSettings {
-  const defaultSettings = resolveDefaultDesktopSettings(appVersion);
-  const parsedUpdateChannel = Option.fromNullishOr(parsed.updateChannel);
-  const isLegacySettings = parsed.updateChannelConfiguredByUser === undefined;
-  const updateChannelConfiguredByUser =
-    parsed.updateChannelConfiguredByUser === true ||
-    (isLegacySettings && Option.contains(parsedUpdateChannel, "nightly"));
-
   return {
     serverExposureMode:
       parsed.serverExposureMode === "network-accessible" ? "network-accessible" : "local-only",
     themeSource: parsed.themeSource ?? "system",
-    updateChannel: updateChannelConfiguredByUser
-      ? Option.getOrElse(parsedUpdateChannel, () => defaultSettings.updateChannel)
-      : defaultSettings.updateChannel,
-    updateChannelConfiguredByUser,
   };
 }
 
@@ -128,13 +102,6 @@ function toDesktopSettingsDocument(
   if (settings.themeSource !== defaults.themeSource) {
     document.themeSource = settings.themeSource;
   }
-  if (settings.updateChannel !== defaults.updateChannel) {
-    document.updateChannel = settings.updateChannel;
-  }
-  if (settings.updateChannelConfiguredByUser !== defaults.updateChannelConfiguredByUser) {
-    document.updateChannelConfiguredByUser = settings.updateChannelConfiguredByUser;
-  }
-
   return document;
 }
 
@@ -156,19 +123,6 @@ function setThemeSource(settings: DesktopSettings, requestedTheme: DesktopTheme)
     : {
         ...settings,
         themeSource: requestedTheme,
-      };
-}
-
-function setUpdateChannel(
-  settings: DesktopSettings,
-  requestedChannel: DesktopUpdateChannel,
-): DesktopSettings {
-  return settings.updateChannel === requestedChannel
-    ? settings
-    : {
-        ...settings,
-        updateChannel: requestedChannel,
-        updateChannelConfiguredByUser: true,
       };
 }
 
@@ -259,10 +213,6 @@ export const layer = Layer.effect(
         persist((settings) => setThemeSource(settings, theme)).pipe(
           Effect.withSpan("desktop.settings.setThemeSource", { attributes: { theme } }),
         ),
-      setUpdateChannel: (channel) =>
-        persist((settings) => setUpdateChannel(settings, channel)).pipe(
-          Effect.withSpan("desktop.settings.setUpdateChannel", { attributes: { channel } }),
-        ),
     });
   }),
 );
@@ -290,7 +240,6 @@ export const layerTest = (initialSettings: DesktopSettings = DEFAULT_DESKTOP_SET
         setServerExposureMode: (mode) =>
           update((settings) => setServerExposureMode(settings, mode)),
         setThemeSource: (theme) => update((settings) => setThemeSource(settings, theme)),
-        setUpdateChannel: (channel) => update((settings) => setUpdateChannel(settings, channel)),
       });
     }),
   );

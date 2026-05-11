@@ -145,7 +145,7 @@ function parseCodexModelListResponse(
   response: CodexSchema.V2ModelListResponse,
 ): ReadonlyArray<ServerProviderModel> {
   return response.data.map((model) => ({
-    slug: model.model,
+    slug: model.id,
     name: toDisplayName(model),
     isCustom: false,
     capabilities: mapCodexModelCapabilities(model),
