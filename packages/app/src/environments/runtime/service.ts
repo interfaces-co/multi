@@ -641,13 +641,15 @@ function refreshGitStatusForThreadActivityEffects(
     }
 
     refreshedCwds.add(cwd);
+    const queryClient = activeService?.queryClient ?? null;
     void (async () => {
       try {
         await refreshGitStatus({ environmentId, cwd }, undefined, { force: true });
       } finally {
+        // The service can stop/restart while the git refresh is in flight, so use the
+        // QueryClient that was active when this event scheduled the refresh.
         // Status rows and patch queries must move together; stale patch data can ask Git
         // for a path that was valid in an older status snapshot and now has no diff.
-        const queryClient = activeService?.queryClient;
         if (queryClient) {
           await invalidateGitPatchQueries(queryClient, { environmentId, cwd });
         }
