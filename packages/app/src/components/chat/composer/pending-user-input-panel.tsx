@@ -66,10 +66,7 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
     onAdvanceRef.current = onAdvance;
   }, [onAdvance]);
 
-  const autoAdvance = useDebouncedCallback(
-    () => onAdvanceRef.current(),
-    { wait: 200 },
-  );
+  const autoAdvance = useDebouncedCallback(() => onAdvanceRef.current(), { wait: 200 });
 
   const handleOptionSelection = useEffectEvent((questionId: string, optionLabel: string) => {
     onToggleOption(questionId, optionLabel);

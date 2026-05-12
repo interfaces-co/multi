@@ -8,11 +8,7 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "@multi/ui/tooltip";
 import { cn } from "~/lib/utils";
 import { ModelPickerContent } from "./model-content";
 import { ProviderInstanceIcon } from "./instance-icon";
-import {
-  ModelEsque,
-  getTriggerDisplayModelLabel,
-  getTriggerDisplayModelName,
-} from "./icon-utils";
+import { ModelEsque, getTriggerDisplayModelLabel, getTriggerDisplayModelName } from "./icon-utils";
 import { setModelPickerOpen } from "../../../model-picker-open-state";
 import type { ProviderInstanceEntry } from "../../../provider-instances";
 

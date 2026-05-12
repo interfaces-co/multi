@@ -481,8 +481,16 @@ html.multi-reduce-transparency {
     transparent
   );
   --multi-terminal-scrollbar-background: color-mix(in srgb, var(--foreground) 18%, transparent);
-  --multi-terminal-scrollbar-hover-background: color-mix(in srgb, var(--foreground) 34%, transparent);
-  --multi-terminal-scrollbar-active-background: color-mix(in srgb, var(--foreground) 46%, transparent);
+  --multi-terminal-scrollbar-hover-background: color-mix(
+    in srgb,
+    var(--foreground) 34%,
+    transparent
+  );
+  --multi-terminal-scrollbar-active-background: color-mix(
+    in srgb,
+    var(--foreground) 46%,
+    transparent
+  );
   --multi-terminal-ansi-black: #000;
   --multi-terminal-ansi-red: #cd3131;
   --multi-terminal-ansi-green: #0dbc79;

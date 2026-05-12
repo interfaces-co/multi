@@ -41,6 +41,7 @@ Deep review of the React component layer, design system integration, and fronten
 #### 2.1 Token naming is inconsistent between semantic and literal
 
 `tokens.css` has two naming conventions:
+
 - Semantic: `--multi-color-sidebar`, `--multi-color-chat`, `--multi-color-editor`
 - Literal/role-based: `--multi-fg-primary`, `--multi-bg-tertiary`, `--multi-stroke-secondary`
 
@@ -59,12 +60,14 @@ The Pierre palette correctly uses `color-mix(in oklch, ...)`, but most of the ap
 #### 2.3 Border tokens could be simplified
 
 There are **four** border-related tokens:
+
 - `--multi-color-border`
 - `--multi-color-stroke`
 - `--multi-color-stroke-strong`
 - `--multi-stroke-secondary`, `--multi-stroke-tertiary`, `--multi-stroke-quaternary`
 
 This is likely grown organically. Consider collapsing to a structured scale:
+
 ```
 --multi-border-base
 --multi-border-subtle
@@ -81,6 +84,7 @@ This is likely grown organically. Consider collapsing to a structured scale:
 `PromptInputRoot`, `PromptInputToolbar`, `PromptInputToolbarLeft`, `PromptInputToolbarRight` in `prompt-input.tsx` are a **good compound component pattern**. They use `forwardRef` and `createContext` to share state without prop drilling.
 
 However, the context value has **26 properties**. This is a large API surface. Consider splitting into focused contexts:
+
 - `PromptInputVariantContext` — variant, expanded, dragging
 - `PromptInputActionContext` — onSubmit, onStop, onEscape
 - `PromptInputMenuContext` — menu open state, placements
@@ -149,22 +153,33 @@ interface MessagesTimelineProps {
 #### 4.2.1 `transition: all` is used in some places
 
 In `index.css`:
+
 ```css
 .chat-markdown .chat-markdown-copy-button {
-  transition: opacity 120ms ease, color 120ms ease, border-color 120ms ease;
+  transition:
+    opacity 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease;
 }
 ```
+
 This is correct (specific properties).
 
 But in `shell.css`:
+
 ```css
 .git-diff-card {
-  transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    background-color 120ms ease;
 }
 ```
+
 Also correct.
 
 However, `message-surface.tsx` has:
+
 ```tsx
 className={cn(
   "flex items-center gap-1.5",
@@ -172,6 +187,7 @@ className={cn(
   "group-hover/message-bubble:opacity-100 focus-within:opacity-100",
 )}
 ```
+
 This is fine (only `opacity`).
 
 No instances of `transition: all` were found in reviewed files. Good.
@@ -194,12 +210,14 @@ return {
 #### 4.2.3 Sticky user row backdrop blur is heavy
 
 In `messages-timeline.tsx`:
+
 ```tsx
 isActiveStickyUserRow &&
-  "isolate bg-[color-mix(in_srgb,var(--multi-composer-overlay-bg)_72%,transparent)] backdrop-blur-[18px] after:pointer-events-none ..."
+  "isolate bg-[color-mix(in_srgb,var(--multi-composer-overlay-bg)_72%,transparent)] backdrop-blur-[18px] after:pointer-events-none ...";
 ```
 
 `backdrop-blur-[18px]` on a sticky element during fast scroll can be expensive. Consider:
+
 - Reducing to `backdrop-blur-[12px]` or `backdrop-blur-[8px]`
 - Using a solid fallback color when `prefers-reduced-motion: reduce` is active
 - Or replacing the pseudo-element gradient fade with a simpler `mask-image` fade
@@ -207,20 +225,22 @@ isActiveStickyUserRow &&
 #### 4.2.4 `animate-skeleton` and `animate-thinking` lack `prefers-reduced-motion`
 
 In `index.css`:
+
 ```css
 --animate-skeleton: skeleton 2s -1s infinite linear;
 --animate-thinking: thinking-shimmer 2s linear infinite;
 ```
 
-There is no `@media (prefers-reduced-motion: reduce)` guard for these. Skeleton screens and thinking indicators should freeze or become static when reduced motion is preferred. The `tool-call-shimmer` class *does* have a reduced-motion fallback — apply the same pattern to skeleton and thinking animations.
+There is no `@media (prefers-reduced-motion: reduce)` guard for these. Skeleton screens and thinking indicators should freeze or become static when reduced motion is preferred. The `tool-call-shimmer` class _does_ have a reduced-motion fallback — apply the same pattern to skeleton and thinking animations.
 
 #### 4.2.5 `scale` on press is missing
 
 No `active:scale-[0.96]` or `scale(0.96)` press feedback was found on buttons or message bubbles. The `ChatMessageBubble` (user) has no tactile press state. The `agent-window-chat-header [data-slot="button"]` buttons also lack a press scale.
 
 This is a small but high-impact polish addition. For buttons in the header and composer toolbar:
+
 ```tsx
-className="... active:scale-[0.96] transition-transform"
+className = "... active:scale-[0.96] transition-transform";
 ```
 
 ### 4.3 `AnimatePresence` / Motion Library
@@ -261,10 +281,15 @@ Virtualizers remove off-screen DOM nodes. Screen readers that browse the full do
 #### 5.2.3 Command palette footer shortcut text is not marked up as shortcuts
 
 In `command-palette.tsx`:
+
 ```tsx
 <KbdGroup className="items-center gap-1.5">
-  <Kbd><IconArrowUp /></Kbd>
-  <Kbd><IconArrowDown /></Kbd>
+  <Kbd>
+    <IconArrowUp />
+  </Kbd>
+  <Kbd>
+    <IconArrowDown />
+  </Kbd>
   <span className={cn("text-muted-foreground/80")}>Navigate</span>
 </KbdGroup>
 ```
@@ -274,11 +299,13 @@ The `Kbd` component likely renders `<kbd>` elements. If so, this is correct. Ver
 #### 5.2.4 Image previews lack `alt` fallback
 
 In `human-message.tsx`:
+
 ```tsx
 <img src={image.previewUrl} alt={image.name} className="block h-8 w-full object-cover" />
 ```
 
 If `image.name` is a raw filename like `IMG_2024_001.png`, it is not a great `alt` text. Consider using a generic fallback if the name looks auto-generated:
+
 ```tsx
 alt={looksLikeAutoGeneratedName(image.name) ? "Attached image" : image.name}
 ```
@@ -362,6 +389,7 @@ Reviewed for nested radius mismatches:
 ### 7.2 Shadows vs borders
 
 The app correctly uses shadows for elevation:
+
 - `--multi-shadow-card: 0 1px 2px 0 oklch(0 0 0 / 0.05)`
 - `--multi-shadow-popup: 0 16px 48px oklch(0 0 0 / 0.18)`
 - `--multi-composer-surface-shadow: 0 1px 2px 0 oklch(0 0 0 / 0.05)`
@@ -377,12 +405,14 @@ Borders are used for structural separation (`--multi-stroke-tertiary` on compose
 ### 7.4 z-index discipline
 
 No `z-index: 9999` found. The app uses small z-index values:
+
 - `z-index: 10` on sash hit area
 - `z-index: 20` on workbench pseudo-border
 - `z-index: 30` on overlay elements
 - `z-index: 40` on titlebar controls
 
 This is disciplined. Consider documenting the z-index scale in `tokens.css`:
+
 ```css
 --z-sash: 10;
 --z-workbench-border: 20;
@@ -398,11 +428,13 @@ This is disciplined. Consider documenting the z-index scale in `tokens.css`:
 ### 8.1 `app.tsx` (AppShell)
 
 **Strengths:**
+
 - Uses CSS custom properties for layout math (`--multi-shell-left-width`, etc.). This allows pure CSS container queries to respond to layout changes without React re-renders.
 - `data-shell-left-intent` and `data-shell-right-intent` attributes enable CSS selectors to style based on panel state. Clean.
 - `useColumnResize` hook abstracts resize logic. Good separation.
 
 **Issues:**
+
 - `shellStyle` object is recreated on every render. Since it's passed to a `div` style attribute, this causes a style recalc every render. Memoize it:
   ```tsx
   const shellStyle = useMemo<ShellRootStyle>(() => ({...}), [leftWidth, rightWidth, agentWindowChatMaxWidth]);
@@ -413,12 +445,14 @@ This is disciplined. Consider documenting the z-index scale in `tokens.css`:
 ### 8.2 `messages-timeline.tsx`
 
 **Strengths:**
+
 - `@tanstack/react-virtual` is used correctly with `measureElement` for dynamic row heights.
 - `rangeExtractor` with sticky user rows is a sophisticated optimization.
 - `useStableRows` uses structural sharing to preserve row references. This is expert-level React performance optimization.
 - Scroll-to-bottom logic handles programmatic scroll, user scroll, and stick-to-bottom on new messages. The three refs (`scrollFrameRef`, `programmaticScrollFrameRef`, `programmaticScrollDeadlineRef`) manage complex scroll state machine correctly.
 
 **Issues:**
+
 - `virtualRowStyle` returns inline styles for every row. For 100+ rows, this creates many style objects. Since only `translateY` changes per row, consider using a CSS custom property:
   ```tsx
   style={{ "--row-translate-y": `${virtualRow.start}px` } as CSSProperties}
@@ -437,21 +471,25 @@ This is disciplined. Consider documenting the z-index scale in `tokens.css`:
 ### 8.3 `human-message.tsx`
 
 **Strengths:**
+
 - `deriveDisplayedUserMessageState` separates parsing from rendering. Good.
 - Git agent actions are abstracted into a lookup table (`GIT_AGENT_ACTIONS`). Clean.
 - Terminal context labels are parsed and rendered as inline chips with tooltips. Good UX.
 
 **Issues:**
+
 - The `inlineNodes` array building in `UserMessageBody` is complex and imperative (pushing into an array in a loop). Consider extracting this into a small hook or utility that returns a stable ReactNode array.
 - `hasEmbeddedInlineLabels` check with `textContainsInlineTerminalContextLabels` runs before the inline parsing. If this returns false, the code falls back to a different rendering path. This branching is hard to follow. Consider unifying the paths: always parse, and if no labels match, render plain text.
 
 ### 8.4 `assistant-message.tsx`
 
 **Strengths:**
+
 - `ChangedFilesTree` is memoized and only renders when `turnSummary` exists.
 - `useUiStateStore` selector is precise: `(store) => store.threadChangedFilesExpandedById[routeThreadKey]?.[turnSummary.turnId] ?? true`. Good Zustand pattern.
 
 **Issues:**
+
 - `showCompletionDivider` renders a divider with a pill label. The divider uses `span` elements with `h-px flex-1 bg-border`. This is a common pattern, but `bg-border` is a solid color. Consider using a gradient fade for a softer separation:
   ```tsx
   <span className="h-px flex-1 bg-gradient-to-r from-transparent via-border to-transparent" />
@@ -467,23 +505,27 @@ This is disciplined. Consider documenting the z-index scale in `tokens.css`:
 ### 8.5 `message-surface.tsx`
 
 **Strengths:**
+
 - `cva` variants for `humanMessageBubbleVariants` with `editable` flag.
 - `MessageActions` uses `group-hover/message-bubble:opacity-100` for hover-reveal actions. This is a clean pattern.
 - Keyboard activation (`Enter`/`Space`) on editable bubbles.
 
 **Issues:**
+
 - `MessageActions` opacity transition is `duration-200`. For frequently-hovered elements in a chat, `150ms` or `120ms` would feel snappier. The current 200ms feels slightly sluggish.
 - `ReadonlyActionChatMessageBubble` has no visual distinction from a regular user bubble other than `cursor-default`. Consider a subtle background tint or border change to indicate it's an action message.
 
 ### 8.6 `command-palette.tsx`
 
 **Strengths:**
+
 - `CommandPalette` is well-structured with view stack navigation (submenus).
 - `useDeferredValue` for query filtering prevents UI jank during typing.
 - `zustand` store for open state.
 - Keyboard navigation (ArrowUp/Down, Enter, Backspace, Esc) is implemented.
 
 **Issues:**
+
 - The component is **very large** (~700+ lines). It handles data fetching, filtering, navigation, and rendering. Consider splitting:
   - `CommandPaletteData` — builds items from projects/threads
   - `CommandPaletteNavigation` — handles view stack
@@ -495,11 +537,13 @@ This is disciplined. Consider documenting the z-index scale in `tokens.css`:
 ### 8.7 `settings-layout.tsx`
 
 **Strengths:**
+
 - `SettingsSection` and `SettingsRow` are clean, reusable layout primitives.
 - `useRelativeTimeTick` is a neat utility for live-updating relative labels.
 - `Text` component from `@multi/ui/text` with `size`, `tone`, `weight` props provides consistent typography.
 
 **Issues:**
+
 - `SettingsPageContainer` uses `sm:px-8 sm:py-17` — `py-17` is not a standard Tailwind scale value (Tailwind v4 uses `py-17` if configured, but verify it's in the theme). If it's a custom value, consider using `py-16` or `py-[68px]` for clarity.
 - `SettingsRow` has a `border-t` with `first:border-t-0`. This is correct, but the border color `--multi-stroke-quaternary` is very subtle. In some themes, this may be invisible. Verify contrast.
 
@@ -514,11 +558,13 @@ This is disciplined. Consider documenting the z-index scale in `tokens.css`:
 ### 9.2 Image lazy loading
 
 In `human-message.tsx`:
+
 ```tsx
 <img src={image.previewUrl} alt={image.name} className="block h-8 w-full object-cover" />
 ```
 
 No `loading="lazy"` attribute. For long conversations with many images, add `loading="lazy"` to defer off-screen image loads. Also add `decoding="async"`:
+
 ```tsx
 <img src={image.previewUrl} alt={image.name} loading="lazy" decoding="async" ... />
 ```
@@ -526,6 +572,7 @@ No `loading="lazy"` attribute. For long conversations with many images, add `loa
 ### 9.3 `useMemo` dependency arrays
 
 In `app.tsx`:
+
 ```tsx
 const shellStyle: ShellRootStyle = {
   "--multi-shell-left-width": `${leftWidth}px`,
@@ -575,6 +622,7 @@ This is not memoized and is passed to a `div` style. React will diff this object
 This is a **sophisticated, well-engineered UI codebase**. The token system is unusually rigorous, the virtualized timeline is expertly implemented, and the accessibility baseline is solid (aria-labels, roles, reduced-motion support in some places).
 
 The main opportunities are:
+
 - **Perceptual color uniformity** (srgb -> oklch migration)
 - **Animation completeness** (reduced-motion coverage, press feedback)
 - **Typography polish** (text-wrap, balanced headings)

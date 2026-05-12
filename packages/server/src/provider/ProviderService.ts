@@ -754,11 +754,13 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
           },
         });
         if (routed.isActive) {
-          yield* routed.adapter.stopSession(routed.threadId).pipe(
-            Effect.catchCause((cause) =>
-              persistStopped.pipe(Effect.andThen(Effect.failCause(cause))),
-            ),
-          );
+          yield* routed.adapter
+            .stopSession(routed.threadId)
+            .pipe(
+              Effect.catchCause((cause) =>
+                persistStopped.pipe(Effect.andThen(Effect.failCause(cause))),
+              ),
+            );
         }
         yield* persistStopped;
         yield* analytics.record("provider.session.stopped", {

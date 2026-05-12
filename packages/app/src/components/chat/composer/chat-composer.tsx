@@ -87,7 +87,10 @@ import {
   renderProviderTraitsPicker,
 } from "./provider-registry";
 import { ContextWindowMeter } from "./context-window-meter";
-import { buildExpandedImagePreview, type ExpandedImagePreview } from "../message/expanded-image-preview";
+import {
+  buildExpandedImagePreview,
+  type ExpandedImagePreview,
+} from "../message/expanded-image-preview";
 import { basenameOfPath } from "../../../vscode-icons";
 import { cn, randomUUID } from "~/lib/utils";
 import { shortcutForCommand } from "../../../keybindings";
@@ -165,9 +168,7 @@ function keybindingShortcutKeyForHotkey(shortcut: KeybindingShortcut): string {
   return shortcut.key;
 }
 
-function keybindingShortcutToHotkey(
-  shortcut: KeybindingShortcut,
-): Parameters<typeof useHotkey>[0] {
+function keybindingShortcutToHotkey(shortcut: KeybindingShortcut): Parameters<typeof useHotkey>[0] {
   return {
     key: keybindingShortcutKeyForHotkey(shortcut),
     mod: shortcut.modKey,
@@ -433,9 +434,7 @@ const QueuedComposerItemsPanel = memo(function QueuedComposerItemsPanel(props: {
               key={item.id}
               className={cn(
                 "flex min-h-9 items-center gap-2 rounded-md border px-2 py-1.5",
-                isEditing
-                  ? "border-primary/50 bg-primary/10"
-                  : "border-border/70 bg-muted/25",
+                isEditing ? "border-primary/50 bg-primary/10" : "border-border/70 bg-muted/25",
               )}
             >
               <div className="min-w-0 flex-1">
@@ -725,10 +724,8 @@ export const ChatComposer = memo(
       onBeginEditQueuedComposerItem ?? ignoreQueuedComposerItem;
     const handleCancelEditingQueuedComposerItem =
       onCancelEditingQueuedComposerItem ?? ignoreQueuedComposerEditCancel;
-    const handleRemoveQueuedComposerItem =
-      onRemoveQueuedComposerItem ?? ignoreQueuedComposerItem;
-    const handleSendQueuedComposerItemNow =
-      onSendQueuedComposerItemNow ?? ignoreQueuedComposerItem;
+    const handleRemoveQueuedComposerItem = onRemoveQueuedComposerItem ?? ignoreQueuedComposerItem;
+    const handleSendQueuedComposerItemNow = onSendQueuedComposerItemNow ?? ignoreQueuedComposerItem;
     const composerVariant = variant === "hero" ? "expanded" : "compact";
     const modelPickerPlacement =
       modelPickerPlacementProp ?? (composerVariant === "compact" ? "top-start" : "bottom-start");
@@ -2313,11 +2310,11 @@ export const ChatComposer = memo(
                         ? "Add feedback to refine the plan, or leave this blank to implement it"
                         : isEditingQueuedComposerItem
                           ? "Editing queued message..."
-                        : phase === "disconnected"
-                          ? "Ask for follow-up changes or attach images"
-                          : composerVariant === "compact"
-                            ? "Send follow-up"
-                            : "Ask anything, @tag files/folders, or use / to show available commands"
+                          : phase === "disconnected"
+                            ? "Ask for follow-up changes or attach images"
+                            : composerVariant === "compact"
+                              ? "Send follow-up"
+                              : "Ask anything, @tag files/folders, or use / to show available commands"
                 }
                 disabled={isConnecting || isComposerApprovalState}
               />
@@ -2339,9 +2336,7 @@ export const ChatComposer = memo(
                   ariaLabel={composerMenuAriaLabel}
                   menuKind={composerMenuKind}
                   triggerKind={composerTriggerKind}
-                  groupSlashCommandSections={
-                    composerTrigger?.kind === "slash-command"
-                  }
+                  groupSlashCommandSections={composerTrigger?.kind === "slash-command"}
                   emptyStateText={composerMenuEmptyState}
                   activeItemId={activeComposerMenuItem?.id ?? null}
                   onHighlightedItemChange={onComposerMenuItemHighlighted}

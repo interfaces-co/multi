@@ -1,10 +1,7 @@
 import { EnvironmentId, ThreadId, TurnId } from "@multi/contracts";
 import { describe, expect, it } from "vitest";
 
-import {
-  resolvePendingGitAgentAction,
-  type GitAgentRun,
-} from "./git-agent-actions";
+import { resolvePendingGitAgentAction, type GitAgentRun } from "./git-agent-actions";
 
 const ENV_ID = EnvironmentId.make("env-a");
 const THREAD_ID = ThreadId.make("thread-1");
@@ -65,4 +62,3 @@ describe("resolvePendingGitAgentAction", () => {
     ).toBeNull();
   });
 });
-

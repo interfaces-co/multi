@@ -55,11 +55,7 @@ function registerWorkbenchDiffTheme() {
     return;
   }
 
-  registerCustomCSSVariableTheme(
-    WORKBENCH_DIFF_THEME_NAME,
-    WORKBENCH_DIFF_THEME_DEFAULTS,
-    false,
-  );
+  registerCustomCSSVariableTheme(WORKBENCH_DIFF_THEME_NAME, WORKBENCH_DIFF_THEME_DEFAULTS, false);
   registrationGlobal[DIFF_THEME_REGISTRATION_KEY] = true;
 }
 

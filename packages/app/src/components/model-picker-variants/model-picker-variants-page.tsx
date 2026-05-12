@@ -17,12 +17,7 @@ import {
   ComboboxGroup,
   ComboboxGroupLabel,
 } from "@multi/ui/combobox";
-import {
-  Menu,
-  MenuTrigger,
-  MenuPopup,
-  MenuItem,
-} from "@multi/ui/menu";
+import { Menu, MenuTrigger, MenuPopup, MenuItem } from "@multi/ui/menu";
 import { Popover, PopoverPopup, PopoverTrigger } from "@multi/ui/popover";
 import { ScrollArea } from "@multi/ui/scroll-area";
 import { cn } from "~/lib/utils";
@@ -260,18 +255,15 @@ function useMockModelPickerState() {
   const selectedEntry = instances.find((i) => i.instanceId === selectedInstanceId);
   const selectedModel = selectedEntry?.models.find((m) => m.slug === selectedSlug);
 
-  const toggleFavorite = useCallback(
-    (instanceId: ProviderInstanceId, slug: string) => {
-      setFavorites((prev) => {
-        const exists = prev.some((f) => f.provider === instanceId && f.model === slug);
-        if (exists) {
-          return prev.filter((f) => !(f.provider === instanceId && f.model === slug));
-        }
-        return [...prev, { provider: instanceId, model: slug }];
-      });
-    },
-    [],
-  );
+  const toggleFavorite = useCallback((instanceId: ProviderInstanceId, slug: string) => {
+    setFavorites((prev) => {
+      const exists = prev.some((f) => f.provider === instanceId && f.model === slug);
+      if (exists) {
+        return prev.filter((f) => !(f.provider === instanceId && f.model === slug));
+      }
+      return [...prev, { provider: instanceId, model: slug }];
+    });
+  }, []);
 
   const isFavorite = useCallback(
     (instanceId: ProviderInstanceId, slug: string) => {
@@ -308,7 +300,14 @@ function TriggerButton({
   onClick,
 }: {
   entry?: ProviderInstanceEntry | undefined;
-  model?: { slug: string; name: string; shortName?: string | undefined; subProvider?: string | undefined } | undefined;
+  model?:
+    | {
+        slug: string;
+        name: string;
+        shortName?: string | undefined;
+        subProvider?: string | undefined;
+      }
+    | undefined;
   onClick?: (() => void) | undefined;
 }) {
   const label = model ? getTriggerDisplayModelLabel(model) : "Select model";
@@ -343,9 +342,7 @@ function TriggerButton({
 function MenuComboboxRailModelPicker() {
   const state = useMockModelPickerState();
   const [open, setOpen] = useState(false);
-  const [railSelection, setRailSelection] = useState<ProviderInstanceId>(
-    state.selectedInstanceId,
-  );
+  const [railSelection, setRailSelection] = useState<ProviderInstanceId>(state.selectedInstanceId);
   const [query, setQuery] = useState("");
   const highlightedKeyRef = useRef<string | null>(null);
 
@@ -400,7 +397,11 @@ function MenuComboboxRailModelPicker() {
         <div className="flex max-h-[min(17rem,var(--available-height))]">
           {/* Provider rail */}
           <div className="flex w-12 shrink-0 flex-col border-r border-multi-stroke-tertiary bg-[color-mix(in_srgb,var(--multi-bg-secondary)_72%,transparent)]">
-            <ScrollArea hideScrollbars scrollFade className="max-h-[min(17rem,var(--available-height))]">
+            <ScrollArea
+              hideScrollbars
+              scrollFade
+              className="max-h-[min(17rem,var(--available-height))]"
+            >
               <div className="flex flex-col gap-1 p-1">
                 {state.instances.map((entry) => (
                   <button
@@ -492,7 +493,8 @@ function MenuComboboxRailModelPicker() {
                       if (!model) return null;
                       const isSelected = state.selectedKey === modelKey;
                       const isFav = state.isFavorite(activeEntry!.instanceId, model.slug);
-                      const ProviderIcon = PROVIDER_ICON_BY_PROVIDER[activeEntry!.driverKind] ?? null;
+                      const ProviderIcon =
+                        PROVIDER_ICON_BY_PROVIDER[activeEntry!.driverKind] ?? null;
                       const providerLabel = model.subProvider
                         ? `${activeEntry!.displayName} \u00b7 ${model.subProvider}`
                         : activeEntry!.displayName;
@@ -578,9 +580,7 @@ function ComboboxGroupedModelPicker() {
 
   const allModelKeys = useMemo(
     () =>
-      state.instances.flatMap((entry) =>
-        entry.models.map((m) => `${entry.instanceId}:${m.slug}`),
-      ),
+      state.instances.flatMap((entry) => entry.models.map((m) => `${entry.instanceId}:${m.slug}`)),
     [state.instances],
   );
 
@@ -692,7 +692,8 @@ function ComboboxGroupedModelPicker() {
                       const modelKey = `${group.entry.instanceId}:${model.slug}`;
                       const isSelected = state.selectedKey === modelKey;
                       const isFav = state.isFavorite(group.entry.instanceId, model.slug);
-                      const ProviderIcon = PROVIDER_ICON_BY_PROVIDER[group.entry.driverKind] ?? null;
+                      const ProviderIcon =
+                        PROVIDER_ICON_BY_PROVIDER[group.entry.driverKind] ?? null;
                       const providerLabel = model.subProvider
                         ? `${group.entry.displayName} \u00b7 ${model.subProvider}`
                         : group.entry.displayName;
@@ -916,13 +917,7 @@ function MenuFlatSearchableModelPicker() {
 /*  branding, per-model gear flyout with reasoning + fast toggle.     */
 /* ------------------------------------------------------------------ */
 
-function ToggleSwitch({
-  checked,
-  onChange,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-}) {
+function ToggleSwitch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
       type="button"
@@ -993,9 +988,7 @@ function CursorStyleModelPicker() {
     const q = query.trim().toLowerCase();
     if (!q) return flatModels;
     return flatModels.filter(
-      (m) =>
-        m.name.toLowerCase().includes(q) ||
-        m.slug.toLowerCase().includes(q),
+      (m) => m.name.toLowerCase().includes(q) || m.slug.toLowerCase().includes(q),
     );
   }, [flatModels, query]);
 
@@ -1027,13 +1020,7 @@ function CursorStyleModelPicker() {
           </Button>
         }
       />
-      <MenuPopup
-        variant="workbench"
-        side="bottom"
-        align="start"
-        sideOffset={4}
-        className="w-64"
-      >
+      <MenuPopup variant="workbench" side="bottom" align="start" sideOffset={4} className="w-64">
         <div className="flex min-h-0 flex-col">
           {/* Search */}
           <div className="shrink-0 border-b border-multi-stroke-tertiary px-2 py-1.5">
@@ -1215,8 +1202,8 @@ export function ModelPickerVariantsPage() {
             Model Picker Variants
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Menu + Combobox combinations with no context switching. Provider selection is always
-            one click away.
+            Menu + Combobox combinations with no context switching. Provider selection is always one
+            click away.
           </p>
         </div>
 

@@ -85,7 +85,11 @@ function startApp() {
 
   const app = spawn(
     resolveElectronPath(),
-    [`--user-data-dir=${devUserDataDir}`, `--multi-dev-root=${desktopDir}`, "dist-electron/main.cjs"],
+    [
+      `--user-data-dir=${devUserDataDir}`,
+      `--multi-dev-root=${desktopDir}`,
+      "dist-electron/main.cjs",
+    ],
     {
       cwd: desktopDir,
       env: childEnv,
