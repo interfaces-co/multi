@@ -162,10 +162,7 @@ async function getHighlightedCodeHtml(
 
 function MarkdownCodeBlock({ code, children }: { code: string; children: ReactNode }) {
   const [copied, setCopied] = useState(false);
-  const resetCopied = useDebouncedCallback(
-    () => setCopied(false),
-    { wait: 1200 },
-  );
+  const resetCopied = useDebouncedCallback(() => setCopied(false), { wait: 1200 });
   const handleCopy = useCallback(() => {
     if (typeof navigator === "undefined" || navigator.clipboard == null) {
       return;

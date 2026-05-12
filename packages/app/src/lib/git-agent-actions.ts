@@ -20,11 +20,7 @@ type GitAgentActionConfig = Readonly<{
   simulatedReason: GitAgentSimulatedReason;
 }>;
 
-function gitAgentPrompt(
-  actionKey: string,
-  actionLabel: string,
-  steps: readonly string[],
-): string {
+function gitAgentPrompt(actionKey: string, actionLabel: string, steps: readonly string[]): string {
   return [
     `${GIT_AGENT_ACTION_KEY_PREFIX}${actionKey}`,
     GIT_AGENT_ACTION_INSTRUCTIONS,
@@ -150,4 +146,3 @@ export function resolvePendingGitAgentAction(input: {
       : (input.orchestrationHandoff?.action ?? null))
   );
 }
-

@@ -388,11 +388,9 @@ describe("retainThreadDetailSubscription", () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(mockRefreshGitStatus).toHaveBeenCalledWith(
-      { environmentId, cwd: "/repo" },
-      undefined,
-      { force: true },
-    );
+    expect(mockRefreshGitStatus).toHaveBeenCalledWith({ environmentId, cwd: "/repo" }, undefined, {
+      force: true,
+    });
     expect(queryClient.getQueryState(patchQueryKey)?.isInvalidated).toBe(true);
 
     release();

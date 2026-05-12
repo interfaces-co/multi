@@ -186,9 +186,7 @@ const make = Effect.gen(function* () {
       operation: "CheckpointLifecycle.resolveCheckpointCwd",
       candidates,
       fallbackCwds:
-        input.thread.projectId === null
-          ? []
-          : [{ label: "server.cwd", cwd: serverConfig.cwd }],
+        input.thread.projectId === null ? [] : [{ label: "server.cwd", cwd: serverConfig.cwd }],
       threadId: input.threadId,
       ...(input.thread.projectId === null ? {} : { projectId: input.thread.projectId }),
     });

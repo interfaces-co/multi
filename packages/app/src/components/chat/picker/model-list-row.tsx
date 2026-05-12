@@ -39,9 +39,7 @@ export const ModelListRow = memo(function ModelListRow(props: {
   const providerLabel = props.model.subProvider
     ? `${props.providerDisplayName} · ${props.model.subProvider}`
     : props.providerDisplayName;
-  const providerLine = selectable
-    ? providerLabel
-    : `${providerLabel} · Unavailable`;
+  const providerLine = selectable ? providerLabel : `${providerLabel} · Unavailable`;
 
   return (
     <ComboboxItem

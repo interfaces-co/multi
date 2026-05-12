@@ -10,12 +10,7 @@ import {
   setSavedEnvironmentSecret,
 } from "./methods/savedEnvironments";
 import { getServerExposureState, setServerExposureMode } from "./methods/serverExposure";
-import {
-  checkForUpdate,
-  downloadUpdate,
-  getUpdateState,
-  installUpdate,
-} from "./methods/updates";
+import { checkForUpdate, downloadUpdate, getUpdateState, installUpdate } from "./methods/updates";
 import {
   confirm,
   getAppBranding,

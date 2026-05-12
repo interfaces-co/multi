@@ -58,7 +58,10 @@ import { selectBootstrapCompleteForActiveEnvironment, useStore } from "../../../
 import { useTerminalStateStore } from "../../../terminal-state-store";
 import { useUiStateStore } from "../../../ui-state-store";
 import { createAuthenticatedSessionHandlers } from "../../../../test/authHttpHandlers";
-import { BrowserWsRpcHarness, type NormalizedWsRpcRequestBody } from "../../../../test/wsRpcHarness";
+import {
+  BrowserWsRpcHarness,
+  type NormalizedWsRpcRequestBody,
+} from "../../../../test/wsRpcHarness";
 
 import { DEFAULT_CLIENT_SETTINGS } from "@multi/contracts/settings";
 

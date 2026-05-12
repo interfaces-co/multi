@@ -50,11 +50,7 @@ interface ComposerQueueStoreState {
     itemId: QueuedComposerItemId,
   ) => QueuedComposerItem | null;
   takeNextQueuedComposerItem: (threadKey: string) => QueuedComposerItem | null;
-  restoreQueuedComposerItem: (
-    threadKey: string,
-    item: QueuedComposerItem,
-    index: number,
-  ) => void;
+  restoreQueuedComposerItem: (threadKey: string, item: QueuedComposerItem, index: number) => void;
   beginEditingQueuedComposerItem: (threadKey: string, itemId: QueuedComposerItemId) => void;
   cancelEditingQueuedComposerItem: (threadKey: string) => void;
   replaceEditingQueuedComposerItem: (threadKey: string, item: QueuedComposerItem) => void;
@@ -126,7 +122,11 @@ export const useComposerQueueStore = create<ComposerQueueStoreState>()((set, get
       : EMPTY_QUEUE_ITEMS;
   },
   getQueueItem: (threadKey, itemId) => {
-    return get().getQueueItems(threadKey).find((item) => item.id === itemId) ?? null;
+    return (
+      get()
+        .getQueueItems(threadKey)
+        .find((item) => item.id === itemId) ?? null
+    );
   },
   getEditingQueueItemId: (threadKey) => {
     const normalizedThreadKey = normalizeThreadKey(threadKey);
