@@ -744,7 +744,9 @@ function ShellToolCall({
   defaultExpanded: boolean;
   onNestedToolExpand: ((callId: string | undefined, expanded: boolean) => void) | undefined;
 }) {
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  const [isExpanded, setIsExpanded] = useState(
+    approval && approval.status !== "pending" ? false : defaultExpanded,
+  );
   const previousApprovalStatusRef = useRef<ToolCallApproval["status"] | undefined>(
     approval?.status,
   );
