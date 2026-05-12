@@ -213,7 +213,6 @@ body {
 }
 
 .git-stack-virtualizer {
-  scrollbar-gutter: stable;
   background: var(--multi-git-diff-editor-background);
 }
 

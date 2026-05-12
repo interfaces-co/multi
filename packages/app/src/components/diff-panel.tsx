@@ -453,7 +453,7 @@ export default function DiffPanel({ mode = "inline" }: DiffPanelProps) {
         >
           <TabsList
             ref={turnStripRef}
-            className="turn-chip-strip flex gap-1 overflow-x-auto px-8 py-0.5"
+            className="turn-chip-strip flex gap-1 overflow-x-auto overscroll-x-contain px-8 py-0.5 scrollbar-none"
             style={
               canScrollTurnStripLeft || canScrollTurnStripRight
                 ? {

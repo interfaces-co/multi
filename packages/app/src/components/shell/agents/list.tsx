@@ -318,7 +318,7 @@ function AgentListContent(props: AgentListProps) {
   }, [prewarmedSidebarThreadRefs]);
 
   return (
-    <div className="sidebar-body multi-agent-sidebar agent-sidebar-sections flex min-h-0 flex-1 flex-col overflow-y-auto [scrollbar-gutter:stable]">
+    <div className="sidebar-body multi-agent-sidebar agent-sidebar-sections flex min-h-0 flex-1 flex-col overflow-y-auto scrollbar-gutter-stable">
       {props.sections.map((section) => (
         <Section
           key={section.id}
@@ -336,7 +336,7 @@ function AgentListContent(props: AgentListProps) {
 
 function SkeletonRows() {
   return (
-    <div className="sidebar-body multi-agent-sidebar agent-sidebar-sections flex min-h-0 flex-1 flex-col overflow-y-auto [scrollbar-gutter:stable]">
+    <div className="sidebar-body multi-agent-sidebar agent-sidebar-sections flex min-h-0 flex-1 flex-col overflow-y-auto scrollbar-gutter-stable">
       {[0, 1].map((i) => (
         <div className="flex flex-col gap-2" key={i}>
           <div
