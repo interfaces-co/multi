@@ -30,7 +30,7 @@ function AutocompleteInput({
       {startAddon && (
         <div
           aria-hidden="true"
-          className="[&_svg]:-mx-0.5 pointer-events-none absolute inset-y-0 start-px z-10 flex items-center ps-2.5 opacity-70 has-[+[data-size=sm]]:ps-2 [&_svg:not([class*='size-'])]:size-4"
+          className="[&_svg]:-mx-0.5 pointer-events-none absolute inset-y-0 inset-s-px z-10 flex items-center ps-2.5 opacity-70 has-[+[data-size=sm]]:ps-2 [&_svg:not([class*='size-'])]:size-4"
           data-slot="autocomplete-start-addon"
         >
           {startAddon}
@@ -53,7 +53,7 @@ function AutocompleteInput({
         <AutocompleteTrigger
           className={cn(
             "-translate-y-1/2 absolute top-1/2 inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-transparent opacity-80 outline-none transition-colors pointer-coarse:after:absolute pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 hover:opacity-100 has-[+[data-slot=autocomplete-clear]]:hidden sm:size-7 [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
-            sizeValue === "sm" ? "end-0" : "end-0.5",
+            sizeValue === "sm" ? "inset-e-0" : "inset-e-0.5",
           )}
         >
           <AutocompletePrimitive.Icon data-slot="autocomplete-icon">
@@ -65,7 +65,7 @@ function AutocompleteInput({
         <AutocompleteClear
           className={cn(
             "-translate-y-1/2 absolute top-1/2 inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-transparent opacity-80 outline-none transition-colors pointer-coarse:after:absolute pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 hover:opacity-100 has-[+[data-slot=autocomplete-clear]]:hidden sm:size-7 [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
-            sizeValue === "sm" ? "end-0" : "end-0.5",
+            sizeValue === "sm" ? "inset-e-0" : "inset-e-0.5",
           )}
         >
           <IconCrossMediumDefault />
@@ -208,7 +208,7 @@ function AutocompleteClear({ className, ...props }: AutocompletePrimitive.Clear.
   return (
     <AutocompletePrimitive.Clear
       className={cn(
-        "-translate-y-1/2 absolute end-0.5 top-1/2 inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-transparent opacity-80 outline-none transition-[color,background-color,box-shadow,opacity] pointer-coarse:after:absolute pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 hover:opacity-100 sm:size-7 [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+        "-translate-y-1/2 absolute inset-e-0.5 top-1/2 inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-transparent opacity-80 outline-none transition-[color,background-color,box-shadow,opacity] pointer-coarse:after:absolute pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 hover:opacity-100 sm:size-7 [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
         className,
       )}
       data-slot="autocomplete-clear"

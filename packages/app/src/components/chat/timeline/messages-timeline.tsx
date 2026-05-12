@@ -449,7 +449,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
           onPointerDown={clearProgrammaticScrollTracking}
           onTouchStart={clearProgrammaticScrollTracking}
           onWheel={clearProgrammaticScrollTracking}
-          className="agent-panel-meta-agent-chat h-full min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain [overflow-anchor:none] [scrollbar-gutter:stable_both-edges] [scrollbar-width:thin]"
+          className="agent-panel-meta-agent-chat h-full min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain [overflow-anchor:none] scrollbar-gutter-stable-both-edges scrollbar-thin"
         >
           <div style={virtualContentStyle}>
             {virtualItems.map((virtualRow) => {

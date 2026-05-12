@@ -2369,7 +2369,7 @@ export const ChatComposer = memo(
                   isComposerFooterCompact ? "gap-1.5" : "gap-2 sm:gap-0",
                 )}
               >
-                <PromptInputToolbarLeft className="-m-1 flex min-w-0 flex-1 items-center gap-1 overflow-x-auto p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <PromptInputToolbarLeft className="-m-1 flex min-w-0 flex-1 items-center gap-1 overflow-x-auto p-1 scrollbar-none [&::-webkit-scrollbar]:hidden">
                   <span
                     className={cn(
                       "glass-model-picker-wrapper inline-flex min-w-0 max-w-(--agent-prompt-model-picker-max-width) overflow-hidden [--agent-prompt-model-picker-max-width:240px]",

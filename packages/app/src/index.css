@@ -366,9 +366,7 @@ code {
 }
 
 .turn-chip-strip {
-  scrollbar-width: none;
   -ms-overflow-style: none;
-  overscroll-behavior-x: contain;
 }
 
 .turn-chip-strip::-webkit-scrollbar {
