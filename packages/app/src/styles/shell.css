@@ -229,8 +229,7 @@ body {
   border: 0;
   border-bottom: 1px solid color-mix(in srgb, var(--multi-workbench-panel-border) 78%, transparent);
   background: var(--multi-git-diff-editor-background);
-  transition:
-    background-color 120ms ease;
+  transition: background-color 120ms ease;
 }
 
 .git-diff-card:last-child {

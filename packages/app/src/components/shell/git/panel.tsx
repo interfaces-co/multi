@@ -312,7 +312,7 @@ function GitPanelInner(props: {
               </div>
             ) : (
               <Virtualizer
-                className="git-stack-virtualizer h-full min-h-0 overflow-x-hidden overflow-y-auto overscroll-contain px-0 pb-0 pt-1 scrollbar-gutter-stable"
+                className="bg-(--multi-git-diff-editor-background) h-full min-h-0 overflow-x-hidden overflow-y-auto overscroll-contain px-0 pb-0 pt-1 scrollbar-gutter-stable"
                 config={{
                   overscrollSize: 640,
                   intersectionObserverMargin: 900,
