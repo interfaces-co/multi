@@ -11,7 +11,7 @@ import {
   IconToolbox,
 } from "central-icons";
 import { cva } from "class-variance-authority";
-import { memo, type ComponentType, type ReactNode, useEffect, useState } from "react";
+import { memo, type ComponentType, type ReactNode, useEffect, useRef, useState } from "react";
 import {
   formatDuration,
   type ToolCommandArtifact,
@@ -744,11 +744,26 @@ function ShellToolCall({
   defaultExpanded: boolean;
   onNestedToolExpand: ((callId: string | undefined, expanded: boolean) => void) | undefined;
 }) {
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  const [isExpanded, setIsExpanded] = useState(
+    approval && approval.status !== "pending" ? false : defaultExpanded,
+  );
+  const previousApprovalStatusRef = useRef<ToolCallApproval["status"] | undefined>(
+    approval?.status,
+  );
   const metadataItems = getCommandMetadataItems(artifact);
   const hasContent = command.length > 0 || Boolean(output) || metadataItems.length > 0;
   const isPending = approval?.status === "pending";
   const expandable = hasContent;
+
+  useEffect(() => {
+    const previousStatus = previousApprovalStatusRef.current;
+    previousApprovalStatusRef.current = approval?.status;
+
+    if (previousStatus === "pending" && approval?.status !== "pending") {
+      setIsExpanded(false);
+      onNestedToolExpand?.(callId, false);
+    }
+  }, [approval?.status, callId, onNestedToolExpand]);
 
   const toggleExpanded = () => {
     if (!expandable) return;
