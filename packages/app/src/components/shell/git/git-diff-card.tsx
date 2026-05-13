@@ -177,7 +177,10 @@ export function GitDiffCard(props: {
               type="checkbox"
               aria-label="Viewed"
               checked={props.viewed}
-              onChange={() => props.onToggleViewed()}
+              onChange={() => {
+                props.onToggleViewed();
+                props.onExpandedChange(false);
+              }}
               className="size-3.5 rounded border-multi-border/60 accent-primary"
             />
             <span className="git-diff-card__label-text">Viewed</span>

@@ -65,7 +65,6 @@
   --multi-composer-surface-shadow: 0 1px 2px 0 oklch(0 0 0 / 0.05);
   --multi-composer-overlay-bleed-mask-height: 12px;
   --multi-composer-overlay-height: 24px;
-  --multi-chat-top-fade-distance: 24px;
   --multi-chat-sticky-bottom-fade-height: 20px;
   --multi-chat-sticky-bottom-fade-blur: 8px;
   --multi-composer-overlay-bg: var(--multi-color-editor);
