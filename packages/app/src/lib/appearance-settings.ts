@@ -1,55 +1,3 @@
-/**
- * Legacy inline keys from the old JS-driven Pierre preset; cleared when switching palettes
- * so earlier sessions do not leave stale `style` properties on :root.
- */
-const INLINE_PRESET_VAR_KEYS = [
-  "--accent",
-  "--accent-foreground",
-  "--app-background",
-  "--background",
-  "--border",
-  "--card",
-  "--card-foreground",
-  "--destructive",
-  "--destructive-foreground",
-  "--foreground",
-  "--info",
-  "--info-foreground",
-  "--input",
-  "--multi-color-active",
-  "--multi-color-border",
-  "--multi-color-bubble",
-  "--multi-color-bubble-opaque",
-  "--multi-color-chat",
-  "--multi-color-editor",
-  "--multi-color-elevated",
-  "--multi-color-hover",
-  "--multi-color-menubar",
-  "--multi-color-sidebar",
-  "--multi-color-stroke",
-  "--multi-color-stroke-strong",
-  "--multi-color-surface",
-  "--multi-action",
-  "--multi-diff-addition",
-  "--multi-diff-addition-bg",
-  "--multi-diff-deletion",
-  "--multi-diff-deletion-bg",
-  "--multi-stroke-tertiary",
-  "--muted",
-  "--muted-foreground",
-  "--popover",
-  "--popover-foreground",
-  "--primary",
-  "--primary-foreground",
-  "--ring",
-  "--secondary",
-  "--secondary-foreground",
-  "--success",
-  "--success-foreground",
-  "--warning",
-  "--warning-foreground",
-] as const;
-
 export const STORAGE_REDUCE_TRANSPARENCY = "multi:reduce-transparency";
 export const STORAGE_WINDOW_TRANSPARENCY = "multi:window-transparency";
 export const STORAGE_TINT_HUE = "multi:accent-hue";
@@ -59,7 +7,6 @@ export const STORAGE_CODE_FONT_SIZE = "multi:code-font-size";
 export const STORAGE_UI_FONT = "multi:ui-font";
 export const STORAGE_CODE_FONT = "multi:mono-font";
 
-/** Dispatched on `window` when palette, fonts, or other appearance chrome from this module changes. */
 export const APPEARANCE_SETTINGS_CHANGED = "appearance-settings-changed" as const;
 
 let listeners: Array<() => void> = [];
@@ -68,7 +15,6 @@ const keys = new Set([
   STORAGE_WINDOW_TRANSPARENCY,
   STORAGE_TINT_HUE,
   STORAGE_TINT_SATURATION,
-  "multi:accent-intensity",
   STORAGE_UI_FONT_SIZE,
   STORAGE_CODE_FONT_SIZE,
   STORAGE_UI_FONT,
@@ -105,15 +51,7 @@ function parseIntStored(raw: string | null, fallback: number, min: number, max: 
 }
 
 function readTintSaturation() {
-  const raw =
-    localStorage.getItem(STORAGE_TINT_SATURATION) ?? localStorage.getItem("multi:accent-intensity");
-  return parseIntStored(raw, 33, 0, 100);
-}
-
-function clearLegacyInlinePresetVars(root: HTMLElement) {
-  for (const k of INLINE_PRESET_VAR_KEYS) {
-    root.style.removeProperty(k);
-  }
+  return parseIntStored(localStorage.getItem(STORAGE_TINT_SATURATION), 33, 0, 100);
 }
 
 function wantsOsVibrancy() {
@@ -140,7 +78,6 @@ function applyChromeRoot() {
     100,
   );
   root.classList.toggle("multi-reduce-transparency", reduce);
-  root.classList.remove("multi-hide-email");
   root.style.setProperty("--multi-transparency", String(transparency));
 
   const uiPx = parseIntStored(localStorage.getItem(STORAGE_UI_FONT_SIZE), 13, 11, 16);
@@ -162,9 +99,6 @@ function applyChromeRoot() {
     root.style.removeProperty("--multi-font-mono");
   }
 
-  root.dataset.colorPalette = "pierre";
-  clearLegacyInlinePresetVars(root);
-
   const hue = parseIntStored(localStorage.getItem(STORAGE_TINT_HUE), 247, 0, 360);
   root.style.setProperty("--multi-user-hue", String(hue));
   root.style.setProperty("--multi-intensity", String(readTintSaturation()));
@@ -180,17 +114,14 @@ function applyAppearanceSettings() {
 }
 
 export function resetAppearanceSettings() {
-  localStorage.removeItem("multi:color-preset");
   localStorage.removeItem(STORAGE_WINDOW_TRANSPARENCY);
   localStorage.removeItem(STORAGE_TINT_HUE);
   localStorage.removeItem(STORAGE_TINT_SATURATION);
-  localStorage.removeItem("multi:accent-intensity");
   localStorage.removeItem(STORAGE_REDUCE_TRANSPARENCY);
   localStorage.removeItem(STORAGE_UI_FONT_SIZE);
   localStorage.removeItem(STORAGE_CODE_FONT_SIZE);
   localStorage.removeItem(STORAGE_UI_FONT);
   localStorage.removeItem(STORAGE_CODE_FONT);
-  localStorage.removeItem("multi:hide-email");
   applyAppearanceSettings();
 }
 

@@ -8,11 +8,7 @@ import { applyTerminalHostToXterm } from "./terminal-host-theme";
  * Attributes on `document.documentElement` that can change terminal palette, fonts, or density.
  * Kept in one place so workbench and thread terminals observe the same surface.
  */
-export const TERMINAL_HOST_DOCUMENT_ATTRIBUTE_FILTER = [
-  "class",
-  "style",
-  "data-color-palette",
-] as const;
+export const TERMINAL_HOST_DOCUMENT_ATTRIBUTE_FILTER = ["class", "style"] as const;
 
 export type TerminalHostSyncOptions = {
   /** After host theme/fonts are applied (e.g. fit + PTY resize). */
