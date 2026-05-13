@@ -10,7 +10,7 @@ import { retainThreadDetailSubscription } from "~/environments/runtime/service";
 import { useThreadActions } from "~/hooks/use-thread-actions";
 import type { SidebarSectionModel } from "~/lib/sidebar-chat-view-model";
 import { getSidebarThreadIdsToPrewarm } from "~/lib/thread-sidebar";
-import { useThreadUnreadStore } from "~/lib/thread-unread-store";
+import { useThreadUnreadStore } from "~/stores/thread-unread-store";
 import { readLocalApi } from "~/local-api";
 import { AgentRow } from "./row";
 

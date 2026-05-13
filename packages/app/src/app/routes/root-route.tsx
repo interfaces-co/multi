@@ -26,7 +26,7 @@ import {
   useServerWelcomeSubscription,
 } from "~/rpc/server-state";
 import { selectEnvironmentState, selectProjectByRef, useStore } from "~/store";
-import { useUiStateStore } from "~/ui-state-store";
+import { useUiStateStore } from "~/stores/ui-state-store";
 import { syncBrowserChromeTheme } from "~/hooks/use-theme";
 import {
   ensureEnvironmentConnectionBootstrapped,

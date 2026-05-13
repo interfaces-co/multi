@@ -25,7 +25,7 @@ import {
   useRightOpen,
   useRightWidth,
   useTerminalSessions,
-} from "~/lib/shell-panels-store";
+} from "~/stores/shell-panels-store";
 import { cn } from "~/lib/utils";
 import { RightWorkbenchHeader } from "./right-workbench-header";
 import { useColumnResize } from "./use-column-resize";

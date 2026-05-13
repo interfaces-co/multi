@@ -17,7 +17,7 @@ import { PIERRE_WORKBENCH_CODE_UNSAFE_CSS } from "~/lib/pierre-workbench-code-cs
 import { projectReadFileQueryOptions } from "~/lib/project-react-query";
 import { resolveDiffThemeName } from "~/lib/diff-rendering";
 import { useTheme } from "~/hooks/use-theme";
-import { shellPanelsActions, useActiveTab, useSecondaryRail } from "~/lib/shell-panels-store";
+import { shellPanelsActions, useActiveTab, useSecondaryRail } from "~/stores/shell-panels-store";
 import { ProjectFileTree } from "./project-file-tree";
 import { WorkbenchIconButton } from "../shell/workbench-icon-button";
 import { RightWorkbenchLayout } from "../shell/right-workbench-layout";

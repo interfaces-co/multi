@@ -1,0 +1,72 @@
+import { create } from "zustand";
+import { useShallow } from "zustand/react/shallow";
+
+import {
+  type AppearanceSnapshot,
+  readAppearanceSnapshot,
+  resetAppearanceSettings,
+  setCodeFontFamily,
+  setCodeFontSize,
+  setReduceTransparency,
+  setTintHue,
+  setTintSaturation,
+  setUiFontFamily,
+  setUiFontSize,
+  setWindowTransparency,
+  subscribeAppearanceSettings,
+} from "../lib/appearance-settings";
+
+export const DEFAULT_APPEARANCE_SNAPSHOT: AppearanceSnapshot = {
+  reduceTransparency: false,
+  transparency: 18,
+  hue: 247,
+  saturation: 33,
+  uiFontSize: 13,
+  codeFontSize: 12,
+  uiFont: "",
+  codeFont: "",
+};
+
+type AppearanceStoreState = AppearanceSnapshot;
+
+function getInitialSnapshot(): AppearanceSnapshot {
+  if (typeof window === "undefined") return DEFAULT_APPEARANCE_SNAPSHOT;
+  return readAppearanceSnapshot();
+}
+
+export const useAppearanceStore = create<AppearanceStoreState>(() => getInitialSnapshot());
+
+function syncAppearanceStore() {
+  useAppearanceStore.setState(readAppearanceSnapshot());
+}
+
+if (typeof window !== "undefined") {
+  subscribeAppearanceSettings(syncAppearanceStore);
+}
+
+export function useAppearanceSettingsSnapshot(): AppearanceSnapshot {
+  return useAppearanceStore(
+    useShallow((state) => ({
+      reduceTransparency: state.reduceTransparency,
+      transparency: state.transparency,
+      hue: state.hue,
+      saturation: state.saturation,
+      uiFontSize: state.uiFontSize,
+      codeFontSize: state.codeFontSize,
+      uiFont: state.uiFont,
+      codeFont: state.codeFont,
+    })),
+  );
+}
+
+export const appearanceSettingsActions = {
+  reset: resetAppearanceSettings,
+  setCodeFontFamily,
+  setCodeFontSize,
+  setReduceTransparency,
+  setTintHue,
+  setTintSaturation,
+  setUiFontFamily,
+  setUiFontSize,
+  setWindowTransparency,
+} as const;

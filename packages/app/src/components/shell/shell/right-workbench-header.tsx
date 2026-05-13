@@ -10,7 +10,7 @@ import {
 } from "central-icons";
 import type { ComponentType, ReactNode } from "react";
 
-import type { TerminalSessionEntry, WorkbenchTab } from "~/lib/shell-panels-store";
+import type { TerminalSessionEntry, WorkbenchTab } from "~/stores/shell-panels-store";
 import { cn } from "~/lib/utils";
 
 import { workbenchIconButtonVariants, WorkbenchIconButton } from "./workbench-icon-button";

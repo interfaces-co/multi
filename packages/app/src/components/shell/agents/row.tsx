@@ -14,7 +14,7 @@ import { ThreadContextMenu } from "~/components/shell/sidebar/thread-context-men
 import { RowButton } from "~/components/shell/shared/row-button";
 import { useThreadActions } from "~/hooks/use-thread-actions";
 import type { SidebarChatItem } from "~/lib/sidebar-chat-view-model";
-import { useThreadUnreadStore } from "~/lib/thread-unread-store";
+import { useThreadUnreadStore } from "~/stores/thread-unread-store";
 import { cn } from "~/lib/utils";
 
 type UiStatusDotState = NonNullable<ComponentProps<typeof UiStatusDot>["state"]>;

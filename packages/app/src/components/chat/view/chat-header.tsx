@@ -7,7 +7,7 @@ import { memo } from "react";
 import { IconSidebar } from "central-icons";
 import { Button } from "@multi/ui/button";
 import type { NewProjectScriptInput } from "../../project-scripts-control";
-import { shellPanelsActions } from "~/lib/shell-panels-store";
+import { shellPanelsActions } from "~/stores/shell-panels-store";
 
 interface ChatHeaderProps {
   activeThreadTitle: string;

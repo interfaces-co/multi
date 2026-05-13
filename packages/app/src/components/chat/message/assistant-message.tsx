@@ -6,7 +6,7 @@ import ChatMarkdown from "../markdown/chat-markdown";
 import { Button } from "@multi/ui/button";
 import { ChangedFilesTree } from "./changed-files-tree";
 import { DiffStatLabel, hasNonZeroStat } from "./diff-stat-label";
-import { useUiStateStore } from "~/ui-state-store";
+import { useUiStateStore } from "~/stores/ui-state-store";
 import { ChatMessageBubble } from "./message-surface";
 import { cn } from "~/lib/utils";
 

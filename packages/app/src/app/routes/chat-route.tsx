@@ -1,7 +1,7 @@
 import { Outlet } from "@tanstack/react-router";
 import { useEffect, useEffectEvent } from "react";
 
-import { useCommandPaletteStore } from "~/command-palette-store";
+import { useCommandPaletteStore } from "~/stores/ui/command-palette-store";
 import { useHandleNewThread } from "~/hooks/use-handle-new-thread";
 import { ShellHost } from "~/components/shell-host";
 import {
@@ -11,7 +11,7 @@ import {
 import { isTerminalFocused } from "~/lib/terminal-focus";
 import { resolveShortcutCommand } from "~/keybindings";
 import { selectThreadTerminalState, useTerminalStateStore } from "~/terminal-state-store";
-import { useThreadSelectionStore } from "~/thread-selection-store";
+import { useThreadSelectionStore } from "~/stores/thread-selection-store";
 import { resolveSidebarNewThreadEnvMode } from "~/lib/thread-sidebar";
 import { useSettings } from "~/hooks/use-settings";
 import { useServerKeybindings } from "~/rpc/server-state";

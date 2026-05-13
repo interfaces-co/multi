@@ -49,7 +49,7 @@ import { useGitViewed } from "~/hooks/use-git-viewed-state";
 import { parseDiffRouteSearch, stripDiffSearchParams } from "~/diff-route-search";
 import { DiffWorkerPoolProvider } from "~/components/diff-worker-pool-provider";
 import { DiffPanelLoadingState } from "~/components/diff-panel-shell";
-import { shellPanelsActions, useSecondaryRail } from "~/lib/shell-panels-store";
+import { shellPanelsActions, useSecondaryRail } from "~/stores/shell-panels-store";
 import { GitChangesFileTree } from "./git-changes-file-tree";
 import { GitDiffCard } from "./git-diff-card";
 import { WorkbenchChromeRow } from "../shell/workbench-chrome-row";

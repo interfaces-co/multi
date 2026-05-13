@@ -61,7 +61,7 @@ import {
   selectThreadsAcrossEnvironments,
 } from "~/store";
 import { useTerminalStateStore } from "~/terminal-state-store";
-import { useUiStateStore } from "~/ui-state-store";
+import { useUiStateStore } from "~/stores/ui-state-store";
 import { WsTransport } from "../../rpc/ws-transport";
 import { createWsRpcClient, type WsRpcClient } from "../../rpc/ws-rpc-client";
 import { traceBrowserEvent } from "~/observability/browserDebug";

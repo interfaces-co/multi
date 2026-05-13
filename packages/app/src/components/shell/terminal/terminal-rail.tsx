@@ -2,7 +2,7 @@
 
 import { IconConsole, IconCrossMediumDefault } from "central-icons";
 
-import type { TerminalSessionEntry } from "~/lib/shell-panels-store";
+import type { TerminalSessionEntry } from "~/stores/shell-panels-store";
 import { cn } from "~/lib/utils";
 
 export function TerminalRail(props: {
