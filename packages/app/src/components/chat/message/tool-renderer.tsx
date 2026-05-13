@@ -1006,12 +1006,8 @@ function EditStats({ stats }: { stats: ToolCallModel["tool"]["value"]["stats"] |
 
   return (
     <span className="ml-1 inline-flex shrink-0 gap-1 tabular-nums">
-      {additions > 0 ? (
-        <span className="text-multi-diff-addition">+{additions}</span>
-      ) : null}
-      {deletions > 0 ? (
-        <span className="text-multi-diff-deletion">-{deletions}</span>
-      ) : null}
+      {additions > 0 ? <span className="text-multi-diff-addition">+{additions}</span> : null}
+      {deletions > 0 ? <span className="text-multi-diff-deletion">-{deletions}</span> : null}
     </span>
   );
 }

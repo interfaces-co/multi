@@ -185,9 +185,7 @@ const PlanSidebar = memo(function PlanSidebar({
         <div className="p-3 space-y-4">
           {/* Explanation */}
           {activePlan?.explanation ? (
-            <p className="text-title/[1.625] text-muted-foreground/80">
-              {activePlan.explanation}
-            </p>
+            <p className="text-title/[1.625] text-muted-foreground/80">{activePlan.explanation}</p>
           ) : null}
 
           {/* Plan Steps */}
