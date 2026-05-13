@@ -706,7 +706,6 @@ export function GeneralSettingsPanel() {
 export function AppearanceSettingsPanel() {
   const { theme, setTheme } = useTheme();
   const appearance = useAppearanceSettingsSnapshot();
-  const appearanceActions = appearanceSettingsActions;
   const settings = useSettings();
   const { updateSettings } = useUpdateSettings();
 
@@ -761,7 +760,7 @@ export function AppearanceSettingsPanel() {
               min={0}
               showSwatch
               value={appearance.hue}
-              onChange={appearanceActions.setTintHue}
+              onChange={appearanceSettingsActions.setTintHue}
             />
           }
         />
@@ -775,7 +774,7 @@ export function AppearanceSettingsPanel() {
               min={0}
               suffix="%"
               value={appearance.saturation}
-              onChange={appearanceActions.setTintSaturation}
+              onChange={appearanceSettingsActions.setTintSaturation}
             />
           }
         />
@@ -789,7 +788,7 @@ export function AppearanceSettingsPanel() {
               min={0}
               suffix="%"
               value={appearance.transparency}
-              onChange={appearanceActions.setWindowTransparency}
+              onChange={appearanceSettingsActions.setWindowTransparency}
             />
           }
         />
@@ -801,7 +800,7 @@ export function AppearanceSettingsPanel() {
               checked={appearance.reduceTransparency}
               aria-label="Reduce Transparency"
               onCheckedChange={(checked) =>
-                appearanceActions.setReduceTransparency(Boolean(checked))
+                appearanceSettingsActions.setReduceTransparency(Boolean(checked))
               }
             />
           }
@@ -811,7 +810,7 @@ export function AppearanceSettingsPanel() {
       <SettingsSection
         title="Typography"
         headerAction={
-          <Button size="sm" variant="ghost" onClick={appearanceActions.reset}>
+          <Button size="sm" variant="ghost" onClick={appearanceSettingsActions.reset}>
             Reset
           </Button>
         }
@@ -825,7 +824,7 @@ export function AppearanceSettingsPanel() {
               max={16}
               min={11}
               value={appearance.uiFontSize}
-              onChange={appearanceActions.setUiFontSize}
+              onChange={appearanceSettingsActions.setUiFontSize}
             />
           }
         />
@@ -838,7 +837,7 @@ export function AppearanceSettingsPanel() {
               max={18}
               min={10}
               value={appearance.codeFontSize}
-              onChange={appearanceActions.setCodeFontSize}
+              onChange={appearanceSettingsActions.setCodeFontSize}
             />
           }
         />
@@ -851,7 +850,7 @@ export function AppearanceSettingsPanel() {
               label="UI Font Family"
               value={appearance.uiFont}
               placeholder="System font"
-              onChange={appearanceActions.setUiFontFamily}
+              onChange={appearanceSettingsActions.setUiFontFamily}
             />
           }
         />
@@ -864,7 +863,7 @@ export function AppearanceSettingsPanel() {
               label="Code Font Family"
               value={appearance.codeFont}
               placeholder="System monospace"
-              onChange={appearanceActions.setCodeFontFamily}
+              onChange={appearanceSettingsActions.setCodeFontFamily}
             />
           }
         >
