@@ -50,7 +50,6 @@ const INLINE_PRESET_VAR_KEYS = [
   "--warning-foreground",
 ] as const;
 
-export const STORAGE_COLOR_PALETTE = "multi:color-preset";
 export const STORAGE_REDUCE_TRANSPARENCY = "multi:reduce-transparency";
 export const STORAGE_WINDOW_TRANSPARENCY = "multi:window-transparency";
 export const STORAGE_TINT_HUE = "multi:accent-hue";
@@ -60,14 +59,11 @@ export const STORAGE_CODE_FONT_SIZE = "multi:code-font-size";
 export const STORAGE_UI_FONT = "multi:ui-font";
 export const STORAGE_CODE_FONT = "multi:mono-font";
 
-export type ColorPaletteId = "multi" | "pierre";
-
 /** Dispatched on `window` when palette, fonts, or other appearance chrome from this module changes. */
 export const APPEARANCE_SETTINGS_CHANGED = "appearance-settings-changed" as const;
 
 let listeners: Array<() => void> = [];
 const keys = new Set([
-  STORAGE_COLOR_PALETTE,
   STORAGE_REDUCE_TRANSPARENCY,
   STORAGE_WINDOW_TRANSPARENCY,
   STORAGE_TINT_HUE,
@@ -114,39 +110,13 @@ function readTintSaturation() {
   return parseIntStored(raw, 33, 0, 100);
 }
 
-export function getColorPalette(): ColorPaletteId {
-  const raw = localStorage.getItem(STORAGE_COLOR_PALETTE);
-  if (raw === "pierre") return "pierre";
-  return "multi";
-}
-
-export function applyColorPalette() {
-  const root = document.documentElement;
-  root.dataset.colorPalette = getColorPalette();
-  const preset = getColorPalette();
-  const hue = parseIntStored(localStorage.getItem(STORAGE_TINT_HUE), 255, 0, 360);
-  const saturation = readTintSaturation();
-
-  if (preset === "pierre") {
-    for (const k of INLINE_PRESET_VAR_KEYS) {
-      root.style.removeProperty(k);
-    }
-    root.style.removeProperty("--multi-user-hue");
-    root.style.removeProperty("--multi-intensity");
-    emit();
-    return;
-  }
-
+function clearLegacyInlinePresetVars(root: HTMLElement) {
   for (const k of INLINE_PRESET_VAR_KEYS) {
     root.style.removeProperty(k);
   }
-  root.style.setProperty("--multi-user-hue", String(hue));
-  root.style.setProperty("--multi-intensity", String(saturation));
-  emit();
 }
 
 function wantsOsVibrancy() {
-  if (getColorPalette() !== "multi") return false;
   if (localStorage.getItem(STORAGE_REDUCE_TRANSPARENCY) === "1") return false;
   return true;
 }
@@ -192,7 +162,12 @@ function applyChromeRoot() {
     root.style.removeProperty("--multi-font-mono");
   }
 
-  applyColorPalette();
+  root.dataset.colorPalette = "pierre";
+  clearLegacyInlinePresetVars(root);
+
+  const hue = parseIntStored(localStorage.getItem(STORAGE_TINT_HUE), 247, 0, 360);
+  root.style.setProperty("--multi-user-hue", String(hue));
+  root.style.setProperty("--multi-intensity", String(readTintSaturation()));
 }
 
 export function applyAppearanceBoot() {
@@ -205,7 +180,7 @@ function applyAppearanceSettings() {
 }
 
 export function resetAppearanceSettings() {
-  localStorage.removeItem(STORAGE_COLOR_PALETTE);
+  localStorage.removeItem("multi:color-preset");
   localStorage.removeItem(STORAGE_WINDOW_TRANSPARENCY);
   localStorage.removeItem(STORAGE_TINT_HUE);
   localStorage.removeItem(STORAGE_TINT_SATURATION);
@@ -216,11 +191,6 @@ export function resetAppearanceSettings() {
   localStorage.removeItem(STORAGE_UI_FONT);
   localStorage.removeItem(STORAGE_CODE_FONT);
   localStorage.removeItem("multi:hide-email");
-  applyAppearanceSettings();
-}
-
-export function setColorPalette(next: ColorPaletteId) {
-  localStorage.setItem(STORAGE_COLOR_PALETTE, next);
   applyAppearanceSettings();
 }
 
@@ -272,8 +242,7 @@ export function setCodeFontFamily(css: string) {
   applyAppearanceSettings();
 }
 
-type AppearanceSnapshot = {
-  readonly palette: ColorPaletteId;
+export type AppearanceSnapshot = {
   readonly reduceTransparency: boolean;
   readonly transparency: number;
   readonly hue: number;
@@ -286,10 +255,9 @@ type AppearanceSnapshot = {
 
 function buildSnapshot(): AppearanceSnapshot {
   return {
-    palette: getColorPalette(),
     reduceTransparency: localStorage.getItem(STORAGE_REDUCE_TRANSPARENCY) === "1",
     transparency: parseIntStored(localStorage.getItem(STORAGE_WINDOW_TRANSPARENCY), 18, 0, 100),
-    hue: parseIntStored(localStorage.getItem(STORAGE_TINT_HUE), 255, 0, 360),
+    hue: parseIntStored(localStorage.getItem(STORAGE_TINT_HUE), 247, 0, 360),
     saturation: readTintSaturation(),
     uiFontSize: parseIntStored(localStorage.getItem(STORAGE_UI_FONT_SIZE), 13, 11, 16),
     codeFontSize: parseIntStored(localStorage.getItem(STORAGE_CODE_FONT_SIZE), 12, 10, 18),
@@ -304,7 +272,6 @@ export function readAppearanceSnapshot() {
   const next = buildSnapshot();
   if (
     cached &&
-    cached.palette === next.palette &&
     cached.reduceTransparency === next.reduceTransparency &&
     cached.transparency === next.transparency &&
     cached.hue === next.hue &&

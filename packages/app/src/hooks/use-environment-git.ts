@@ -17,7 +17,7 @@ import {
   invalidateGitPatchQueries,
   type GitPatchData,
 } from "../lib/native-git-react-query";
-import { useShellLayoutStore } from "../lib/shell-layout-store";
+import { useShellLayoutStore } from "../stores/shell-layout-store";
 import { useLocalStorage } from "./use-local-storage";
 import { useShellState } from "./use-shell-cwd";
 

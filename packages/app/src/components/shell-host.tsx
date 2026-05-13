@@ -13,7 +13,7 @@ import { useShallow } from "zustand/react/shallow";
 
 import { readLastChatRouteTarget } from "~/chat-route-persistence";
 import { prefetchDraftNavigation, prefetchThreadNavigation } from "~/app/thread-prefetch";
-import { useCommandPaletteStore } from "~/command-palette-store";
+import { useCommandPaletteStore } from "~/stores/ui/command-palette-store";
 import { isElectron } from "~/env";
 import { useEnvironmentGitPanel } from "~/hooks/use-environment-git";
 import { useHandleNewThread } from "~/hooks/use-handle-new-thread";
@@ -37,8 +37,8 @@ import {
   shellPanelsActions,
   useSecondaryRail,
   useTerminalSessions,
-} from "~/lib/shell-panels-store";
-import { useThreadUnreadStore } from "~/lib/thread-unread-store";
+} from "~/stores/shell-panels-store";
+import { useThreadUnreadStore } from "~/stores/thread-unread-store";
 import { writeStoredProjectCwd } from "~/lib/project-state";
 import { inferLoginShellCaption } from "~/lib/terminal-shell-caption";
 import {

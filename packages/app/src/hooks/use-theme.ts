@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 
-import { applyColorPalette } from "../lib/appearance-settings";
+import { applyAppearanceBoot } from "../lib/appearance-settings";
 
 type Theme = "light" | "dark" | "system";
 type ThemeSnapshot = {
@@ -96,7 +96,7 @@ function applyTheme(theme: Theme, suppressTransitions = false) {
   }
   const isDark = theme === "dark" || (theme === "system" && getSystemDark());
   document.documentElement.classList.toggle("dark", isDark);
-  applyColorPalette();
+  applyAppearanceBoot();
   syncBrowserChromeTheme();
   syncDesktopTheme(theme);
   if (suppressTransitions) {

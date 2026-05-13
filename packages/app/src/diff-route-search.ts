@@ -1,6 +1,6 @@
 import { TurnId } from "@multi/contracts";
 
-import type { WorkbenchTab } from "~/lib/shell-panels-store";
+import type { WorkbenchTab } from "~/stores/shell-panels-store";
 
 export interface DiffRouteSearch {
   diff?: "1" | undefined;

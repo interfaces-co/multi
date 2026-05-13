@@ -27,7 +27,7 @@ import {
   type ReactNode,
 } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { useCommandPaletteStore } from "../command-palette-store";
+import { useCommandPaletteStore } from "../stores/ui/command-palette-store";
 import { readEnvironmentApi } from "../environment-api";
 import { usePrimaryEnvironmentId } from "../environments/primary";
 import { useHandleNewThread } from "../hooks/use-handle-new-thread";

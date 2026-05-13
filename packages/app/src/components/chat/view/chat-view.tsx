@@ -68,7 +68,7 @@ import {
   useStore,
 } from "../../../store";
 import { createProjectSelectorByRef, createThreadSelectorByRef } from "../../../store-selectors";
-import { useUiStateStore } from "../../../ui-state-store";
+import { useUiStateStore } from "../../../stores/ui-state-store";
 import {
   buildPlanImplementationThreadTitle,
   buildPlanImplementationPrompt,
@@ -86,7 +86,7 @@ import {
 } from "../../../types";
 import { useTheme } from "../../../hooks/use-theme";
 import { useTurnDiffSummaries } from "../../../hooks/use-turn-diff-summaries";
-import { useCommandPaletteStore } from "../../../command-palette-store";
+import { useCommandPaletteStore } from "../../../stores/ui/command-palette-store";
 import { buildTemporaryWorktreeBranchName } from "@multi/shared/git";
 import { resolveShortcutCommand, shortcutLabelForCommand } from "../../../keybindings";
 import PlanSidebar from "../../plan-sidebar";
@@ -128,7 +128,7 @@ import {
   type TerminalContextSelection,
 } from "../../../lib/terminal-context";
 import { selectThreadTerminalState, useTerminalStateStore } from "../../../terminal-state-store";
-import { shellPanelsActions } from "~/lib/shell-panels-store";
+import { shellPanelsActions } from "~/stores/shell-panels-store";
 import {
   ChatComposer,
   type ChatComposerHandle,
@@ -215,9 +215,9 @@ type InlineEditSubmitInput = {
 type HeroActionTone = "accent" | "blue" | "green";
 
 const HERO_ICON_TONE_CLASS: Record<HeroActionTone, string> = {
-  accent: "text-[var(--primary)]",
-  blue: "text-[var(--multi-action)]",
-  green: "text-[var(--success)]",
+  accent: "text-primary",
+  blue: "text-multi-action",
+  green: "text-success",
 };
 
 interface HeroComposerActionCardProps {
@@ -915,7 +915,7 @@ const InlineMessageEditComposer = memo(function InlineMessageEditComposer({
       <div className="mt-2 flex justify-end">
         <button
           type="button"
-          className="rounded-multi-control px-2 py-1 text-[12px]/[16px] text-multi-fg-secondary transition-colors hover:bg-multi-bg-quaternary hover:text-multi-fg-primary focus-visible:ring-1 focus-visible:ring-multi-stroke-focused focus-visible:outline-none"
+          className="rounded-multi-control px-2 py-1 text-body/[16px] text-multi-fg-secondary transition-colors hover:bg-multi-bg-quaternary hover:text-multi-fg-primary focus-visible:ring-1 focus-visible:ring-multi-stroke-focused focus-visible:outline-none"
           onClick={handleCancel}
         >
           Cancel

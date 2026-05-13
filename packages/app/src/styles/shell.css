@@ -180,11 +180,7 @@ body {
 
 .git-diff-card [data-diffs-container] {
   --multi-git-diff-surface-bg: var(--multi-git-diff-editor-background);
-  --multi-git-diff-separator-bg: color-mix(
-    in srgb,
-    var(--multi-workbench-panel-border) 72%,
-    transparent
-  );
+  --multi-git-diff-separator-bg: var(--multi-workbench-panel-border-dim);
   --diffs-light-bg: var(--multi-git-diff-surface-bg);
   --diffs-dark-bg: var(--multi-git-diff-surface-bg);
   --diffs-bg-buffer-override: var(--multi-git-diff-surface-bg);
@@ -223,7 +219,7 @@ body {
   overflow: hidden;
   border-radius: 0;
   border: 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--multi-workbench-panel-border) 78%, transparent);
+  border-bottom: 1px solid var(--multi-workbench-panel-border-muted);
   background: var(--multi-git-diff-editor-background);
   transition: background-color 120ms ease;
 }
@@ -527,7 +523,7 @@ body {
   max-height: var(--multi-workbench-panel-title-row-height, 29px);
   flex-wrap: nowrap;
   padding-inline: var(--multi-workbench-sub-chrome-padding-inline);
-  border-bottom: 1px solid color-mix(in srgb, var(--multi-workbench-panel-border) 94%, transparent);
+  border-bottom: 1px solid var(--multi-workbench-panel-border-faint);
   background-color: var(--multi-workbench-panel-title-background);
 }
 
@@ -536,7 +532,7 @@ body {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
   background-color: var(--multi-workbench-tool-island-background);
-  border-bottom-color: color-mix(in srgb, var(--multi-workbench-panel-border) 90%, transparent);
+  border-bottom-color: var(--multi-workbench-panel-border-soft);
 }
 
 .agent-window
@@ -585,7 +581,7 @@ body {
   flex-shrink: 0;
   gap: var(--multi-workbench-sub-chrome-action-gap);
   padding-inline: var(--multi-workbench-sub-chrome-padding-inline);
-  border-bottom: 1px solid color-mix(in srgb, var(--multi-workbench-panel-border) 94%, transparent);
+  border-bottom: 1px solid var(--multi-workbench-panel-border-faint);
   background-color: var(--multi-workbench-panel-title-background);
 }
 
@@ -643,7 +639,7 @@ body {
 
 .agent-window
   .editor-panel-tab-root.editor-panel-tab-root--simple-tabs:not(.multi-workbench-tool-island) {
-  border-bottom-color: color-mix(in srgb, var(--multi-workbench-panel-border) 78%, transparent);
+  border-bottom-color: var(--multi-workbench-panel-border-muted);
 }
 
 .agent-window__workbench::before {
@@ -654,7 +650,7 @@ body {
   width: 1px;
   pointer-events: none;
   z-index: 20;
-  background: color-mix(in srgb, var(--multi-workbench-panel-border) 94%, transparent);
+  background: var(--multi-workbench-panel-border-faint);
 }
 
 .multi-shell-secondary-rail::after {
@@ -924,7 +920,6 @@ body {
 }
 
 .agent-window .agent-sidebar-cell {
-  --agent-sidebar-cell-hover-actions-width: 60px;
   align-items: center;
   border-radius: 6px;
   cursor: pointer;

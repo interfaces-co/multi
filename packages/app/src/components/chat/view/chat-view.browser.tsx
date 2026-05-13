@@ -32,7 +32,7 @@ import { page } from "vitest/browser";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
 
-import { useCommandPaletteStore } from "../../../command-palette-store";
+import { useCommandPaletteStore } from "../../../stores/ui/command-palette-store";
 import { useComposerDraftStore, DraftId } from "../../../composer-draft-store";
 import {
   __resetEnvironmentApiOverridesForTests,
@@ -56,7 +56,7 @@ import { getServerConfig } from "../../../rpc/server-state";
 import { getRouter } from "../../../router";
 import { selectBootstrapCompleteForActiveEnvironment, useStore } from "../../../store";
 import { useTerminalStateStore } from "../../../terminal-state-store";
-import { useUiStateStore } from "../../../ui-state-store";
+import { useUiStateStore } from "../../../stores/ui-state-store";
 import { createAuthenticatedSessionHandlers } from "../../../../test/authHttpHandlers";
 import {
   BrowserWsRpcHarness,

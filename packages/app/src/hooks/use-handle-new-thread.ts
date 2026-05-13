@@ -16,7 +16,7 @@ import { useServerConfig } from "../rpc/server-state";
 import { selectProjectsAcrossEnvironments, useStore } from "../store";
 import { createThreadSelectorByRef } from "../store-selectors";
 import { resolveThreadRouteTarget } from "../thread-routes";
-import { useUiStateStore } from "../ui-state-store";
+import { useUiStateStore } from "../stores/ui-state-store";
 import { traceBrowserEvent } from "~/observability/browserDebug";
 
 function useNewThreadState() {

@@ -10,7 +10,7 @@ import {
 } from "central-icons";
 import type { ComponentType, ReactNode } from "react";
 
-import type { TerminalSessionEntry, WorkbenchTab } from "~/lib/shell-panels-store";
+import type { TerminalSessionEntry, WorkbenchTab } from "~/stores/shell-panels-store";
 import { cn } from "~/lib/utils";
 
 import { workbenchIconButtonVariants, WorkbenchIconButton } from "./workbench-icon-button";
@@ -90,7 +90,7 @@ function TerminalSessionTab(props: {
     <div
       role="presentation"
       className={cn(
-        "no-drag group relative flex h-(--multi-workbench-action-size) max-w-(--composer-tab-label-max-width) select-none items-center overflow-hidden rounded-[5px] text-[12px]/[16px] transition-colors",
+        "no-drag group relative flex h-(--multi-workbench-action-size) max-w-(--composer-tab-label-max-width) select-none items-center overflow-hidden rounded-[5px] text-body/[16px] transition-colors",
         props.active
           ? "bg-multi-bg-tertiary text-multi-fg-primary"
           : "text-multi-fg-secondary hover:bg-multi-bg-quaternary hover:text-multi-fg-primary",

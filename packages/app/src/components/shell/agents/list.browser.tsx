@@ -33,7 +33,7 @@ vi.mock("~/hooks/use-thread-actions", () => ({
   }),
 }));
 
-vi.mock("~/lib/thread-unread-store", () => ({
+vi.mock("~/stores/thread-unread-store", () => ({
   useThreadUnreadStore: (
     selector: (state: { clear: (id: string) => void; mark: (id: string) => void }) => unknown,
   ) => selector({ clear: vi.fn(), mark: vi.fn() }),

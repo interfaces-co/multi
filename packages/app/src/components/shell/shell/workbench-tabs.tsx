@@ -12,7 +12,7 @@ import {
 } from "central-icons";
 import { useMemo, useState, type ComponentType } from "react";
 
-import type { WorkbenchTab } from "~/lib/shell-panels-store";
+import type { WorkbenchTab } from "~/stores/shell-panels-store";
 import { cn } from "~/lib/utils";
 import {
   workbenchMenuIconSlotClassName,
@@ -145,7 +145,7 @@ export function WorkbenchTabBar(props: {
                   onChange={(event) => setQuery(event.target.value)}
                   onKeyDown={stopMenuSearchBubbling}
                   placeholder="Open any file, URL, ..."
-                  className="h-6 min-w-0 flex-1 bg-transparent text-[12px]/[16px] text-multi-fg-primary outline-none placeholder:text-multi-fg-quaternary"
+                  className="h-6 min-w-0 flex-1 bg-transparent text-body/[16px] text-multi-fg-primary outline-none placeholder:text-multi-fg-quaternary"
                 />
               </div>
               <div className="ui-menu__list flex flex-col gap-px p-1">

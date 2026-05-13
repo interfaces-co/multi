@@ -7,7 +7,7 @@ import {
   SECONDARY_RAIL_LIMITS,
   shellPanelsActions,
   useSecondaryRail,
-} from "~/lib/shell-panels-store";
+} from "~/stores/shell-panels-store";
 import { cn } from "~/lib/utils";
 
 import { useColumnResize } from "./use-column-resize";

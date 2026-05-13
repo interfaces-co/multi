@@ -7,7 +7,7 @@ import {
 } from "central-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { useDebouncer } from "@tanstack/react-pacer";
-import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   type AgentWindowSendWhileStreamingBehavior,
   type AgentWindowUsageSummaryDisplay,
@@ -23,18 +23,10 @@ import { createModelSelection } from "@multi/shared/model";
 import { Equal } from "effect";
 import { APP_VERSION } from "../../branding";
 import {
-  readAppearanceSnapshot,
-  resetAppearanceSettings,
-  setCodeFontFamily,
-  setCodeFontSize,
-  setReduceTransparency,
-  setTintHue,
-  setTintSaturation,
-  setUiFontFamily,
-  setUiFontSize,
-  setWindowTransparency,
-  subscribeAppearanceSettings,
-} from "../../lib/appearance-settings";
+  DEFAULT_APPEARANCE_SNAPSHOT,
+  appearanceSettingsActions,
+  useAppearanceSettingsSnapshot,
+} from "../../stores/appearance-store";
 import {
   canCheckForUpdate,
   getDesktopUpdateButtonTooltip,
@@ -141,31 +133,6 @@ const PROVIDER_SETTINGS: readonly ProviderSettingsDescriptor[] = DRIVER_OPTIONS.
     provider: definition.value,
   }),
 );
-
-const DEFAULT_APPEARANCE_SNAPSHOT = {
-  palette: "multi",
-  reduceTransparency: false,
-  transparency: 18,
-  hue: 255,
-  saturation: 33,
-  uiFontSize: 13,
-  codeFontSize: 12,
-  uiFont: "",
-  codeFont: "",
-} as const;
-
-function readAppearanceSnapshotForSettings() {
-  if (typeof window === "undefined") return DEFAULT_APPEARANCE_SNAPSHOT;
-  return readAppearanceSnapshot();
-}
-
-function useAppearanceSettingsSnapshot() {
-  return useSyncExternalStore(
-    subscribeAppearanceSettings,
-    readAppearanceSnapshotForSettings,
-    () => DEFAULT_APPEARANCE_SNAPSHOT,
-  );
-}
 
 function AboutVersionTitle() {
   return (
@@ -396,7 +363,7 @@ export function useSettingsRestore(onRestored?: () => void) {
     if (!confirmed) return;
 
     setTheme("system");
-    resetAppearanceSettings();
+    appearanceSettingsActions.reset();
     resetSettings();
     onRestored?.();
   }, [changedSettingLabels, onRestored, resetSettings, setTheme]);
@@ -420,7 +387,7 @@ function SettingsSlider(props: {
     <div className="flex w-full items-center justify-end gap-2 sm:w-34">
       <input
         aria-label={props.label}
-        className="h-4 w-full accent-(--multi-action)"
+        className="h-4 w-full accent-multi-action"
         max={props.max}
         min={props.min}
         type="range"
@@ -430,7 +397,7 @@ function SettingsSlider(props: {
       {props.showSwatch ? (
         <span
           aria-hidden
-          className="size-4 shrink-0 rounded-full bg-(--multi-action) shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--foreground)_16%,transparent)]"
+          className="size-4 shrink-0 rounded-full bg-multi-action shadow-multi-swatch-inset"
         />
       ) : (
         <Text size="xs" tone="tertiary" className="w-8 shrink-0 text-right tabular-nums">
@@ -456,7 +423,7 @@ function NumberStepper(props: {
   };
 
   return (
-    <div className="inline-flex h-7 min-h-7 items-stretch overflow-hidden rounded-multi-control border border-multi-stroke-tertiary bg-multi-bg-quinary text-[12px]/[16px] shadow-none">
+    <div className="inline-flex h-7 min-h-7 items-stretch overflow-hidden rounded-multi-control border border-multi-stroke-tertiary bg-multi-bg-quinary text-body/[16px] shadow-none">
       <Button
         type="button"
         variant="ghost"
@@ -785,29 +752,29 @@ export function AppearanceSettingsPanel() {
       <SettingsSection title="Colors">
         <SettingsRow
           title="Hue"
-          description="Choose a tint color."
+          description="Accent hue for buttons, links, and focus rings (Pierre neutrals unchanged)."
           control={
             <SettingsSlider
-              label="Tint hue"
+              label="Accent hue"
               max={360}
               min={0}
               showSwatch
               value={appearance.hue}
-              onChange={setTintHue}
+              onChange={appearanceSettingsActions.setTintHue}
             />
           }
         />
         <SettingsRow
           title="Intensity"
-          description="Control how strongly the tint is applied."
+          description="Chroma strength of the accent and tinted surfaces."
           control={
             <SettingsSlider
-              label="Tint intensity"
+              label="Accent intensity"
               max={100}
               min={0}
               suffix="%"
               value={appearance.saturation}
-              onChange={setTintSaturation}
+              onChange={appearanceSettingsActions.setTintSaturation}
             />
           }
         />
@@ -821,7 +788,7 @@ export function AppearanceSettingsPanel() {
               min={0}
               suffix="%"
               value={appearance.transparency}
-              onChange={setWindowTransparency}
+              onChange={appearanceSettingsActions.setWindowTransparency}
             />
           }
         />
@@ -832,7 +799,9 @@ export function AppearanceSettingsPanel() {
             <Switch
               checked={appearance.reduceTransparency}
               aria-label="Reduce Transparency"
-              onCheckedChange={(checked) => setReduceTransparency(Boolean(checked))}
+              onCheckedChange={(checked) =>
+                appearanceSettingsActions.setReduceTransparency(Boolean(checked))
+              }
             />
           }
         />
@@ -841,7 +810,7 @@ export function AppearanceSettingsPanel() {
       <SettingsSection
         title="Typography"
         headerAction={
-          <Button size="sm" variant="ghost" onClick={resetAppearanceSettings}>
+          <Button size="sm" variant="ghost" onClick={appearanceSettingsActions.reset}>
             Reset
           </Button>
         }
@@ -855,7 +824,7 @@ export function AppearanceSettingsPanel() {
               max={16}
               min={11}
               value={appearance.uiFontSize}
-              onChange={setUiFontSize}
+              onChange={appearanceSettingsActions.setUiFontSize}
             />
           }
         />
@@ -868,7 +837,7 @@ export function AppearanceSettingsPanel() {
               max={18}
               min={10}
               value={appearance.codeFontSize}
-              onChange={setCodeFontSize}
+              onChange={appearanceSettingsActions.setCodeFontSize}
             />
           }
         />
@@ -881,7 +850,7 @@ export function AppearanceSettingsPanel() {
               label="UI Font Family"
               value={appearance.uiFont}
               placeholder="System font"
-              onChange={setUiFontFamily}
+              onChange={appearanceSettingsActions.setUiFontFamily}
             />
           }
         />
@@ -894,11 +863,11 @@ export function AppearanceSettingsPanel() {
               label="Code Font Family"
               value={appearance.codeFont}
               placeholder="System monospace"
-              onChange={setCodeFontFamily}
+              onChange={appearanceSettingsActions.setCodeFontFamily}
             />
           }
         >
-          <div className="mt-2 overflow-hidden rounded-sm text-[11px]/[16px]">
+          <div className="mt-2 overflow-hidden rounded-sm text-detail/[16px]">
             <div className="flex bg-rose-500/10 font-multi-mono text-foreground/72">
               <span className="w-8 shrink-0 text-center text-rose-500/80">1</span>
               <span>return a + b;</span>

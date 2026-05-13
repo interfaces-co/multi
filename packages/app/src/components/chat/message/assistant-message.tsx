@@ -6,7 +6,7 @@ import ChatMarkdown from "../markdown/chat-markdown";
 import { Button } from "@multi/ui/button";
 import { ChangedFilesTree } from "./changed-files-tree";
 import { DiffStatLabel, hasNonZeroStat } from "./diff-stat-label";
-import { useUiStateStore } from "~/ui-state-store";
+import { useUiStateStore } from "~/stores/ui-state-store";
 import { ChatMessageBubble } from "./message-surface";
 import { cn } from "~/lib/utils";
 
@@ -59,7 +59,7 @@ export const AssistantMessage = memo(function AssistantMessage({
           <span
             className={cn(
               "rounded-full border border-border bg-background px-2.5 py-1",
-              "text-[10px]/3 tracking-[0.14em] text-muted-foreground/80 uppercase",
+              "text-caption/[12px] tracking-[0.14em] text-muted-foreground/80 uppercase",
             )}
           >
             {completionSummary ? `Response \u2022 ${completionSummary}` : "Response"}
