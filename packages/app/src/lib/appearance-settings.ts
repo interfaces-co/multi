@@ -21,11 +21,6 @@ const keys = new Set([
   STORAGE_CODE_FONT,
 ]);
 
-function emit() {
-  for (const fn of listeners) fn();
-  window.dispatchEvent(new CustomEvent(APPEARANCE_SETTINGS_CHANGED));
-}
-
 export function subscribeAppearanceSettings(cb: () => void) {
   listeners.push(cb);
 
