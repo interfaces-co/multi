@@ -4,8 +4,8 @@ import { RowButton } from "~/components/shell/shared/row-button";
 
 export function ShellSidebarHeader(props: { onNewChat: () => void; onAddProject?: () => void }) {
   return (
-    <div className="agent-window-sidebar-header relative z-30 flex shrink-0 select-none flex-col gap-1 px-2 pb-1.5 pt-2">
-      <div className="agent-window-sidebar-header-top flex min-w-0 items-center gap-1">
+    <div className="agent-window-sidebar-header relative z-30 flex shrink-0 select-none flex-col">
+      <div className="agent-window-sidebar-header-top flex min-w-0 items-center gap-0.5">
         <RowButton
           variant="chrome"
           onClick={props.onNewChat}

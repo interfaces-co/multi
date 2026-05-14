@@ -52,7 +52,7 @@ const DIFF_PANEL_UNSAFE_CSS = `
 }
 
 [data-title] {
-  cursor: pointer;
+  cursor: var(--multi-button-cursor, pointer);
   transition:
     color 120ms ease,
     text-decoration-color 120ms ease;

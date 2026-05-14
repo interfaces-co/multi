@@ -327,7 +327,7 @@ function ShellHeaderControls(props: {
 
   return (
     <div className="pointer-events-none absolute top-0 right-0 left-0 box-border flex h-(--multi-header-height) min-w-0 items-start">
-      <div className="multi-shell-titlebar-left-controls pointer-events-auto no-drag absolute flex shrink-0 items-center gap-1 self-start">
+      <div className="multi-shell-titlebar-left-controls pointer-events-auto no-drag absolute flex shrink-0 items-center gap-0.5 self-start">
         {props.onBack ? (
           <button
             type="button"

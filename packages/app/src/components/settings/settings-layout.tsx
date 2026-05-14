@@ -66,7 +66,7 @@ export function SettingsRow({
   return (
     <div
       className={cn(
-        "border-t border-(color:--multi-stroke-quaternary) px-2.5 first:border-t-0 sm:px-3",
+        "border-t border-multi-stroke-quaternary px-2.5 first:border-t-0 sm:px-3",
         children ? "py-3" : "py-2.5",
       )}
     >
@@ -76,7 +76,7 @@ export function SettingsRow({
             <h3 className={textVariants({ size: "lg", tone: "primary", weight: "medium" })}>
               {title}
             </h3>
-            <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center">
+            <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center">
               {resetAction}
             </span>
           </div>

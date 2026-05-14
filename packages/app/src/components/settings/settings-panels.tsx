@@ -282,7 +282,8 @@ export function useSettingsRestore(onRestored?: () => void) {
   const isAgentWindowAppearanceDirty =
     settings.agentWindowFontSmoothingAntialiased !==
       DEFAULT_UNIFIED_SETTINGS.agentWindowFontSmoothingAntialiased ||
-    settings.agentWindowChatMaxWidth !== DEFAULT_UNIFIED_SETTINGS.agentWindowChatMaxWidth;
+    settings.agentWindowChatMaxWidth !== DEFAULT_UNIFIED_SETTINGS.agentWindowChatMaxWidth ||
+    settings.cursorPointerOnButtons !== DEFAULT_UNIFIED_SETTINGS.cursorPointerOnButtons;
   const isAppearanceDirty = !Equal.equals(appearance, DEFAULT_APPEARANCE_SNAPSHOT);
   const areProviderSettingsDirty = PROVIDER_SETTINGS.some((providerSettings) => {
     const provider = providerSettings.provider as keyof typeof DEFAULT_UNIFIED_SETTINGS.providers;
@@ -314,6 +315,9 @@ export function useSettingsRestore(onRestored?: () => void) {
       DEFAULT_UNIFIED_SETTINGS.agentWindowUsageSummaryDisplay
         ? ["Usage summary"]
         : []),
+      ...(settings.cursorPointerOnButtons !== DEFAULT_UNIFIED_SETTINGS.cursorPointerOnButtons
+        ? ["Pointer cursors"]
+        : []),
       ...(settings.addProjectBaseDirectory !== DEFAULT_UNIFIED_SETTINGS.addProjectBaseDirectory
         ? ["Add project base directory"]
         : []),
@@ -337,6 +341,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       settings.agentWindowUsageSummaryDisplay,
       settings.confirmThreadArchive,
       settings.confirmThreadDelete,
+      settings.cursorPointerOnButtons,
       settings.addProjectBaseDirectory,
       settings.defaultThreadEnvMode,
       settings.diffWordWrap,
@@ -921,6 +926,31 @@ export function AppearanceSettingsPanel() {
               aria-label="Agent Window Font Smoothing"
               onCheckedChange={(checked) =>
                 updateSettings({ agentWindowFontSmoothingAntialiased: Boolean(checked) })
+              }
+            />
+          }
+        />
+        <SettingsRow
+          title="Use pointer cursors"
+          description="Change the cursor to a pointer when hovering over any interactive elements"
+          resetAction={
+            settings.cursorPointerOnButtons !== DEFAULT_UNIFIED_SETTINGS.cursorPointerOnButtons ? (
+              <SettingResetButton
+                label="pointer cursors"
+                onClick={() =>
+                  updateSettings({
+                    cursorPointerOnButtons: DEFAULT_UNIFIED_SETTINGS.cursorPointerOnButtons,
+                  })
+                }
+              />
+            ) : null
+          }
+          control={
+            <Switch
+              checked={settings.cursorPointerOnButtons}
+              aria-label="Use pointer cursors"
+              onCheckedChange={(checked) =>
+                updateSettings({ cursorPointerOnButtons: Boolean(checked) })
               }
             />
           }

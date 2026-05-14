@@ -176,6 +176,7 @@ import {
 import { sanitizeThreadErrorMessage } from "~/rpc/transport-error";
 import { retainThreadDetailSubscription } from "../../../environments/runtime/service";
 import { traceBrowserEvent } from "~/observability/browserDebug";
+import { useGitAgentActionHandoff } from "~/lib/git-agent-action-handoff";
 import {
   IconChevronDownSmall,
   IconChevronRight,
@@ -1011,6 +1012,7 @@ export default function ChatView(props: ChatViewProps) {
   const setLogicalProjectDraftThreadId = useComposerDraftStore(
     (store) => store.setLogicalProjectDraftThreadId,
   );
+  const gitAgentActionHandoff = useGitAgentActionHandoff();
   const draftThread = useComposerDraftStore((store) =>
     routeKind === "server"
       ? store.getDraftSessionByRef(routeThreadRef)
@@ -1658,16 +1660,33 @@ export default function ChatView(props: ChatViewProps) {
             return changed ? { ...message, attachments } : message;
           });
 
-    if (optimisticUserMessages.length === 0) {
+    const pendingGitAgentMessage =
+      gitAgentActionHandoff?.target.environmentId === environmentId &&
+      gitAgentActionHandoff.target.threadId === threadId
+        ? gitAgentActionHandoff.optimisticMessage
+        : null;
+    const optimisticMessages =
+      pendingGitAgentMessage === null
+        ? optimisticUserMessages
+        : [...optimisticUserMessages, pendingGitAgentMessage];
+
+    if (optimisticMessages.length === 0) {
       return serverMessagesWithPreviewHandoff;
     }
     const serverIds = new Set(serverMessagesWithPreviewHandoff.map((message) => message.id));
-    const pendingMessages = optimisticUserMessages.filter((message) => !serverIds.has(message.id));
+    const pendingMessages = optimisticMessages.filter((message) => !serverIds.has(message.id));
     if (pendingMessages.length === 0) {
       return serverMessagesWithPreviewHandoff;
     }
     return [...serverMessagesWithPreviewHandoff, ...pendingMessages];
-  }, [serverMessages, attachmentPreviewHandoffByMessageId, optimisticUserMessages]);
+  }, [
+    attachmentPreviewHandoffByMessageId,
+    environmentId,
+    gitAgentActionHandoff,
+    optimisticUserMessages,
+    serverMessages,
+    threadId,
+  ]);
   const activeEditingUserMessageId =
     editingUserMessageId &&
     timelineMessages.some(

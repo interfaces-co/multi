@@ -133,7 +133,6 @@ body {
 }
 
 .git-diff-card {
-  box-sizing: border-box;
   container-type: inline-size;
   display: flex;
   flex-direction: column;
@@ -167,11 +166,17 @@ body {
 }
 
 .git-diff-card__basename {
+  display: block;
+  flex: 1 1 auto;
   min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
   font-size: 12px;
   font-weight: 500;
   line-height: 16px;
   color: color-mix(in srgb, var(--foreground) 92%, transparent);
+  white-space: nowrap;
 }
 
 .git-diff-card__prefix {
@@ -235,7 +240,7 @@ body {
   display: inline-flex;
   min-height: var(--multi-workbench-action-size, 22px);
   flex-shrink: 0;
-  cursor: pointer;
+  cursor: var(--multi-button-cursor, pointer);
   align-items: center;
   gap: 4px;
   border-radius: 5px;
@@ -427,7 +432,6 @@ body {
 
 /* Composite pane title band — full-width under the 35px tool island. */
 .agent-window .multi-workbench-panel-title-row {
-  box-sizing: border-box;
   display: flex;
   align-items: center;
   flex-shrink: 0;
@@ -487,7 +491,6 @@ body {
 
 /* Secondary pane rails / preview strips — quieter than primary 35px tool island */
 .agent-window .multi-workbench-sub-chrome {
-  box-sizing: border-box;
   display: flex;
   align-items: center;
   min-height: var(--multi-workbench-sub-chrome-row-height);
@@ -656,19 +659,9 @@ body {
  */
 
 .agent-window .sidebar-body {
-  box-sizing: border-box;
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
-  overflow-y: auto;
-  padding-top: 4px;
 }
 
 .agent-window .agent-sidebar-sections {
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
   gap: 1px;
   padding: 0 8px 16px;
 }
@@ -676,31 +669,25 @@ body {
 .agent-window .agent-sidebar-section {
   display: flex;
   flex-direction: column;
-  width: 100%;
 }
 
 .agent-window .agent-sidebar-section-heading,
 .agent-window .agent-sidebar-section-title {
-  align-items: center;
-  display: flex;
-  gap: 0;
   height: 24px;
   min-height: 24px;
   padding: 0 6px;
 }
 
 .agent-window .agent-sidebar-section-title.collapsible {
-  cursor: pointer;
+  cursor: var(--multi-button-cursor, pointer);
 }
 
 .agent-window .agent-sidebar-section-chevron {
   align-items: center;
   color: var(--multi-fg-tertiary);
   display: inline-flex;
-  flex-shrink: 0;
   height: 14px;
   justify-content: center;
-  opacity: 1;
   transition: transform 0.12s ease-out;
   width: 14px;
 }
@@ -716,13 +703,12 @@ body {
   border-style: none;
   box-shadow: none;
   color: inherit;
-  cursor: pointer;
+  cursor: var(--multi-button-cursor, pointer);
   display: inline-flex;
   flex: 1 1 auto;
   align-items: center;
   gap: 4px;
   margin: 0;
-  font-family: var(--multi-font-ui);
   line-height: var(--multi-sidebar-label-leading);
   min-height: 0;
   min-width: 0;
@@ -744,14 +730,12 @@ body {
   line-height: var(--multi-sidebar-label-leading);
   min-width: 0;
   overflow: hidden;
-  text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .agent-window .agent-sidebar-more {
   font-size: var(--multi-sidebar-label-size);
-  font-weight: 400;
   line-height: var(--multi-sidebar-label-leading);
 }
 
@@ -790,11 +774,7 @@ body {
 }
 
 .agent-window .agent-sidebar-cell {
-  align-items: center;
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  gap: 12px;
+  cursor: var(--multi-button-cursor, pointer);
   padding: 5px 6px;
   position: relative;
 }
@@ -822,8 +802,6 @@ body {
   font-size: var(--multi-text-body);
   font-weight: 400;
   line-height: var(--multi-leading-body);
-  overflow: hidden;
-  white-space: nowrap;
 }
 
 .agent-window .agent-sidebar-cell[data-selected="true"] .agent-sidebar-cell-text {
@@ -833,7 +811,6 @@ body {
 .agent-window .agent-sidebar-cell-subtitle {
   color: var(--multi-fg-tertiary);
   font-size: var(--multi-text-detail);
-  font-weight: 400;
   line-height: var(--multi-leading-detail);
   max-width: 3.5rem;
   min-width: 2rem;
@@ -855,9 +832,6 @@ body {
 .agent-window-new-agent {
   background: var(--multi-bg-quinary);
   color: var(--multi-fg-secondary);
-  min-height: 26px;
-  padding-bottom: 5px;
-  padding-top: 5px;
 }
 
 .agent-window-new-agent:hover {
@@ -883,24 +857,11 @@ body {
 
 .agent-window-open-project {
   color: var(--multi-fg-secondary);
-  min-height: 26px;
-}
-
-.agent-window-sidebar-footer {
-  border-top: 1px solid var(--multi-stroke-quaternary);
 }
 
 .agent-window-account-avatar {
   background: var(--multi-bg-tertiary);
   color: var(--multi-fg-secondary);
-}
-
-.agent-window-footer-icon {
-  color: var(--multi-icon-secondary);
-}
-
-.agent-window-footer-icon:hover {
-  color: var(--multi-icon-primary);
 }
 
 /* ============================================================
@@ -914,7 +875,6 @@ body {
   flex-direction: column;
   height: 100%;
   outline: none;
-  position: relative;
 }
 
 .agent-panel-empty-state-shell[data-layout="wide"] {
@@ -925,7 +885,6 @@ body {
 .agent-panel-empty-state-shell[data-layout="wide"] > * {
   width: 100%;
   max-width: min(100%, var(--composer-max-width, 840px));
-  box-sizing: border-box;
 }
 
 /* ============================================================
@@ -939,7 +898,6 @@ body {
 }
 
 [data-composer-messages] {
-  box-sizing: border-box;
   margin: 0 auto;
   max-width: var(--composer-max-width, 840px);
   min-height: min-content;
@@ -951,20 +909,6 @@ body {
 .agent-panel-meta-agent-chat__sticky-user-row {
   isolation: isolate;
   background: color-mix(in srgb, var(--multi-composer-overlay-bg) 72%, transparent);
-}
-
-.agent-panel-meta-agent-chat__sticky-user-row::after {
-  position: absolute;
-  inset-inline: 0;
-  top: 100%;
-  height: var(--multi-chat-sticky-bottom-fade-height, 20px);
-  pointer-events: none;
-  content: "";
-  background: var(--multi-composer-overlay-bg);
-  -webkit-backdrop-filter: blur(var(--multi-chat-sticky-bottom-fade-blur, 8px));
-  backdrop-filter: blur(var(--multi-chat-sticky-bottom-fade-blur, 8px));
-  -webkit-mask-image: linear-gradient(180deg, #000 0, transparent);
-  mask-image: linear-gradient(180deg, #000 0, transparent);
 }
 
 @keyframes scroll-btn-enter {
@@ -995,9 +939,8 @@ body {
   border: 1px solid var(--multi-stroke-tertiary);
   border-radius: 9999px;
   box-shadow: none;
-  box-sizing: border-box;
   color: var(--multi-icon-secondary);
-  cursor: pointer;
+  cursor: var(--multi-button-cursor, pointer);
   display: inline-flex;
   flex-shrink: 0;
   height: 28px !important;
@@ -1028,11 +971,8 @@ body {
 }
 
 .agent-window .agent-prompt-input-root {
-  width: 100%;
   max-width: var(--composer-max-width);
   margin-inline: auto;
-  min-width: 0;
-  box-sizing: border-box;
 }
 
 .agent-panel-followup-input,
@@ -1041,7 +981,6 @@ body {
 }
 
 .agent-panel-followup-input {
-  box-sizing: border-box;
   padding-bottom: var(--multi-composer-followup-padding-block-end);
   padding-inline: var(--composer-messages-padding-inline, 16px);
   position: relative;
@@ -1169,7 +1108,6 @@ body {
 .agent-window .ui-prompt-input__container {
   --ui-agent-tray-prompt-shadow: var(--multi-shadow-workbench, 0 2px 16px oklch(0 0 0 / 0.08));
   backdrop-filter: none;
-  box-sizing: border-box;
   cursor: text;
   position: relative;
 }
@@ -1187,7 +1125,6 @@ body {
   border-bottom: 0;
   border-radius: var(--prompt-input-border-radius-expanded)
     var(--prompt-input-border-radius-expanded) 0 0;
-  box-sizing: border-box;
   color: var(--multi-fg-primary);
   overflow: hidden;
 }
@@ -1227,10 +1164,8 @@ body {
 
 /* Expanded (hero) shell: centered box, stacked editor top / toolbar below */
 .agent-window .ui-prompt-input__container[data-variant="expanded"] {
-  display: block;
   padding: 0;
   border-radius: var(--prompt-input-border-radius-expanded);
-  overflow: hidden;
 }
 
 .agent-window .ui-prompt-input__container[data-variant="expanded"] > .chat-composer-surface {
@@ -1243,27 +1178,10 @@ body {
 }
 
 .agent-window .ui-prompt-input__container[data-variant="expanded"] .ui-prompt-input-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: var(--prompt-input-toolbar-padding);
-}
-
-.agent-window .ui-prompt-input__container[data-variant="expanded"] .ui-prompt-input-toolbar__left,
-.agent-window .ui-prompt-input__container[data-variant="expanded"] .ui-prompt-input-toolbar__right {
-  display: flex;
-  align-items: center;
-  gap: 4px;
 }
 
 .agent-window .ui-prompt-input__container[data-variant="expanded"] .ui-prompt-input-toolbar__left {
-  min-width: 0;
   flex: 1 1 auto;
-}
-
-.agent-window .ui-prompt-input__container[data-variant="expanded"] .ui-prompt-input-toolbar__right {
-  flex-shrink: 0;
 }
 
 /* Compact (dock) shell: collapsed single-row pill — flex row lives on .chat-composer-surface */
@@ -1279,12 +1197,10 @@ body {
   .ui-prompt-input__container[data-variant="compact"]:not([data-expanded])
   > .chat-composer-surface {
   align-items: center;
-  box-sizing: border-box;
   border-radius: inherit;
   display: flex;
   gap: 4px;
   min-height: var(--multi-composer-compact-row-min-height);
-  min-width: 0;
   padding: var(--multi-composer-compact-surface-padding);
 }
 
@@ -1303,9 +1219,7 @@ body {
   flex-direction: column;
   justify-content: center;
   order: 1;
-  min-width: 0;
   padding: 0;
-  position: relative;
 }
 
 .agent-window
@@ -1348,11 +1262,7 @@ body {
 .agent-window
   .ui-prompt-input__container[data-variant="compact"]:not([data-expanded])
   .ui-prompt-input-toolbar__left {
-  display: flex;
   flex: 0 1 auto;
-  min-width: 0;
-  align-items: center;
-  gap: 4px;
   margin: 0;
   overflow: visible;
   padding: 0;
@@ -1361,12 +1271,7 @@ body {
 .agent-window
   .ui-prompt-input__container[data-variant="compact"]:not([data-expanded])
   .ui-prompt-input-toolbar__right {
-  display: flex;
   flex: 0 0 auto;
-  min-width: 0;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 4px;
   margin: 0;
   overflow: visible;
   padding: 0;
@@ -1434,29 +1339,9 @@ body {
   flex: initial;
   order: initial;
   min-width: initial;
-  position: relative;
 }
 
-.agent-window
-  .ui-prompt-input__container[data-variant="compact"][data-expanded]
-  .ui-prompt-input-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: var(--prompt-input-toolbar-padding);
-}
 
-.agent-window
-  .ui-prompt-input__container[data-variant="compact"][data-expanded]
-  .ui-prompt-input-toolbar__left,
-.agent-window
-  .ui-prompt-input__container[data-variant="compact"][data-expanded]
-  .ui-prompt-input-toolbar__right {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
 
 .agent-window
   .ui-prompt-input__container[data-variant="compact"][data-expanded]
@@ -1605,7 +1490,6 @@ body {
 
 /* Browser workbench chrome */
 .glass-browser-toolbar {
-  box-sizing: border-box;
   display: flex;
   align-items: center;
   flex-shrink: 0;

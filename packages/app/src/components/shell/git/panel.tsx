@@ -725,10 +725,10 @@ function ChangesFilterMenu(props: {
 
 function DiffTotals(props: { add: number; del: number }) {
   return (
-    <div className="flex h-(--multi-workbench-action-size) shrink-0 items-center text-body font-medium tabular-nums">
+    <div className="flex h-(--multi-workbench-action-size) shrink-0 items-center gap-1.5 text-body font-medium tabular-nums">
       <span
         className={cn(
-          "inline-flex w-12 justify-end text-multi-diff-addition",
+          "inline-flex justify-end text-multi-diff-addition",
           props.add === 0 && "invisible",
         )}
       >
@@ -736,7 +736,7 @@ function DiffTotals(props: { add: number; del: number }) {
       </span>
       <span
         className={cn(
-          "inline-flex w-12 justify-end text-multi-diff-deletion",
+          "inline-flex justify-end text-multi-diff-deletion",
           props.del === 0 && "invisible",
         )}
       >
