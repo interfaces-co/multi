@@ -36,7 +36,7 @@ const ThinkingIndicator = forwardRef<HTMLDivElement, ThinkingIndicatorProps>(
       >
         <IconBrain
           aria-hidden="true"
-          className="size-5 shrink-0 animate-thinking-glyph opacity-80 will-change-[transform,opacity] motion-reduce:animate-none"
+          className="size-5 shrink-0 opacity-80"
         />
         <span className="inline-flex items-baseline gap-1 text-body font-medium" aria-hidden="true">
           <span className="inline-grid overflow-hidden">
