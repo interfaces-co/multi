@@ -101,7 +101,7 @@ function LeftAside(props: { children: ReactNode }) {
   return (
     <aside
       className={cn(
-        "agent-window__sidebar multi-shell-sidebar relative flex shrink-0 select-none flex-col overflow-hidden",
+        "agent-window__sidebar multi-shell-sidebar relative flex shrink-0 select-none flex-col overflow-hidden border-r border-multi-stroke-quaternary",
         resize.dragging
           ? "transition-none"
           : "transition-[width] duration-150 ease-out motion-reduce:transition-none",
@@ -114,9 +114,6 @@ function LeftAside(props: { children: ReactNode }) {
       data-resizing={resize.dragging ? "true" : "false"}
       aria-hidden={!leftOpen ? true : undefined}
       ref={asideRef}
-      style={{
-        borderRightWidth: 0,
-      }}
     >
       <div
         aria-hidden={!leftOpen}
@@ -242,7 +239,7 @@ function RightAside(props: {
   return (
     <aside
       className={cn(
-        "agent-window__workbench editor-panel-container multi-shell-surface relative flex min-w-0 shrink-0 flex-col overflow-hidden",
+        "agent-window__workbench editor-panel-container multi-shell-surface relative flex min-w-0 shrink-0 flex-col overflow-hidden border-l border-multi-workbench-panel-border-faint",
         resize.dragging
           ? "transition-none"
           : "transition-[width] duration-100 ease-[cubic-bezier(0.19,1,0.22,1)] motion-reduce:transition-none",
@@ -253,9 +250,6 @@ function RightAside(props: {
       data-state={rightOpen ? "expanded" : "collapsed"}
       data-resizing={resize.dragging ? "true" : "false"}
       ref={asideRef}
-      style={{
-        borderLeftWidth: 0,
-      }}
       aria-hidden={!rightOpen ? true : undefined}
     >
       {rightOpen ? (
@@ -263,7 +257,7 @@ function RightAside(props: {
           <TabsRoot
             value={activeTab}
             onValueChange={handleWorkbenchTabChange}
-            className="editor-panel-inner relative z-10 flex h-full min-h-0 w-full flex-col border-l border-multi-workbench-panel-border-faint bg-(--glass-editor-surface-background) opacity-100"
+            className="editor-panel-inner relative z-10 flex h-full min-h-0 w-full flex-col bg-(--glass-editor-surface-background) opacity-100"
           >
             <RightAsideHeader
               cwd={props.cwd}
@@ -450,10 +444,10 @@ export function AppShell(props: {
     >
       <LeftAside>{props.left}</LeftAside>
 
-      <div className="agent-window__body flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="relative flex min-h-0 flex-1 flex-row">
           <main
-            className="agent-panel agent-window__agent-panel flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-multi-chat outline-hidden"
+            className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-multi-chat outline-hidden"
             data-component="agent-panel"
           >
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden outline-hidden">

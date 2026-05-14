@@ -15,7 +15,7 @@ export function ShellSidebarFooter(props: { settings?: boolean }) {
     <button
       type="button"
       className={cn(
-        "agent-window-footer-icon flex size-6 select-none items-center justify-center rounded-multi-control border border-transparent transition-colors",
+        "flex size-6 select-none items-center justify-center rounded-multi-control border border-transparent transition-colors",
         "border-multi-border/90 bg-multi-active text-foreground hover:bg-multi-active",
       )}
       onClick={() => {
@@ -54,7 +54,7 @@ export function ShellSidebarFooter(props: { settings?: boolean }) {
           <Link
             to="/settings/general"
             className={cn(
-              "agent-window-footer-icon flex size-6 select-none items-center justify-center rounded-multi-control border border-transparent text-muted-foreground/60 transition-colors hover:bg-multi-hover hover:text-foreground",
+              "flex size-6 select-none items-center justify-center rounded-multi-control border border-transparent text-muted-foreground/60 transition-colors hover:bg-multi-hover hover:text-foreground",
             )}
             aria-label="Open settings"
           >

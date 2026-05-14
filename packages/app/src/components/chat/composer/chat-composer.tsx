@@ -2120,7 +2120,7 @@ export const ChatComposer = memo(
         data-chat-composer-form="true"
       >
         <PromptInputRoot
-          className="agent-prompt-input-root w-full min-w-0"
+          className="agent-prompt-input-root mx-auto w-full min-w-0 max-w-composer"
           containerClassName={cn(
             "group chat-composer-shell w-full max-w-full min-w-0 overflow-hidden transition-[border-color,background-color] duration-200",
             composerMenuOpen && "overflow-visible!",

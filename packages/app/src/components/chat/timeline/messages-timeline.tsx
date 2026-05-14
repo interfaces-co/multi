@@ -486,7 +486,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
     <TimelineRowCtx.Provider value={sharedState}>
       <div
         className={cn(
-          "agent-panel-meta-agent-chat-shell ui-imsg-thread relative flex h-full min-h-0 flex-1 flex-col gap-0 overflow-hidden",
+          "relative flex h-full min-h-0 flex-1 flex-col gap-0 overflow-hidden",
           "pt-(--chat-timeline-padding-block-start)",
           "[--meta-agent-thread-stack-gap:8px]",
           "[--meta-agent-thread-stack-horizontal-inset:20px]",
@@ -500,7 +500,8 @@ export const MessagesTimeline = memo(function MessagesTimeline({
           onPointerDown={clearProgrammaticScrollTracking}
           onTouchStart={clearProgrammaticScrollTracking}
           onWheel={clearProgrammaticScrollTracking}
-          className="agent-panel-meta-agent-chat h-full min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain [overflow-anchor:none] scrollbar-gutter-stable-both-edges scrollbar-thin"
+          data-chat-timeline-scroll=""
+          className="h-full min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain [overflow-anchor:none] scrollbar-gutter-stable-both-edges scrollbar-thin"
         >
           <div className="mx-auto box-border w-full max-w-composer" style={virtualContentStyle}>
             {virtualItems.map((virtualRow) => {
@@ -518,8 +519,9 @@ export const MessagesTimeline = memo(function MessagesTimeline({
                   data-index={virtualRow.index}
                   data-sticky={isActiveStickyUserRow ? "true" : undefined}
                   className={cn(
-                    "virtualized-composer-messages-row w-full px-(--composer-messages-padding-inline) pb-(--chat-timeline-row-gap)",
-                    isActiveStickyUserRow && "agent-panel-meta-agent-chat__sticky-user-row",
+                    "w-full px-(--composer-messages-padding-inline) pb-(--chat-timeline-row-gap)",
+                    isActiveStickyUserRow &&
+                      "isolate bg-[color-mix(in_srgb,var(--multi-composer-overlay-bg)_72%,transparent)]",
                   )}
                   style={virtualRowStyle(virtualRow, isActiveStickyUserRow)}
                 >
@@ -639,7 +641,7 @@ const TimelineRowContent = memo(function TimelineRowContent({
   return (
     <div
       className={cn(
-        "agent-panel-meta-agent-chat__message-entry flex w-full min-w-0 flex-col gap-1 overflow-x-hidden",
+        "flex w-full min-w-0 flex-col gap-1 overflow-x-hidden",
         row.kind === "message" && row.message.role === "assistant" ? "group/assistant" : null,
       )}
       data-meta-agent-chat-bubble-id={row.id}
@@ -671,13 +673,13 @@ function TimelineRowBody({
   return (
     <>
       {row.kind === "work" && (
-        <div className="agent-panel-meta-agent-chat__row agent-panel-meta-agent-chat__row--tool-call flex w-full min-w-0">
+        <div className="flex w-full min-w-0">
           <WorkGroupSection groupedEntries={row.groupedEntries} />
         </div>
       )}
 
       {row.kind === "message" && row.message.role === "user" && (
-        <div className="agent-panel-meta-agent-chat__row agent-panel-meta-agent-chat__row--human box-border flex w-full min-w-0 px-0">
+        <div className="box-border flex w-full min-w-0 px-0">
           <HumanMessage
             message={row.message}
             revertTurnCount={row.revertTurnCount}
@@ -694,7 +696,7 @@ function TimelineRowBody({
       )}
 
       {row.kind === "message" && row.message.role === "assistant" && (
-        <div className="agent-panel-meta-agent-chat__row agent-panel-meta-agent-chat__row--assistant box-border flex w-full min-w-0 px-0">
+        <div className="box-border flex w-full min-w-0 px-0">
           <AssistantMessage
             message={row.message}
             assistantTurnDiffSummary={row.assistantTurnDiffSummary}
@@ -707,7 +709,7 @@ function TimelineRowBody({
       )}
 
       {row.kind === "proposed-plan" && (
-        <div className="agent-panel-meta-agent-chat__row agent-panel-meta-agent-chat__row--tool-call min-w-0 px-1 py-0.5">
+        <div className="min-w-0 px-1 py-0.5">
           <ProposedPlanCard
             planMarkdown={row.proposedPlan.planMarkdown}
             environmentId={ctx.activeThreadEnvironmentId}
@@ -718,8 +720,8 @@ function TimelineRowBody({
       )}
 
       {row.kind === "working" && (
-        <div className="agent-panel-meta-agent-chat__row agent-panel-meta-agent-chat__row--loading flex w-full min-w-0 opacity-75">
-          <WorkingStatusRow createdAt={row.createdAt} />
+        <div className="flex w-full min-w-0 opacity-75">
+          <WorkingStatusRow />
         </div>
       )}
     </>
