@@ -1,8 +1,7 @@
 "use client";
 import {
-  IconArrowRotateCounterClockwise,
-  IconChevronDownSmall,
-  IconChevronRightSmall,
+  IconChevronLeftMedium,
+  IconChevronRightMedium,
   IconClipboard,
 } from "central-icons";
 import {
@@ -123,9 +122,9 @@ export function GitDiffCard(props: {
             </span>
             <span className="absolute inset-0 inline-flex items-center justify-center text-multi-icon-tertiary opacity-0 transition-opacity duration-100 ease-out group-hover/git-diff-header:opacity-100 group-hover/git-diff-toggle:opacity-100">
               {props.expanded ? (
-                <IconChevronDownSmall className="size-3.5 shrink-0" />
+                <IconChevronRightMedium className="size-3.5 shrink-0 rotate-90" />
               ) : (
-                <IconChevronRightSmall className="size-3.5 shrink-0" />
+                <IconChevronRightMedium className="size-3.5 shrink-0" />
               )}
             </span>
           </span>
@@ -166,7 +165,7 @@ export function GitDiffCard(props: {
             aria-label="Discard changes"
             title="Discard changes"
           >
-            <IconArrowRotateCounterClockwise className="size-3.5 shrink-0" />
+            <IconChevronLeftMedium className="size-3.5 shrink-0" />
           </button>
           <label
             className="git-diff-card__label"

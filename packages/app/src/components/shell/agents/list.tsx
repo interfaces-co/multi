@@ -208,7 +208,7 @@ function Section(props: {
               onClick={() => props.onNewAgent?.(section.cwd)}
               aria-label={`New agent in ${section.label}`}
               title={`New agent in ${section.label}`}
-              className={`agent-sidebar-section-new relative flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-multi-control border border-transparent outline-none touch-manipulation transition-[color,background-color] duration-100 ease-out motion-reduce:transition-none pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 ${
+              className={`agent-sidebar-section-new relative flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-multi-control border border-transparent p-0 outline-none touch-manipulation transition-[color,background-color] duration-100 ease-out motion-reduce:transition-none pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 ${
                 section.active
                   ? "text-multi-fg-secondary [@media(hover:hover)]:hover:bg-multi-bg-quaternary [@media(hover:hover)]:hover:text-multi-fg-primary"
                   : "text-multi-fg-tertiary [@media(hover:hover)]:hover:bg-multi-bg-quaternary [@media(hover:hover)]:hover:text-multi-fg-primary"

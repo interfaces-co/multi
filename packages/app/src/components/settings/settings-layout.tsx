@@ -1,4 +1,4 @@
-import { IconArrowUndoUp } from "central-icons";
+import { IconChevronLeftMedium } from "central-icons";
 import { type ReactNode, useEffect, useState } from "react";
 
 import { cn } from "../../lib/utils";
@@ -115,7 +115,7 @@ export function SettingResetButton({ label, onClick }: { label: string; onClick:
               onClick();
             }}
           >
-            <IconArrowUndoUp className="size-3" />
+            <IconChevronLeftMedium className="size-3" />
           </Button>
         }
       />

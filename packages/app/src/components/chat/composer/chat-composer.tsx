@@ -100,7 +100,7 @@ import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "@mu
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@multi/ui/tooltip";
 import { toastManager } from "~/app/toast";
 import {
-  IconArrowUp,
+  IconChevronRightMedium,
   IconExclamationCircle,
   IconLock,
   IconPencilLine,
@@ -465,7 +465,7 @@ const QueuedComposerItemsPanel = memo(function QueuedComposerItemsPanel(props: {
                   aria-label="Send queued message now"
                   title="Send queued message now"
                 >
-                  <IconArrowUp className="size-3.5" />
+                  <IconChevronRightMedium className="size-3.5 -rotate-90" />
                 </button>
                 <button
                   type="button"

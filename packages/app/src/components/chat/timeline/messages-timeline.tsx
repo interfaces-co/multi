@@ -12,7 +12,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { IconChevronRightSmall } from "central-icons";
+import { IconChevronRightMedium } from "central-icons";
 import {
   defaultRangeExtractor,
   useVirtualizer,
@@ -640,7 +640,6 @@ const TimelineRowContent = memo(function TimelineRowContent({
     <div
       className={cn(
         "agent-panel-meta-agent-chat__message-entry flex w-full min-w-0 flex-col gap-1 overflow-x-hidden",
-        !isSticky && "[content-visibility:auto] [contain-intrinsic-size:96px]",
         row.kind === "message" && row.message.role === "assistant" ? "group/assistant" : null,
       )}
       data-meta-agent-chat-bubble-id={row.id}
@@ -763,14 +762,14 @@ const WorkedBlockRow = memo(function WorkedBlockRow({
           aria-label={`${expanded ? "Collapse" : "Expand"} assistant turn, ${completionLabel}`}
           data-assistant-worked-trigger=""
         >
-          <IconChevronRightSmall
+          <span>{completionLabel}</span>
+          <IconChevronRightMedium
             aria-hidden="true"
             className={cn(
-              "size-4 shrink-0 -ml-1.5 transition-transform duration-150 motion-reduce:transition-none",
+              "size-4 shrink-0 overflow-visible transition-transform duration-150 motion-reduce:transition-none",
               expanded && "rotate-90",
             )}
           />
-          <span>{completionLabel}</span>
         </Collapsible.Trigger>
         <Collapsible.Panel className="[transition-property:height,opacity] duration-200 ease-out data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none">
           <div className="flex min-w-0 flex-col gap-1">

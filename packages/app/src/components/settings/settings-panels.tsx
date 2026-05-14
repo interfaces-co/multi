@@ -1,7 +1,7 @@
 import {
   IconArchive,
   IconArchiveJunk,
-  IconArrowRotateClockwise,
+  IconChevronRightMedium,
   IconLoader,
   IconPlusLarge,
 } from "central-icons";
@@ -932,7 +932,7 @@ export function AppearanceSettingsPanel() {
         />
         <SettingsRow
           title="Use pointer cursors"
-          description="Change the cursor to a pointer when hovering over any interactive elements"
+          description="Use pointer cursor on interactive controls."
           resetAction={
             settings.cursorPointerOnButtons !== DEFAULT_UNIFIED_SETTINGS.cursorPointerOnButtons ? (
               <SettingResetButton
@@ -1591,7 +1591,7 @@ export function ModelsSettingsPanel() {
                     {isRefreshingProviders ? (
                       <IconLoader className="size-3 animate-spin" />
                     ) : (
-                      <IconArrowRotateClockwise className="size-3" />
+                      <IconChevronRightMedium className="size-3" />
                     )}
                   </Button>
                 }

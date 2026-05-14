@@ -219,6 +219,10 @@ function isUserMessageTimelineRow(row: BaseMessagesTimelineRow): boolean {
 
 function toWorkedBlockRow(rows: BaseMessagesTimelineRow[]): WorkedBlockTimelineRow | null {
   const firstRow = rows[0];
+  if (!firstRow) {
+    return null;
+  }
+
   const firstAssistantMessageRow = rows.find(
     (row): row is MessageTimelineRow => row.kind === "message" && row.message.role === "assistant",
   );
@@ -229,9 +233,9 @@ function toWorkedBlockRow(rows: BaseMessagesTimelineRow[]): WorkedBlockTimelineR
   const summaryIndex = rows.findLastIndex(
     (row) => row.kind === "message" && row.message.role === "assistant",
   );
-  const turnId = firstAssistantMessageRow?.message.turnId ?? null;
-  const durationStart =
-    firstAssistantMessageRow?.durationStart ?? firstRow?.createdAt ?? new Date(0).toISOString();
+  const turnId = firstAssistantMessageRow.message.turnId ?? null;
+  const durationStart = firstAssistantMessageRow.durationStart;
+  const createdAt = firstRow.createdAt ?? durationStart;
   const completedAt = rows.reduce<string | undefined>((latestCompletedAt, row) => {
     if (row.kind !== "message" || row.message.role !== "assistant" || !row.message.completedAt) {
       return latestCompletedAt;
@@ -245,15 +249,15 @@ function toWorkedBlockRow(rows: BaseMessagesTimelineRow[]): WorkedBlockTimelineR
     return null;
   }
 
-  const id = turnId ? `worked-block:${turnId}` : `worked-block:${firstRow?.id ?? "unknown"}`;
+  const id = turnId ? `worked-block:${turnId}` : `worked-block:${firstRow.id}`;
 
   return {
     kind: "worked-block",
     id,
-    createdAt: firstRow?.createdAt ?? durationStart,
+    createdAt,
     turnId,
     durationStart,
-    ...(completedAt ? { completedAt } : {}),
+    completedAt,
     childRows: rows.filter((_, index) => index !== summaryIndex),
   };
 }

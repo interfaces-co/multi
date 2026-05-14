@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  IconChevronDownSmall as ChevronDownIcon,
+  IconChevronRightMedium,
   IconPlusLarge as PlusIcon,
   IconTrashCan as Trash2Icon,
   IconCrossMediumDefault as XIcon,
@@ -627,8 +627,11 @@ export function ProviderInstanceCard({
               onClick={() => onExpandedChange(!isExpanded)}
               aria-label={`Toggle ${displayName} details`}
             >
-              <ChevronDownIcon
-                className={cn("size-3.5 transition-transform", isExpanded && "rotate-180")}
+              <IconChevronRightMedium
+                className={cn(
+                  "size-3.5 transition-transform",
+                  isExpanded ? "-rotate-90" : "rotate-90",
+                )}
               />
             </Button>
             <Switch

@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import {
   IconArchive,
-  IconArrowRotateCounterClockwise,
+  IconChevronLeftMedium,
   IconChainLink1,
   IconCode,
   IconColorSwatch,
@@ -74,7 +74,7 @@ export function SettingsNavRail() {
           disabled={changedSettingLabels.length === 0}
           onClick={() => void restoreDefaults()}
         >
-          <IconArrowRotateCounterClockwise className="size-3.5" />
+          <IconChevronLeftMedium className="size-3.5" />
           Restore defaults
         </Button>
       </div>

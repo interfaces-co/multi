@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  IconArrowLeft,
+  IconChevronLeftMedium,
   IconSidebar,
   IconSidebarHiddenLeftWide,
   IconSidebarHiddenRightWide,
@@ -335,7 +335,7 @@ function ShellHeaderControls(props: {
             className="flex h-(--multi-titlebar-control-height) w-(--multi-titlebar-control-height) shrink-0 items-center justify-center rounded-multi-control bg-transparent p-0 leading-none text-muted-foreground [&_svg]:block hover:bg-multi-hover hover:text-foreground active:scale-[0.96] transition-transform"
             aria-label="Back to chat"
           >
-            <IconArrowLeft className="size-4 shrink-0" />
+            <IconChevronLeftMedium className="size-4 shrink-0" />
           </button>
         ) : null}
         <button

@@ -178,8 +178,7 @@ import { retainThreadDetailSubscription } from "../../../environments/runtime/se
 import { traceBrowserEvent } from "~/observability/browserDebug";
 import { useGitAgentActionHandoff } from "~/lib/git-agent-action-handoff";
 import {
-  IconChevronDownSmall,
-  IconChevronRight,
+  IconChevronRightMedium,
   IconFolderAddRight,
   IconFolderOpen,
   IconSettingsGear2,
@@ -247,7 +246,7 @@ function HeroComposerActionCard(props: HeroComposerActionCardProps) {
         >
           <Icon className="size-3.5" />
         </span>
-        <IconChevronRight className="size-4 shrink-0 text-multi-fg-tertiary transition-colors group-hover:text-multi-fg-primary" />
+        <IconChevronRightMedium className="size-4 shrink-0 text-multi-fg-tertiary transition-colors group-hover:text-multi-fg-primary" />
       </span>
       <span className="grid gap-0.5">
         <span className="truncate text-body font-medium">{props.title}</span>
@@ -4149,7 +4148,7 @@ export default function ChatView(props: ChatViewProps) {
                     aria-label="Scroll to bottom"
                     title="Scroll to bottom"
                   >
-                    <IconChevronDownSmall className="ui-icon size-3" aria-hidden="true" />
+                    <IconChevronRightMedium className="ui-icon size-3 rotate-90" aria-hidden="true" />
                   </button>
                 </div>
               )}

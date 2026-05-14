@@ -1,11 +1,10 @@
 "use client";
 
 import {
-  IconArrowRotateCounterClockwise,
+  IconChevronLeftMedium,
   IconBarsThree,
   IconBranch,
-  IconChevronDownSmall,
-  IconChevronRightSmall,
+  IconChevronRightMedium,
   IconDotGrid1x3Horizontal,
   IconFolder1,
   IconSplit,
@@ -567,7 +566,7 @@ function LocalBranchBar(props: {
                 data-open={props.commitMenuOpen || undefined}
                 title="Open commit menu"
               >
-                <IconChevronDownSmall className="size-3" />
+                <IconChevronRightMedium className="size-3 rotate-90" />
               </button>
             </div>
             {props.commitMenuOpen && (
@@ -645,7 +644,7 @@ function ChangesHeader(props: {
             title="Discard all changes"
             chrome="panel"
           >
-            <IconArrowRotateCounterClockwise className="size-3.5 shrink-0" />
+            <IconChevronLeftMedium className="size-3.5 shrink-0" />
           </WorkbenchIconButton>
           <WorkbenchIconButton
             onClick={toggleAll}
@@ -654,9 +653,9 @@ function ChangesHeader(props: {
             chrome="panel"
           >
             {props.allCollapsed ? (
-              <IconChevronDownSmall className="size-3" />
+              <IconChevronRightMedium className="size-3 rotate-90" />
             ) : (
-              <IconChevronRightSmall className="size-3" />
+              <IconChevronRightMedium className="size-3" />
             )}
           </WorkbenchIconButton>
         </div>
@@ -701,7 +700,10 @@ function ChangesFilterMenu(props: {
       >
         <IconFolder1 className="size-3.5 shrink-0 text-multi-icon-tertiary" aria-hidden />
         <span className="min-w-0 truncate">{label}</span>
-        <IconChevronDownSmall className="size-3 shrink-0 text-multi-icon-tertiary" aria-hidden />
+        <IconChevronRightMedium
+          className="size-3 shrink-0 rotate-90 text-multi-icon-tertiary"
+          aria-hidden
+        />
       </MenuTrigger>
       <MenuPopup align="start" variant="workbench">
         <MenuRadioGroup
