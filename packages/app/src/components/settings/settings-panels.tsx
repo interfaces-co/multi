@@ -475,10 +475,11 @@ function FontFamilyInput(props: {
     onUnmount: (debouncer) => debouncer.flush(),
   });
 
+  const onDraftValueChange = props.onDraftValueChange;
   useEffect(() => {
     setDraftValue(props.value);
-    props.onDraftValueChange?.(props.value);
-  }, [props.value, props.onDraftValueChange]);
+    onDraftValueChange?.(props.value);
+  }, [props.value, onDraftValueChange]);
 
   return (
     <Input

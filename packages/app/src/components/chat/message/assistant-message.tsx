@@ -8,7 +8,6 @@ import { ChangedFilesTree } from "./changed-files-tree";
 import { DiffStatLabel, hasNonZeroStat } from "./diff-stat-label";
 import { useUiStateStore } from "~/stores/ui-state-store";
 import { ChatMessageBubble } from "./message-surface";
-import { cn } from "~/lib/utils";
 
 interface AssistantMessageProps {
   message: ChatMessage;

@@ -527,7 +527,6 @@ export const MessagesTimeline = memo(function MessagesTimeline({
                 >
                   <TimelineRowContent
                     row={row}
-                    isSticky={isActiveStickyUserRow}
                     isEditingUserMessage={
                       row.kind === "message" &&
                       row.message.role === "user" &&
@@ -629,11 +628,9 @@ type TimelineRow = MessagesTimelineRow;
 
 const TimelineRowContent = memo(function TimelineRowContent({
   row,
-  isSticky = false,
   isEditingUserMessage = false,
 }: {
   row: TimelineRow;
-  isSticky?: boolean;
   isEditingUserMessage?: boolean;
 }) {
   const ctx = use(TimelineRowCtx);

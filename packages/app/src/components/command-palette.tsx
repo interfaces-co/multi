@@ -488,6 +488,7 @@ function OpenCommandPaletteDialog() {
       projects,
       settings.defaultThreadEnvMode,
       settings.sidebarThreadSortOrder,
+      settings.textGenerationModelSelection,
       threads,
     ],
   );
