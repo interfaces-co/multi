@@ -35,6 +35,7 @@ import { ServerSettingsService } from "./server-settings";
 import { ServerEnvironment } from "./environment/ServerEnvironment.service";
 import { AnalyticsService } from "./telemetry/AnalyticsService.service";
 import { ServerAuth } from "./auth/ServerAuth.service";
+import { ProviderSessionReaper } from "./provider/ProviderSessionReaper.service";
 import {
   formatHeadlessServeOutput,
   formatHostForUrl,
@@ -325,6 +326,7 @@ export const makeServerRuntimeStartup = Effect.gen(function* () {
   const serverConfig = yield* ServerConfig;
   const keybindings = yield* Keybindings;
   const orchestrationReactor = yield* OrchestrationReactor;
+  const providerSessionReaper = yield* ProviderSessionReaper;
   const lifecycleEvents = yield* ServerLifecycleEvents;
   const serverSettings = yield* ServerSettingsService;
   const serverEnvironment = yield* ServerEnvironment;
@@ -369,7 +371,10 @@ export const makeServerRuntimeStartup = Effect.gen(function* () {
     yield* Effect.logDebug("startup phase: starting orchestration reactors");
     yield* runStartupPhase(
       "reactors.start",
-      orchestrationReactor.start().pipe(Scope.provide(reactorScope)),
+      Effect.gen(function* () {
+        yield* orchestrationReactor.start().pipe(Scope.provide(reactorScope));
+        yield* providerSessionReaper.start().pipe(Scope.provide(reactorScope));
+      }),
     );
 
     yield* Effect.logDebug("startup phase: validating project project roots");

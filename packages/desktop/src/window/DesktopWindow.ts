@@ -24,6 +24,7 @@ const TITLEBAR_LIGHT_SYMBOL_COLOR = "#1f2937";
 const TITLEBAR_DARK_SYMBOL_COLOR = "#f8fafc";
 const DEFAULT_WINDOW_WIDTH = 1280;
 const DEFAULT_WINDOW_HEIGHT = 800;
+const TRUSTED_RENDERER_PERMISSIONS = new Set(["clipboard-sanitized-write", "notifications"]);
 
 type WindowTitleBarOptions = Pick<
   Electron.BrowserWindowConstructorOptions,
@@ -122,6 +123,60 @@ function sendWindowChromeState(window: Electron.BrowserWindow): void {
   });
 }
 
+function isTrustedRendererUrl(rawUrl: string | undefined, trustedOrigin: string): boolean {
+  if (!rawUrl) {
+    return false;
+  }
+  try {
+    return new URL(rawUrl).origin === trustedOrigin;
+  } catch {
+    return false;
+  }
+}
+
+function restrictRendererPermissions(
+  window: Electron.BrowserWindow,
+  trustedOrigin: string,
+): void {
+  window.webContents.session.setPermissionRequestHandler(
+    (webContents, permission, callback, details) => {
+      callback(
+        TRUSTED_RENDERER_PERMISSIONS.has(permission) &&
+          webContents.id === window.webContents.id &&
+          isTrustedRendererUrl(details.requestingUrl, trustedOrigin),
+      );
+    },
+  );
+  window.webContents.session.setPermissionCheckHandler(
+    (webContents, permission, requestingOrigin, details) => {
+      if (!TRUSTED_RENDERER_PERMISSIONS.has(permission)) {
+        return false;
+      }
+      if (webContents !== null && webContents.id !== window.webContents.id) {
+        return false;
+      }
+      return (
+        isTrustedRendererUrl(details.requestingUrl, trustedOrigin) ||
+        isTrustedRendererUrl(requestingOrigin, trustedOrigin)
+      );
+    },
+  );
+}
+
+function preventUntrustedMainFrameNavigation(
+  window: Electron.BrowserWindow,
+  trustedOrigin: string,
+  logBlockedNavigation: (url: string) => void,
+): void {
+  window.webContents.on("will-navigate", (event, url) => {
+    if (isTrustedRendererUrl(url, trustedOrigin)) {
+      return;
+    }
+    event.preventDefault();
+    logBlockedNavigation(url);
+  });
+}
+
 function syncWindowAppearance(
   window: Electron.BrowserWindow,
   shouldUseDarkColors: boolean,
@@ -174,6 +229,9 @@ const make = Effect.gen(function* () {
     const iconPaths = yield* assets.iconPaths;
     const iconOption = getIconOption(iconPaths);
     const shouldUseDarkColors = yield* electronTheme.shouldUseDarkColors;
+    const appUrl = environment.isDevelopment
+      ? new URL(yield* resolveDesktopDevServerUrl(environment))
+      : backendHttpUrl;
     const window = yield* electronWindow.create({
       width: DEFAULT_WINDOW_WIDTH,
       height: DEFAULT_WINDOW_HEIGHT,
@@ -192,6 +250,15 @@ const make = Effect.gen(function* () {
         nodeIntegration: false,
         sandbox: true,
       },
+    });
+    const trustedOrigin = appUrl.origin;
+    restrictRendererPermissions(window, trustedOrigin);
+    preventUntrustedMainFrameNavigation(window, trustedOrigin, (url) => {
+      void runPromise(
+        logWindowWarning("blocked untrusted main-frame navigation", {
+          url,
+        }),
+      );
     });
 
     window.webContents.on("context-menu", (event, params) => {
@@ -299,11 +366,10 @@ const make = Effect.gen(function* () {
     });
 
     if (environment.isDevelopment) {
-      const devServerUrl = yield* resolveDesktopDevServerUrl(environment);
-      void window.loadURL(devServerUrl);
+      void window.loadURL(appUrl.href);
       window.webContents.openDevTools({ mode: "detach" });
     } else {
-      void window.loadURL(backendHttpUrl.href);
+      void window.loadURL(appUrl.href);
     }
 
     window.on("closed", () => {

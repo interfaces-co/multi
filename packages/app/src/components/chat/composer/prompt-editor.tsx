@@ -232,16 +232,6 @@ function skillSignature(skills: ReadonlyArray<ServerProviderSkill>): string {
     .join("\u001e");
 }
 
-function isSafeHttpUrl(value: unknown): value is string {
-  if (typeof value !== "string") return false;
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
 function stringAttr(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
@@ -998,8 +988,15 @@ const ComposerTerminalContextExtension = TiptapNode.create({
 function createComposerExtensions(placeholderRef: { current: string }) {
   return [
     StarterKit.configure({
+      // The composer preserves markdown syntax as plain prompt text. These marks
+      // otherwise convert typed markdown like **text** into styled editor content.
+      bold: false,
       heading: false,
+      code: false,
       link: false,
+      italic: false,
+      strike: false,
+      underline: false,
       bulletList: false,
       orderedList: false,
       listItem: false,
@@ -1022,7 +1019,13 @@ function createComposerExtensions(placeholderRef: { current: string }) {
         rel: "noreferrer",
         target: "_blank",
       },
-      isAllowedUri: (url) => isSafeHttpUrl(url),
+      isAllowedUri: (url, context) => {
+        const trimmedUrl = url.trim().toLowerCase();
+        return (
+          (trimmedUrl.startsWith("http://") || trimmedUrl.startsWith("https://")) &&
+          context.defaultValidate(url)
+        );
+      },
       shouldAutoLink: () => false,
     }),
     Placeholder.configure({

@@ -20,7 +20,6 @@ import {
   type VirtualItem,
 } from "@tanstack/react-virtual";
 import { Spinner } from "@multi/ui/spinner";
-import { Collapsible } from "@multi/ui/collapsible";
 import { deriveTimelineEntries } from "../../../session-logic";
 import { type ChatMessage, type TurnDiffSummary } from "../../../types";
 import { type ExpandedImagePreview } from "../message/expanded-image-preview";
@@ -44,11 +43,6 @@ type UserMessageTimelineRow = Extract<MessagesTimelineRow, { kind: "message" }>;
 // ---------------------------------------------------------------------------
 
 export interface TimelineRowSharedState {
-  activeTurnInProgress: boolean;
-  activeTurnId: TurnId | null | undefined;
-  isWorking: boolean;
-  isRevertingCheckpoint: boolean;
-  completionSummary: string | null;
   routeThreadKey: string;
   markdownCwd: string | undefined;
   resolvedTheme: "light" | "dark";
@@ -59,8 +53,8 @@ export interface TimelineRowSharedState {
   renderEditComposer: ((message: ChatMessage) => ReactNode) | undefined;
   onImageExpand: (preview: ExpandedImagePreview) => void;
   onOpenTurnDiff: (turnId: TurnId, filePath?: string) => void;
-  expandedWorkedBlockIds: ReadonlySet<string>;
-  onWorkedBlockOpenChange: (rowId: string, open: boolean) => void;
+  expandedWorkedHeaderIds: ReadonlySet<string>;
+  onWorkedHeaderOpenChange: (rowId: string, open: boolean) => void;
 }
 
 export const TimelineRowCtx = createContext<TimelineRowSharedState>(null!);
@@ -86,18 +80,16 @@ export interface MessagesTimelineController {
 interface MessagesTimelineProps {
   isWorking: boolean;
   activeTurnInProgress: boolean;
-  activeTurnId?: TurnId | null;
+  editUserMessagesDisabled: boolean;
   activeTurnStartedAt: string | null;
   bottomClearancePx?: number | undefined;
   timelineControllerRef: React.RefObject<MessagesTimelineController | null>;
   timelineEntries: ReturnType<typeof deriveTimelineEntries>;
   completionDividerBeforeEntryId: string | null;
-  completionSummary: string | null;
   turnDiffSummaryByAssistantMessageId: Map<MessageId, TurnDiffSummary>;
   routeThreadKey: string;
   onOpenTurnDiff: (turnId: TurnId, filePath?: string) => void;
   revertTurnCountByUserMessageId: Map<MessageId, number>;
-  isRevertingCheckpoint: boolean;
   onImageExpand: (preview: ExpandedImagePreview) => void;
   activeThreadEnvironmentId: EnvironmentId;
   markdownCwd: string | undefined;
@@ -119,18 +111,16 @@ interface MessagesTimelineProps {
 export const MessagesTimeline = memo(function MessagesTimeline({
   isWorking,
   activeTurnInProgress,
-  activeTurnId,
+  editUserMessagesDisabled,
   activeTurnStartedAt,
   bottomClearancePx = 0,
   timelineControllerRef,
   timelineEntries,
   completionDividerBeforeEntryId,
-  completionSummary,
   turnDiffSummaryByAssistantMessageId,
   routeThreadKey,
   onOpenTurnDiff,
   revertTurnCountByUserMessageId,
-  isRevertingCheckpoint,
   onImageExpand,
   activeThreadEnvironmentId,
   markdownCwd,
@@ -163,29 +153,52 @@ export const MessagesTimeline = memo(function MessagesTimeline({
       revertTurnCountByUserMessageId,
     ],
   );
-  const rows = useStableRows(rawRows);
-  const initialWorkedBlockIdsRef = useRef<ReadonlySet<string> | null>(null);
-  if (initialWorkedBlockIdsRef.current === null) {
-    initialWorkedBlockIdsRef.current = getWorkedBlockIds(rows);
+  const allRows = useStableRows(rawRows);
+  const initialWorkedHeaderIdsRef = useRef<ReadonlySet<string> | null>(null);
+  if (initialWorkedHeaderIdsRef.current === null) {
+    initialWorkedHeaderIdsRef.current = getWorkedHeaderIds(allRows);
   }
-  const [workedBlockOpenOverrides, setWorkedBlockOpenOverrides] = useState<
+  const [workedHeaderOpenOverrides, setWorkedHeaderOpenOverrides] = useState<
     ReadonlyMap<string, boolean>
   >(() => new Map());
-  const expandedWorkedBlockIds = useMemo(() => {
-    const initialWorkedBlockIds = initialWorkedBlockIdsRef.current ?? new Set<string>();
+  const expandedWorkedHeaderIds = useMemo(() => {
+    const initialWorkedHeaderIds = initialWorkedHeaderIdsRef.current ?? new Set<string>();
     const expandedIds = new Set<string>();
-    for (const row of rows) {
-      if (row.kind !== "worked-block") {
+    for (const row of allRows) {
+      if (row.kind !== "worked-header") {
         continue;
       }
-      const openOverride = workedBlockOpenOverrides.get(row.id);
-      const defaultOpen = !initialWorkedBlockIds.has(row.id);
+      const openOverride = workedHeaderOpenOverrides.get(row.id);
+      const defaultOpen = !initialWorkedHeaderIds.has(row.id);
       if (openOverride ?? defaultOpen) {
         expandedIds.add(row.id);
       }
     }
     return expandedIds;
-  }, [rows, workedBlockOpenOverrides]);
+  }, [allRows, workedHeaderOpenOverrides]);
+  const rows = useMemo(
+    () => allRows.filter((row) => isWorkedRowVisible(row, expandedWorkedHeaderIds)),
+    [allRows, expandedWorkedHeaderIds],
+  );
+  useEffect(() => {
+    setWorkedHeaderOpenOverrides((previousOverrides) => {
+      if (previousOverrides.size === 0) {
+        return previousOverrides;
+      }
+
+      const workedHeaderIds = getWorkedHeaderIds(allRows);
+      const nextOverrides = new Map<string, boolean>();
+      let changed = false;
+      for (const [rowId, open] of previousOverrides) {
+        if (workedHeaderIds.has(rowId)) {
+          nextOverrides.set(rowId, open);
+        } else {
+          changed = true;
+        }
+      }
+      return changed ? nextOverrides : previousOverrides;
+    });
+  }, [allRows]);
   const stickyUserRowIndices = useMemo(
     () => rows.flatMap((row, index) => (isUserMessageRow(row) ? [index] : [])),
     [rows],
@@ -299,12 +312,13 @@ export const MessagesTimeline = memo(function MessagesTimeline({
     };
     window.requestAnimationFrame(tick);
   }, [scheduleStickToBottom]);
-  const handleWorkedBlockOpenChange = useCallback(
+  const handleWorkedHeaderOpenChange = useCallback(
     (rowId: string, open: boolean) => {
-      const latestWorkedBlockId = rows.findLast((row) => row.kind === "worked-block")?.id ?? null;
-      const shouldStickToBottom = open && (getIsAtBottom() || rowId === latestWorkedBlockId);
+      const latestWorkedHeaderId =
+        allRows.findLast((row) => row.kind === "worked-header")?.id ?? null;
+      const shouldStickToBottom = open && (getIsAtBottom() || rowId === latestWorkedHeaderId);
 
-      setWorkedBlockOpenOverrides((previousOverrides) => {
+      setWorkedHeaderOpenOverrides((previousOverrides) => {
         const nextOverrides = new Map(previousOverrides);
         nextOverrides.set(rowId, open);
         return nextOverrides;
@@ -314,7 +328,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
         keepBottomPinnedThroughAnimation();
       }
     },
-    [getIsAtBottom, keepBottomPinnedThroughAnimation, rows],
+    [allRows, getIsAtBottom, keepBottomPinnedThroughAnimation],
   );
 
   useEffect(() => {
@@ -398,7 +412,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
   const rowVirtualizer = useVirtualizer<HTMLDivElement, HTMLDivElement>({
     count: rows.length,
     getScrollElement: () => scrollElementRef.current,
-    estimateSize: (index) => estimateTimelineRowSize(rows[index], expandedWorkedBlockIds),
+    estimateSize: (index) => estimateTimelineRowSize(rows[index]),
     getItemKey: (index) => rows[index]?.id ?? index,
     rangeExtractor,
     overscan: VIRTUALIZER_OVERSCAN,
@@ -415,11 +429,6 @@ export const MessagesTimeline = memo(function MessagesTimeline({
 
   const sharedState = useMemo<TimelineRowSharedState>(
     () => ({
-      activeTurnInProgress,
-      activeTurnId: activeTurnId ?? null,
-      isWorking,
-      isRevertingCheckpoint,
-      completionSummary,
       routeThreadKey,
       markdownCwd,
       resolvedTheme,
@@ -430,15 +439,10 @@ export const MessagesTimeline = memo(function MessagesTimeline({
       renderEditComposer,
       onImageExpand,
       onOpenTurnDiff,
-      expandedWorkedBlockIds,
-      onWorkedBlockOpenChange: handleWorkedBlockOpenChange,
+      expandedWorkedHeaderIds,
+      onWorkedHeaderOpenChange: handleWorkedHeaderOpenChange,
     }),
     [
-      activeTurnInProgress,
-      activeTurnId,
-      isWorking,
-      isRevertingCheckpoint,
-      completionSummary,
       routeThreadKey,
       markdownCwd,
       resolvedTheme,
@@ -449,8 +453,8 @@ export const MessagesTimeline = memo(function MessagesTimeline({
       renderEditComposer,
       onImageExpand,
       onOpenTurnDiff,
-      expandedWorkedBlockIds,
-      handleWorkedBlockOpenChange,
+      expandedWorkedHeaderIds,
+      handleWorkedHeaderOpenChange,
     ],
   );
 
@@ -484,16 +488,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
 
   return (
     <TimelineRowCtx.Provider value={sharedState}>
-      <div
-        className={cn(
-          "relative flex h-full min-h-0 flex-1 flex-col gap-0 overflow-hidden",
-          "pt-(--chat-timeline-padding-block-start)",
-          "[--meta-agent-thread-stack-gap:8px]",
-          "[--meta-agent-thread-stack-horizontal-inset:20px]",
-          "[--meta-agent-thread-stack-bottom-inset:24px]",
-          "[--meta-agent-thread-stack-top-inset:16px]",
-        )}
-      >
+      <div className="relative flex h-full min-h-0 flex-1 flex-col gap-0 overflow-hidden pt-(--chat-timeline-padding-block-start)">
         <div
           ref={scrollElementRef}
           onScroll={handleScroll}
@@ -527,6 +522,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
                 >
                   <TimelineRowContent
                     row={row}
+                    editUserMessagesDisabled={editUserMessagesDisabled}
                     isEditingUserMessage={
                       row.kind === "message" &&
                       row.message.role === "user" &&
@@ -547,14 +543,29 @@ function isUserMessageRow(row: MessagesTimelineRow): row is UserMessageTimelineR
   return row.kind === "message" && row.message.role === "user";
 }
 
-function getWorkedBlockIds(rows: ReadonlyArray<MessagesTimelineRow>): ReadonlySet<string> {
+function getWorkedHeaderIds(rows: ReadonlyArray<MessagesTimelineRow>): ReadonlySet<string> {
   const result = new Set<string>();
   for (const row of rows) {
-    if (row.kind === "worked-block") {
+    if (row.kind === "worked-header") {
       result.add(row.id);
     }
   }
   return result;
+}
+
+function isWorkedRowVisible(
+  row: MessagesTimelineRow,
+  expandedWorkedHeaderIds: ReadonlySet<string>,
+): boolean {
+  switch (row.kind) {
+    case "work":
+    case "message":
+    case "proposed-plan":
+      return !row.workedHeaderId || expandedWorkedHeaderIds.has(row.workedHeaderId);
+    case "working":
+    case "worked-header":
+      return true;
+  }
 }
 
 function findActiveStickyUserRowIndex(indices: readonly number[], visibleStartIndex: number) {
@@ -568,10 +579,7 @@ function findActiveStickyUserRowIndex(indices: readonly number[], visibleStartIn
   return activeIndex;
 }
 
-function estimateTimelineRowSize(
-  row: MessagesTimelineRow | undefined,
-  expandedWorkedBlockIds: ReadonlySet<string>,
-): number {
+function estimateTimelineRowSize(row: MessagesTimelineRow | undefined): number {
   if (!row) {
     return 96 + VIRTUAL_ROW_GAP_PX;
   }
@@ -580,16 +588,8 @@ function estimateTimelineRowSize(
     return (row.message.role === "user" ? 88 : 156) + VIRTUAL_ROW_GAP_PX;
   }
 
-  if (row.kind === "worked-block") {
-    if (!expandedWorkedBlockIds.has(row.id)) {
-      return 32 + VIRTUAL_ROW_GAP_PX;
-    }
-    return (
-      row.childRows.reduce(
-        (total, childRow) => total + estimateTimelineRowSize(childRow, expandedWorkedBlockIds),
-        32,
-      ) + VIRTUAL_ROW_GAP_PX
-    );
+  if (row.kind === "worked-header") {
+    return 32 + VIRTUAL_ROW_GAP_PX;
   }
 
   if (row.kind === "proposed-plan") {
@@ -628,9 +628,11 @@ type TimelineRow = MessagesTimelineRow;
 
 const TimelineRowContent = memo(function TimelineRowContent({
   row,
+  editUserMessagesDisabled,
   isEditingUserMessage = false,
 }: {
   row: TimelineRow;
+  editUserMessagesDisabled: boolean;
   isEditingUserMessage?: boolean;
 }) {
   const ctx = use(TimelineRowCtx);
@@ -649,10 +651,15 @@ const TimelineRowContent = memo(function TimelineRowContent({
       data-message-id={row.kind === "message" ? row.message.id : undefined}
       data-message-role={row.kind === "message" ? row.message.role : undefined}
     >
-      {row.kind === "worked-block" ? (
-        <WorkedBlockRow row={row} />
+      {row.kind === "worked-header" ? (
+        <WorkedHeaderRow row={row} />
       ) : (
-        <TimelineRowBody row={row} isEditingUserMessage={isEditingUserMessage} ctx={ctx} />
+        <TimelineRowBody
+          row={row}
+          editUserMessagesDisabled={editUserMessagesDisabled}
+          isEditingUserMessage={isEditingUserMessage}
+          ctx={ctx}
+        />
       )}
     </div>
   );
@@ -660,10 +667,12 @@ const TimelineRowContent = memo(function TimelineRowContent({
 
 function TimelineRowBody({
   row,
+  editUserMessagesDisabled,
   isEditingUserMessage,
   ctx,
 }: {
-  row: Exclude<TimelineRow, { kind: "worked-block" }>;
+  row: Exclude<TimelineRow, { kind: "worked-header" }>;
+  editUserMessagesDisabled: boolean;
   isEditingUserMessage: boolean;
   ctx: TimelineRowSharedState;
 }) {
@@ -676,20 +685,12 @@ function TimelineRowBody({
       )}
 
       {row.kind === "message" && row.message.role === "user" && (
-        <div className="box-border flex w-full min-w-0 px-0">
-          <HumanMessage
-            message={row.message}
-            revertTurnCount={row.revertTurnCount}
-            isEditing={isEditingUserMessage}
-            editDisabled={ctx.isWorking || ctx.activeTurnInProgress || ctx.isRevertingCheckpoint}
-            isServerThread={ctx.isServerThread}
-            editComposer={
-              isEditingUserMessage ? (ctx.renderEditComposer?.(row.message) ?? null) : null
-            }
-            onImageExpand={ctx.onImageExpand}
-            onBeginEditUserMessage={ctx.onBeginEditUserMessage}
-          />
-        </div>
+        <HumanTimelineRow
+          row={row}
+          editUserMessagesDisabled={editUserMessagesDisabled}
+          isEditingUserMessage={isEditingUserMessage}
+          ctx={ctx}
+        />
       )}
 
       {row.kind === "message" && row.message.role === "assistant" && (
@@ -725,10 +726,39 @@ function TimelineRowBody({
   );
 }
 
-const WorkedBlockRow = memo(function WorkedBlockRow({
+const HumanTimelineRow = memo(function HumanTimelineRow({
+  row,
+  editUserMessagesDisabled,
+  isEditingUserMessage,
+  ctx,
+}: {
+  row: Extract<TimelineRow, { kind: "message" }>;
+  editUserMessagesDisabled: boolean;
+  isEditingUserMessage: boolean;
+  ctx: TimelineRowSharedState;
+}) {
+  return (
+    <div className="box-border flex w-full min-w-0 px-0">
+      <HumanMessage
+        message={row.message}
+        revertTurnCount={row.revertTurnCount}
+        isEditing={isEditingUserMessage}
+        editDisabled={editUserMessagesDisabled}
+        isServerThread={ctx.isServerThread}
+        editComposer={
+          isEditingUserMessage ? (ctx.renderEditComposer?.(row.message) ?? null) : null
+        }
+        onImageExpand={ctx.onImageExpand}
+        onBeginEditUserMessage={ctx.onBeginEditUserMessage}
+      />
+    </div>
+  );
+});
+
+const WorkedHeaderRow = memo(function WorkedHeaderRow({
   row,
 }: {
-  row: Extract<TimelineRow, { kind: "worked-block" }>;
+  row: Extract<TimelineRow, { kind: "worked-header" }>;
 }) {
   const ctx = use(TimelineRowCtx);
   const completionLabel = formatAssistantWorkedLabel(row.durationStart, row.completedAt);
@@ -736,8 +766,8 @@ const WorkedBlockRow = memo(function WorkedBlockRow({
     return null;
   }
 
-  const hasCollapsibleRows = row.childRows.length > 0;
-  const expanded = ctx.expandedWorkedBlockIds.has(row.id);
+  const hasCollapsibleRows = row.collapsibleRowIds.length > 0;
+  const expanded = ctx.expandedWorkedHeaderIds.has(row.id);
 
   if (!hasCollapsibleRows) {
     return (
@@ -748,58 +778,28 @@ const WorkedBlockRow = memo(function WorkedBlockRow({
   }
 
   return (
-    <Collapsible
-      open={expanded}
-      onOpenChange={(nextOpen) => ctx.onWorkedBlockOpenChange(row.id, nextOpen)}
+    <button
+      type="button"
+      className={cn(
+        "inline-flex w-fit items-center gap-1 px-0 py-0.5 text-left text-caption font-medium text-muted-foreground/75 tabular-nums hover:text-multi-fg-secondary",
+        "motion-reduce:transition-none motion-reduce:active:scale-100",
+      )}
+      aria-expanded={expanded}
+      aria-label={`${expanded ? "Collapse" : "Expand"} assistant turn, ${completionLabel}`}
+      data-assistant-worked-trigger=""
+      onClick={() => ctx.onWorkedHeaderOpenChange(row.id, !expanded)}
     >
-      <div className="flex min-w-0 flex-col gap-1.5">
-        <Collapsible.Trigger
-          className={cn(
-            "inline-flex w-fit items-center gap-1 px-0 py-0.5 text-left text-caption font-medium text-muted-foreground/75 tabular-nums hover:text-multi-fg-secondary",
-            "motion-reduce:transition-none motion-reduce:active:scale-100",
-          )}
-          aria-label={`${expanded ? "Collapse" : "Expand"} assistant turn, ${completionLabel}`}
-          data-assistant-worked-trigger=""
-        >
-          <span>{completionLabel}</span>
-          <IconChevronRightMedium
-            aria-hidden="true"
-            className={cn(
-              "size-4 shrink-0 overflow-visible transition-transform duration-150 motion-reduce:transition-none",
-              expanded && "rotate-90",
-            )}
-          />
-        </Collapsible.Trigger>
-        <Collapsible.Panel className="[transition-property:height,opacity] duration-200 ease-out data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none">
-          <div className="flex min-w-0 flex-col gap-1">
-            {row.childRows.map((childRow) => (
-              <TimelineChildRow key={childRow.id} row={childRow} ctx={ctx} />
-            ))}
-          </div>
-        </Collapsible.Panel>
-      </div>
-    </Collapsible>
+      <span>{completionLabel}</span>
+      <IconChevronRightMedium
+        aria-hidden="true"
+        className={cn(
+          "size-4 shrink-0 overflow-visible transition-transform duration-150 motion-reduce:transition-none",
+          expanded && "rotate-90",
+        )}
+      />
+    </button>
   );
 });
-
-function TimelineChildRow({
-  row,
-  ctx,
-}: {
-  row: Exclude<TimelineRow, { kind: "worked-block" }>;
-  ctx: TimelineRowSharedState;
-}) {
-  return (
-    <div
-      className="flex min-w-0 flex-col"
-      data-timeline-row-kind={row.kind}
-      data-message-id={row.kind === "message" ? row.message.id : undefined}
-      data-message-role={row.kind === "message" ? row.message.role : undefined}
-    >
-      <TimelineRowBody row={row} isEditingUserMessage={false} ctx={ctx} />
-    </div>
-  );
-}
 
 function formatAssistantWorkedLabel(startIso: string, completedAt: string | undefined) {
   if (!completedAt) return null;
@@ -857,7 +857,7 @@ const WorkGroupSection = memo(function WorkGroupSection({
 });
 
 function timelineRowKind(row: TimelineRow): "human" | "assistant" | "tool-call" | "loading" {
-  if (row.kind === "worked-block") return "assistant";
+  if (row.kind === "worked-header") return "assistant";
   if (row.kind === "message") return row.message.role === "user" ? "human" : "assistant";
   if (row.kind === "working") return "loading";
   return "tool-call";

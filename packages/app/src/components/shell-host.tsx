@@ -377,8 +377,16 @@ function ChatShellHost(props: { children?: ReactNode }) {
     projects[0]?.environmentId ??
     null;
   const sections = useMemo(
-    () => buildProjectChatSections(summaries, drafts, activeCwd, null, unreadIds),
-    [activeCwd, drafts, summaries, unreadIds],
+    () =>
+      buildProjectChatSections(
+        summaries,
+        drafts,
+        activeCwd,
+        null,
+        unreadIds,
+        projects.map((project) => project.cwd),
+      ),
+    [activeCwd, drafts, projects, summaries, unreadIds],
   );
 
   const create = useCallback(

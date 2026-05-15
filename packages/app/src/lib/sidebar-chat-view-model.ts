@@ -158,6 +158,7 @@ export function buildProjectChatSections(
   cwd: string | null,
   home: string | null,
   unreadIds?: ReadonlySet<string>,
+  projectCwds: readonly string[] = [],
 ) {
   const list = [
     ...threadSummaries.map((sum) => buildThreadChat(sum, unreadIds)),
@@ -173,17 +174,28 @@ export function buildProjectChatSections(
     else by.set(key, [item]);
   }
 
-  const groups = [...by.entries()].map(([dir, items]) => {
+  const projectCwdRank = new Map<string, number>();
+  for (const projectCwd of projectCwds) {
+    if (!projectCwd || projectCwdRank.has(projectCwd)) {
+      continue;
+    }
+    projectCwdRank.set(projectCwd, projectCwdRank.size);
+  }
+
+  const groups = [...by.entries()].map(([dir, items], index) => {
     const sorted = items.toSorted((left, right) =>
       left.updatedAt < right.updatedAt ? 1 : left.updatedAt > right.updatedAt ? -1 : 0,
     );
-    const latest = sorted[0]?.updatedAt ?? "";
-    return { dir, label: shortProjectPathLabel(dir, home), sorted, latest };
+    return { dir, label: shortProjectPathLabel(dir, home), sorted, index };
   });
 
   groups.sort((left, right) => {
-    if (left.latest < right.latest) return 1;
-    if (left.latest > right.latest) return -1;
+    const leftRank = projectCwdRank.get(left.dir);
+    const rightRank = projectCwdRank.get(right.dir);
+    if (leftRank !== undefined || rightRank !== undefined) {
+      return (leftRank ?? Number.MAX_SAFE_INTEGER) - (rightRank ?? Number.MAX_SAFE_INTEGER);
+    }
+    if (left.index !== right.index) return left.index - right.index;
     return left.dir.localeCompare(right.dir);
   });
 

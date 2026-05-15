@@ -14,6 +14,7 @@ export interface WorkTimelineRow {
   id: string;
   createdAt: string;
   groupedEntries: WorkLogEntry[];
+  workedHeaderId?: string | undefined;
 }
 
 export interface MessageTimelineRow {
@@ -25,6 +26,7 @@ export interface MessageTimelineRow {
   showCompletionDivider: boolean;
   assistantTurnDiffSummary?: TurnDiffSummary | undefined;
   revertTurnCount?: number | undefined;
+  workedHeaderId?: string | undefined;
 }
 
 export interface ProposedPlanTimelineRow {
@@ -32,6 +34,7 @@ export interface ProposedPlanTimelineRow {
   id: string;
   createdAt: string;
   proposedPlan: ProposedPlan;
+  workedHeaderId?: string | undefined;
 }
 
 export interface WorkingTimelineRow {
@@ -40,14 +43,14 @@ export interface WorkingTimelineRow {
   createdAt: string | null;
 }
 
-export interface WorkedBlockTimelineRow {
-  kind: "worked-block";
+export interface WorkedHeaderTimelineRow {
+  kind: "worked-header";
   id: string;
   createdAt: string;
   turnId: TurnId | null;
   durationStart: string;
   completedAt?: string | undefined;
-  childRows: BaseMessagesTimelineRow[];
+  collapsibleRowIds: readonly string[];
 }
 
 export type BaseMessagesTimelineRow =
@@ -58,7 +61,7 @@ export type BaseMessagesTimelineRow =
 
 export type MessagesTimelineRow =
   | BaseMessagesTimelineRow
-  | WorkedBlockTimelineRow;
+  | WorkedHeaderTimelineRow;
 
 export interface StableMessagesTimelineRowsState {
   byId: Map<string, MessagesTimelineRow>;
@@ -161,10 +164,10 @@ export function deriveMessagesTimelineRows(input: {
     });
   }
 
-  return groupAssistantTurnRows(baseRows);
+  return addWorkedHeaderRows(baseRows);
 }
 
-function groupAssistantTurnRows(
+function addWorkedHeaderRows(
   rows: ReadonlyArray<BaseMessagesTimelineRow>,
 ): MessagesTimelineRow[] {
   const result: MessagesTimelineRow[] = [];
@@ -185,28 +188,29 @@ function groupAssistantTurnRows(
     result.push(row);
     index += 1;
 
-    const childRows: BaseMessagesTimelineRow[] = [];
+    const turnRows: BaseMessagesTimelineRow[] = [];
     while (index < rows.length) {
-      const childRow = rows[index];
-      if (!childRow || isUserMessageTimelineRow(childRow)) {
+      const turnRow = rows[index];
+      if (!turnRow || isUserMessageTimelineRow(turnRow)) {
         break;
       }
-      childRows.push(childRow);
+      turnRows.push(turnRow);
       index += 1;
     }
 
-    const workedBlockRow = toWorkedBlockRow(childRows);
-    if (workedBlockRow) {
-      const summaryRow = childRows.findLast(
-        (childRow): childRow is MessageTimelineRow =>
-          childRow.kind === "message" && childRow.message.role === "assistant",
-      );
-      result.push(workedBlockRow);
-      if (summaryRow) {
-        result.push(summaryRow);
+    const workedHeaderRow = toWorkedHeaderRow(row.id, turnRows);
+    if (workedHeaderRow) {
+      const collapsibleRowIds = new Set(workedHeaderRow.collapsibleRowIds);
+      result.push(workedHeaderRow);
+      for (const turnRow of turnRows) {
+        result.push(
+          collapsibleRowIds.has(turnRow.id)
+            ? markWorkedHeaderRow(turnRow, workedHeaderRow.id)
+            : turnRow,
+        );
       }
     } else {
-      result.push(...childRows);
+      result.push(...turnRows);
     }
   }
 
@@ -217,7 +221,10 @@ function isUserMessageTimelineRow(row: BaseMessagesTimelineRow): boolean {
   return row.kind === "message" && row.message.role === "user";
 }
 
-function toWorkedBlockRow(rows: BaseMessagesTimelineRow[]): WorkedBlockTimelineRow | null {
+function toWorkedHeaderRow(
+  userRowId: string,
+  rows: BaseMessagesTimelineRow[],
+): WorkedHeaderTimelineRow | null {
   const firstRow = rows[0];
   if (!firstRow) {
     return null;
@@ -249,17 +256,37 @@ function toWorkedBlockRow(rows: BaseMessagesTimelineRow[]): WorkedBlockTimelineR
     return null;
   }
 
-  const id = turnId ? `worked-block:${turnId}` : `worked-block:${firstRow.id}`;
+  const collapsibleRowIds = rows
+    .slice(0, summaryIndex)
+    .filter((row) => row.kind !== "working")
+    .map((row) => row.id);
+  const id = `worked-header:${userRowId}`;
 
   return {
-    kind: "worked-block",
+    kind: "worked-header",
     id,
     createdAt,
     turnId,
     durationStart,
     completedAt,
-    childRows: rows.filter((_, index) => index !== summaryIndex),
+    collapsibleRowIds,
   };
+}
+
+function markWorkedHeaderRow(
+  row: BaseMessagesTimelineRow,
+  workedHeaderId: string,
+): BaseMessagesTimelineRow {
+  switch (row.kind) {
+    case "work":
+      return { ...row, workedHeaderId };
+    case "message":
+      return { ...row, workedHeaderId };
+    case "proposed-plan":
+      return { ...row, workedHeaderId };
+    case "working":
+      return row;
+  }
 }
 
 export function computeStableMessagesTimelineRows(
@@ -291,10 +318,16 @@ function isRowUnchanged(a: MessagesTimelineRow, b: MessagesTimelineRow): boolean
       return a.createdAt === (b as typeof a).createdAt;
 
     case "proposed-plan":
-      return a.proposedPlan === (b as typeof a).proposedPlan;
+      return (
+        a.proposedPlan === (b as typeof a).proposedPlan &&
+        a.workedHeaderId === (b as typeof a).workedHeaderId
+      );
 
     case "work":
-      return a.groupedEntries === (b as typeof a).groupedEntries;
+      return (
+        a.groupedEntries === (b as typeof a).groupedEntries &&
+        a.workedHeaderId === (b as typeof a).workedHeaderId
+      );
 
     case "message": {
       const bm = b as typeof a;
@@ -303,31 +336,26 @@ function isRowUnchanged(a: MessagesTimelineRow, b: MessagesTimelineRow): boolean
         a.durationStart === bm.durationStart &&
         a.showCompletionDivider === bm.showCompletionDivider &&
         a.assistantTurnDiffSummary === bm.assistantTurnDiffSummary &&
-        a.revertTurnCount === bm.revertTurnCount
+        a.revertTurnCount === bm.revertTurnCount &&
+        a.workedHeaderId === bm.workedHeaderId
       );
     }
 
-    case "worked-block": {
+    case "worked-header": {
       const bm = b as typeof a;
       return (
         a.turnId === bm.turnId &&
         a.durationStart === bm.durationStart &&
         a.completedAt === bm.completedAt &&
-        areRowsEqual(a.childRows, bm.childRows)
+        areStringArraysEqual(a.collapsibleRowIds, bm.collapsibleRowIds)
       );
     }
   }
 }
 
-function areRowsEqual(
-  a: ReadonlyArray<BaseMessagesTimelineRow>,
-  b: ReadonlyArray<BaseMessagesTimelineRow>,
-): boolean {
+function areStringArraysEqual(a: readonly string[], b: readonly string[]): boolean {
   if (a.length !== b.length) {
     return false;
   }
-  return a.every((row, index) => {
-    const nextRow = b[index];
-    return nextRow !== undefined && isRowUnchanged(row, nextRow);
-  });
+  return a.every((value, index) => value === b[index]);
 }

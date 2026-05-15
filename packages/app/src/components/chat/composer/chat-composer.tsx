@@ -2419,7 +2419,10 @@ export const ChatComposer = memo(
                       />
                     </span>
                   ) : (
-                    <>
+                    <span
+                      className="inline-flex min-w-0 shrink-0 items-center gap-1"
+                      data-compact-visible=""
+                    >
                       {providerTraitsPicker ? (
                         <>
                           <Separator
@@ -2442,7 +2445,7 @@ export const ChatComposer = memo(
                         onRuntimeModeChange={handleRuntimeModeChange}
                         onTogglePlanSidebar={togglePlanSidebar}
                       />
-                    </>
+                    </span>
                   )}
                 </PromptInputToolbarLeft>
 

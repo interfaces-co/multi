@@ -165,11 +165,10 @@ const closeRun = (
   run: ActiveBackendRun,
   options?: { readonly timeout?: Duration.Duration },
 ): Effect.Effect<void> => {
-  const waitForFiber = Option.match(run.fiber, {
-    onNone: () => Effect.void,
-    onSome: (fiber) => Fiber.await(fiber).pipe(Effect.asVoid),
+  const close = Option.match(run.fiber, {
+    onNone: () => Scope.close(run.scope, Exit.void),
+    onSome: (fiber) => Fiber.interrupt(fiber).pipe(Effect.asVoid),
   });
-  const close = Scope.close(run.scope, Exit.void).pipe(Effect.andThen(waitForFiber));
 
   return (
     options?.timeout ? close.pipe(Effect.timeoutOption(options.timeout), Effect.asVoid) : close

@@ -196,8 +196,7 @@ function SelectItem({
       {hideIndicator ? null : (
         <SelectPrimitive.ItemIndicator
           className={cn(
-            "col-start-1",
-            "inline-flex h-4 w-4 items-center justify-center text-multi-fg-primary data-unchecked:opacity-0 [&_svg:not([class*='size-'])]:size-3",
+            "col-start-1 inline-flex size-4 items-center justify-center text-multi-fg-primary opacity-0 transition-opacity in-data-selected:opacity-100 [&_svg:not([class*='size-'])]:size-3",
           )}
           data-slot="select-item-indicator"
           keepMounted
