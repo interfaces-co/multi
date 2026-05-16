@@ -199,6 +199,47 @@ describe("derivePendingApprovals", () => {
 
     expect(derivePendingApprovals(activities)).toEqual([]);
   });
+
+  it("limits open approvals to the active turn when provided", () => {
+    const activities: OrchestrationThreadActivity[] = [
+      makeActivity({
+        id: "approval-open-old-turn",
+        createdAt: "2026-02-23T00:00:01.000Z",
+        kind: "approval.requested",
+        summary: "Command approval requested",
+        tone: "approval",
+        turnId: "turn-old",
+        payload: {
+          requestId: "req-old-turn",
+          requestKind: "command",
+          detail: "old command",
+        },
+      }),
+      makeActivity({
+        id: "approval-open-current-turn",
+        createdAt: "2026-02-23T00:00:02.000Z",
+        kind: "approval.requested",
+        summary: "Command approval requested",
+        tone: "approval",
+        turnId: "turn-current",
+        payload: {
+          requestId: "req-current-turn",
+          requestKind: "command",
+          detail: "current command",
+        },
+      }),
+    ];
+
+    expect(derivePendingApprovals(activities, TurnId.make("turn-current"))).toEqual([
+      {
+        requestId: "req-current-turn",
+        requestKind: "command",
+        createdAt: "2026-02-23T00:00:02.000Z",
+        detail: "current command",
+      },
+    ]);
+    expect(derivePendingApprovals(activities, null)).toEqual([]);
+  });
 });
 
 describe("derivePendingUserInputs", () => {
@@ -287,6 +328,83 @@ describe("derivePendingUserInputs", () => {
         ],
       },
     ]);
+  });
+
+  it("limits open structured prompts to the active turn when provided", () => {
+    const activities: OrchestrationThreadActivity[] = [
+      makeActivity({
+        id: "user-input-open-old-turn",
+        createdAt: "2026-02-23T00:00:01.000Z",
+        kind: "user-input.requested",
+        summary: "User input requested",
+        tone: "info",
+        turnId: "turn-old",
+        payload: {
+          requestId: "req-user-input-old-turn",
+          questions: [
+            {
+              id: "surface",
+              header: "Surface",
+              question: "Which surface?",
+              options: [
+                {
+                  label: "Old",
+                  description: "Old turn option",
+                },
+              ],
+              multiSelect: false,
+            },
+          ],
+        },
+      }),
+      makeActivity({
+        id: "user-input-open-current-turn",
+        createdAt: "2026-02-23T00:00:02.000Z",
+        kind: "user-input.requested",
+        summary: "User input requested",
+        tone: "info",
+        turnId: "turn-current",
+        payload: {
+          requestId: "req-user-input-current-turn",
+          questions: [
+            {
+              id: "surface",
+              header: "Surface",
+              question: "Which surface?",
+              options: [
+                {
+                  label: "Current",
+                  description: "Current turn option",
+                },
+              ],
+              multiSelect: false,
+            },
+          ],
+        },
+      }),
+    ];
+
+    expect(derivePendingUserInputs(activities, TurnId.make("turn-current"))).toEqual([
+      {
+        requestId: "req-user-input-current-turn",
+        createdAt: "2026-02-23T00:00:02.000Z",
+        questions: [
+          {
+            id: "surface",
+            header: "Surface",
+            question: "Which surface?",
+            options: [
+              {
+                label: "Current",
+                description: "Current turn option",
+              },
+            ],
+            multiSelect: false,
+          },
+        ],
+      },
+    ]);
+    expect(derivePendingUserInputs(activities, null)).toEqual([]);
   });
 
   it("clears stale pending user-input prompts when the provider reports an orphaned request", () => {

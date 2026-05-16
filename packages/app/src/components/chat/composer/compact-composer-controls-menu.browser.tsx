@@ -8,7 +8,7 @@ import {
   ThreadId,
 } from "@multi/contracts";
 import { scopedThreadKey, scopeThreadRef } from "@multi/client-runtime";
-import "../../index.css";
+import "../../../index.css";
 
 import { page } from "vitest/browser";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -146,16 +146,16 @@ async function mountMenu(props?: { modelSelection?: ModelSelection; prompt?: str
 
   const screen = await render(
     <CompactComposerControlsMenu
-      activePlan={false}
+      planAvailable={false}
       interactionMode="default"
-      planSidebarLabel="Plan"
-      planSidebarOpen={false}
+      planLabel="Plan"
+      planTabActive={false}
       runtimeMode="approval-required"
       showInteractionModeToggle
       traitsFastMenuContent={<TraitsMenuContent {...sharedTraitsProps} traitsScope="fast-only" />}
       traitsRestMenuContent={<TraitsMenuContent {...sharedTraitsProps} traitsScope="except-fast" />}
       onToggleInteractionMode={vi.fn()}
-      onTogglePlanSidebar={vi.fn()}
+      openPlanTab={vi.fn()}
       onRuntimeModeChange={vi.fn()}
     />,
     { container: host },
@@ -302,14 +302,14 @@ describe("CompactComposerControlsMenu", () => {
     document.body.append(host);
     const screen = await render(
       <CompactComposerControlsMenu
-        activePlan={false}
+        planAvailable={false}
         interactionMode="default"
-        planSidebarLabel="Plan"
-        planSidebarOpen={false}
+        planLabel="Plan"
+        planTabActive={false}
         runtimeMode="approval-required"
         showInteractionModeToggle={false}
         onToggleInteractionMode={vi.fn()}
-        onTogglePlanSidebar={vi.fn()}
+        openPlanTab={vi.fn()}
         onRuntimeModeChange={vi.fn()}
       />,
       { container: host },

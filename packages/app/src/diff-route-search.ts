@@ -17,7 +17,7 @@ function parseWorkbenchSearchParam(search: Record<string, unknown>): { workbench
   if (w === undefined || w === null || w === "") {
     return {};
   }
-  if (w === "files" || w === "git" || w === "terminal") {
+  if (w === "plan" || w === "files" || w === "git" || w === "terminal") {
     return { workbench: w };
   }
   return {};

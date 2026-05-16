@@ -3243,6 +3243,7 @@ describe("ClaudeAdapterLive", () => {
       const requestId = requestedEvent.value.requestId;
       assert.equal(typeof requestId, "string");
       assert.equal(requestedEvent.value.payload.questions.length, 1);
+      assert.equal(requestedEvent.value.payload.questions[0]?.id, "Which framework?");
       assert.equal(requestedEvent.value.payload.questions[0]?.question, "Which framework?");
       assert.deepEqual(requestedEvent.value.providerRefs, {
         providerItemId: ProviderItemId.make("tool-ask-1"),

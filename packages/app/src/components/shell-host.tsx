@@ -4,12 +4,19 @@ import {
   scopeProjectRef,
   scopeThreadRef,
 } from "@multi/client-runtime";
-import { DEFAULT_PROJECTLESS_CWD, type EditorId, type EnvironmentId } from "@multi/contracts";
+import { truncate } from "@multi/shared/String";
+import {
+  DEFAULT_PROJECTLESS_CWD,
+  type EditorId,
+  type EnvironmentId,
+} from "@multi/contracts";
+import type { TimestampFormat } from "@multi/contracts/settings";
 import { useMutation } from "@tanstack/react-query";
 import { Outlet, useNavigate, useParams, useRouter } from "@tanstack/react-router";
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useShallow } from "zustand/react/shallow";
+import { IconBranch, IconConsole, IconFileText, IconSquareChecklist } from "central-icons";
 
 import { readLastChatRouteTarget } from "~/chat-route-persistence";
 import { prefetchDraftNavigation, prefetchThreadNavigation } from "~/app/thread-prefetch";
@@ -45,6 +52,11 @@ import {
 import { useThreadUnreadStore } from "~/stores/thread-unread-store";
 import { writeStoredProjectCwd } from "~/lib/project-state";
 import { inferLoginShellCaption } from "~/lib/terminal-shell-caption";
+import { useThreadPlanCatalog } from "~/lib/thread-plan-catalog";
+import {
+  buildPlanImplementationPrompt,
+  buildPlanImplementationThreadTitle,
+} from "~/proposed-plan";
 import {
   buildProjectChatSections,
   type SidebarDraftSummary,
@@ -53,6 +65,14 @@ import {
 import { cn, newCommandId, newMessageId, newThreadId } from "~/lib/utils";
 import { resolveSidebarNewThreadEnvMode, resolveThreadStatusPill } from "~/lib/thread-sidebar";
 import { useSettings } from "~/hooks/use-settings";
+import {
+  deriveActivePlanState,
+  findSidebarProposedPlan,
+  hasActionableProposedPlan,
+  isLatestTurnSettled,
+  type ActivePlanState,
+  type LatestProposedPlanState,
+} from "~/session-logic";
 import {
   selectProjectsAcrossEnvironments,
   selectSidebarThreadsAcrossEnvironments,
@@ -68,9 +88,13 @@ import {
 import { resolveThreadRouteTarget } from "~/thread-routes";
 import { GitPanel } from "./shell/git/panel";
 import { ProjectFilesPanel } from "./shell/files/project-files-panel";
-import { AppShell } from "./shell/shell/app";
+import { AppShell, type RightWorkbenchDefinition } from "./shell/shell/app";
+import type { WorkbenchTabMeta } from "./shell/shell/right-workbench-header";
 import { RightWorkbenchLayout } from "./shell/shell/right-workbench-layout";
 import { WorkbenchPanel } from "./shell/shell/workbench-panel";
+import { PlanWorkbenchPanel } from "./shell/plan/plan-workbench-panel";
+import { getComposerProviderState } from "./chat/composer/provider-registry";
+import { formatOutgoingPrompt, waitForStartedServerThread } from "./chat/view/chat-view.logic";
 import { ShellSettingsProvider } from "./shell/settings/context";
 import { SettingsNavRail } from "./shell/settings/nav-rail";
 import { ShellSidebarFooter } from "./shell/sidebar/footer";
@@ -133,6 +157,25 @@ function toSummaryFromSidebarThread(
   };
 }
 
+const EMPTY_THREAD_ACTIVITIES: Thread["activities"] = [];
+
+type PlanWorkbenchLabel = "Plan" | "Tasks";
+
+interface PlanWorkbenchState {
+  available: boolean;
+  activePlan: ActivePlanState | null;
+  activeProposedPlan: LatestProposedPlanState | null;
+  label: PlanWorkbenchLabel;
+  environmentId: EnvironmentId | null;
+  markdownCwd: string | undefined;
+  projectRoot: string | undefined;
+  timestampFormat: TimestampFormat;
+  canImplementPlan: boolean;
+  isImplementingPlan: boolean;
+  onImplementPlan: (() => void) | undefined;
+  onImplementPlanInNewThread: (() => void) | undefined;
+}
+
 export function ShellHost(props: { children?: ReactNode; mode: "chat" | "settings" }) {
   return (
     <ShellSettingsProvider>
@@ -184,7 +227,6 @@ function SettingsShellHost(props: { children?: ReactNode }) {
   return (
     <AppShell
       cwd={firstProjectCwd}
-      changesCount={0}
       onBack={backToChat}
       left={settingsLeft}
       center={props.children ?? <Outlet />}
@@ -376,6 +418,301 @@ function ChatShellHost(props: { children?: ReactNode }) {
     defaultProject?.environmentId ??
     projects[0]?.environmentId ??
     null;
+  const activeProject = activeThread?.projectId
+    ? (projectByScopedKey.get(
+        scopedProjectKey(scopeProjectRef(activeThread.environmentId, activeThread.projectId)),
+      ) ?? null)
+    : null;
+  const composerDraftInteractionMode = useComposerDraftStore((store) => {
+    if (!routeTarget) {
+      return null;
+    }
+    return store.getComposerDraft(routeTarget.kind === "server" ? routeTarget.threadRef : routeTarget.draftId)
+      ?.interactionMode ?? null;
+  });
+  const runtimeMode =
+    activeThread?.runtimeMode ?? activeDraftThread?.runtimeMode ?? DEFAULT_RUNTIME_MODE;
+  const interactionMode =
+    composerDraftInteractionMode ??
+    activeThread?.interactionMode ??
+    activeDraftThread?.interactionMode ??
+    DEFAULT_INTERACTION_MODE;
+  const activeLatestTurn = activeThread?.latestTurn ?? null;
+  const latestTurnSettled = isLatestTurnSettled(activeLatestTurn, activeThread?.session ?? null);
+  const threadPlanCatalog = useThreadPlanCatalog(
+    useMemo(() => {
+      const threadIds: Thread["id"][] = [];
+      if (activeThread?.id) {
+        threadIds.push(activeThread.id);
+      }
+      const sourceThreadId = activeLatestTurn?.sourceProposedPlan?.threadId;
+      if (sourceThreadId && sourceThreadId !== activeThread?.id) {
+        threadIds.push(sourceThreadId);
+      }
+      return threadIds;
+    }, [activeLatestTurn?.sourceProposedPlan?.threadId, activeThread?.id]),
+  );
+  const activePlan = useMemo(
+    () =>
+      deriveActivePlanState(
+        activeThread?.activities ?? EMPTY_THREAD_ACTIVITIES,
+        activeLatestTurn?.turnId ?? undefined,
+      ),
+    [activeLatestTurn?.turnId, activeThread?.activities],
+  );
+  const activeProposedPlan = useMemo(
+    () =>
+      findSidebarProposedPlan({
+        threads: threadPlanCatalog,
+        latestTurn: activeLatestTurn,
+        latestTurnSettled,
+        threadId: activeThread?.id ?? null,
+      }),
+    [activeLatestTurn, activeThread?.id, latestTurnSettled, threadPlanCatalog],
+  );
+  const activeProposedPlanSourceThreadId =
+    activeProposedPlan && activeThread
+      ? activeLatestTurn?.sourceProposedPlan?.planId === activeProposedPlan.id
+        ? activeLatestTurn.sourceProposedPlan.threadId
+        : activeThread.id
+      : null;
+  const activeTurnRunning =
+    activeThread?.session?.orchestrationStatus === "starting" ||
+    activeThread?.session?.orchestrationStatus === "running";
+  const showPlanImplementationActions = hasActionableProposedPlan(activeProposedPlan);
+  const canImplementPlan =
+    showPlanImplementationActions &&
+    activeThread !== null &&
+    activeProposedPlanSourceThreadId !== null &&
+    latestTurnSettled &&
+    !activeTurnRunning;
+  const [isImplementingPlan, setIsImplementingPlan] = useState(false);
+  const resolvePlanImplementationModelSelection = useCallback(
+    (implementationPrompt: string) => {
+      const composerDraftKey = activeThread
+        ? scopedThreadKey(scopeThreadRef(activeThread.environmentId, activeThread.id))
+        : routeTarget?.kind === "draft"
+          ? routeTarget.draftId
+          : null;
+      const composerDraft =
+        composerDraftKey !== null
+          ? useComposerDraftStore.getState().draftsByThreadKey[composerDraftKey]
+          : undefined;
+      const serverConfig = getServerConfig();
+      const resolved = resolveComposerModelSelection({
+        draft: composerDraft,
+        providers: serverConfig?.providers ?? [],
+        settings,
+        sessionProviderInstanceId: activeThread?.session?.providerInstanceId,
+        threadModelSelection: activeThread?.modelSelection,
+        projectModelSelection: activeProject?.defaultModelSelection,
+      });
+      const composerProviderState = getComposerProviderState({
+        provider: resolved.selectedProvider,
+        model: resolved.selectedModel,
+        models: resolved.selectedProviderModels,
+        prompt: implementationPrompt,
+        modelOptions: resolved.composerModelOptions?.[resolved.selectedProvider],
+      });
+      return {
+        modelSelection: resolved.modelSelection,
+        messageText: formatOutgoingPrompt({
+          provider: resolved.selectedProvider,
+          model: resolved.selectedModel,
+          models: resolved.selectedProviderModels,
+          effort: composerProviderState.promptEffort,
+          text: implementationPrompt,
+        }),
+      };
+    },
+    [activeProject?.defaultModelSelection, activeThread, routeTarget, settings],
+  );
+  const startPlanImplementation = useCallback(
+    async (target: "current-thread" | "new-thread") => {
+      if (
+        !activeThread ||
+        !activeProposedPlan ||
+        !activeProposedPlanSourceThreadId ||
+        !canImplementPlan ||
+        isImplementingPlan
+      ) {
+        return;
+      }
+
+      const api = readEnvironmentApi(activeThread.environmentId);
+      if (!api) {
+        toast.error("Environment API unavailable.");
+        return;
+      }
+
+      const createdAt = new Date().toISOString();
+      const planMarkdown = activeProposedPlan.planMarkdown;
+      const implementationPrompt = buildPlanImplementationPrompt(planMarkdown);
+      const { modelSelection, messageText } =
+        resolvePlanImplementationModelSelection(implementationPrompt);
+      const sourceProposedPlan = {
+        threadId: activeProposedPlanSourceThreadId,
+        planId: activeProposedPlan.id,
+      };
+      let createdThreadId: Thread["id"] | null = null;
+      let shouldDeleteCreatedThread = false;
+
+      setIsImplementingPlan(true);
+      try {
+        if (target === "new-thread") {
+          const nextThreadId = newThreadId();
+          const nextThreadTitle = truncate(buildPlanImplementationThreadTitle(planMarkdown));
+          createdThreadId = nextThreadId;
+          shouldDeleteCreatedThread = true;
+          await api.orchestration.dispatchCommand({
+            type: "thread.create",
+            commandId: newCommandId(),
+            threadId: nextThreadId,
+            projectId: activeThread.projectId,
+            title: nextThreadTitle,
+            modelSelection,
+            runtimeMode,
+            interactionMode: "default",
+            branch: activeThread.branch,
+            worktreePath: activeThread.worktreePath,
+            createdAt,
+          });
+          await api.orchestration.dispatchCommand({
+            type: "thread.turn.start",
+            commandId: newCommandId(),
+            threadId: nextThreadId,
+            message: {
+              messageId: newMessageId(),
+              role: "user",
+              text: messageText,
+              attachments: [],
+            },
+            modelSelection,
+            titleSeed: nextThreadTitle,
+            runtimeMode,
+            interactionMode: "default",
+            sourceProposedPlan,
+            createdAt,
+          });
+          shouldDeleteCreatedThread = false;
+          await waitForStartedServerThread(scopeThreadRef(activeThread.environmentId, nextThreadId));
+          shellPanelsActions.activatePlanTab();
+          await navigate({
+            to: "/$environmentId/$threadId",
+            params: {
+              environmentId: activeThread.environmentId,
+              threadId: nextThreadId,
+            },
+          });
+          return;
+        }
+
+        if (
+          modelSelection.model !== activeThread.modelSelection.model ||
+          modelSelection.instanceId !== activeThread.modelSelection.instanceId ||
+          JSON.stringify(modelSelection.options ?? null) !==
+            JSON.stringify(activeThread.modelSelection.options ?? null)
+        ) {
+          await api.orchestration.dispatchCommand({
+            type: "thread.meta.update",
+            commandId: newCommandId(),
+            threadId: activeThread.id,
+            modelSelection,
+          });
+        }
+        if (runtimeMode !== activeThread.runtimeMode) {
+          await api.orchestration.dispatchCommand({
+            type: "thread.runtime-mode.set",
+            commandId: newCommandId(),
+            threadId: activeThread.id,
+            runtimeMode,
+            createdAt,
+          });
+        }
+        if (activeThread.interactionMode !== "default") {
+          await api.orchestration.dispatchCommand({
+            type: "thread.interaction-mode.set",
+            commandId: newCommandId(),
+            threadId: activeThread.id,
+            interactionMode: "default",
+            createdAt,
+          });
+        }
+
+        await api.orchestration.dispatchCommand({
+          type: "thread.turn.start",
+          commandId: newCommandId(),
+          threadId: activeThread.id,
+          message: {
+            messageId: newMessageId(),
+            role: "user",
+            text: messageText,
+            attachments: [],
+          },
+          modelSelection,
+          titleSeed: activeThread.title,
+          runtimeMode,
+          interactionMode: "default",
+          sourceProposedPlan,
+          createdAt,
+        });
+        shellPanelsActions.activatePlanTab();
+      } catch (error) {
+        if (shouldDeleteCreatedThread && createdThreadId !== null) {
+          await api.orchestration
+            .dispatchCommand({
+              type: "thread.delete",
+              commandId: newCommandId(),
+              threadId: createdThreadId,
+            })
+            .catch(() => undefined);
+        }
+        toast.error(
+          target === "new-thread"
+            ? "Could not start implementation thread."
+            : "Could not implement plan.",
+          {
+            description: error instanceof Error ? error.message : "An error occurred.",
+          },
+        );
+      } finally {
+        setIsImplementingPlan(false);
+      }
+    },
+    [
+      activeProposedPlan,
+      activeProposedPlanSourceThreadId,
+      activeThread,
+      canImplementPlan,
+      isImplementingPlan,
+      navigate,
+      resolvePlanImplementationModelSelection,
+      runtimeMode,
+    ],
+  );
+  const implementPlanInCurrentThread = useCallback(() => {
+    void startPlanImplementation("current-thread");
+  }, [startPlanImplementation]);
+  const implementPlanInNewThread = useCallback(() => {
+    void startPlanImplementation("new-thread");
+  }, [startPlanImplementation]);
+  const planAvailable = activePlan !== null || activeProposedPlan !== null;
+  const planLabel: PlanWorkbenchLabel =
+    activeProposedPlan || interactionMode === "plan" ? "Plan" : "Tasks";
+  const planWorkbench: PlanWorkbenchState = {
+    available: planAvailable,
+    activePlan,
+    activeProposedPlan,
+    label: planLabel,
+    environmentId: activeThread?.environmentId ?? activeEnvironmentId,
+    markdownCwd: activeCwd ?? undefined,
+    projectRoot: activeThread?.worktreePath ?? activeProject?.cwd ?? undefined,
+    timestampFormat: settings.timestampFormat,
+    canImplementPlan,
+    isImplementingPlan,
+    onImplementPlan: showPlanImplementationActions ? implementPlanInCurrentThread : undefined,
+    onImplementPlanInNewThread: showPlanImplementationActions ? implementPlanInNewThread : undefined,
+  };
   const sections = useMemo(
     () =>
       buildProjectChatSections(
@@ -786,6 +1123,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
         cwd={activeCwd}
         environmentId={activeEnvironmentId}
         availableEditors={availableEditors}
+        plan={planWorkbench}
         onGitAgentAction={(action) => gitAgentActionMutation.mutate(action)}
         onStopGitAgentAction={stopGitAgentAction}
         stoppingGitAgentAction={stoppingGitAgentAction}
@@ -797,7 +1135,6 @@ function ChatShellHost(props: { children?: ReactNode }) {
   return (
     <AppShell
       cwd={activeCwd}
-      changesCount={0}
       left={chatLeft}
       center={center}
       right={null}
@@ -850,44 +1187,109 @@ function DesktopChatShellHost(props: {
   cwd: string | null;
   environmentId: EnvironmentId | null;
   availableEditors: readonly EditorId[];
+  plan: PlanWorkbenchState;
   onGitAgentAction: (action: GitAgentAction) => void;
   onStopGitAgentAction: (() => void) | null;
   stoppingGitAgentAction: boolean;
   pendingGitAgentAction: GitAgentAction | null;
 }) {
   const git = useEnvironmentGitPanel(props.environmentId, props.cwd);
+  const planTabAvailable = props.plan.available && props.plan.environmentId !== null;
+  const workbenchTabs = useMemo<WorkbenchTabMeta[]>(() => {
+    const tabs: WorkbenchTabMeta[] = planTabAvailable
+      ? [{ id: "plan", label: props.plan.label, icon: IconSquareChecklist }]
+      : [];
+    tabs.push(
+      {
+        id: "git",
+        label: "Changes",
+        icon: IconBranch,
+        badge: git.count > 0 ? String(git.count) : null,
+      },
+      { id: "terminal", label: "Terminal", icon: IconConsole },
+      { id: "files", label: "Files", icon: IconFileText },
+    );
+    return tabs;
+  }, [git.count, planTabAvailable, props.plan.label]);
+
+  const right = useMemo<RightWorkbenchDefinition>(() => {
+    const panels: RightWorkbenchDefinition["panels"] = {
+      files: (
+        <WorkbenchPanel>
+          <ProjectFilesPanel
+            cwd={props.cwd}
+            environmentId={props.environmentId}
+            availableEditors={props.availableEditors}
+          />
+        </WorkbenchPanel>
+      ),
+      git: (
+        <WorkbenchPanel>
+          <GitPanel
+            git={git}
+            onAgentAction={props.onGitAgentAction}
+            onStopAgentAction={props.onStopGitAgentAction}
+            stoppingAgentAction={props.stoppingGitAgentAction}
+            pendingAgentAction={props.pendingGitAgentAction}
+          />
+        </WorkbenchPanel>
+      ),
+      terminal: <TerminalWorkbenchPanel cwd={props.cwd} environmentId={props.environmentId} />,
+    };
+
+    if (planTabAvailable && props.plan.environmentId) {
+      panels.plan = (
+        <WorkbenchPanel>
+          <PlanWorkbenchPanel
+            activePlan={props.plan.activePlan}
+            activeProposedPlan={props.plan.activeProposedPlan}
+            label={props.plan.label}
+            environmentId={props.plan.environmentId}
+            markdownCwd={props.plan.markdownCwd}
+            projectRoot={props.plan.projectRoot}
+            timestampFormat={props.plan.timestampFormat}
+            canImplementPlan={props.plan.canImplementPlan}
+            isImplementingPlan={props.plan.isImplementingPlan}
+            onImplementPlan={props.plan.onImplementPlan}
+            onImplementPlanInNewThread={props.plan.onImplementPlanInNewThread}
+          />
+        </WorkbenchPanel>
+      );
+    }
+
+    return { tabs: workbenchTabs, panels };
+  }, [
+    git,
+    props.availableEditors,
+    props.cwd,
+    props.environmentId,
+    props.onGitAgentAction,
+    props.onStopGitAgentAction,
+    props.pendingGitAgentAction,
+    props.plan.activePlan,
+    props.plan.activeProposedPlan,
+    props.plan.environmentId,
+    props.plan.canImplementPlan,
+    props.plan.label,
+    props.plan.markdownCwd,
+    props.plan.isImplementingPlan,
+    props.plan.onImplementPlan,
+    props.plan.onImplementPlanInNewThread,
+    props.plan.projectRoot,
+    props.plan.timestampFormat,
+    planTabAvailable,
+    props.stoppingGitAgentAction,
+    workbenchTabs,
+  ]);
 
   return (
     <AppShell
       cwd={props.cwd}
-      changesCount={git.count}
       routeThreadId={props.routeThreadId}
       gitFocusId={git.focusId}
       left={props.left}
       center={props.center}
-      right={{
-        files: (
-          <WorkbenchPanel>
-            <ProjectFilesPanel
-              cwd={props.cwd}
-              environmentId={props.environmentId}
-              availableEditors={props.availableEditors}
-            />
-          </WorkbenchPanel>
-        ),
-        git: (
-          <WorkbenchPanel>
-            <GitPanel
-              git={git}
-              onAgentAction={props.onGitAgentAction}
-              onStopAgentAction={props.onStopGitAgentAction}
-              stoppingAgentAction={props.stoppingGitAgentAction}
-              pendingAgentAction={props.pendingGitAgentAction}
-            />
-          </WorkbenchPanel>
-        ),
-        terminal: <TerminalWorkbenchPanel cwd={props.cwd} environmentId={props.environmentId} />,
-      }}
+      right={right}
     />
   );
 }

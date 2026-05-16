@@ -20,7 +20,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { deriveServerPaths, ServerConfig } from "../config.ts";
 import { TextGenerationError } from "@multi/contracts";
-import { ProviderAdapterRequestError } from "../provider/Errors.ts";
+import {
+  ProviderAdapterRequestError,
+  ProviderAdapterSessionNotFoundError,
+} from "../provider/Errors.ts";
 import { OrchestrationEventStoreLive } from "../persistence/OrchestrationEventStore.ts";
 import { OrchestrationCommandReceiptRepositoryLive } from "../persistence/OrchestrationCommandReceipts.ts";
 import { SqlitePersistenceMemory } from "../persistence/Sqlite.ts";
@@ -1407,7 +1410,62 @@ describe("ProviderCommandReactor", () => {
     await waitFor(() => harness.interruptTurn.mock.calls.length === 1);
     expect(harness.interruptTurn.mock.calls[0]?.[0]).toEqual({
       threadId: "thread-1",
-      turnId: "turn-1",
+    });
+    await waitFor(async () => {
+      const readModel = await Effect.runPromise(harness.engine.getReadModel());
+      const thread = readModel.threads.find((entry) => entry.id === ThreadId.make("thread-1"));
+      return thread?.session?.status === "ready" && thread.session.activeTurnId === null;
+    });
+  });
+
+  it("clears stale running state when provider interrupt finds no live session", async () => {
+    const harness = await createHarness();
+    const now = new Date().toISOString();
+    harness.interruptTurn.mockImplementationOnce((input) =>
+      Effect.fail(
+        new ProviderAdapterSessionNotFoundError({
+          provider: "codex",
+          threadId: input.threadId,
+        }),
+      ),
+    );
+
+    await Effect.runPromise(
+      harness.engine.dispatch({
+        type: "thread.session.set",
+        commandId: CommandId.make("cmd-session-set-stale-interrupt"),
+        threadId: ThreadId.make("thread-1"),
+        session: {
+          threadId: ThreadId.make("thread-1"),
+          status: "running",
+          providerName: "codex",
+          runtimeMode: "approval-required",
+          activeTurnId: asTurnId("turn-stale"),
+          lastError: null,
+          updatedAt: now,
+        },
+        createdAt: now,
+      }),
+    );
+
+    await Effect.runPromise(
+      harness.engine.dispatch({
+        type: "thread.turn.interrupt",
+        commandId: CommandId.make("cmd-turn-interrupt-stale"),
+        threadId: ThreadId.make("thread-1"),
+        turnId: asTurnId("turn-stale"),
+        createdAt: now,
+      }),
+    );
+
+    await waitFor(async () => {
+      const readModel = await Effect.runPromise(harness.engine.getReadModel());
+      const thread = readModel.threads.find((entry) => entry.id === ThreadId.make("thread-1"));
+      return (
+        thread?.session?.status === "ready" &&
+        thread.session.activeTurnId === null &&
+        thread.activities.some((activity) => activity.kind === "provider.turn.interrupt.failed")
+      );
     });
   });
 
@@ -1610,6 +1668,69 @@ describe("ProviderCommandReactor", () => {
         sandbox_mode: "project-write",
       },
     });
+  });
+
+  it("forwards user input responses while a provider turn is waiting", async () => {
+    const harness = await createHarness();
+    const now = new Date().toISOString();
+    let releaseTurn = () => {};
+    const turnReleased = new Promise<void>((resolve) => {
+      releaseTurn = resolve;
+    });
+    harness.sendTurn.mockImplementation(() =>
+      Effect.promise(async () => {
+        await turnReleased;
+        return {
+          threadId: ThreadId.make("thread-1"),
+          turnId: asTurnId("turn-1"),
+        };
+      }),
+    );
+
+    try {
+      await Effect.runPromise(
+        harness.engine.dispatch({
+          type: "thread.turn.start",
+          commandId: CommandId.make("cmd-turn-start-waiting-user-input"),
+          threadId: ThreadId.make("thread-1"),
+          message: {
+            messageId: asMessageId("user-message-waiting-user-input"),
+            role: "user",
+            text: "ask me a question",
+            attachments: [],
+          },
+          interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
+          runtimeMode: "approval-required",
+          createdAt: now,
+        }),
+      );
+
+      await waitFor(() => harness.sendTurn.mock.calls.length === 1);
+
+      await Effect.runPromise(
+        harness.engine.dispatch({
+          type: "thread.user-input.respond",
+          commandId: CommandId.make("cmd-user-input-respond-while-turn-waits"),
+          threadId: ThreadId.make("thread-1"),
+          requestId: asApprovalRequestId("user-input-request-while-turn-waits"),
+          answers: {
+            surfaces: "both",
+          },
+          createdAt: now,
+        }),
+      );
+
+      await waitFor(() => harness.respondToUserInput.mock.calls.length === 1);
+      expect(harness.respondToUserInput.mock.calls[0]?.[0]).toEqual({
+        threadId: "thread-1",
+        requestId: "user-input-request-while-turn-waits",
+        answers: {
+          surfaces: "both",
+        },
+      });
+    } finally {
+      releaseTurn();
+    }
   });
 
   it("surfaces stale provider approval request failures without faking approval resolution", async () => {

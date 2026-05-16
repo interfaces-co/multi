@@ -5,6 +5,7 @@ import path from "node:path";
 import { OrchestrationReadModel, ProviderRuntimeEvent, ProviderSession } from "@multi/contracts";
 import {
   ApprovalRequestId,
+  CheckpointRef,
   CommandId,
   DEFAULT_PROVIDER_INTERACTION_MODE,
   EventId,
@@ -683,6 +684,88 @@ describe("ProviderRuntimeIngestion", () => {
       threadId: asThreadId("thread-1"),
       turnId: asTurnId("turn-guarded-main"),
       status: "completed",
+    });
+
+    await waitForThread(
+      harness.engine,
+      (thread) => thread.session?.status === "ready" && thread.session?.activeTurnId === null,
+    );
+  });
+
+  it("accepts a new turn lifecycle when the projected active turn is already settled", async () => {
+    const harness = await createHarness();
+    const now = new Date().toISOString();
+
+    harness.emit({
+      type: "turn.started",
+      eventId: asEventId("evt-turn-started-stale-active"),
+      provider: "cursor",
+      providerInstanceId: "cursor",
+      createdAt: now,
+      threadId: asThreadId("thread-1"),
+      turnId: asTurnId("turn-stale-active"),
+    });
+
+    await waitForThread(
+      harness.engine,
+      (thread) =>
+        thread.session?.status === "running" &&
+        thread.session?.activeTurnId === "turn-stale-active",
+    );
+
+    await Effect.runPromise(
+      harness.engine.dispatch({
+        type: "thread.turn.diff.complete",
+        commandId: CommandId.make("cmd-stale-active-diff-complete"),
+        threadId: asThreadId("thread-1"),
+        turnId: asTurnId("turn-stale-active"),
+        completedAt: now,
+        checkpointRef: CheckpointRef.make("refs/t3/checkpoints/thread-1/turn/1"),
+        status: "ready",
+        files: [],
+        assistantMessageId: asMessageId("assistant-stale-active"),
+        checkpointTurnCount: 1,
+        createdAt: now,
+      }),
+    );
+
+    await waitForThread(
+      harness.engine,
+      (thread) =>
+        thread.session?.status === "running" &&
+        thread.session?.activeTurnId === "turn-stale-active" &&
+        thread.latestTurn?.turnId === "turn-stale-active" &&
+        thread.latestTurn.completedAt !== null,
+    );
+
+    harness.emit({
+      type: "turn.started",
+      eventId: asEventId("evt-turn-started-after-stale-active"),
+      provider: "cursor",
+      providerInstanceId: "cursor",
+      createdAt: new Date().toISOString(),
+      threadId: asThreadId("thread-1"),
+      turnId: asTurnId("turn-after-stale-active"),
+    });
+
+    await waitForThread(
+      harness.engine,
+      (thread) =>
+        thread.session?.status === "running" &&
+        thread.session?.activeTurnId === "turn-after-stale-active",
+    );
+
+    harness.emit({
+      type: "turn.completed",
+      eventId: asEventId("evt-turn-completed-after-stale-active"),
+      provider: "cursor",
+      providerInstanceId: "cursor",
+      createdAt: new Date().toISOString(),
+      threadId: asThreadId("thread-1"),
+      turnId: asTurnId("turn-after-stale-active"),
+      payload: {
+        state: "completed",
+      },
     });
 
     await waitForThread(

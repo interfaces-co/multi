@@ -4,6 +4,7 @@ import {
   extractAskQuestions,
   extractPlanMarkdown,
   extractTodosAsPlan,
+  toCursorAskQuestionAnswers,
 } from "./CursorAcpExtension.ts";
 
 describe("CursorAcpExtension", () => {
@@ -65,6 +66,42 @@ describe("CursorAcpExtension", () => {
         ],
       },
     ]);
+  });
+
+  it("maps canonical answer labels back to Cursor option ids", () => {
+    const answers = toCursorAskQuestionAnswers(
+      {
+        toolCallId: "ask-3",
+        questions: [
+          {
+            id: "surface",
+            prompt: "Which surface?",
+            options: [
+              { id: "right_workbench", label: "Right workbench Plan/Tasks panel" },
+              { id: "both", label: "Both workbench and composer as one cohesive pass" },
+            ],
+          },
+          {
+            id: "checks",
+            prompt: "Which checks?",
+            allowMultiple: true,
+            options: [
+              { id: "typecheck", label: "Typecheck" },
+              { id: "browser", label: "Browser smoke" },
+            ],
+          },
+        ],
+      },
+      {
+        surface: "Both workbench and composer as one cohesive pass",
+        checks: ["Typecheck", "Browser smoke"],
+      },
+    );
+
+    expect(answers).toEqual({
+      surface: "both",
+      checks: ["typecheck", "browser"],
+    });
   });
 
   it("extracts plan markdown from the real Cursor create-plan payload shape", () => {

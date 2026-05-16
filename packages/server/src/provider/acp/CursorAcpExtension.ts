@@ -2,7 +2,7 @@
  * Public Docs: https://cursor.com/docs/cli/acp#cursor-extension-methods
  * Additional reference provided by the Cursor team: https://anysphere.enterprise.slack.com/files/U068SSJE141/F0APT1HSZRP/cursor-acp-extension-method-schemas.md
  */
-import type { UserInputQuestion } from "@multi/contracts";
+import type { ProviderUserInputAnswers, UserInputQuestion } from "@multi/contracts";
 import { Schema } from "effect";
 
 const CursorAskQuestionOption = Schema.Struct({
@@ -69,6 +69,36 @@ export function extractAskQuestions(
           }))
         : [{ label: "OK", description: "Continue" }],
   }));
+}
+
+function mapCursorAnswerValue(
+  question: typeof CursorAskQuestion.Type,
+  value: unknown,
+): unknown {
+  if (typeof value !== "string") {
+    return value;
+  }
+  const option = question.options.find((entry) => entry.label === value || entry.id === value);
+  return option?.id ?? value;
+}
+
+export function toCursorAskQuestionAnswers(
+  params: typeof CursorAskQuestionRequest.Type,
+  answers: ProviderUserInputAnswers,
+): ProviderUserInputAnswers {
+  const questionsById = new Map(params.questions.map((question) => [question.id, question]));
+  return Object.fromEntries(
+    Object.entries(answers).map(([questionId, value]) => {
+      const question = questionsById.get(questionId);
+      if (!question) {
+        return [questionId, value];
+      }
+      if (Array.isArray(value)) {
+        return [questionId, value.map((entry) => mapCursorAnswerValue(question, entry))];
+      }
+      return [questionId, mapCursorAnswerValue(question, value)];
+    }),
+  );
 }
 
 export function extractPlanMarkdown(params: typeof CursorCreatePlanRequest.Type): string {

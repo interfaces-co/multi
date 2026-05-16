@@ -17,6 +17,16 @@ describe("parseChatShellSearch", () => {
     });
   });
 
+  it("accepts plan workbench search", () => {
+    expect(
+      parseChatShellSearch({
+        workbench: "plan",
+      }),
+    ).toEqual({
+      workbench: "plan",
+    });
+  });
+
   it("ignores invalid workbench values", () => {
     expect(
       parseChatShellSearch({

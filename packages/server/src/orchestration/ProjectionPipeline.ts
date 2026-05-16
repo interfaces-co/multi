@@ -1034,21 +1034,6 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
             turnId: event.payload.turnId,
           });
           if (Option.isSome(existingTurn)) {
-            const terminalState =
-              existingTurn.value.state === "completed" ||
-              existingTurn.value.state === "error" ||
-              existingTurn.value.state === "interrupted"
-                ? existingTurn.value.state
-                : existingTurn.value.completedAt !== null
-                  ? "completed"
-                  : null;
-            if (terminalState !== null) {
-              yield* projectionTurnRepository.upsertByTurnId({
-                ...existingTurn.value,
-                state: terminalState,
-              });
-              return;
-            }
             yield* projectionTurnRepository.upsertByTurnId({
               ...existingTurn.value,
               state: "interrupted",

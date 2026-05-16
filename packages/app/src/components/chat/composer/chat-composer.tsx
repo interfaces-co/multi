@@ -11,7 +11,6 @@ import type {
   ScopedThreadRef,
   ServerProvider,
   ThreadId,
-  TurnId,
 } from "@multi/contracts";
 import {
   ProviderDriverKind,
@@ -212,11 +211,11 @@ const ComposerFooterModeControls = memo(function ComposerFooterModeControls(prop
   interactionMode: ProviderInteractionMode;
   runtimeMode: RuntimeMode;
   showPlanToggle: boolean;
-  planSidebarLabel: string;
-  planSidebarOpen: boolean;
+  planLabel: string;
+  planTabActive: boolean;
   onToggleInteractionMode: () => void;
   onRuntimeModeChange: (mode: RuntimeMode) => void;
-  onTogglePlanSidebar: () => void;
+  openPlanTab: () => void;
 }) {
   const runtimeModeOption = runtimeModeConfig[props.runtimeMode];
   const RuntimeModeIcon = runtimeModeOption.icon;
@@ -292,21 +291,17 @@ const ComposerFooterModeControls = memo(function ComposerFooterModeControls(prop
             variant="ghost"
             className={cn(
               "shrink-0 select-none whitespace-nowrap px-2.5 sm:px-3",
-              props.planSidebarOpen
+              props.planTabActive
                 ? "text-blue-400 hover:text-blue-300"
                 : "text-muted-foreground/70 hover:text-foreground/80",
             )}
             size="sm"
             type="button"
-            onClick={props.onTogglePlanSidebar}
-            title={
-              props.planSidebarOpen
-                ? `Hide ${props.planSidebarLabel.toLowerCase()} sidebar`
-                : `Show ${props.planSidebarLabel.toLowerCase()} sidebar`
-            }
+            onClick={props.openPlanTab}
+            title={`Open ${props.planLabel}`}
           >
             <IconSquareChecklist />
-            <span className="sr-only sm:not-sr-only">{props.planSidebarLabel}</span>
+            <span className="sr-only sm:not-sr-only">{`Open ${props.planLabel}`}</span>
           </Button>
         </>
       ) : null}
@@ -335,6 +330,7 @@ const ComposerFooterPrimaryActions = memo(function ComposerFooterPrimaryActions(
   hasSendableContent: boolean;
   sendWhileStreamingBehavior: UnifiedSettings["agentWindowSendWhileStreamingBehavior"];
   submitActionLabel?: string | undefined;
+  onAdvancePendingQuestion: () => void;
   onPreviousPendingQuestion: () => void;
   onInterrupt: () => void;
   onImplementPlanInNewThread: () => void;
@@ -358,6 +354,7 @@ const ComposerFooterPrimaryActions = memo(function ComposerFooterPrimaryActions(
         hasSendableContent={props.hasSendableContent && !props.submitDisabled}
         sendWhileStreamingBehavior={props.sendWhileStreamingBehavior}
         submitActionLabel={props.submitActionLabel}
+        onAdvancePendingQuestion={props.onAdvancePendingQuestion}
         onPreviousPendingQuestion={props.onPreviousPendingQuestion}
         onInterrupt={props.onInterrupt}
         onImplementPlanInNewThread={props.onImplementPlanInNewThread}
@@ -573,10 +570,9 @@ export interface ChatComposerProps {
   // Plan
   showPlanFollowUpPrompt: boolean;
   activeProposedPlan: Thread["proposedPlans"][number] | null;
-  activePlan: { turnId?: TurnId | null } | null;
-  sidebarProposedPlan: { turnId?: TurnId | null } | null;
-  planSidebarLabel: string;
-  planSidebarOpen: boolean;
+  planAvailable: boolean;
+  planLabel: string;
+  planTabActive: boolean;
 
   // Mode
   runtimeMode: RuntimeMode;
@@ -614,8 +610,14 @@ export interface ChatComposerProps {
     requestId: ApprovalRequestId,
     decision: ProviderApprovalDecision,
   ) => Promise<void>;
-  onSelectActivePendingUserInputOption: (questionId: string, optionLabel: string) => void;
-  onAdvanceActivePendingUserInput: () => void;
+  onSelectActivePendingUserInputOption: (
+    questionId: string,
+    optionLabel: string,
+    advanceAfterSelect?: boolean,
+  ) => void;
+  onAdvanceActivePendingUserInput: (
+    draftAnswersOverride?: Record<string, PendingUserInputDraftAnswer>,
+  ) => void;
   onPreviousActivePendingUserInputQuestion: () => void;
   onChangeActivePendingUserInputCustomAnswer: (
     questionId: string,
@@ -633,7 +635,7 @@ export interface ChatComposerProps {
   toggleInteractionMode: () => void;
   handleRuntimeModeChange: (mode: RuntimeMode) => void;
   handleInteractionModeChange: (mode: ProviderInteractionMode) => void;
-  togglePlanSidebar: () => void;
+  openPlanTab: () => void;
 
   focusComposer: () => void;
   scheduleComposerFocus: () => void;
@@ -678,10 +680,9 @@ export const ChatComposer = memo(
       respondingRequestIds,
       showPlanFollowUpPrompt,
       activeProposedPlan,
-      activePlan,
-      sidebarProposedPlan,
-      planSidebarLabel,
-      planSidebarOpen,
+      planAvailable,
+      planLabel,
+      planTabActive,
       runtimeMode,
       interactionMode,
       providerStatuses,
@@ -714,7 +715,7 @@ export const ChatComposer = memo(
       toggleInteractionMode,
       handleRuntimeModeChange,
       handleInteractionModeChange,
-      togglePlanSidebar,
+      openPlanTab,
       focusComposer,
       scheduleComposerFocus,
       setThreadError,
@@ -1119,7 +1120,7 @@ export const ChatComposer = memo(
         isComposerEditorMultiline);
 
     const composerFooterHasWideActions = showPlanFollowUpPrompt || activePendingProgress !== null;
-    const showPlanSidebarToggle = Boolean(activePlan || sidebarProposedPlan || planSidebarOpen);
+    const showPlanTabControl = planAvailable;
     const composerFooterActionLayoutKey = useMemo(() => {
       if (activePendingProgress) {
         return `pending:${activePendingProgress.questionIndex}:${activePendingProgress.isLastQuestion}:${activePendingIsResponding}`;
@@ -2098,7 +2099,6 @@ export const ChatComposer = memo(
         answers={activePendingDraftAnswers}
         questionIndex={activePendingQuestionIndex}
         onToggleOption={onSelectActivePendingUserInputOption}
-        onAdvance={onAdvanceActivePendingUserInput}
       />
     ) : showPlanFollowUpPrompt && activeProposedPlan ? (
       <ComposerPlanFollowUpBanner
@@ -2403,10 +2403,10 @@ export const ChatComposer = memo(
                   {isComposerFooterCompact ? (
                     <span className="inline-flex shrink-0" data-compact-visible="">
                       <CompactComposerControlsMenu
-                        activePlan={showPlanSidebarToggle}
+                        planAvailable={showPlanTabControl}
                         interactionMode={interactionMode}
-                        planSidebarLabel={planSidebarLabel}
-                        planSidebarOpen={planSidebarOpen}
+                        planLabel={planLabel}
+                        planTabActive={planTabActive}
                         runtimeMode={runtimeMode}
                         showInteractionModeToggle={
                           composerProviderControls.showInteractionModeToggle
@@ -2414,7 +2414,7 @@ export const ChatComposer = memo(
                         traitsFastMenuContent={dockTraitsMenuFastSlot}
                         traitsRestMenuContent={dockTraitsMenuRestSlot}
                         onToggleInteractionMode={toggleInteractionMode}
-                        onTogglePlanSidebar={togglePlanSidebar}
+                        openPlanTab={openPlanTab}
                         onRuntimeModeChange={handleRuntimeModeChange}
                       />
                     </span>
@@ -2438,12 +2438,12 @@ export const ChatComposer = memo(
                         }
                         interactionMode={interactionMode}
                         runtimeMode={runtimeMode}
-                        showPlanToggle={showPlanSidebarToggle}
-                        planSidebarLabel={planSidebarLabel}
-                        planSidebarOpen={planSidebarOpen}
+                        showPlanToggle={showPlanTabControl}
+                        planLabel={planLabel}
+                        planTabActive={planTabActive}
                         onToggleInteractionMode={toggleInteractionMode}
                         onRuntimeModeChange={handleRuntimeModeChange}
-                        onTogglePlanSidebar={togglePlanSidebar}
+                        openPlanTab={openPlanTab}
                       />
                     </span>
                   )}
@@ -2478,6 +2478,7 @@ export const ChatComposer = memo(
                     submitActionLabel={
                       isEditingQueuedComposerItem ? "Save queued message" : undefined
                     }
+                    onAdvancePendingQuestion={onAdvanceActivePendingUserInput}
                     onPreviousPendingQuestion={onPreviousActivePendingUserInputQuestion}
                     onInterrupt={handleInterruptPrimaryAction}
                     onImplementPlanInNewThread={handleImplementPlanInNewThreadPrimaryAction}

@@ -77,6 +77,10 @@ function sameId(left: string | null | undefined, right: string | null | undefine
   return left === right;
 }
 
+function isTerminalTurnState(state: string | null | undefined): boolean {
+  return state === "completed" || state === "interrupted" || state === "error";
+}
+
 function truncateDetail(value: string, limit = 180): string {
   return value.length > limit ? `${value.slice(0, limit - 3)}...` : value;
 }
@@ -970,10 +974,18 @@ const make = Effect.fn("make")(function* () {
     const now = event.createdAt;
     const eventTurnId = toTurnId(event.turnId);
     const activeTurnId = thread.session?.activeTurnId ?? null;
+    const activeTurnAlreadySettled =
+      activeTurnId !== null &&
+      thread.latestTurn?.turnId === activeTurnId &&
+      (thread.latestTurn.completedAt !== null || isTerminalTurnState(thread.latestTurn.state));
+    const lifecycleActiveTurnId = activeTurnAlreadySettled ? null : activeTurnId;
 
     const conflictsWithActiveTurn =
-      activeTurnId !== null && eventTurnId !== undefined && !sameId(activeTurnId, eventTurnId);
-    const missingTurnForActiveTurn = activeTurnId !== null && eventTurnId === undefined;
+      lifecycleActiveTurnId !== null &&
+      eventTurnId !== undefined &&
+      !sameId(lifecycleActiveTurnId, eventTurnId);
+    const missingTurnForActiveTurn =
+      lifecycleActiveTurnId !== null && eventTurnId === undefined;
 
     const shouldApplyThreadLifecycle = (() => {
       if (!STRICT_PROVIDER_LIFECYCLE_GUARD) {
@@ -993,8 +1005,8 @@ const make = Effect.fn("make")(function* () {
             return false;
           }
           // Only the active turn may close the lifecycle state.
-          if (activeTurnId !== null && eventTurnId !== undefined) {
-            return sameId(activeTurnId, eventTurnId);
+          if (lifecycleActiveTurnId !== null && eventTurnId !== undefined) {
+            return sameId(lifecycleActiveTurnId, eventTurnId);
           }
           // If no active turn is tracked, accept completion scoped to this thread.
           return true;
@@ -1023,7 +1035,7 @@ const make = Effect.fn("make")(function* () {
               event.type === "turn.aborted" ||
               event.type === "session.exited"
             ? null
-            : activeTurnId;
+            : lifecycleActiveTurnId;
       const status = (() => {
         switch (event.type) {
           case "session.state.changed":
@@ -1040,7 +1052,7 @@ const make = Effect.fn("make")(function* () {
           case "thread.started":
             // Provider thread/session start notifications can arrive during an
             // active turn; preserve turn-running state in that case.
-            return activeTurnId !== null ? "running" : "ready";
+            return lifecycleActiveTurnId !== null ? "running" : "ready";
         }
       })();
       const lastError =

@@ -15,10 +15,10 @@ import {
 } from "@multi/ui/menu";
 
 export const CompactComposerControlsMenu = memo(function CompactComposerControlsMenu(props: {
-  activePlan: boolean;
+  planAvailable: boolean;
   interactionMode: ProviderInteractionMode;
-  planSidebarLabel: string;
-  planSidebarOpen: boolean;
+  planLabel: string;
+  planTabActive: boolean;
   runtimeMode: RuntimeMode;
   showInteractionModeToggle: boolean;
   /** Leading slot: Fast (~fastMode) only; Cursor composer overflow order Fast → Mode → Access. */
@@ -26,7 +26,7 @@ export const CompactComposerControlsMenu = memo(function CompactComposerControls
   /** Remaining reasoning / booleans excluding fast preset. Rendered after Access. */
   traitsRestMenuContent?: ReactNode | null | undefined;
   onToggleInteractionMode: () => void;
-  onTogglePlanSidebar: () => void;
+  openPlanTab: () => void;
   onRuntimeModeChange: (mode: RuntimeMode) => void;
 }) {
   return (
@@ -98,14 +98,16 @@ export const CompactComposerControlsMenu = memo(function CompactComposerControls
             {props.traitsRestMenuContent}
           </>
         ) : null}
-        {props.activePlan ? (
+        {props.planAvailable ? (
           <>
             <MenuDivider variant="workbench" />
-            <MenuItem variant="workbench" onClick={props.onTogglePlanSidebar}>
+            <MenuItem
+              variant="workbench"
+              onClick={props.openPlanTab}
+              data-active={props.planTabActive ? "true" : undefined}
+            >
               <IconSquareChecklist className="size-3.5 shrink-0" />
-              {props.planSidebarOpen
-                ? `Hide ${props.planSidebarLabel.toLowerCase()} sidebar`
-                : `Show ${props.planSidebarLabel.toLowerCase()} sidebar`}
+              {`Open ${props.planLabel}`}
             </MenuItem>
           </>
         ) : null}

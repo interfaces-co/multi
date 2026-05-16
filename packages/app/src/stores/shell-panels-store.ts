@@ -14,7 +14,7 @@ export const RIGHT_WORKBENCH_WIDTH_LIMITS = { min: 300, max: 600 } as const;
 export const SECONDARY_RAIL_LIMITS = { min: 160, max: 320 } as const;
 const SECONDARY_RAIL_DEFAULT_WIDTH = 220;
 
-export type WorkbenchTab = "files" | "git" | "terminal";
+export type WorkbenchTab = "plan" | "git" | "terminal" | "files";
 
 interface LeftPanelState {
   leftOpen: boolean;
@@ -133,7 +133,10 @@ function readPersistedPanels(): {
     }
 
     const activeTab =
-      parsed.activeTab === "files" || parsed.activeTab === "git" || parsed.activeTab === "terminal"
+      parsed.activeTab === "plan" ||
+      parsed.activeTab === "files" ||
+      parsed.activeTab === "git" ||
+      parsed.activeTab === "terminal"
         ? parsed.activeTab
         : DEFAULT_WORKBENCH_PANEL_STATE.activeTab;
 
@@ -485,6 +488,10 @@ export const shellPanelsActions = {
   setRightWidth: (width: number) => useShellPanelsStore.getState().setRightWidth(width),
   setActiveTab: (tab: WorkbenchTab) => useShellPanelsStore.getState().setActiveTab(tab),
   setMuted: (muted: boolean) => useShellPanelsStore.getState().setMuted(muted),
+  activatePlanTab: () => {
+    useShellPanelsStore.getState().setActiveTab("plan");
+    useShellPanelsStore.getState().setMuted(false);
+  },
   toggleLeft: () => {
     const current = useShellPanelsStore.getState().leftOpen;
     useShellPanelsStore.getState().setLeftOpen(!current);

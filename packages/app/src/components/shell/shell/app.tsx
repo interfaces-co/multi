@@ -27,14 +27,14 @@ import {
   useTerminalSessions,
 } from "~/stores/shell-panels-store";
 import { cn } from "~/lib/utils";
-import { RightWorkbenchHeader } from "./right-workbench-header";
+import { RightWorkbenchHeader, type WorkbenchTabMeta } from "./right-workbench-header";
 import { useColumnResize } from "./use-column-resize";
 
 const chatLayoutRouteApi = getRouteApi("/_chat");
 
 const LEFT_LIMITS = SHELL_LEFT_PANEL_WIDTH_LIMITS;
 const RIGHT_LIMITS = RIGHT_WORKBENCH_WIDTH_LIMITS;
-const WORKBENCH_TABS = ["git", "terminal", "files"] satisfies readonly WorkbenchTab[];
+const FALLBACK_WORKBENCH_TAB = "git" satisfies WorkbenchTab;
 
 const workbenchPanelSlotVariants = cva(
   "absolute inset-0 flex min-h-0 min-w-0 flex-col overflow-hidden",
@@ -49,10 +49,14 @@ const workbenchPanelSlotVariants = cva(
 );
 
 function isWorkbenchTab(value: unknown): value is WorkbenchTab {
-  return value === "git" || value === "terminal" || value === "files";
+  return value === "plan" || value === "git" || value === "terminal" || value === "files";
 }
 
-type RightPanels = Record<WorkbenchTab, ReactNode>;
+export interface RightWorkbenchDefinition {
+  tabs: readonly WorkbenchTabMeta[];
+  panels: Partial<Record<WorkbenchTab, ReactNode>>;
+}
+
 type ShellRootStyle = CSSProperties & Record<`--${string}`, string>;
 
 export interface AppShellPanels {
@@ -140,15 +144,15 @@ function LeftAside(props: { children: ReactNode }) {
 
 function RightAsideHeader(props: {
   cwd: string | null;
-  changesCount: number;
   activeTab: WorkbenchTab;
+  tabs: readonly WorkbenchTabMeta[];
 }) {
   const terminalState = useTerminalSessions(props.cwd);
 
   return (
     <RightWorkbenchHeader
+      tabs={props.tabs}
       activeTab={props.activeTab}
-      gitCount={props.changesCount}
       terminalSessions={terminalState.sessions}
       activeTerminalId={terminalState.activeId}
       onTerminalTab={(id) => shellPanelsActions.setActiveTerminal(props.cwd, id)}
@@ -166,8 +170,7 @@ function RightAsideHeader(props: {
 
 function RightAside(props: {
   cwd: string | null;
-  changesCount: number;
-  rightPanels: RightPanels;
+  right: RightWorkbenchDefinition;
   routeThreadId: string | null;
   gitFocusId: string | null;
 }) {
@@ -177,6 +180,8 @@ function RightAside(props: {
   const muted = useIsMuted();
   const search = chatLayoutRouteApi.useSearch();
   const navigate = useNavigate();
+  const visibleTabs = props.right.tabs.map((tab) => tab.id);
+  const effectiveActiveTab = visibleTabs.includes(activeTab) ? activeTab : FALLBACK_WORKBENCH_TAB;
   const rightOpen = resolveEffectiveRightOpen({
     storedRightOpen,
     routeThreadId: props.routeThreadId,
@@ -211,6 +216,9 @@ function RightAside(props: {
       if (!isWorkbenchTab(value)) {
         return;
       }
+      if (!visibleTabs.includes(value)) {
+        return;
+      }
       shellPanelsActions.setActiveTab(value);
       shellPanelsActions.setMuted(false);
       if (isElectron) {
@@ -224,7 +232,7 @@ function RightAside(props: {
         });
       }
     },
-    [navigate, search],
+    [navigate, search, visibleTabs],
   );
 
   const asideRef = useRef<HTMLElement | null>(null);
@@ -255,16 +263,16 @@ function RightAside(props: {
       {rightOpen ? (
         <>
           <TabsRoot
-            value={activeTab}
+            value={effectiveActiveTab}
             onValueChange={handleWorkbenchTabChange}
             className="editor-panel-inner relative z-10 flex h-full min-h-0 w-full flex-col bg-(--glass-editor-surface-background) opacity-100"
           >
             <RightAsideHeader
               cwd={props.cwd}
-              changesCount={props.changesCount}
-              activeTab={activeTab}
+              activeTab={effectiveActiveTab}
+              tabs={props.right.tabs}
             />
-            <RightAsidePanels activeTab={activeTab} rightPanels={props.rightPanels} />
+            <RightAsidePanels activeTab={effectiveActiveTab} right={props.right} />
           </TabsRoot>
           <div
             aria-label="Resize project panel width"
@@ -280,20 +288,21 @@ function RightAside(props: {
   );
 }
 
-function RightAsidePanels(props: { activeTab: WorkbenchTab; rightPanels: RightPanels }) {
+function RightAsidePanels(props: { activeTab: WorkbenchTab; right: RightWorkbenchDefinition }) {
   return (
     <div className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
-      {WORKBENCH_TABS.map((tab) => {
+      {props.right.tabs.map((tab) => {
+        const panel = props.right.panels[tab.id] ?? null;
         return (
           <TabsPanel
-            key={tab}
-            value={tab}
+            key={tab.id}
+            value={tab.id}
             keepMounted
             className={(state) => workbenchPanelSlotVariants({ active: !state.hidden })}
-            data-workbench-panel={tab}
-            data-workbench-panel-active={tab === props.activeTab ? "true" : "false"}
+            data-workbench-panel={tab.id}
+            data-workbench-panel-active={tab.id === props.activeTab ? "true" : "false"}
           >
-            {props.rightPanels[tab]}
+            {panel}
           </TabsPanel>
         );
       })}
@@ -371,8 +380,7 @@ export function AppShell(props: {
   cwd: string | null;
   left: ReactNode;
   center: ReactNode;
-  right: RightPanels | null;
-  changesCount: number;
+  right: RightWorkbenchDefinition | null;
   routeThreadId?: string | null;
   gitFocusId?: string | null;
   onBack?: () => void;
@@ -458,8 +466,7 @@ export function AppShell(props: {
           {showRight && props.right ? (
             <RightAside
               cwd={props.cwd}
-              changesCount={props.changesCount}
-              rightPanels={props.right}
+              right={props.right}
               routeThreadId={props.routeThreadId ?? null}
               gitFocusId={props.gitFocusId ?? null}
             />

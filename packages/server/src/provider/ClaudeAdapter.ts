@@ -2557,10 +2557,12 @@ const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
         const requestId = ApprovalRequestId.make(yield* Random.nextUUIDv4);
 
         // Parse questions from the SDK's AskUserQuestion input.
+        // Claude SDK looks up returned answers by full question text, so the
+        // UI-facing id must use that same key rather than the short header.
         const rawQuestions = Array.isArray(toolInput.questions) ? toolInput.questions : [];
         const questions: Array<UserInputQuestion> = rawQuestions.map(
           (q: Record<string, unknown>, idx: number) => ({
-            id: typeof q.header === "string" ? q.header : `q-${idx}`,
+            id: typeof q.question === "string" && q.question.length > 0 ? q.question : `q-${idx}`,
             header: typeof q.header === "string" ? q.header : `Question ${idx + 1}`,
             question: typeof q.question === "string" ? q.question : "",
             options: Array.isArray(q.options)
@@ -2579,6 +2581,15 @@ const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
           questions,
           answers: answersDeferred,
         };
+
+        yield* Effect.logInfo("claude.ask-user-question.requested", {
+          threadId: context.session.threadId,
+          requestId,
+          toolUseID: callbackOptions.toolUseID,
+          questionIds: questions.map((question) => question.id),
+          questionHeaders: questions.map((question) => question.header),
+          rawQuestionCount: rawQuestions.length,
+        });
 
         // Emit user-input.requested so the UI can present the questions.
         const requestedStamp = yield* makeEventStamp();
@@ -2626,6 +2637,14 @@ const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
         // Block until the user provides answers.
         const answers = yield* Deferred.await(answersDeferred);
         pendingUserInputs.delete(requestId);
+        yield* Effect.logInfo("claude.ask-user-question.answers-received", {
+          threadId: context.session.threadId,
+          requestId,
+          toolUseID: callbackOptions.toolUseID,
+          answerKeys: Object.keys(answers),
+          answers,
+          aborted,
+        });
 
         // Emit user-input.resolved so the UI knows the interaction completed.
         const resolvedStamp = yield* makeEventStamp();
@@ -3191,6 +3210,13 @@ const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
     const context = yield* requireSession(threadId);
     const pending = context.pendingUserInputs.get(requestId);
     if (!pending) {
+      yield* Effect.logWarning("claude.ask-user-question.respond.unknown-request", {
+        threadId,
+        requestId,
+        answerKeys: Object.keys(answers),
+        answers,
+        pendingRequestIds: Array.from(context.pendingUserInputs.keys()),
+      });
       return yield* new ProviderAdapterRequestError({
         provider: PROVIDER,
         method: "item/tool/respondToUserInput",
@@ -3198,6 +3224,13 @@ const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
       });
     }
 
+    yield* Effect.logInfo("claude.ask-user-question.respond", {
+      threadId,
+      requestId,
+      answerKeys: Object.keys(answers),
+      answers,
+      expectedQuestionIds: pending.questions.map((question) => question.id),
+    });
     context.pendingUserInputs.delete(requestId);
     yield* Deferred.succeed(pending.answers, answers);
   });

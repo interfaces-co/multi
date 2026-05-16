@@ -4,6 +4,7 @@ import type { AgentWindowSendWhileStreamingBehavior } from "@multi/contracts/set
 import { cn } from "~/lib/utils";
 import { Button } from "@multi/ui/button";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@multi/ui/menu";
+import { traceBrowserEvent } from "~/observability/browserDebug";
 
 interface PendingActionState {
   questionIndex: number;
@@ -26,6 +27,7 @@ interface ComposerPrimaryActionsProps {
   hasSendableContent: boolean;
   sendWhileStreamingBehavior: AgentWindowSendWhileStreamingBehavior;
   submitActionLabel?: string | undefined;
+  onAdvancePendingQuestion: () => void;
   onPreviousPendingQuestion: () => void;
   onInterrupt: () => void;
   onImplementPlanInNewThread: () => void;
@@ -62,6 +64,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
   hasSendableContent,
   sendWhileStreamingBehavior,
   submitActionLabel,
+  onAdvancePendingQuestion,
   onPreviousPendingQuestion,
   onInterrupt,
   onImplementPlanInNewThread,
@@ -71,6 +74,19 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
     : "h-9 w-9 sm:h-8 sm:w-8";
 
   if (pendingAction) {
+    const handlePendingActionClick = () => {
+      const details = {
+        questionIndex: pendingAction.questionIndex,
+        isLastQuestion: pendingAction.isLastQuestion,
+        canAdvance: pendingAction.canAdvance,
+        isComplete: pendingAction.isComplete,
+        isResponding: pendingAction.isResponding,
+      };
+      console.info("[pending-user-input] primary action clicked", details);
+      traceBrowserEvent("pending-user-input.primary-action.clicked", details);
+      onAdvancePendingQuestion();
+    };
+
     return (
       <div className={cn("flex items-center justify-end", compact ? "gap-1.5" : "gap-2")}>
         {pendingAction.questionIndex > 0 ? (
@@ -98,9 +114,10 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
           )
         ) : null}
         <Button
-          type="submit"
+          type="button"
           size="sm"
           className={cn("rounded-full", compact ? "px-3" : "px-4")}
+          onClick={handlePendingActionClick}
           disabled={
             pendingAction.isResponding ||
             (pendingAction.isLastQuestion ? !pendingAction.isComplete : !pendingAction.canAdvance)

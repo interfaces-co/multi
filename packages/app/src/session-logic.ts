@@ -358,8 +358,24 @@ function isStalePendingRequestFailureDetail(detail: string | undefined): boolean
   );
 }
 
+type PendingRequestTurnScope = TurnId | string | null | undefined;
+
+function isPendingRequestActivityInScope(
+  activity: OrchestrationThreadActivity,
+  activeTurnId: PendingRequestTurnScope,
+): boolean {
+  if (activeTurnId === undefined) {
+    return true;
+  }
+  if (activeTurnId === null) {
+    return false;
+  }
+  return activity.turnId === activeTurnId;
+}
+
 export function derivePendingApprovals(
   activities: ReadonlyArray<OrchestrationThreadActivity>,
+  activeTurnId?: PendingRequestTurnScope,
 ): PendingApproval[] {
   const openByRequestId = new Map<ApprovalRequestId, PendingApproval>();
   const ordered = [...activities].toSorted(compareActivitiesByOrder);
@@ -382,6 +398,9 @@ export function derivePendingApprovals(
     const detail = payload && typeof payload.detail === "string" ? payload.detail : undefined;
 
     if (activity.kind === "approval.requested" && requestId && requestKind) {
+      if (!isPendingRequestActivityInScope(activity, activeTurnId)) {
+        continue;
+      }
       openByRequestId.set(requestId, {
         requestId,
         requestKind,
@@ -463,6 +482,7 @@ function parseUserInputQuestions(
 
 export function derivePendingUserInputs(
   activities: ReadonlyArray<OrchestrationThreadActivity>,
+  activeTurnId?: PendingRequestTurnScope,
 ): PendingUserInput[] {
   const openByRequestId = new Map<ApprovalRequestId, PendingUserInput>();
   const ordered = [...activities].toSorted(compareActivitiesByOrder);
@@ -479,6 +499,9 @@ export function derivePendingUserInputs(
     const detail = payload && typeof payload.detail === "string" ? payload.detail : undefined;
 
     if (activity.kind === "user-input.requested" && requestId) {
+      if (!isPendingRequestActivityInScope(activity, activeTurnId)) {
+        continue;
+      }
       const questions = parseUserInputQuestions(payload);
       if (!questions) {
         continue;

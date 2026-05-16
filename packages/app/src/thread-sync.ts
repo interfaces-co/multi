@@ -1200,16 +1200,6 @@ export function applyThreadDetailEvent(
         if (latestTurn === null || latestTurn.turnId !== event.payload.turnId) {
           return thread;
         }
-        const settledLatestTurn = settledLatestTurnForRunningSession(latestTurn);
-        if (settledLatestTurn !== null) {
-          return settledLatestTurn === latestTurn
-            ? thread
-            : {
-                ...thread,
-                latestTurn: settledLatestTurn,
-                updatedAt: event.occurredAt,
-              };
-        }
         return {
           ...thread,
           latestTurn: buildLatestTurn({

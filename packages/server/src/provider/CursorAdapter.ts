@@ -74,6 +74,7 @@ import {
   extractAskQuestions,
   extractPlanMarkdown,
   extractTodosAsPlan,
+  toCursorAskQuestionAnswers,
 } from "./acp/CursorAcpExtension.ts";
 import { CursorAdapter, type CursorAdapterShape } from "./CursorAdapter.service.ts";
 import { resolveCursorAcpBaseModelId } from "./CursorProvider.ts";
@@ -518,6 +519,18 @@ function makeCursorAdapter(options?: CursorAdapterLiveOptions) {
                 const runtimeRequestId = RuntimeRequestId.make(requestId);
                 const answers = yield* Deferred.make<ProviderUserInputAnswers>();
                 pendingUserInputs.set(requestId, { answers });
+                yield* Effect.logInfo("cursor.ask-question.requested", {
+                  threadId: input.threadId,
+                  requestId,
+                  toolCallId: params.toolCallId,
+                  questionIds: params.questions.map((question) => question.id),
+                  optionIdsByQuestionId: Object.fromEntries(
+                    params.questions.map((question) => [
+                      question.id,
+                      question.options.map((option) => option.id),
+                    ]),
+                  ),
+                });
                 yield* offerRuntimeEvent({
                   type: "user-input.requested",
                   ...(yield* makeEventStamp()),
@@ -533,6 +546,15 @@ function makeCursorAdapter(options?: CursorAdapterLiveOptions) {
                   },
                 });
                 const resolved = yield* Deferred.await(answers);
+                const cursorResolved = toCursorAskQuestionAnswers(params, resolved);
+                yield* Effect.logInfo("cursor.ask-question.answers-received", {
+                  threadId: input.threadId,
+                  requestId,
+                  toolCallId: params.toolCallId,
+                  answerKeys: Object.keys(resolved),
+                  answers: resolved,
+                  cursorAnswers: cursorResolved,
+                });
                 pendingUserInputs.delete(requestId);
                 yield* offerRuntimeEvent({
                   type: "user-input.resolved",
@@ -543,7 +565,7 @@ function makeCursorAdapter(options?: CursorAdapterLiveOptions) {
                   requestId: runtimeRequestId,
                   payload: { answers: resolved },
                 });
-                return { answers: resolved };
+                return { answers: cursorResolved };
               }),
             );
             yield* acp.handleExtRequest("cursor/create_plan", CursorCreatePlanRequest, (params) =>
@@ -1017,12 +1039,25 @@ function makeCursorAdapter(options?: CursorAdapterLiveOptions) {
         const ctx = yield* requireSession(threadId);
         const pending = ctx.pendingUserInputs.get(requestId);
         if (!pending) {
+          yield* Effect.logWarning("cursor.ask-question.respond.unknown-request", {
+            threadId,
+            requestId,
+            answerKeys: Object.keys(answers),
+            answers,
+            pendingRequestIds: Array.from(ctx.pendingUserInputs.keys()),
+          });
           return yield* new ProviderAdapterRequestError({
             provider: PROVIDER,
             method: "cursor/ask_question",
             detail: `Unknown pending user-input request: ${requestId}`,
           });
         }
+        yield* Effect.logInfo("cursor.ask-question.respond", {
+          threadId,
+          requestId,
+          answerKeys: Object.keys(answers),
+          answers,
+        });
         yield* Deferred.succeed(pending.answers, answers);
       });
 

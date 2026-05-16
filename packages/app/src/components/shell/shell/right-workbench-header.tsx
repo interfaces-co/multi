@@ -2,10 +2,8 @@
 
 import { TabsList, TabsTab } from "@multi/ui/tabs";
 import {
-  IconBranch,
   IconConsole,
   IconCrossMediumDefault,
-  IconFileText,
   IconPlusLarge,
 } from "central-icons";
 import type { ComponentType, ReactNode } from "react";
@@ -16,22 +14,19 @@ import { cn } from "~/lib/utils";
 import { workbenchIconButtonVariants, WorkbenchIconButton } from "./workbench-icon-button";
 import { RightWorkbenchToolIsland } from "./right-workbench-tool-island";
 
-const TOOL_META: Record<
-  WorkbenchTab,
-  { label: string; icon: ComponentType<{ className?: string }> }
-> = {
-  files: { label: "Files", icon: IconFileText },
-  git: { label: "Changes", icon: IconBranch },
-  terminal: { label: "Terminal", icon: IconConsole },
-};
+export interface WorkbenchTabMeta {
+  id: WorkbenchTab;
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+  badge?: string | null;
+}
 
-function ToolIconButton(props: { tab: WorkbenchTab; badge?: string | null }) {
-  const meta = TOOL_META[props.tab];
-  const Icon = meta.icon;
-  const badgeText = props.badge && props.badge !== "0" ? `, ${props.badge}` : "";
+function ToolIconButton(props: { tab: WorkbenchTabMeta }) {
+  const Icon = props.tab.icon;
+  const badgeText = props.tab.badge && props.tab.badge !== "0" ? `, ${props.tab.badge}` : "";
   return (
     <TabsTab
-      value={props.tab}
+      value={props.tab.id}
       data-stable=""
       className={(state) =>
         cn(
@@ -43,8 +38,8 @@ function ToolIconButton(props: { tab: WorkbenchTab; badge?: string | null }) {
           "size-(--multi-workbench-action-size) p-0",
         )
       }
-      aria-label={`${meta.label}${badgeText}`}
-      title={`${meta.label}${badgeText}`}
+      aria-label={`${props.tab.label}${badgeText}`}
+      title={`${props.tab.label}${badgeText}`}
     >
       <span className="ui-tab-system-tab__content flex min-w-0 flex-none items-center justify-center">
         <Icon className="ui-tab-system-tab__icon size-3.5" aria-hidden />
@@ -53,20 +48,18 @@ function ToolIconButton(props: { tab: WorkbenchTab; badge?: string | null }) {
   );
 }
 
-function WorkbenchTabList(props: { activeTab: WorkbenchTab; gitCount?: number | undefined }) {
-  const allTabs: WorkbenchTab[] = ["git", "terminal", "files"];
+function WorkbenchTabList(props: { activeTab: WorkbenchTab; tabs: readonly WorkbenchTabMeta[] }) {
+  const activeMeta = props.tabs.find((tab) => tab.id === props.activeTab) ?? props.tabs[0] ?? null;
   return (
     <TabsList className="no-drag flex shrink-0 select-none items-center gap-(--multi-workbench-chrome-action-gap)">
-      {allTabs.map((tab) => (
-        <ToolIconButton
-          key={tab}
-          tab={tab}
-          badge={tab === "git" && props.gitCount ? String(props.gitCount) : null}
-        />
+      {props.tabs.map((tab) => (
+        <ToolIconButton key={tab.id} tab={tab} />
       ))}
-      <div className="sr-only" aria-live="polite">
-        {TOOL_META[props.activeTab].label}
-      </div>
+      {activeMeta ? (
+        <div className="sr-only" aria-live="polite">
+          {activeMeta.label}
+        </div>
+      ) : null}
     </TabsList>
   );
 }
@@ -125,8 +118,8 @@ function TerminalSessionTab(props: {
 }
 
 interface RightWorkbenchHeaderProps {
+  tabs: readonly WorkbenchTabMeta[];
   activeTab: WorkbenchTab;
-  gitCount?: number;
   terminalSessions?: TerminalSessionEntry[];
   activeTerminalId?: string;
   onTerminalTab?: (id: string) => void;
@@ -146,7 +139,7 @@ export function RightWorkbenchHeader(props: RightWorkbenchHeaderProps) {
       end={<div className="multi-workbench-titlebar-end-space shrink-0" aria-hidden />}
     >
       <>
-        <WorkbenchTabList activeTab={props.activeTab} gitCount={props.gitCount} />
+        <WorkbenchTabList activeTab={props.activeTab} tabs={props.tabs} />
 
         {showTerminalSessionTabs ? (
           <>
