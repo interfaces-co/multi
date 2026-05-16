@@ -197,7 +197,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
     }
 
     return (
-      <div data-chat-composer-implement-actions="true" className="flex items-center justify-end">
+      <div data-composer-input-implement-actions="true" className="flex items-center justify-end">
         <Button
           type="submit"
           size="sm"

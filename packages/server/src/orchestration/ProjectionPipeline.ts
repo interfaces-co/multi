@@ -1216,6 +1216,12 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
             }
             return;
           }
+          // Only approval-requested activities should create pending-approval
+          // rows. Other activity kinds that carry requestId, such as
+          // user-input.requested, have separate pending accounting.
+          if (event.payload.activity.kind !== "approval.requested") {
+            return;
+          }
           if (Option.isSome(existingRow) && existingRow.value.status === "resolved") {
             return;
           }

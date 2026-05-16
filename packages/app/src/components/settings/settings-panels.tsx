@@ -18,7 +18,7 @@ import {
   ProviderDriverKind,
 } from "@multi/contracts";
 import { scopeThreadRef } from "@multi/client-runtime";
-import { DEFAULT_UNIFIED_SETTINGS } from "@multi/contracts/settings";
+import { DEFAULT_UNIFIED_SETTINGS, type UnifiedSettings } from "@multi/contracts/settings";
 import { createModelSelection } from "@multi/shared/model";
 import { Equal } from "effect";
 import { APP_VERSION } from "../../branding";
@@ -31,9 +31,8 @@ import {
   canCheckForUpdate,
   getDesktopUpdateButtonTooltip,
   getDesktopUpdateInstallConfirmationMessage,
-  isDesktopUpdateButtonDisabled,
   resolveDesktopUpdateButtonAction,
-} from "../../components/desktop-update.logic";
+} from "../../components/desktop-update-state";
 import { ProviderModelPicker } from "../chat/picker/model-picker";
 import { TraitsPicker } from "../chat/picker/traits-picker";
 import { resolveAndPersistPreferredEditor } from "../../editor-preferences";
@@ -86,7 +85,6 @@ import {
 import { AddProviderInstanceDialog } from "./add-provider-instance-dialog";
 import { ProviderInstanceCard } from "./provider-instance-card";
 import { DRIVER_OPTIONS, getDriverOption } from "./provider-driver-meta";
-import { buildProviderInstanceUpdatePatch } from "./settings-panels.logic";
 
 const THEME_OPTIONS = [
   {
@@ -133,6 +131,23 @@ const PROVIDER_SETTINGS: readonly ProviderSettingsDescriptor[] = DRIVER_OPTIONS.
     provider: definition.value,
   }),
 );
+
+function buildProviderInstanceUpdatePatch(input: {
+  readonly settings: Pick<UnifiedSettings, "providerInstances">;
+  readonly instanceId: ProviderInstanceId;
+  readonly instance: ProviderInstanceConfig;
+  readonly textGenerationModelSelection?: UnifiedSettings["textGenerationModelSelection"] | undefined;
+}): Partial<UnifiedSettings> {
+  return {
+    providerInstances: {
+      ...input.settings.providerInstances,
+      [input.instanceId]: input.instance,
+    },
+    ...(input.textGenerationModelSelection !== undefined
+      ? { textGenerationModelSelection: input.textGenerationModelSelection }
+      : {}),
+  };
+}
 
 function AboutVersionTitle() {
   return (
@@ -227,9 +242,7 @@ function AboutVersionSection() {
   const action = updateState ? resolveDesktopUpdateButtonAction(updateState) : "none";
   const buttonTooltip = updateState ? getDesktopUpdateButtonTooltip(updateState) : null;
   const buttonDisabled =
-    action === "none"
-      ? !canCheckForUpdate(updateState)
-      : isDesktopUpdateButtonDisabled(updateState);
+    action === "none" ? !canCheckForUpdate(updateState) : updateState?.status === "downloading";
 
   const actionLabel: Record<string, string> = { download: "Download", install: "Install" };
   const statusLabel: Record<string, string> = {

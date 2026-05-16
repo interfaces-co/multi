@@ -6,32 +6,20 @@ import {
   resolveBuildOptions,
   resolveDesktopBuildIconAssets,
   resolveDesktopProductName,
-  resolveDesktopBuildVariant,
   resolveMockUpdateServerPort,
   resolveMockUpdateServerUrl,
 } from "./build-desktop-artifact.ts";
 import { BRAND_ASSET_PATHS } from "./lib/brand-assets.ts";
 
 it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
-  it("resolves the nightly build variant from nightly versions", () => {
-    assert.equal(resolveDesktopBuildVariant("0.0.17-nightly.20260413.42"), "nightly");
-    assert.equal(resolveDesktopBuildVariant("0.0.17"), "stable");
-  });
-
-  it("switches desktop packaging product names to nightly for nightly builds", () => {
+  it("uses the configured desktop packaging product name", () => {
     assert.equal(resolveDesktopProductName("0.0.17"), "Multi (Alpha)");
-    assert.equal(resolveDesktopProductName("0.0.17-nightly.20260413.42"), "Multi (Nightly)");
   });
 
-  it("switches desktop packaging icons to the nightly artwork for nightly versions", () => {
-    assert.deepStrictEqual(resolveDesktopBuildIconAssets("0.0.17"), {
+  it("uses production desktop packaging icons", () => {
+    assert.deepStrictEqual(resolveDesktopBuildIconAssets(), {
       macIconPng: BRAND_ASSET_PATHS.productionMacIconPng,
       linuxIconPng: BRAND_ASSET_PATHS.productionLinuxIconPng,
-    });
-
-    assert.deepStrictEqual(resolveDesktopBuildIconAssets("0.0.17-nightly.20260413.42"), {
-      macIconPng: BRAND_ASSET_PATHS.nightlyMacIconPng,
-      linuxIconPng: BRAND_ASSET_PATHS.nightlyLinuxIconPng,
     });
   });
 

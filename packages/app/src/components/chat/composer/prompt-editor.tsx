@@ -44,15 +44,10 @@ import {
 } from "~/lib/terminal-context";
 import { cn } from "~/lib/utils";
 import { basenameOfPath, getVscodeIconUrlForEntry, inferEntryKindFromPath } from "~/vscode-icons";
-import { formatProviderSkillDisplayName } from "~/provider-skill-presentation";
 import { parseComposerPromptDoc, type ComposerPromptDoc } from "~/composer-prompt-doc";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@multi/ui/tooltip";
 import { ComposerPendingTerminalContextChip } from "./pending-terminal-contexts";
-import {
-  ComposerInlineChip,
-  ComposerInlineChipIcon,
-  ComposerInlineChipLabel,
-} from "../../composer-inline-chip";
+import { formatProviderSkillDisplayName } from "./provider-skills";
 
 const SURROUND_SYMBOLS: [string, string][] = [
   ["(", ")"],
@@ -615,8 +610,8 @@ function ComposerMentionNodeView(props: NodeViewProps): ReactElement {
   const lineEnd = nullableNumberAttr(props.node.attrs.lineEnd);
   const theme = resolvedThemeFromDocument();
   const chip = (
-    <ComposerInlineChip
-      className="ui-pill ui-prompt-input-mention-chip"
+    <span
+      className="inline-flex max-w-full select-none items-center gap-1 rounded-sm border border-multi-stroke-tertiary bg-multi-bg-quaternary px-1.5 py-px font-multi text-body font-medium text-multi-fg-primary align-middle ui-pill ui-prompt-input-mention-chip"
       contentEditable={false}
       data-read-only-mention=""
       data-type="mentionNode"
@@ -629,13 +624,13 @@ function ComposerMentionNodeView(props: NodeViewProps): ReactElement {
         loading="lazy"
         src={getVscodeIconUrlForEntry(path, inferEntryKindFromPath(path), theme)}
       />
-      <ComposerInlineChipLabel>{label}</ComposerInlineChipLabel>
+      <span className="truncate select-none text-body">{label}</span>
       {lineStart !== null && lineEnd !== null ? (
         <span className="text-multi-fg-tertiary">
           {lineStart === lineEnd ? `:${lineStart}` : `:${lineStart}-${lineEnd}`}
         </span>
       ) : null}
-    </ComposerInlineChip>
+    </span>
   );
 
   return (
@@ -658,8 +653,8 @@ function ComposerCommandNodeView(props: NodeViewProps): ReactElement {
   const content = nullableStringAttr(props.node.attrs.content);
   const label = name ? `/${name}` : "/";
   const chip = (
-    <ComposerInlineChip
-      className="ui-prompt-input-command-chip"
+    <span
+      className="inline-flex max-w-full select-none items-center gap-1 rounded-sm border border-multi-stroke-tertiary bg-multi-bg-quaternary px-1.5 py-px font-multi text-body font-medium text-multi-fg-primary align-middle ui-prompt-input-command-chip"
       contentEditable={false}
       data-type="commandNode"
       spellCheck={false}
@@ -671,7 +666,7 @@ function ComposerCommandNodeView(props: NodeViewProps): ReactElement {
       >
         {label}
       </button>
-    </ComposerInlineChip>
+    </span>
   );
 
   return (
@@ -716,17 +711,17 @@ function ComposerSkillNodeView(props: NodeViewProps): ReactElement {
     formatProviderSkillDisplayName({ name: stringAttr(props.node.attrs.skillName) });
   const description = nullableStringAttr(props.node.attrs.skillDescription);
   const chip = (
-    <ComposerInlineChip
-      tone="object"
+    <span
+      className="inline-flex max-w-full select-none items-center gap-1 rounded-sm border border-(--multi-composer-object-border) bg-(--multi-composer-object-bg) px-1.5 py-px font-multi text-body font-medium text-(--multi-composer-object-fg) align-middle"
       contentEditable={false}
       data-composer-skill-chip="true"
       spellCheck={false}
     >
-      <ComposerInlineChipIcon aria-hidden="true">
+      <span aria-hidden="true" className="size-3.5 shrink-0 opacity-85">
         <SkillGlyph />
-      </ComposerInlineChipIcon>
-      <ComposerInlineChipLabel>{label}</ComposerInlineChipLabel>
-    </ComposerInlineChip>
+      </span>
+      <span className="truncate select-none text-body">{label}</span>
+    </span>
   );
 
   return (
@@ -752,13 +747,14 @@ function ComposerInlineTokenNodeView(props: NodeViewProps): ReactElement {
     "";
   const sourceUri = nullableStringAttr(props.node.attrs.sourceUri);
   const chip = (
-    <ComposerInlineChip
+    <span
+      className="inline-flex max-w-full select-none items-center gap-1 rounded-sm border border-multi-stroke-tertiary bg-multi-bg-quaternary px-1.5 py-px font-multi text-body font-medium text-multi-fg-primary align-middle"
       contentEditable={false}
       data-composer-inline-token-chip="true"
       spellCheck={false}
     >
-      <ComposerInlineChipLabel>{label}</ComposerInlineChipLabel>
-    </ComposerInlineChip>
+      <span className="truncate select-none text-body">{label}</span>
+    </span>
   );
 
   return (

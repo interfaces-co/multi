@@ -1,7 +1,7 @@
 "use client";
 
 import { scopeProjectRef, scopeThreadRef } from "@multi/client-runtime";
-import { type ProjectId } from "@multi/contracts";
+import { type ProjectId, type ResolvedKeybindingsConfig } from "@multi/contracts";
 import { toSafeThreadSegment } from "@multi/shared/thread-segments";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import {
@@ -60,28 +60,33 @@ import {
   getCommandPaletteInputPlaceholder,
   getCommandPaletteMode,
   RECENT_THREAD_LIMIT,
-} from "./command-palette.logic";
-import { CommandPaletteResults } from "./command-palette-results";
+} from "./command-palette-model";
 import { ProjectFavicon } from "./project-favicon";
 import {
   useServerAvailableEditors,
   useServerKeybindings,
   useServerObservability,
 } from "../rpc/server-state";
-import { resolveShortcutCommand } from "../keybindings";
+import { resolveShortcutCommand, shortcutLabelForCommand } from "../keybindings";
 import {
   Command,
+  CommandCollection,
   CommandDialog,
   CommandDialogPopup,
   CommandFooter,
+  CommandGroup,
+  CommandGroupLabel,
   CommandInput,
+  CommandItem,
+  CommandList,
   CommandPanel,
+  CommandShortcut,
 } from "@multi/ui/command";
 import { Kbd, KbdGroup } from "@multi/ui/kbd";
 import { toastManager } from "~/app/toast";
 import { ComposerHandleContext, useComposerHandleContext } from "../composer-handle-context";
 import { resolveAndPersistPreferredEditor } from "../editor-preferences";
-import type { ChatComposerHandle } from "./chat/composer/chat-composer";
+import type { ComposerInputHandle } from "./chat/composer/composer-input";
 
 function joinFileSystemPath(basePath: string, ...segments: string[]): string {
   const separator = basePath.includes("\\") && !basePath.includes("/") ? "\\" : "/";
@@ -90,12 +95,103 @@ function joinFileSystemPath(basePath: string, ...segments: string[]): string {
   return [normalizedBase, ...normalizedSegments].join(separator);
 }
 
+interface CommandPaletteResultsProps {
+  readonly groups: ReadonlyArray<CommandPaletteGroup>;
+  readonly highlightedItemValue?: string | null;
+  readonly isActionsOnly: boolean;
+  readonly keybindings: ResolvedKeybindingsConfig;
+  readonly onExecuteItem: (item: CommandPaletteActionItem | CommandPaletteSubmenuItem) => void;
+}
+
+function CommandPaletteResults(props: CommandPaletteResultsProps) {
+  if (props.groups.length === 0) {
+    return (
+      <div className="py-8 text-center font-multi text-body text-muted-foreground">
+        {props.isActionsOnly
+          ? "No matching actions."
+          : "No matching commands, projects, or threads."}
+      </div>
+    );
+  }
+
+  return (
+    <CommandList>
+      {props.groups.map((group) => (
+        <CommandGroup items={group.items} key={group.value}>
+          <CommandGroupLabel>{group.label}</CommandGroupLabel>
+          <CommandCollection>
+            {(item) => (
+              <CommandPaletteResultRow
+                item={item}
+                key={item.value}
+                keybindings={props.keybindings}
+                isActive={props.highlightedItemValue === item.value}
+                onExecuteItem={props.onExecuteItem}
+              />
+            )}
+          </CommandCollection>
+        </CommandGroup>
+      ))}
+    </CommandList>
+  );
+}
+
+function CommandPaletteResultRow(props: {
+  readonly item: CommandPaletteActionItem | CommandPaletteSubmenuItem;
+  readonly isActive: boolean;
+  readonly keybindings: ResolvedKeybindingsConfig;
+  readonly onExecuteItem: (item: CommandPaletteActionItem | CommandPaletteSubmenuItem) => void;
+}) {
+  const shortcutLabel = props.item.shortcutCommand
+    ? shortcutLabelForCommand(props.keybindings, props.item.shortcutCommand)
+    : null;
+
+  return (
+    <CommandItem
+      value={props.item.value}
+      className={cn(
+        "cursor-pointer gap-2 hover:bg-transparent hover:text-inherit data-highlighted:bg-transparent data-highlighted:text-inherit data-selected:bg-transparent data-selected:text-inherit [&[data-highlighted][data-selected]]:bg-transparent [&[data-highlighted][data-selected]]:text-inherit",
+        props.isActive && "bg-multi-hover! text-foreground!",
+      )}
+      onMouseDown={(event) => {
+        event.preventDefault();
+      }}
+      onClick={() => {
+        props.onExecuteItem(props.item);
+      }}
+    >
+      {props.item.icon}
+      {props.item.description ? (
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate text-body text-foreground">{props.item.title}</span>
+          <span className="truncate text-detail text-muted-foreground/64">
+            {props.item.description}
+          </span>
+        </span>
+      ) : (
+        <span className="flex min-w-0 items-center gap-1.5 truncate text-body text-foreground">
+          <span className="truncate">{props.item.title}</span>
+        </span>
+      )}
+      {props.item.timestamp ? (
+        <span className="min-w-12 shrink-0 text-right text-caption tabular-nums text-muted-foreground/62">
+          {props.item.timestamp}
+        </span>
+      ) : null}
+      {shortcutLabel ? <CommandShortcut>{shortcutLabel}</CommandShortcut> : null}
+      {props.item.kind === "submenu" ? (
+        <IconChevronRightMedium className="ml-auto size-4 shrink-0 text-muted-foreground/50" />
+      ) : null}
+    </CommandItem>
+  );
+}
+
 export function CommandPalette({ children }: { children: ReactNode }) {
   const open = useCommandPaletteStore((store) => store.open);
   const setOpen = useCommandPaletteStore((store) => store.setOpen);
   const toggleOpen = useCommandPaletteStore((store) => store.toggleOpen);
   const keybindings = useServerKeybindings();
-  const composerHandleRef = useRef<ChatComposerHandle | null>(null);
+  const composerHandleRef = useRef<ComposerInputHandle | null>(null);
   const routeTarget = useParams({
     strict: false,
     select: (params) => resolveThreadRouteTarget(params),

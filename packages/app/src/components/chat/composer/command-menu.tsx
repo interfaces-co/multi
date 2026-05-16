@@ -16,8 +16,8 @@ type CentralIconComponent = React.ComponentType<CentralIconBaseProps>;
 import { memo, useLayoutEffect, useMemo, useRef } from "react";
 
 import { type ComposerSlashCommand, type ComposerTriggerKind } from "../../../composer-logic";
-import { formatProviderSkillInstallSource } from "~/provider-skill-presentation";
 import { cn } from "~/lib/utils";
+import { formatProviderSkillInstallSource } from "./provider-skills";
 import {
   Command,
   CommandGroup,
@@ -66,7 +66,7 @@ type ComposerCommandGroup = {
   label: string | null;
   items: ComposerCommandItem[];
 };
-type ComposerCommandMenuKind = "slash" | "mentions";
+export type ComposerCommandMenuKind = "slash" | "mentions";
 
 function getSlashCommandIcon(command: ComposerSlashCommand): CentralIconComponent {
   if (command === "model") return IconBox2;

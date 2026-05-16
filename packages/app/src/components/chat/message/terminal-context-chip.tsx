@@ -1,11 +1,7 @@
 import { IconConsole } from "central-icons";
 
-import {
-  ComposerInlineChip,
-  ComposerInlineChipIcon,
-  ComposerInlineChipLabel,
-} from "../../composer-inline-chip";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@multi/ui/tooltip";
+import { cn } from "~/lib/utils";
 
 interface TerminalContextInlineChipProps {
   label: string;
@@ -20,15 +16,20 @@ export function TerminalContextInlineChip(props: TerminalContextInlineChipProps)
     <Tooltip>
       <TooltipTrigger
         render={
-          <ComposerInlineChip
-            tone={expired ? "danger" : "default"}
+          <span
+            className={cn(
+              "inline-flex max-w-full select-none items-center gap-1 rounded-sm border px-1.5 py-px font-multi text-body font-medium align-middle",
+              expired
+                ? "border-destructive/35 bg-destructive/8 text-destructive"
+                : "border-multi-stroke-tertiary bg-multi-bg-quaternary text-multi-fg-primary",
+            )}
             data-terminal-context-expired={expired ? "true" : undefined}
           >
-            <ComposerInlineChipIcon className={expired ? "opacity-100" : undefined}>
+            <span className={cn("size-3.5 shrink-0 opacity-85", expired && "opacity-100")}>
               <IconConsole className="size-3.5" />
-            </ComposerInlineChipIcon>
-            <ComposerInlineChipLabel>{label}</ComposerInlineChipLabel>
-          </ComposerInlineChip>
+            </span>
+            <span className="truncate select-none text-body">{label}</span>
+          </span>
         }
       />
       <TooltipPopup side="top" className="max-w-80 whitespace-pre-wrap text-xs/4">

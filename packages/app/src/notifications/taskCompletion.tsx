@@ -10,7 +10,7 @@ import {
   buildTaskCompletionCopy,
   type CompletedThreadCandidate,
   type ThreadAttentionCandidate,
-} from "./taskCompletion.logic";
+} from "./task-completion-candidates";
 
 export type BrowserNotificationPermissionState =
   | NotificationPermission

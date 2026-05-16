@@ -7,10 +7,9 @@ Requires (macOS only): `sips` and `iconutil` for `.icns` output.
 Default source: assets/app-icon-source.png (square raster; outer cream background is removed).
 
 Writes:
-  - packages/desktop/resources/icon.png, icon.icns, icon.ico (production artwork)
-  - assets/prod/* (mac/linux/ios 1024, web PNGs + ICOs)
-  - assets/dev/blueprint-* and assets/nightly/blueprint-* — same geometry with a generated
-    cool “blueprint” tint (semi-transparent blue veil on non-transparent pixels only)
+  - packages/desktop/resources/icon.png and icon.icns (production artwork)
+  - assets/prod/* (mac/linux/ios 1024, web PNGs + favicon ICO)
+  - assets/dev/blueprint-* with a generated cool blueprint tint
 """
 
 from __future__ import annotations
@@ -33,13 +32,9 @@ MASTER_SIZE = 1024
 ICO_SIZES = (16, 32, 48, 64, 128, 256)
 ICNS_BASE_SIZES = (16, 32, 128, 256, 512)
 
-# Opacity of the blueprint veil (0–1) for dev/nightly channel raster assets.
+# Opacity of the blueprint veil (0-1) for dev channel raster assets.
 DEV_BLUEPRINT_VEIL_STRENGTH = 0.28
 DEV_BLUEPRINT_RGB = (38, 118, 245)
-
-# Slightly cooler / deeper for nightly so local dev vs canary are distinguishable in the folder.
-NIGHTLY_BLUEPRINT_VEIL_STRENGTH = 0.24
-NIGHTLY_BLUEPRINT_RGB = (72, 92, 220)
 
 
 def corner_mean_rgb(im: Image.Image, x0: int, y0: int, w: int = 3, h: int = 3) -> tuple[int, int, int]:
@@ -219,11 +214,6 @@ def main() -> int:
         DEV_BLUEPRINT_RGB,
         DEV_BLUEPRINT_VEIL_STRENGTH,
     )
-    master_nightly = apply_nonprod_blueprint_veil(
-        master,
-        NIGHTLY_BLUEPRINT_RGB,
-        NIGHTLY_BLUEPRINT_VEIL_STRENGTH,
-    )
     desktop_res = repo / "packages" / "desktop" / "resources"
 
     with tempfile.TemporaryDirectory(prefix="multi-icon-src-") as tmp:
@@ -231,7 +221,6 @@ def main() -> int:
         write_png(tmp1024, master)
 
         write_png(desktop_res / "icon.png", master)
-        write_ico(desktop_res / "icon.ico", master)
         write_icns_macos(tmp1024, desktop_res / "icon.icns")
 
         prod = repo / "assets" / "prod"
@@ -241,27 +230,16 @@ def main() -> int:
         write_png(prod / "multi-black-web-apple-touch-180.png", _resize(master, 180))
         write_png(prod / "multi-black-web-favicon-16x16.png", _resize(master, 16))
         write_png(prod / "multi-black-web-favicon-32x32.png", _resize(master, 32))
-        write_ico(prod / "multi-black-windows.ico", master)
         write_ico(prod / "multi-black-web-favicon.ico", master)
 
-        channel_masters: dict[str, Image.Image] = {
-            "dev": master_dev,
-            "nightly": master_nightly,
-        }
-        for channel, prefix in (
-            ("dev", "blueprint"),
-            ("nightly", "blueprint"),
-        ):
-            ch_master = channel_masters[channel]
-            base = repo / "assets" / channel
-            write_png(base / f"{prefix}-macos-1024.png", ch_master)
-            write_png(base / f"{prefix}-universal-1024.png", ch_master)
-            write_png(base / f"{prefix}-ios-1024.png", ch_master)
-            write_png(base / f"{prefix}-web-apple-touch-180.png", _resize(ch_master, 180))
-            write_png(base / f"{prefix}-web-favicon-16x16.png", _resize(ch_master, 16))
-            write_png(base / f"{prefix}-web-favicon-32x32.png", _resize(ch_master, 32))
-            write_ico(base / f"{prefix}-windows.ico", ch_master)
-            write_ico(base / f"{prefix}-web-favicon.ico", ch_master)
+        dev = repo / "assets" / "dev"
+        write_png(dev / "blueprint-macos-1024.png", master_dev)
+        write_png(dev / "blueprint-universal-1024.png", master_dev)
+        write_png(dev / "blueprint-ios-1024.png", master_dev)
+        write_png(dev / "blueprint-web-apple-touch-180.png", _resize(master_dev, 180))
+        write_png(dev / "blueprint-web-favicon-16x16.png", _resize(master_dev, 16))
+        write_png(dev / "blueprint-web-favicon-32x32.png", _resize(master_dev, 32))
+        write_ico(dev / "blueprint-web-favicon.ico", master_dev)
 
         # Vite dev serves `packages/app/public` directly (no server dist/client copy). Mirror dev web
         # icons so the browser + boot shell pick up the blueprint-tinted assets immediately.
@@ -272,7 +250,7 @@ def main() -> int:
         shutil.copyfile(dev_base / "blueprint-web-favicon-32x32.png", web_public / "favicon-32x32.png")
         shutil.copyfile(dev_base / "blueprint-web-apple-touch-180.png", web_public / "apple-touch-icon.png")
 
-    print("Updated desktop resources (prod) and assets/prod; dev/nightly use generated blueprint tint.")
+    print("Updated desktop resources (prod), assets/prod, and dev blueprint assets.")
     return 0
 
 

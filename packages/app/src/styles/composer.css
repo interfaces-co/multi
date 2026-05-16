@@ -180,7 +180,7 @@ html.dark {
  * Prompt Input — variant layout rules
  * ------------------------------------------------------------
  * Generic semantic prompt selectors own the visual chrome. The inner
- * .chat-composer-surface stays as the local React boundary for editor,
+ * .composer-input-surface stays as the local React boundary for editor,
  * popover, and toolbar layout.
  * ============================================================ */
 
@@ -233,7 +233,7 @@ html.dark {
   border-top-right-radius: 0;
 }
 
-.agent-window .ui-prompt-input__container[data-has-header] > .chat-composer-surface {
+.agent-window .ui-prompt-input__container[data-has-header] > .composer-input-surface {
   border-top-left-radius: 0;
   border-top-right-radius: 0;
 }
@@ -255,7 +255,7 @@ html.dark {
   border-radius: var(--prompt-input-border-radius-expanded);
 }
 
-.agent-window .ui-prompt-input__container[data-variant="expanded"] > .chat-composer-surface {
+.agent-window .ui-prompt-input__container[data-variant="expanded"] > .composer-input-surface {
   border-radius: var(--prompt-input-border-radius-expanded);
 }
 
@@ -268,7 +268,7 @@ html.dark {
   flex: 1 1 auto;
 }
 
-/* Compact (dock) shell: collapsed single-row pill — flex row lives on .chat-composer-surface */
+/* Compact (dock) shell: collapsed single-row pill — flex row lives on .composer-input-surface */
 .agent-window .ui-prompt-input__container[data-variant="compact"]:not([data-expanded]) {
   display: block;
   padding: 0;
@@ -279,7 +279,7 @@ html.dark {
 
 .agent-window
   .ui-prompt-input__container[data-variant="compact"]:not([data-expanded])
-  > .chat-composer-surface {
+  > .composer-input-surface {
   align-items: center;
   border-radius: inherit;
   display: flex;

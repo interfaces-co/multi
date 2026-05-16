@@ -1,5 +1,5 @@
-import { ProviderInteractionMode, RuntimeMode } from "@multi/contracts";
-import { memo, type ReactNode } from "react";
+import type { ProviderInteractionMode, RuntimeMode } from "@multi/contracts";
+import { memo, useEffect, useState, type ReactNode } from "react";
 import { IconDotGrid1x3Horizontal, IconSquareChecklist } from "central-icons";
 import { Button } from "@multi/ui/button";
 import {
@@ -14,6 +14,22 @@ import {
   MenuTrigger,
 } from "@multi/ui/menu";
 
+function parseInteractionMode(value: string | null | undefined): ProviderInteractionMode | null {
+  if (value === "default" || value === "plan") return value;
+  return null;
+}
+
+function parseRuntimeMode(value: string | null | undefined): RuntimeMode | null {
+  if (
+    value === "approval-required" ||
+    value === "auto-accept-edits" ||
+    value === "full-access"
+  ) {
+    return value;
+  }
+  return null;
+}
+
 export const CompactComposerControlsMenu = memo(function CompactComposerControlsMenu(props: {
   planAvailable: boolean;
   interactionMode: ProviderInteractionMode;
@@ -25,10 +41,23 @@ export const CompactComposerControlsMenu = memo(function CompactComposerControls
   traitsFastMenuContent?: ReactNode | null | undefined;
   /** Remaining reasoning / booleans excluding fast preset. Rendered after Access. */
   traitsRestMenuContent?: ReactNode | null | undefined;
-  onToggleInteractionMode: () => void;
+  onInteractionModeChange: (mode: ProviderInteractionMode) => void;
   openPlanTab: () => void;
   onRuntimeModeChange: (mode: RuntimeMode) => void;
 }) {
+  const [optimisticInteractionMode, setOptimisticInteractionMode] = useState(
+    props.interactionMode,
+  );
+  const [optimisticRuntimeMode, setOptimisticRuntimeMode] = useState(props.runtimeMode);
+
+  useEffect(() => {
+    setOptimisticInteractionMode(props.interactionMode);
+  }, [props.interactionMode]);
+
+  useEffect(() => {
+    setOptimisticRuntimeMode(props.runtimeMode);
+  }, [props.runtimeMode]);
+
   return (
     <Menu>
       <MenuTrigger
@@ -55,10 +84,12 @@ export const CompactComposerControlsMenu = memo(function CompactComposerControls
             <MenuGroup>
               <MenuGroupLabel variant="workbench">Mode</MenuGroupLabel>
               <MenuRadioGroup
-                value={props.interactionMode}
+                value={optimisticInteractionMode}
                 onValueChange={(value) => {
-                  if (!value || value === props.interactionMode) return;
-                  props.onToggleInteractionMode();
+                  const nextMode = parseInteractionMode(value);
+                  if (!nextMode || nextMode === optimisticInteractionMode) return;
+                  setOptimisticInteractionMode(nextMode);
+                  props.onInteractionModeChange(nextMode);
                 }}
               >
                 <MenuRadioItem variant="workbench" value="default">
@@ -75,10 +106,12 @@ export const CompactComposerControlsMenu = memo(function CompactComposerControls
         <MenuGroup>
           <MenuGroupLabel variant="workbench">Access</MenuGroupLabel>
           <MenuRadioGroup
-            value={props.runtimeMode}
+            value={optimisticRuntimeMode}
             onValueChange={(value) => {
-              if (!value || value === props.runtimeMode) return;
-              props.onRuntimeModeChange(value as RuntimeMode);
+              const nextMode = parseRuntimeMode(value);
+              if (!nextMode || nextMode === optimisticRuntimeMode) return;
+              setOptimisticRuntimeMode(nextMode);
+              props.onRuntimeModeChange(nextMode);
             }}
           >
             <MenuRadioItem variant="workbench" value="approval-required">

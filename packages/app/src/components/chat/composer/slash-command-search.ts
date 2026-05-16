@@ -5,7 +5,7 @@ import {
 } from "@multi/shared/search-ranking";
 
 import type { ComposerCommandItem } from "./command-menu";
-import { formatProviderSkillDisplayName } from "~/provider-skill-presentation";
+import { formatProviderSkillDisplayName } from "./provider-skills";
 
 function scoreSlashCommandItem(
   item: Extract<

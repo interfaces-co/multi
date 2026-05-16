@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useEffectEvent, useRef, useState } from "react";
 
-import { type SlowRpcAckRequest, useSlowRpcAckRequests } from "../rpc/request-latency-state";
+import { useSlowRpcAckRequests } from "../rpc/request-latency-state";
 import {
   getWsConnectionStatus,
   getWsConnectionUiState,
@@ -23,64 +23,6 @@ const connectionTimeFormatter = new Intl.DateTimeFormat(undefined, {
   month: "short",
   second: "2-digit",
 });
-
-function formatConnectionMoment(isoDate: string | null): string | null {
-  if (!isoDate) {
-    return null;
-  }
-
-  return connectionTimeFormatter.format(new Date(isoDate));
-}
-
-function formatRetryCountdown(nextRetryAt: string, nowMs: number): string {
-  const remainingMs = Math.max(0, new Date(nextRetryAt).getTime() - nowMs);
-  return `${Math.max(1, Math.ceil(remainingMs / 1000))}s`;
-}
-
-function describeOfflineToast(): string {
-  return "WebSocket disconnected. Waiting for network.";
-}
-
-function formatReconnectAttemptLabel(status: WsConnectionStatus): string {
-  const reconnectAttempt = Math.max(
-    1,
-    Math.min(status.reconnectAttemptCount, WS_RECONNECT_MAX_ATTEMPTS),
-  );
-  return `Attempt ${reconnectAttempt}/${status.reconnectMaxAttempts}`;
-}
-
-function describeExhaustedToast(): string {
-  return "Retries exhausted trying to reconnect";
-}
-
-function buildReconnectTitle(_status: WsConnectionStatus): string {
-  return "Disconnected from Multi Server";
-}
-
-function describeRecoveredToast(
-  previousDisconnectedAt: string | null,
-  connectedAt: string | null,
-): string {
-  const reconnectedAtLabel = formatConnectionMoment(connectedAt);
-  const disconnectedAtLabel = formatConnectionMoment(previousDisconnectedAt);
-
-  if (disconnectedAtLabel && reconnectedAtLabel) {
-    return `Disconnected at ${disconnectedAtLabel} and reconnected at ${reconnectedAtLabel}.`;
-  }
-
-  if (reconnectedAtLabel) {
-    return `Connection restored at ${reconnectedAtLabel}.`;
-  }
-
-  return "Connection restored.";
-}
-
-function describeSlowRpcAckToast(requests: ReadonlyArray<SlowRpcAckRequest>): ReactNode {
-  const count = requests.length;
-  const thresholdSeconds = Math.round((requests[0]?.thresholdMs ?? 0) / 1000);
-
-  return `${count} request${count === 1 ? "" : "s"} waiting longer than ${thresholdSeconds}s.`;
-}
 
 export function shouldAutoReconnect(
   status: WsConnectionStatus,
@@ -252,9 +194,18 @@ export function WebSocketConnectionCoordinator() {
     }
 
     if (shouldShowReconnectToast || shouldShowOfflineToast || shouldShowExhaustedToast) {
+      const reconnectAttempt = Math.max(
+        1,
+        Math.min(status.reconnectAttemptCount, WS_RECONNECT_MAX_ATTEMPTS),
+      );
+      const reconnectAttemptLabel = `Attempt ${reconnectAttempt}/${status.reconnectMaxAttempts}`;
+      const reconnectCountdown =
+        status.nextRetryAt === null
+          ? null
+          : `${Math.max(1, Math.ceil(Math.max(0, new Date(status.nextRetryAt).getTime() - nowMs) / 1000))}s`;
       const toastPayload = shouldShowOfflineToast
         ? {
-            description: describeOfflineToast(),
+            description: "WebSocket disconnected. Waiting for network.",
             timeout: 0,
             title: "Offline",
             type: "warning" as const,
@@ -268,7 +219,7 @@ export function WebSocketConnectionCoordinator() {
                 children: "Retry",
                 onClick: triggerManualReconnect,
               },
-              description: describeExhaustedToast(),
+              description: "Retries exhausted trying to reconnect",
               timeout: 0,
               title: "Disconnected from Multi Server",
               type: "error" as const,
@@ -282,11 +233,11 @@ export function WebSocketConnectionCoordinator() {
                 onClick: triggerManualReconnect,
               },
               description:
-                status.nextRetryAt === null
-                  ? `Reconnecting... ${formatReconnectAttemptLabel(status)}`
-                  : `Reconnecting in ${formatRetryCountdown(status.nextRetryAt, nowMs)}... ${formatReconnectAttemptLabel(status)}`,
+                reconnectCountdown === null
+                  ? `Reconnecting... ${reconnectAttemptLabel}`
+                  : `Reconnecting in ${reconnectCountdown}... ${reconnectAttemptLabel}`,
               timeout: 0,
-              title: buildReconnectTitle(status),
+              title: "Disconnected from Multi Server",
               type: "loading" as const,
               data: {
                 hideCopyButton: true,
@@ -308,8 +259,20 @@ export function WebSocketConnectionCoordinator() {
       (previousUiState === "offline" || previousUiState === "reconnecting") &&
       previousDisconnectedAt !== null
     ) {
+      const disconnectedAtLabel = previousDisconnectedAt
+        ? connectionTimeFormatter.format(new Date(previousDisconnectedAt))
+        : null;
+      const reconnectedAtLabel = status.connectedAt
+        ? connectionTimeFormatter.format(new Date(status.connectedAt))
+        : null;
+      const description =
+        disconnectedAtLabel && reconnectedAtLabel
+          ? `Disconnected at ${disconnectedAtLabel} and reconnected at ${reconnectedAtLabel}.`
+          : reconnectedAtLabel
+            ? `Connection restored at ${reconnectedAtLabel}.`
+            : "Connection restored.";
       const successToast = {
-        description: describeRecoveredToast(previousDisconnectedAt, status.connectedAt),
+        description,
         title: "Reconnected to Multi Server",
         type: "success" as const,
         timeout: 0,
@@ -368,8 +331,10 @@ export function SlowRpcAckToastCoordinator() {
       return;
     }
 
+    const slowRequestCount = slowRequests.length;
+    const slowRequestThresholdSeconds = Math.round((slowRequests[0]?.thresholdMs ?? 0) / 1000);
     const nextToast = {
-      description: describeSlowRpcAckToast(slowRequests),
+      description: `${slowRequestCount} request${slowRequestCount === 1 ? "" : "s"} waiting longer than ${slowRequestThresholdSeconds}s.`,
       timeout: 0,
       title: "Some requests are slow",
       type: "warning" as const,

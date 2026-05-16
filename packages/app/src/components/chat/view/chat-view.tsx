@@ -129,10 +129,10 @@ import {
 import { selectThreadTerminalState, useTerminalStateStore } from "../../../terminal-state-store";
 import { shellPanelsActions, useActiveTab } from "~/stores/shell-panels-store";
 import {
-  ChatComposer,
-  type ChatComposerHandle,
-  type ChatComposerProps,
-} from "../composer/chat-composer";
+  ComposerInput,
+  type ComposerInputHandle,
+  type ComposerInputProps,
+} from "../composer/composer-input";
 import { ExpandedImageDialog } from "../message/expanded-image-dialog";
 import { PullRequestThreadDialog } from "../../pull-request-thread-dialog";
 import { MessagesTimeline, type MessagesTimelineController } from "../timeline/messages-timeline";
@@ -142,29 +142,33 @@ import { resolveEffectiveEnvMode } from "../../../lib/branch-toolbar-logic";
 import { ProviderStatusBanner } from "../picker/status-banner";
 import { ThreadErrorBanner } from "../message/error-banner";
 import {
-  MAX_HIDDEN_MOUNTED_TERMINAL_THREADS,
   buildExpiredTerminalContextToastCopy,
-  buildLocalDraftThread,
-  collectUserMessageBlobPreviewUrls,
-  createLocalDispatchSnapshot,
+  cloneComposerImageForRetry,
   deriveComposerSendState,
   formatOutgoingPrompt,
-  hasServerAcknowledgedLocalDispatch,
   IMAGE_ONLY_BOOTSTRAP_PROMPT,
+  readFileAsDataUrl,
+  resolveSendEnvMode,
+} from "../composer/composer-send";
+import {
+  collectUserMessageBlobPreviewUrls,
+  revokeBlobPreviewUrl,
+  revokeUserMessagePreviewUrls,
+} from "../message/preview-url-lifecycle";
+import {
+  MAX_HIDDEN_MOUNTED_TERMINAL_THREADS,
+  buildLocalDraftThread,
+  createLocalDispatchSnapshot,
+  hasServerAcknowledgedLocalDispatch,
   LAST_INVOKED_SCRIPT_BY_PROJECT_KEY,
   LastInvokedScriptByProjectSchema,
   type LocalDispatchSnapshot,
-  PullRequestDialogState,
-  cloneComposerImageForRetry,
-  readFileAsDataUrl,
+  type PullRequestDialogState,
   reconcileMountedTerminalThreadIds,
-  resolveSendEnvMode,
-  revokeBlobPreviewUrl,
-  revokeUserMessagePreviewUrls,
   shouldWriteThreadErrorToCurrentServerThread,
   threadHasStarted,
   waitForStartedServerThread,
-} from "./chat-view.logic";
+} from "./thread-lifecycle";
 import { useLocalStorage } from "~/hooks/use-local-storage";
 import { useComposerHandleContext } from "../../../composer-handle-context";
 import {
@@ -188,16 +192,16 @@ type CentralIconComponent = React.ComponentType<CentralIconBaseProps>;
 
 const EMPTY_ACTIVITIES: OrchestrationThreadActivity[] = [];
 const EMPTY_PROVIDERS: ServerProvider[] = [];
-const EMPTY_PENDING_APPROVALS: ChatComposerProps["pendingApprovals"] = [];
-const EMPTY_PENDING_USER_INPUTS: ChatComposerProps["pendingUserInputs"] = [];
+const EMPTY_PENDING_APPROVALS: ComposerInputProps["pendingApprovals"] = [];
+const EMPTY_PENDING_USER_INPUTS: ComposerInputProps["pendingUserInputs"] = [];
 const EMPTY_PENDING_USER_INPUT_ANSWERS: Record<string, PendingUserInputDraftAnswer> = {};
 const EMPTY_RESPONDING_REQUEST_IDS: ApprovalRequestId[] = [];
 const EMPTY_QUEUED_COMPOSER_ITEMS: QueuedComposerItem[] = [];
 const DOCKED_COMPOSER_TIMELINE_RESERVE_PX = 88;
 
-type ChatComposerSendContext = ReturnType<ChatComposerHandle["getSendContext"]>;
+type ComposerInputSendContext = ReturnType<ComposerInputHandle["getSendContext"]>;
 type ComposerSendSnapshot = {
-  sendContext: ChatComposerSendContext;
+  sendContext: ComposerInputSendContext;
   runtimeMode: RuntimeMode;
   interactionMode: ProviderInteractionMode;
   planFollowUp: { planMarkdown: string } | null;
@@ -206,7 +210,7 @@ type ComposerSendSnapshot = {
   createdAt?: string;
 };
 type InlineEditSubmitInput = {
-  sendContext: ChatComposerSendContext;
+  sendContext: ComposerInputSendContext;
   runtimeMode: RuntimeMode;
   interactionMode: ProviderInteractionMode;
 };
@@ -560,7 +564,7 @@ const PersistentThreadTerminalDrawer = memo(function PersistentThreadTerminalDra
 });
 
 type InlineMessageEditComposerProps = Pick<
-  ChatComposerProps,
+  ComposerInputProps,
   | "environmentId"
   | "routeKind"
   | "routeThreadRef"
@@ -611,7 +615,7 @@ const InlineMessageEditComposer = memo(function InlineMessageEditComposer({
   settings,
   ...composerProps
 }: InlineMessageEditComposerProps) {
-  const composerRef = useRef<ChatComposerHandle | null>(null);
+  const composerRef = useRef<ComposerInputHandle | null>(null);
   const editDraft = useComposerThreadDraft(composerDraftTarget);
   const promptRef = useRef(editDraft.prompt || message.text);
   const composerImagesRef = useRef<ComposerImageAttachment[]>(editDraft.images);
@@ -648,7 +652,7 @@ const InlineMessageEditComposer = memo(function InlineMessageEditComposer({
     });
   }, []);
 
-  const setInlineComposerRef = useCallback((composer: ChatComposerHandle | null) => {
+  const setInlineComposerRef = useCallback((composer: ComposerInputHandle | null) => {
     composerRef.current = composer;
     if (!composer) return;
     window.setTimeout(() => {
@@ -658,19 +662,19 @@ const InlineMessageEditComposer = memo(function InlineMessageEditComposer({
 
   const ignoreScheduleStickToBottom = useCallback(() => {}, []);
   const ignoreRespondToApproval = useCallback<
-    ChatComposerProps["onRespondToApproval"]
+    ComposerInputProps["onRespondToApproval"]
   >(async () => {}, []);
   const ignoreSelectPendingUserInputOption = useCallback<
-    ChatComposerProps["onSelectActivePendingUserInputOption"]
+    ComposerInputProps["onSelectActivePendingUserInputOption"]
   >(() => {}, []);
   const ignoreAdvancePendingUserInput = useCallback<
-    ChatComposerProps["onAdvanceActivePendingUserInput"]
+    ComposerInputProps["onAdvanceActivePendingUserInput"]
   >(() => {}, []);
   const ignorePreviousPendingUserInput = useCallback<
-    ChatComposerProps["onPreviousActivePendingUserInputQuestion"]
+    ComposerInputProps["onPreviousActivePendingUserInputQuestion"]
   >(() => {}, []);
   const ignoreChangePendingUserInputCustomAnswer = useCallback<
-    ChatComposerProps["onChangeActivePendingUserInputCustomAnswer"]
+    ComposerInputProps["onChangeActivePendingUserInputCustomAnswer"]
   >(() => {}, []);
 
   const handleProviderModelSelect = useCallback(
@@ -734,7 +738,7 @@ const InlineMessageEditComposer = memo(function InlineMessageEditComposer({
     onCancelEditUserMessage(message.id);
   }, [message.id, onCancelEditUserMessage]);
 
-  const handleSend = useCallback<ChatComposerProps["onSend"]>(
+  const handleSend = useCallback<ComposerInputProps["onSend"]>(
     (event) => {
       event?.preventDefault();
       if (submitDisabled) {
@@ -755,7 +759,7 @@ const InlineMessageEditComposer = memo(function InlineMessageEditComposer({
 
   return (
     <div className="box-border w-full min-w-0 rounded-xl border border-multi-stroke-focused bg-multi-bubble p-2 shadow-xs">
-      <ChatComposer
+      <ComposerInput
         {...composerProps}
         ref={setInlineComposerRef}
         variant="dock"
@@ -905,7 +909,7 @@ export default function ChatView(props: ChatViewProps) {
   const promptRef = useRef("");
   const composerImagesRef = useRef<ComposerImageAttachment[]>([]);
   const composerTerminalContextsRef = useRef<TerminalContextDraft[]>([]);
-  const localComposerRef = useRef<ChatComposerHandle | null>(null);
+  const localComposerRef = useRef<ComposerInputHandle | null>(null);
   const composerRef = useComposerHandleContext() ?? localComposerRef;
   const [editingUserMessageId, setEditingUserMessageId] = useState<MessageId | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
@@ -3084,7 +3088,7 @@ export default function ChatView(props: ChatViewProps) {
   };
 
   const createQueuedComposerItem = (
-    sendContext: ChatComposerSendContext,
+    sendContext: ComposerInputSendContext,
     runtimeModeForItem: RuntimeMode,
     interactionModeForItem: ProviderInteractionMode,
     planFollowUp: { planMarkdown: string } | null,
@@ -3234,13 +3238,10 @@ export default function ChatView(props: ChatViewProps) {
   const onInterrupt = useCallback(async () => {
     const api = readEnvironmentApi(environmentId);
     if (!api || !activeThread) return;
-    const activeTurnId =
-      activeThread.session?.activeTurnId ?? activeThread.latestTurn?.turnId ?? undefined;
     await api.orchestration.dispatchCommand({
       type: "thread.turn.interrupt",
       commandId: newCommandId(),
       threadId: activeThread.id,
-      ...(activeTurnId !== undefined ? { turnId: activeTurnId } : {}),
       createdAt: new Date().toISOString(),
     });
   }, [activeThread, environmentId]);
@@ -4159,7 +4160,7 @@ export default function ChatView(props: ChatViewProps) {
             {...(isConnecting ? { "data-disabled": "true" } : {})}
             {...(showScrollToBottom ? {} : { "data-scrolled-to-bottom": "" })}
           >
-            <ChatComposer
+            <ComposerInput
               ref={composerRef}
               variant={isHeroComposer ? "hero" : "dock"}
               composerDraftTarget={composerDraftTarget}

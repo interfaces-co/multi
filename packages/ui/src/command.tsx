@@ -30,7 +30,7 @@ function CommandDialogBackdrop({ className, ...props }: CommandDialogPrimitive.B
   return (
     <CommandDialogPrimitive.Backdrop
       className={cn(
-        "fixed inset-0 z-[90] bg-background/60 transition-all duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0",
+        "fixed inset-0 z-[90] bg-background/45 transition-opacity duration-150 ease-out data-ending-style:opacity-0 data-starting-style:opacity-0",
         className,
       )}
       data-slot="command-dialog-backdrop"
@@ -43,7 +43,7 @@ function CommandDialogViewport({ className, ...props }: CommandDialogPrimitive.V
   return (
     <CommandDialogPrimitive.Viewport
       className={cn(
-        "fixed inset-0 z-[91] flex flex-col items-center justify-center px-4 py-4",
+        "fixed inset-0 z-[91] flex flex-col items-center justify-start overflow-hidden px-4 py-4 pt-[10vh]",
         className,
       )}
       data-slot="command-dialog-viewport"
@@ -55,11 +55,11 @@ function CommandDialogViewport({ className, ...props }: CommandDialogPrimitive.V
 function CommandDialogPopup({ className, children, ...props }: CommandDialogPrimitive.Popup.Props) {
   return (
     <CommandDialogPortal>
-      <CommandDialogBackdrop className="bg-background/45 backdrop-blur-[2px]" />
+      <CommandDialogBackdrop />
       <CommandDialogViewport>
         <CommandDialogPrimitive.Popup
           className={cn(
-            "-translate-y-[calc(1.25rem*var(--nested-dialogs))] relative flex max-h-[min(28rem,calc(100vh-2rem))] min-h-0 w-full min-w-0 max-w-xl scale-[calc(1-0.1*var(--nested-dialogs))] flex-col overflow-hidden rounded-[8px] border border-multi-stroke-tertiary bg-multi-bg-elevated font-multi text-multi-fg-primary opacity-[calc(1-0.1*var(--nested-dialogs))] shadow-multi-popup outline-none backdrop-blur-xl transition-[scale,opacity,translate] duration-150 ease-out will-change-transform data-nested:data-ending-style:translate-y-8 data-nested:data-starting-style:translate-y-8 data-nested-dialog-open:origin-top data-ending-style:scale-98 data-starting-style:scale-98 data-ending-style:opacity-0 data-starting-style:opacity-0 **:data-[slot=scroll-area-viewport]:data-has-overflow-y:pe-1",
+            "relative flex max-h-[min(28rem,calc(100vh-2rem))] min-h-0 w-full min-w-0 max-w-xl flex-col overflow-hidden rounded-[8px] border border-multi-stroke-tertiary bg-multi-bg-elevated font-multi text-multi-fg-primary shadow-multi-popup outline-none transition-[scale,opacity,translate] duration-150 ease-out data-ending-style:-translate-y-4 data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:-translate-y-4 data-starting-style:scale-95 data-starting-style:opacity-0 **:data-[slot=scroll-area-viewport]:data-has-overflow-y:pe-1",
             className,
           )}
           data-slot="command-dialog-popup"

@@ -11,7 +11,7 @@ import {
   formatOutgoingPrompt,
   IMAGE_ONLY_BOOTSTRAP_PROMPT,
   readFileAsDataUrl,
-} from "./components/chat/view/chat-view.logic";
+} from "./components/chat/composer/composer-send";
 
 const dispatchingThreadKeys = new Set<string>();
 

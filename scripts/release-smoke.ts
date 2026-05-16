@@ -117,40 +117,6 @@ try {
   assertPackageVersion(tempRoot, "packages/app/package.json", "9.9.9-smoke.0");
   assertPackageVersion(tempRoot, "packages/contracts/package.json", "9.9.9-smoke.0");
 
-  const nightlyReleaseMetadata = execFileSync(
-    process.execPath,
-    [
-      resolve(repoRoot, "scripts/resolve-nightly-release.ts"),
-      "--date",
-      "20260413",
-      "--run-number",
-      "321",
-      "--sha",
-      "abcdef1234567890",
-      "--root",
-      tempRoot,
-    ],
-    {
-      cwd: repoRoot,
-      encoding: "utf8",
-    },
-  );
-  assertContains(
-    nightlyReleaseMetadata,
-    "version=9.9.9-nightly.20260413.321",
-    "Expected nightly metadata to contain the derived nightly version.",
-  );
-  assertContains(
-    nightlyReleaseMetadata,
-    "tag=nightly-v9.9.9-nightly.20260413.321",
-    "Expected nightly metadata to contain the derived nightly tag.",
-  );
-  assertContains(
-    nightlyReleaseMetadata,
-    "name=Multi Nightly 9.9.9-nightly.20260413.321 (abcdef123456)",
-    "Expected nightly metadata to include the short commit SHA in the release name.",
-  );
-
   const { arm64Path, x64Path } = writeMacManifestFixtures(tempRoot);
   execFileSync(
     process.execPath,

@@ -29,7 +29,7 @@ import {
   deriveMessagesTimelineRows,
   type StableMessagesTimelineRowsState,
   type MessagesTimelineRow,
-} from "./messages-timeline.logic";
+} from "./timeline-rows";
 import { cn } from "~/lib/utils";
 import { HumanMessage } from "../message/human-message";
 import { AssistantMessage } from "../message/assistant-message";

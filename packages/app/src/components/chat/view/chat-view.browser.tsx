@@ -1318,11 +1318,11 @@ async function waitForSelectItemContainingText(text: string): Promise<HTMLElemen
 
 async function expectComposerActionsContained(): Promise<void> {
   const footer = await waitForElement(
-    () => document.querySelector<HTMLElement>('[data-chat-composer-footer="true"]'),
+    () => document.querySelector<HTMLElement>('[data-composer-input-footer="true"]'),
     "Unable to find composer footer.",
   );
   const actions = await waitForElement(
-    () => document.querySelector<HTMLElement>('[data-chat-composer-actions="right"]'),
+    () => document.querySelector<HTMLElement>('[data-composer-input-actions="right"]'),
     "Unable to find composer actions container.",
   );
 
@@ -5331,7 +5331,7 @@ describe("ChatView timeline estimator parity (full app)", () => {
 
     try {
       const footer = await waitForElement(
-        () => document.querySelector<HTMLElement>('[data-chat-composer-footer="true"]'),
+        () => document.querySelector<HTMLElement>('[data-composer-input-footer="true"]'),
         "Unable to find composer footer.",
       );
       const initialModelPicker = await waitForElement(
@@ -5404,9 +5404,9 @@ describe("ChatView timeline estimator parity (full app)", () => {
 
       await vi.waitFor(
         () => {
-          const footer = document.querySelector<HTMLElement>('[data-chat-composer-footer="true"]');
+          const footer = document.querySelector<HTMLElement>('[data-composer-input-footer="true"]');
           const actions = document.querySelector<HTMLElement>(
-            '[data-chat-composer-actions="right"]',
+            '[data-composer-input-actions="right"]',
           );
 
           expect(footer?.dataset.chatComposerFooterCompact).toBe("false");
@@ -5444,9 +5444,9 @@ describe("ChatView timeline estimator parity (full app)", () => {
 
       await vi.waitFor(
         () => {
-          const footer = document.querySelector<HTMLElement>('[data-chat-composer-footer="true"]');
+          const footer = document.querySelector<HTMLElement>('[data-composer-input-footer="true"]');
           const actions = document.querySelector<HTMLElement>(
-            '[data-chat-composer-actions="right"]',
+            '[data-composer-input-actions="right"]',
           );
 
           expect(footer?.dataset.chatComposerFooterCompact).toBe("true");
@@ -5503,7 +5503,7 @@ describe("ChatView timeline estimator parity (full app)", () => {
 
       const menuItem = await waitForComposerMenuItem("slash:model");
       const composerForm = await waitForElement(
-        () => document.querySelector<HTMLElement>('[data-chat-composer-form="true"]'),
+        () => document.querySelector<HTMLElement>('[data-composer-input-form="true"]'),
         "Unable to find composer form.",
       );
 

@@ -10,10 +10,9 @@ import {
 import {
   getDesktopUpdateButtonTooltip,
   getDesktopUpdateInstallConfirmationMessage,
-  isDesktopUpdateButtonDisabled,
   resolveDesktopUpdateButtonAction,
   shouldShowDesktopUpdateButton,
-} from "../../desktop-update.logic";
+} from "../../desktop-update-state";
 import { toast } from "sonner";
 
 export function UpdatePill() {
@@ -21,7 +20,7 @@ export function UpdatePill() {
   const state = useDesktopUpdateState().data ?? null;
   const [dismissed, setDismissed] = useState(false);
 
-  const disabled = isDesktopUpdateButtonDisabled(state);
+  const disabled = state?.status === "downloading";
   const action = state ? resolveDesktopUpdateButtonAction(state) : "none";
 
   const handle = useCallback(() => {

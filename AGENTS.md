@@ -1,94 +1,47 @@
 # Development Rules
 
-## Conversational Style
+## Style
 
-- Keep answers short and concise
-- No emojis in commits, issues, PR comments, or code
-- No fluff or cheerful filler text
-- Technical prose only, be kind but direct (e.g., "Thanks @user" not "Thanks so much @user!")
+- Keep answers short, technical, and direct.
+- No emojis in commits, issues, PR comments, or code.
+- No fluff or cheerful filler.
 
-## Code Quality
+## Code
 
-- No `any` types unless absolutely necessary
-- Check node_modules for external API type definitions instead of guessing
-- **NEVER use inline imports** - no `await import("./foo.js")`, no `import("pkg").Type` in type positions, no dynamic imports for types. Always use standard top-level imports.
-- NEVER remove or downgrade code to fix type errors from outdated dependencies; upgrade the dependency instead
-- Always ask before removing functionality or code that appears to be intentional
-- Do not preserve backward compatibility unless the user explicitly asks for it
-- Never hardcode key checks with, eg. `matchesKey(keyData, "ctrl+x")`. All keybindings must be configurable. Add default to matching object (`DEFAULT_EDITOR_KEYBINDINGS` or `DEFAULT_APP_KEYBINDINGS`)
-- **Tailwind `className`**: No decorative kebab-case labels or constants (including `AGENT_*_CLASSNAME`) used only as utility buckets unless the string is a required CSS or test selector; put Tailwind on the element or use `cva` (`class-variance-authority`) for variants and conditionals.
+- Read the relevant files before editing. Do not rely on search snippets for broad changes.
+- No `any` types unless there is no better option.
+- Check installed dependency types instead of guessing external APIs.
+- No inline imports: no `await import("./x")`, no `import("pkg").Type`, no dynamic type imports. Use top-level imports.
+- Do not remove or downgrade functionality to satisfy type errors. Fix the cause or ask.
+- Do not preserve backward compatibility unless the user asks for it.
+- Ask before removing intentional-looking behavior or large code paths.
+- Keybindings must be configurable. Do not hardcode checks like `matchesKey(keyData, "ctrl+x")`; add defaults to the relevant keybinding map.
+- Keep Tailwind utilities on elements or in `cva` variants. Do not create decorative `*_CLASSNAME` buckets unless needed as a real CSS/test selector.
 
 ## Icons
 
-UI icons use **Central Icons** (`central-icons`, resolved to `@central-icons-react/round-outlined-radius-2-stroke-1.5`). Do not add Lucide or import from `lucide-react`.
-
-**Browse names and categories:** open `node_modules/central-icons/icons-index.json` after install (lists every export under `categories` plus metadata). **Types:** `node_modules/central-icons/index.d.ts` exports all `Icon*` components. **Usage:** `import { IconName } from "central-icons"` (or `import type { CentralIconBaseProps } from "central-icons"`). Product site: [iconists.co/central](https://iconists.co/central).
+- Use `central-icons`; do not add Lucide.
+- Browse available icons in `node_modules/central-icons/icons-index.json`.
+- Import icons from `central-icons`.
 
 ## Commands
 
-- After code changes (not documentation changes): `pnpm run typecheck` (get full output, no tail). Fix all errors, warnings, and infos before committing.
-- Note: `pnpm run typecheck` does not run tests.
-- NEVER run: `pnpm run dev`, `pnpm run build`, `pnpm run test`
-- Only run specific tests if user instructs: `pnpx vitest --run test/specific.test.ts`
-- Run tests from the package root, not the repo root.
-- If you create or modify a test file, you MUST run that test file and iterate until it passes.
-- When writing tests, run them, identify issues in either the test or implementation, and iterate until fixed.
-- NEVER commit unless user asks
+- For code changes, prefer `pnpm run typecheck` as the verifier. Get full output.
+- Do not use tests as the verifier unless the task is creating, modifying, or debugging tests.
+- If you create or modify a test, run that specific test from its package root and iterate until it passes.
+- Never run `pnpm run dev`, `pnpm run build`, or broad test commands unless the user asks.
+- Never commit unless the user asks.
 
-Multiple agents may work on different files in the same worktree simultaneously. You MUST follow these rules:
+## Git
 
-### Committing
-
-- **ONLY commit files YOU changed in THIS session**
-- ALWAYS include `fixes #<number>` or `closes #<number>` in the commit message when there is a related issue or PR
-- NEVER use `git add -A` or `git add .` - these sweep up changes from other agents
-- ALWAYS use `git add <specific-file-paths>` listing only files you modified
-- Before committing, run `git status` and verify you are only staging YOUR files
-- Track which files you created/modified/deleted during the session
-
-### Forbidden Git Operations
-
-These commands can destroy other agents' work:
-
-- `git reset --hard` - destroys uncommitted changes
-- `git checkout .` - destroys uncommitted changes
-- `git clean -fd` - deletes untracked files
-- `git stash` - stashes ALL changes including other agents' work
-- `git add -A` / `git add .` - stages other agents' uncommitted work
-- `git commit --no-verify` - bypasses required checks and is never allowed
-
-### Safe Workflow
-
-```bash
-# 1. Check status first
-git status
-
-# 2. Add ONLY your specific files
-git add packages/ai/src/providers/transform-messages.ts
-git add packages/ai/CHANGELOG.md
-
-# 3. Commit
-git commit -m "fix(ai): description"
-
-# 4. Push (pull --rebase if needed, but NEVER reset/checkout)
-git pull --rebase && git push
-```
-
-### If Rebase Conflicts Occur
-
-- Resolve conflicts in YOUR files only
-- If conflict is in a file you didn't modify, abort and ask the user
-- NEVER force push
-
-### User override
-
-If the user instructions conflict with rules set out here, ask for confirmation that they want to override the rules. Only then execute their instructions.
+- Multiple agents may share this worktree. Do not touch unrelated changes.
+- Only stage files you changed in this session.
+- Never use `git add -A` or `git add .`.
+- Never use destructive commands: `git reset --hard`, `git checkout .`, `git clean -fd`, or `git stash`.
+- Before committing, inspect `git status` and stage explicit paths only.
+- If rebasing conflicts in files you did not edit, abort and ask.
 
 ## Releases
 
-Published versions for `usemulti`, `@multi/app`, `@multi/desktop`, and `@multi/contracts` are kept in sync via `scripts/update-release-package-versions.ts`. Releasing is automated in GitHub Actions (`.github/workflows/release.yml`): push a tag matching `v*.*.*`, or dispatch the workflow with a stable version string. See [README.md](./README.md#releases).
-
-## Docs
-
-- Codex App Server docs: [https://developers.openai.com/codex/sdk/#app-server](https://developers.openai.com/codex/sdk/#app-server)
-- Codex-Monitor (Tauri, feature-complete, strong reference implementation): [https://github.com/Dimillian/CodexMonitor](https://github.com/Dimillian/CodexMonitor)
+- Published versions for `usemulti`, `@multi/app`, `@multi/desktop`, and `@multi/contracts` stay in sync via `scripts/update-release-package-versions.ts`.
+- Release automation lives in `.github/workflows/release.yml`.

@@ -154,7 +154,7 @@ async function mountMenu(props?: { modelSelection?: ModelSelection; prompt?: str
       showInteractionModeToggle
       traitsFastMenuContent={<TraitsMenuContent {...sharedTraitsProps} traitsScope="fast-only" />}
       traitsRestMenuContent={<TraitsMenuContent {...sharedTraitsProps} traitsScope="except-fast" />}
-      onToggleInteractionMode={vi.fn()}
+      onInteractionModeChange={vi.fn()}
       openPlanTab={vi.fn()}
       onRuntimeModeChange={vi.fn()}
     />,
@@ -308,7 +308,7 @@ describe("CompactComposerControlsMenu", () => {
         planTabActive={false}
         runtimeMode="approval-required"
         showInteractionModeToggle={false}
-        onToggleInteractionMode={vi.fn()}
+        onInteractionModeChange={vi.fn()}
         openPlanTab={vi.fn()}
         onRuntimeModeChange={vi.fn()}
       />,

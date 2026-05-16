@@ -2,7 +2,7 @@ import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
 
 import ChatView from "~/components/chat/view/chat-view";
-import { threadHasStarted } from "~/components/chat/view/chat-view.logic";
+import { threadHasStarted } from "~/components/chat/view/thread-lifecycle";
 import { finalizePromotedDraftThreadByRef, useComposerDraftStore } from "~/composer-draft-store";
 import { selectEnvironmentState, selectThreadExistsByRef, useStore } from "~/store";
 import { createThreadSelectorByRef } from "~/store-selectors";
