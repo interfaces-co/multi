@@ -1,5 +1,10 @@
 import { memo } from "react";
-import { IconArrowUp, IconChevronLeftMedium, IconChevronRightMedium, IconStop } from "central-icons";
+import {
+  IconArrowUp,
+  IconChevronLeftMedium,
+  IconChevronRightMedium,
+  IconStop,
+} from "central-icons";
 import type { AgentWindowSendWhileStreamingBehavior } from "@multi/contracts/settings";
 import { cn } from "~/lib/utils";
 import { Button } from "@multi/ui/button";
@@ -171,9 +176,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
             aria-label={runningSendLabel}
             title={runningSendLabel}
           >
-            <IconArrowUp
-              className={dockSingleRow ? "size-3" : "size-3.5"}
-            />
+            <IconArrowUp className={dockSingleRow ? "size-3" : "size-3.5"} />
           </button>
         </div>
       );
@@ -294,9 +297,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
           </svg>
         )
       ) : (
-        <IconArrowUp
-          className={dockSingleRow ? "size-3" : "size-3.5"}
-        />
+        <IconArrowUp className={dockSingleRow ? "size-3" : "size-3.5"} />
       )}
     </button>
   );

@@ -1,11 +1,7 @@
 "use client";
 
 import { TabsList, TabsTab } from "@multi/ui/tabs";
-import {
-  IconConsole,
-  IconCrossMediumDefault,
-  IconPlusLarge,
-} from "central-icons";
+import { IconConsole, IconCrossMediumDefault, IconPlusLarge } from "central-icons";
 import type { ComponentType, ReactNode } from "react";
 
 import type { TerminalSessionEntry, WorkbenchTab } from "~/stores/shell-panels-store";

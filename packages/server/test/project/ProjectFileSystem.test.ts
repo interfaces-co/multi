@@ -5,7 +5,10 @@ import { Effect, FileSystem, Layer, Path, Schema } from "effect";
 import { ServerConfig } from "../../src/config.ts";
 import { GitCoreLive } from "../../src/git/GitCore.ts";
 import { ProjectEntries } from "../../src/project/ProjectEntries.service.ts";
-import { ProjectFileSystem, ProjectFileSystemError } from "../../src/project/ProjectFileSystem.service.ts";
+import {
+  ProjectFileSystem,
+  ProjectFileSystemError,
+} from "../../src/project/ProjectFileSystem.service.ts";
 import { ProjectEntriesLive } from "../../src/project/ProjectEntries.ts";
 import { ProjectFileSystemLive } from "../../src/project/ProjectFileSystem.ts";
 import { ProjectPathsLive } from "../../src/project/ProjectPaths.ts";

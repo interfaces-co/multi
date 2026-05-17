@@ -16,15 +16,9 @@ import type { UnifiedSettings } from "@multi/contracts/settings";
 import type { MutableRefObject } from "react";
 
 import type { ComposerPromptDoc } from "../../../composer-prompt-doc";
-import type {
-  ComposerImageAttachment,
-  DraftId,
-} from "../../../composer-draft-store";
+import type { ComposerImageAttachment, DraftId } from "../../../composer-draft-store";
 import type { QueuedComposerItem, QueuedComposerItemId } from "../../../composer-queue-store";
-import type {
-  TerminalContextDraft,
-  TerminalContextSelection,
-} from "../../../lib/terminal-context";
+import type { TerminalContextDraft, TerminalContextSelection } from "../../../lib/terminal-context";
 import type { PendingUserInputDraftAnswer } from "../../../pending-user-input";
 import type { PendingApproval, PendingUserInput } from "../../../session-logic";
 import type { SessionPhase, Thread } from "../../../types";

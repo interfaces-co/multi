@@ -174,10 +174,7 @@ function Section(props: {
   }, [onVisibleThreadRefsChange, section.id, visibleThreadRefs]);
 
   return (
-    <section
-      className="flex min-w-0 w-full select-none flex-col"
-      data-agent-sidebar-section=""
-    >
+    <section className="flex min-w-0 w-full select-none flex-col" data-agent-sidebar-section="">
       <SidebarSectionContextMenu
         hasThreads={section.threadRefs.length > 0}
         canRemoveProject={canRemoveProject}

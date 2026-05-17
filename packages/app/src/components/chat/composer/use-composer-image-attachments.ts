@@ -134,58 +134,61 @@ export function useComposerImageAttachments(input: {
     syncComposerDraftPersistedAttachments,
   ]);
 
-  const addComposerImages = useCallback((files: File[]) => {
-    if (!activeThreadId || files.length === 0) return;
-    if (pendingUserInputCount > 0) {
-      toastManager.add({
-        type: "error",
-        title: "Attach images after answering plan questions.",
-      });
-      return;
-    }
-    const nextImages: ComposerImageAttachment[] = [];
-    let nextImageCount = composerImagesRef.current.length;
-    let error: string | null = null;
-    for (const file of files) {
-      if (!file.type.startsWith("image/")) {
-        error = `Unsupported file type for '${file.name}'. Please attach image files only.`;
-        continue;
+  const addComposerImages = useCallback(
+    (files: File[]) => {
+      if (!activeThreadId || files.length === 0) return;
+      if (pendingUserInputCount > 0) {
+        toastManager.add({
+          type: "error",
+          title: "Attach images after answering plan questions.",
+        });
+        return;
       }
-      if (file.size > PROVIDER_SEND_TURN_MAX_IMAGE_BYTES) {
-        error = `'${file.name}' exceeds the ${IMAGE_SIZE_LIMIT_LABEL} attachment limit.`;
-        continue;
+      const nextImages: ComposerImageAttachment[] = [];
+      let nextImageCount = composerImagesRef.current.length;
+      let error: string | null = null;
+      for (const file of files) {
+        if (!file.type.startsWith("image/")) {
+          error = `Unsupported file type for '${file.name}'. Please attach image files only.`;
+          continue;
+        }
+        if (file.size > PROVIDER_SEND_TURN_MAX_IMAGE_BYTES) {
+          error = `'${file.name}' exceeds the ${IMAGE_SIZE_LIMIT_LABEL} attachment limit.`;
+          continue;
+        }
+        if (nextImageCount >= PROVIDER_SEND_TURN_MAX_ATTACHMENTS) {
+          error = `You can attach up to ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS} images per message.`;
+          break;
+        }
+        const previewUrl = URL.createObjectURL(file);
+        nextImages.push({
+          type: "image",
+          id: randomUUID(),
+          name: file.name || "image",
+          mimeType: file.type,
+          sizeBytes: file.size,
+          previewUrl,
+          file,
+        });
+        nextImageCount += 1;
       }
-      if (nextImageCount >= PROVIDER_SEND_TURN_MAX_ATTACHMENTS) {
-        error = `You can attach up to ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS} images per message.`;
-        break;
+      if (nextImages.length === 1 && nextImages[0]) {
+        addComposerDraftImage(composerDraftTarget, nextImages[0]);
+      } else if (nextImages.length > 1) {
+        addComposerDraftImages(composerDraftTarget, nextImages);
       }
-      const previewUrl = URL.createObjectURL(file);
-      nextImages.push({
-        type: "image",
-        id: randomUUID(),
-        name: file.name || "image",
-        mimeType: file.type,
-        sizeBytes: file.size,
-        previewUrl,
-        file,
-      });
-      nextImageCount += 1;
-    }
-    if (nextImages.length === 1 && nextImages[0]) {
-      addComposerDraftImage(composerDraftTarget, nextImages[0]);
-    } else if (nextImages.length > 1) {
-      addComposerDraftImages(composerDraftTarget, nextImages);
-    }
-    setThreadError(activeThreadId, error);
-  }, [
-    activeThreadId,
-    addComposerDraftImage,
-    addComposerDraftImages,
-    composerDraftTarget,
-    composerImagesRef,
-    pendingUserInputCount,
-    setThreadError,
-  ]);
+      setThreadError(activeThreadId, error);
+    },
+    [
+      activeThreadId,
+      addComposerDraftImage,
+      addComposerDraftImages,
+      composerDraftTarget,
+      composerImagesRef,
+      pendingUserInputCount,
+      setThreadError,
+    ],
+  );
 
   const removeComposerImage = useCallback(
     (imageId: string) => {
@@ -194,14 +197,17 @@ export function useComposerImageAttachments(input: {
     [composerDraftTarget, removeComposerDraftImage],
   );
 
-  const onComposerPaste = useCallback((event: ClipboardEvent<HTMLElement>) => {
-    const files = Array.from(event.clipboardData.files);
-    if (files.length === 0) return;
-    const imageFiles = files.filter((file) => file.type.startsWith("image/"));
-    if (imageFiles.length === 0) return;
-    event.preventDefault();
-    addComposerImages(imageFiles);
-  }, [addComposerImages]);
+  const onComposerPaste = useCallback(
+    (event: ClipboardEvent<HTMLElement>) => {
+      const files = Array.from(event.clipboardData.files);
+      if (files.length === 0) return;
+      const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+      if (imageFiles.length === 0) return;
+      event.preventDefault();
+      addComposerImages(imageFiles);
+    },
+    [addComposerImages],
+  );
 
   const onComposerDragEnter = useCallback((event: DragEvent<HTMLDivElement>) => {
     if (!event.dataTransfer.types.includes("Files")) return;
@@ -228,23 +234,29 @@ export function useComposerImageAttachments(input: {
     }
   }, []);
 
-  const onComposerDrop = useCallback((event: DragEvent<HTMLDivElement>) => {
-    if (!event.dataTransfer.types.includes("Files")) return;
-    event.preventDefault();
-    dragDepthRef.current = 0;
-    setIsDragOverComposer(false);
-    const files = Array.from(event.dataTransfer.files);
-    addComposerImages(files);
-    focusComposer();
-  }, [addComposerImages, focusComposer]);
+  const onComposerDrop = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      if (!event.dataTransfer.types.includes("Files")) return;
+      event.preventDefault();
+      dragDepthRef.current = 0;
+      setIsDragOverComposer(false);
+      const files = Array.from(event.dataTransfer.files);
+      addComposerImages(files);
+      focusComposer();
+    },
+    [addComposerImages, focusComposer],
+  );
 
-  const onComposerImageInputChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.currentTarget.files ?? []);
-    event.currentTarget.value = "";
-    if (files.length === 0) return;
-    addComposerImages(files);
-    focusComposer();
-  }, [addComposerImages, focusComposer]);
+  const onComposerImageInputChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(event.currentTarget.files ?? []);
+      event.currentTarget.value = "";
+      if (files.length === 0) return;
+      addComposerImages(files);
+      focusComposer();
+    },
+    [addComposerImages, focusComposer],
+  );
 
   return {
     composerImageInputRef,

@@ -408,9 +408,7 @@ export const ProjectFileTree = forwardRef<
         )}
 
         {loadError ? (
-          <div className="px-3 py-2 text-detail text-destructive/80">
-            Unable to load files.
-          </div>
+          <div className="px-3 py-2 text-detail text-destructive/80">Unable to load files.</div>
         ) : null}
       </div>
     </section>

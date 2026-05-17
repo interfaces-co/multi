@@ -397,61 +397,61 @@ const make = Effect.gen(function* () {
     return startedSession.threadId;
   });
 
-  const buildSendTurnRequestForThread = Effect.fn("buildSendTurnRequestForThread")(function* (
-    input: {
+  const buildSendTurnRequestForThread = Effect.fn("buildSendTurnRequestForThread")(
+    function* (input: {
       readonly threadId: ThreadId;
       readonly messageText: string;
       readonly attachments?: ReadonlyArray<ChatAttachment>;
       readonly modelSelection?: ModelSelection;
       readonly interactionMode?: "default" | "plan";
       readonly createdAt: string;
-    },
-  ) {
-    const thread = yield* resolveThread(input.threadId);
-    if (!thread) {
-      return yield* Effect.die(
-        new Error(`Thread '${input.threadId}' was not found in read model.`),
+    }) {
+      const thread = yield* resolveThread(input.threadId);
+      if (!thread) {
+        return yield* Effect.die(
+          new Error(`Thread '${input.threadId}' was not found in read model.`),
+        );
+      }
+      yield* ensureSessionForThread(
+        input.threadId,
+        input.createdAt,
+        input.modelSelection !== undefined ? { modelSelection: input.modelSelection } : {},
       );
-    }
-    yield* ensureSessionForThread(
-      input.threadId,
-      input.createdAt,
-      input.modelSelection !== undefined ? { modelSelection: input.modelSelection } : {},
-    );
-    if (input.modelSelection !== undefined) {
-      threadModelSelections.set(input.threadId, input.modelSelection);
-    }
-    const normalizedInput = toNonEmptyProviderInput(input.messageText);
-    const normalizedAttachments = input.attachments ?? [];
-    const activeSession = yield* providerService
-      .listSessions()
-      .pipe(
-        Effect.map((sessions) => sessions.find((session) => session.threadId === input.threadId)),
-      );
-    const sessionModelSwitch =
-      activeSession === undefined
-        ? "in-session"
-        : (yield* providerService.getCapabilities(activeSession.provider)).sessionModelSwitch;
-    const requestedModelSelection =
-      input.modelSelection ?? threadModelSelections.get(input.threadId) ?? thread.modelSelection;
-    const modelForTurn =
-      sessionModelSwitch === "unsupported"
-        ? activeSession?.model !== undefined
-          ? {
-              ...requestedModelSelection,
-              model: activeSession.model,
-            }
-          : requestedModelSelection
-        : input.modelSelection;
+      if (input.modelSelection !== undefined) {
+        threadModelSelections.set(input.threadId, input.modelSelection);
+      }
+      const normalizedInput = toNonEmptyProviderInput(input.messageText);
+      const normalizedAttachments = input.attachments ?? [];
+      const activeSession = yield* providerService
+        .listSessions()
+        .pipe(
+          Effect.map((sessions) => sessions.find((session) => session.threadId === input.threadId)),
+        );
+      const sessionModelSwitch =
+        activeSession === undefined
+          ? "in-session"
+          : (yield* providerService.getCapabilities(activeSession.provider)).sessionModelSwitch;
+      const requestedModelSelection =
+        input.modelSelection ?? threadModelSelections.get(input.threadId) ?? thread.modelSelection;
+      const modelForTurn =
+        sessionModelSwitch === "unsupported"
+          ? activeSession?.model !== undefined
+            ? {
+                ...requestedModelSelection,
+                model: activeSession.model,
+              }
+            : requestedModelSelection
+          : input.modelSelection;
 
-    return {
-      threadId: input.threadId,
-      ...(normalizedInput ? { input: normalizedInput } : {}),
-      ...(normalizedAttachments.length > 0 ? { attachments: normalizedAttachments } : {}),
-      ...(modelForTurn !== undefined ? { modelSelection: modelForTurn } : {}),
-      ...(input.interactionMode !== undefined ? { interactionMode: input.interactionMode } : {}),
-    };
-  });
+      return {
+        threadId: input.threadId,
+        ...(normalizedInput ? { input: normalizedInput } : {}),
+        ...(normalizedAttachments.length > 0 ? { attachments: normalizedAttachments } : {}),
+        ...(modelForTurn !== undefined ? { modelSelection: modelForTurn } : {}),
+        ...(input.interactionMode !== undefined ? { interactionMode: input.interactionMode } : {}),
+      };
+    },
+  );
 
   const maybeGenerateAndRenameWorktreeBranchForFirstTurn = Effect.fn(
     "maybeGenerateAndRenameWorktreeBranchForFirstTurn",

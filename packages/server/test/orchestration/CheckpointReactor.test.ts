@@ -35,7 +35,10 @@ import {
   type OrchestrationEngineShape,
 } from "../../src/orchestration/OrchestrationEngine.service.ts";
 import { CheckpointReactor } from "../../src/orchestration/CheckpointReactor.service.ts";
-import { ProviderService, type ProviderServiceShape } from "../../src/provider/ProviderService.service.ts";
+import {
+  ProviderService,
+  type ProviderServiceShape,
+} from "../../src/provider/ProviderService.service.ts";
 import { checkpointRefForThreadTurn } from "../../src/checkpointing/Utils.ts";
 import { ServerConfig } from "../../src/config.ts";
 import { ProjectEntriesLive } from "../../src/project/ProjectEntries.ts";

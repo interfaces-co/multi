@@ -70,7 +70,11 @@ export function useAttachmentPreviewHandoff(input: {
   }, []);
 
   useEffect(() => {
-    if (typeof Image === "undefined" || !input.serverMessages || input.serverMessages.length === 0) {
+    if (
+      typeof Image === "undefined" ||
+      !input.serverMessages ||
+      input.serverMessages.length === 0
+    ) {
       return;
     }
 

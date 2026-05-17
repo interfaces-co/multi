@@ -560,7 +560,16 @@ export function ProviderInstanceCard({
               ) : (
                 <span className={cn("size-2 shrink-0 rounded-full", statusStyle.dot)} />
               )}
-              <h3 className={textVariants({ size: "sm", tone: "primary", weight: "medium", truncate: true })}>{displayName}</h3>
+              <h3
+                className={textVariants({
+                  size: "sm",
+                  tone: "primary",
+                  weight: "medium",
+                  truncate: true,
+                })}
+              >
+                {displayName}
+              </h3>
               {String(instanceId) !== String(instance.driver) ? (
                 // Hide the id chip on a default slot whose id === the
                 // driver slug — it's redundant with the driver icon +

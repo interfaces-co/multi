@@ -117,9 +117,7 @@ export function GitPanel(props: {
       return (
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 px-4 py-8 text-center">
           <p className="text-body font-medium text-destructive/90">Git error</p>
-          <p className="max-w-[20rem] text-detail text-muted-foreground/80">
-            {git.view.message}
-          </p>
+          <p className="max-w-[20rem] text-detail text-muted-foreground/80">{git.view.message}</p>
         </div>
       );
     case "no-repo":
@@ -599,9 +597,7 @@ function LocalBranchBar(props: {
         </div>
       }
     >
-      <span className="no-drag shrink-0 text-body font-medium text-multi-fg-secondary">
-        Local
-      </span>
+      <span className="no-drag shrink-0 text-body font-medium text-multi-fg-secondary">Local</span>
       <button
         type="button"
         onClick={copyBranch}

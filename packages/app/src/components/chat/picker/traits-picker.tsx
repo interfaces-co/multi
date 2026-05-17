@@ -499,7 +499,10 @@ export const TraitsPicker = memo(function TraitsPicker({
         {isCodexStyle ? (
           <span className="flex min-w-0 w-full items-center gap-2 overflow-hidden">
             {triggerLabel}
-            <IconChevronRightMedium aria-hidden="true" className="size-3 shrink-0 rotate-90 opacity-60" />
+            <IconChevronRightMedium
+              aria-hidden="true"
+              className="size-3 shrink-0 rotate-90 opacity-60"
+            />
           </span>
         ) : (
           <>

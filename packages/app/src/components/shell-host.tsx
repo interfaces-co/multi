@@ -5,11 +5,7 @@ import {
   scopeThreadRef,
 } from "@multi/client-runtime";
 import { truncate } from "@multi/shared/String";
-import {
-  DEFAULT_PROJECTLESS_CWD,
-  type EditorId,
-  type EnvironmentId,
-} from "@multi/contracts";
+import { DEFAULT_PROJECTLESS_CWD, type EditorId, type EnvironmentId } from "@multi/contracts";
 import type { TimestampFormat } from "@multi/contracts/settings";
 import { useMutation } from "@tanstack/react-query";
 import { Outlet, useNavigate, useParams, useRouter } from "@tanstack/react-router";
@@ -53,10 +49,7 @@ import { useThreadUnreadStore } from "~/stores/thread-unread-store";
 import { writeStoredProjectCwd } from "~/lib/project-state";
 import { inferLoginShellCaption } from "~/lib/terminal-shell-caption";
 import { useThreadPlanCatalog } from "~/lib/thread-plan-catalog";
-import {
-  buildPlanImplementationPrompt,
-  buildPlanImplementationThreadTitle,
-} from "~/proposed-plan";
+import { buildPlanImplementationPrompt, buildPlanImplementationThreadTitle } from "~/proposed-plan";
 import {
   buildProjectChatSections,
   type SidebarDraftSummary,
@@ -428,8 +421,11 @@ function ChatShellHost(props: { children?: ReactNode }) {
     if (!routeTarget) {
       return null;
     }
-    return store.getComposerDraft(routeTarget.kind === "server" ? routeTarget.threadRef : routeTarget.draftId)
-      ?.interactionMode ?? null;
+    return (
+      store.getComposerDraft(
+        routeTarget.kind === "server" ? routeTarget.threadRef : routeTarget.draftId,
+      )?.interactionMode ?? null
+    );
   });
   const runtimeMode =
     activeThread?.runtimeMode ?? activeDraftThread?.runtimeMode ?? DEFAULT_RUNTIME_MODE;
@@ -596,7 +592,9 @@ function ChatShellHost(props: { children?: ReactNode }) {
             createdAt,
           });
           shouldDeleteCreatedThread = false;
-          await waitForStartedServerThread(scopeThreadRef(activeThread.environmentId, nextThreadId));
+          await waitForStartedServerThread(
+            scopeThreadRef(activeThread.environmentId, nextThreadId),
+          );
           shellPanelsActions.activatePlanTab();
           await navigate({
             to: "/$environmentId/$threadId",
@@ -712,7 +710,9 @@ function ChatShellHost(props: { children?: ReactNode }) {
     canImplementPlan,
     isImplementingPlan,
     onImplementPlan: showPlanImplementationActions ? implementPlanInCurrentThread : undefined,
-    onImplementPlanInNewThread: showPlanImplementationActions ? implementPlanInNewThread : undefined,
+    onImplementPlanInNewThread: showPlanImplementationActions
+      ? implementPlanInNewThread
+      : undefined,
   };
   const sections = useMemo(
     () =>
@@ -1133,14 +1133,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
     );
   }
 
-  return (
-    <AppShell
-      cwd={activeCwd}
-      left={chatLeft}
-      center={center}
-      right={null}
-    />
-  );
+  return <AppShell cwd={activeCwd} left={chatLeft} center={center} right={null} />;
 }
 
 function TerminalWorkbenchPanel(props: {

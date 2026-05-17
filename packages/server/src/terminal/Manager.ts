@@ -757,8 +757,7 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
     };
 
     const toTerminalHistoryError =
-      (operation: "read" | "truncate", threadId: string, terminalId: string) =>
-      (cause: unknown) =>
+      (operation: "read" | "truncate", threadId: string, terminalId: string) => (cause: unknown) =>
         new TerminalHistoryError({
           operation,
           threadId,
@@ -1016,8 +1015,7 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
         .pipe(Effect.catch(() => Effect.succeed([] as Array<string>)));
       yield* Effect.forEach(
         entries.filter(
-          (name) =>
-            name === `${toSafeThreadId(threadId)}.log` || name.startsWith(threadPrefix),
+          (name) => name === `${toSafeThreadId(threadId)}.log` || name.startsWith(threadPrefix),
         ),
         (name) =>
           fileSystem.remove(path.join(logsDir, name), { force: true }).pipe(

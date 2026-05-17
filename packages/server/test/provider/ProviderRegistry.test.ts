@@ -13,8 +13,14 @@ import { ChildProcessSpawner } from "effect/unstable/process";
 import { deepMerge } from "@multi/shared/Struct";
 import { createModelCapabilities } from "@multi/shared/model";
 
-import { checkCodexProviderStatus, type CodexAppServerProviderSnapshot } from "../../src/provider/CodexProvider.ts";
-import { checkClaudeProviderStatus, parseClaudeAuthStatusFromOutput } from "../../src/provider/ClaudeProvider.ts";
+import {
+  checkCodexProviderStatus,
+  type CodexAppServerProviderSnapshot,
+} from "../../src/provider/CodexProvider.ts";
+import {
+  checkClaudeProviderStatus,
+  parseClaudeAuthStatusFromOutput,
+} from "../../src/provider/ClaudeProvider.ts";
 import {
   haveProvidersChanged,
   mergeProviderSnapshot,

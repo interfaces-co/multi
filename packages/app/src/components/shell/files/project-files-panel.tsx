@@ -157,9 +157,7 @@ function SourcePreview(props: {
   if (fileQuery.isError || !fileQuery.data) {
     return (
       <div className="flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-1 px-4 py-8 text-center">
-        <div className="text-body font-medium text-destructive/85">
-          Unable to preview file
-        </div>
+        <div className="text-body font-medium text-destructive/85">Unable to preview file</div>
         <div className="max-w-72 text-detail text-muted-foreground/55">
           {fileQuery.error instanceof Error
             ? fileQuery.error.message

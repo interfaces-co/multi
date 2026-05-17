@@ -134,10 +134,7 @@ function isTrustedRendererUrl(rawUrl: string | undefined, trustedOrigin: string)
   }
 }
 
-function restrictRendererPermissions(
-  window: Electron.BrowserWindow,
-  trustedOrigin: string,
-): void {
+function restrictRendererPermissions(window: Electron.BrowserWindow, trustedOrigin: string): void {
   window.webContents.session.setPermissionRequestHandler(
     (webContents, permission, callback, details) => {
       callback(

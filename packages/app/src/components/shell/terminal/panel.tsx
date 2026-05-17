@@ -12,10 +12,7 @@ import {
 } from "~/components/shell/terminal/terminal-host-theme";
 import { subscribeTerminalHostDocument } from "~/components/shell/terminal/terminal-xterm-host-sync";
 import { readNativeEnvironmentApi } from "~/lib/native-runtime-api";
-import {
-  clampTerminalDimensions,
-  waitForTerminalLayoutFrame,
-} from "~/lib/terminal-dimensions";
+import { clampTerminalDimensions, waitForTerminalLayoutFrame } from "~/lib/terminal-dimensions";
 import { traceBrowserEvent } from "~/observability/browserDebug";
 
 function workbenchThreadId(cwd: string) {

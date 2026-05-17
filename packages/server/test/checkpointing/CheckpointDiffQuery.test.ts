@@ -10,7 +10,10 @@ import {
 } from "../../src/orchestration/ThreadProjection.service.ts";
 import { checkpointRefForThreadTurn } from "../../src/checkpointing/Utils.ts";
 import { CheckpointDiffQueryLive } from "../../src/checkpointing/CheckpointDiffQuery.ts";
-import { CheckpointStore, type CheckpointStoreShape } from "../../src/checkpointing/CheckpointStore.service.ts";
+import {
+  CheckpointStore,
+  type CheckpointStoreShape,
+} from "../../src/checkpointing/CheckpointStore.service.ts";
 import { CheckpointDiffQuery } from "../../src/checkpointing/CheckpointDiffQuery.service.ts";
 
 function makeThreadCheckpointContext(input: {

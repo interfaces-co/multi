@@ -27,12 +27,14 @@ export const LOCAL_ENVIRONMENT_ID = EnvironmentId.make("environment-local");
 export const REMOTE_ENVIRONMENT_ID = EnvironmentId.make("environment-remote");
 export const THREAD_REF = scopeThreadRef(LOCAL_ENVIRONMENT_ID, THREAD_ID);
 export const THREAD_KEY = scopedThreadKey(THREAD_REF);
-export const UUID_ROUTE_RE = /^\/draft\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+export const UUID_ROUTE_RE =
+  /^\/draft\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 export const PROJECT_KEY = derivePhysicalProjectKeyFromPath(LOCAL_ENVIRONMENT_ID, "/repo/project");
 export const PROJECT_DRAFT_KEY = PROJECT_KEY;
 export const NOW_ISO = "2026-03-04T12:00:00.000Z";
 export const BASE_TIME_MS = Date.parse(NOW_ISO);
-export const ATTACHMENT_SVG = "<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'></svg>";
+export const ATTACHMENT_SVG =
+  "<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'></svg>";
 export interface TestFixture {
   snapshot: OrchestrationReadModel;
   serverConfig: ServerConfig;
@@ -139,7 +141,11 @@ export function createUserMessage(options: {
     updatedAt: isoAt(options.offsetSeconds + 1),
   };
 }
-export function createAssistantMessage(options: { id: MessageId; text: string; offsetSeconds: number }) {
+export function createAssistantMessage(options: {
+  id: MessageId;
+  text: string;
+  offsetSeconds: number;
+}) {
   return {
     id: options.id,
     role: "assistant" as const,

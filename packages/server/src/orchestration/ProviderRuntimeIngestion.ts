@@ -984,8 +984,7 @@ const make = Effect.fn("make")(function* () {
       lifecycleActiveTurnId !== null &&
       eventTurnId !== undefined &&
       !sameId(lifecycleActiveTurnId, eventTurnId);
-    const missingTurnForActiveTurn =
-      lifecycleActiveTurnId !== null && eventTurnId === undefined;
+    const missingTurnForActiveTurn = lifecycleActiveTurnId !== null && eventTurnId === undefined;
 
     const shouldApplyThreadLifecycle = (() => {
       if (!STRICT_PROVIDER_LIFECYCLE_GUARD) {

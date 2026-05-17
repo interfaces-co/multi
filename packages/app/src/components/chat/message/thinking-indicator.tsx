@@ -34,10 +34,7 @@ const ThinkingIndicator = forwardRef<HTMLDivElement, ThinkingIndicatorProps>(
         )}
         {...props}
       >
-        <IconBrain
-          aria-hidden="true"
-          className="size-5 shrink-0 opacity-80"
-        />
+        <IconBrain aria-hidden="true" className="size-5 shrink-0 opacity-80" />
         <span className="inline-flex items-baseline gap-1 text-body font-medium" aria-hidden="true">
           <span className="inline-grid overflow-hidden">
             <span className="col-start-1 row-start-1 invisible">{longestWord}</span>

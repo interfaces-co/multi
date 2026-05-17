@@ -9,7 +9,10 @@ import { assertSome } from "@effect/vitest/utils";
 import { Effect, Layer, Option } from "effect";
 import * as SqlClient from "effect/unstable/sql/SqlClient";
 
-import { makeSqlitePersistenceLive, SqlitePersistenceMemory } from "../../src/persistence/Sqlite.ts";
+import {
+  makeSqlitePersistenceLive,
+  SqlitePersistenceMemory,
+} from "../../src/persistence/Sqlite.ts";
 import { ProviderSessionRuntimeRepositoryLive } from "../../src/persistence/ProviderSessionRuntime.ts";
 import { ProviderSessionRuntimeRepository } from "../../src/persistence/ProviderSessionRuntime.service.ts";
 import { ProviderSessionDirectory } from "../../src/provider/ProviderSessionDirectory.service.ts";

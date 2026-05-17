@@ -83,7 +83,10 @@ import {
   ServerLifecycleEvents,
   type ServerLifecycleEventsShape,
 } from "../../src/server-lifecycle-events.ts";
-import { ServerRuntimeStartup, type ServerRuntimeStartupShape } from "../../src/server-runtime-startup.ts";
+import {
+  ServerRuntimeStartup,
+  type ServerRuntimeStartupShape,
+} from "../../src/server-runtime-startup.ts";
 import { ServerSettingsService, type ServerSettingsShape } from "../../src/server-settings.ts";
 import { TerminalManager, type TerminalManagerShape } from "../../src/terminal/Manager.service.ts";
 import {

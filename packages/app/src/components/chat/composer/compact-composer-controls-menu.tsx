@@ -20,11 +20,7 @@ function parseInteractionMode(value: string | null | undefined): ProviderInterac
 }
 
 function parseRuntimeMode(value: string | null | undefined): RuntimeMode | null {
-  if (
-    value === "approval-required" ||
-    value === "auto-accept-edits" ||
-    value === "full-access"
-  ) {
+  if (value === "approval-required" || value === "auto-accept-edits" || value === "full-access") {
     return value;
   }
   return null;
@@ -45,9 +41,7 @@ export const CompactComposerControlsMenu = memo(function CompactComposerControls
   openPlanTab: () => void;
   onRuntimeModeChange: (mode: RuntimeMode) => void;
 }) {
-  const [optimisticInteractionMode, setOptimisticInteractionMode] = useState(
-    props.interactionMode,
-  );
+  const [optimisticInteractionMode, setOptimisticInteractionMode] = useState(props.interactionMode);
   const [optimisticRuntimeMode, setOptimisticRuntimeMode] = useState(props.runtimeMode);
 
   useEffect(() => {

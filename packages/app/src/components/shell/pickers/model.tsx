@@ -242,9 +242,7 @@ export const ModelPicker = forwardRef<
             </div>
             {confirmMax ? (
               <div className="flex flex-col gap-2 border-b border-multi-stroke-tertiary px-3 py-2.5">
-                <div className="text-body font-medium text-multi-fg-primary">
-                  Enable MAX Mode?
-                </div>
+                <div className="text-body font-medium text-multi-fg-primary">Enable MAX Mode?</div>
                 <div className="text-detail text-multi-fg-tertiary">
                   MAX uses the deepest reasoning level for this model.
                 </div>

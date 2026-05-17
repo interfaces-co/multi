@@ -1,5 +1,9 @@
 import { memo, useCallback, type KeyboardEvent, useState } from "react";
-import { IconChevronLeftMedium, IconChevronRightMedium, IconCrossMediumDefault } from "central-icons";
+import {
+  IconChevronLeftMedium,
+  IconChevronRightMedium,
+  IconCrossMediumDefault,
+} from "central-icons";
 import { Button } from "@multi/ui/button";
 import type { ExpandedImagePreview } from "./expanded-image-preview";
 

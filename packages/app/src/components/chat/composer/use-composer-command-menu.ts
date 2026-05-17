@@ -29,7 +29,8 @@ export function useComposerCommandMenu(input: {
   highlightedSearchKey: string | null;
 }) {
   const composerTriggerKind = input.composerTrigger?.kind ?? null;
-  const pathTriggerQuery = input.composerTrigger?.kind === "path" ? input.composerTrigger.query : "";
+  const pathTriggerQuery =
+    input.composerTrigger?.kind === "path" ? input.composerTrigger.query : "";
   const isPathTrigger = composerTriggerKind === "path";
   const [debouncedPathQuery, composerPathQueryDebouncer] = useDebouncedValue(
     pathTriggerQuery,
@@ -136,12 +137,7 @@ export function useComposerCommandMenu(input: {
       }));
     }
     return [];
-  }, [
-    input.composerTrigger,
-    input.selectedProvider,
-    input.selectedProviderStatus,
-    projectEntries,
-  ]);
+  }, [input.composerTrigger, input.selectedProvider, input.selectedProviderStatus, projectEntries]);
 
   const composerMenuOpen = input.composerTrigger
     ? input.composerTrigger.kind !== "slash-model"
@@ -157,12 +153,7 @@ export function useComposerCommandMenu(input: {
         currentSearchKey: composerMenuSearchKey,
         highlightedSearchKey: input.highlightedSearchKey,
       }),
-    [
-      input.highlightedItemId,
-      input.highlightedSearchKey,
-      composerMenuItems,
-      composerMenuSearchKey,
-    ],
+    [input.highlightedItemId, input.highlightedSearchKey, composerMenuItems, composerMenuSearchKey],
   );
   const activeComposerMenuItem = useMemo(
     () => composerMenuItems.find((item) => item.id === activeComposerMenuItemId) ?? null,

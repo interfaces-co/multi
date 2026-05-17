@@ -118,8 +118,9 @@ async function openProjectSectionInEditor(): Promise<void> {
   );
   const openItem = await waitForElement(
     () =>
-      Array.from(document.querySelectorAll<HTMLElement>('[data-slot="context-menu-popup"] *'))
-        .find((item) => item.textContent?.trim() === "Open in Editor Window") ?? null,
+      Array.from(document.querySelectorAll<HTMLElement>('[data-slot="context-menu-popup"] *')).find(
+        (item) => item.textContent?.trim() === "Open in Editor Window",
+      ) ?? null,
     "Unable to find Open in Editor Window menu item.",
   );
   openItem.click();
@@ -2426,7 +2427,9 @@ describe("ChatView timeline estimator parity (full app)", () => {
     try {
       await waitForServerConfigToApply();
       const initialPath = mounted.router.state.location.pathname;
-      const initialDraftKeys = Object.keys(useComposerDraftStore.getState().draftThreadsByThreadKey);
+      const initialDraftKeys = Object.keys(
+        useComposerDraftStore.getState().draftThreadsByThreadKey,
+      );
       expect(initialPath).toMatch(UUID_ROUTE_RE);
       expect(initialDraftKeys).toHaveLength(1);
 

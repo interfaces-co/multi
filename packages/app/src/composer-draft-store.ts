@@ -608,7 +608,8 @@ function normalizeModelSelection(value: unknown): NormalizedModelSelection | nul
   if (typeof rawModel !== "string") {
     return null;
   }
-  const driverKindHint = normalizeProviderDriverKind(instanceId) ?? ProviderDriverKind.make("codex");
+  const driverKindHint =
+    normalizeProviderDriverKind(instanceId) ?? ProviderDriverKind.make("codex");
   const model = normalizeModelSlug(rawModel, driverKindHint);
   if (!model) {
     return null;
@@ -1195,13 +1196,12 @@ function normalizePersistedDraftsByThreadKey(
     const normalizedActiveProvider =
       activeProvider && modelSelectionByProvider[activeProvider] ? activeProvider : null;
     const compactedModelSelectionByProvider = compactModelSelectionByProvider(
-      modelSelectionByProvider as Partial<
-        Record<ProviderInstanceId, ModelSelection>
-      >,
+      modelSelectionByProvider as Partial<Record<ProviderInstanceId, ModelSelection>>,
     );
 
     const hasModelData =
-      Object.keys(compactedModelSelectionByProvider).length > 0 || normalizedActiveProvider !== null;
+      Object.keys(compactedModelSelectionByProvider).length > 0 ||
+      normalizedActiveProvider !== null;
     if (
       promptCandidate.length === 0 &&
       attachments.length === 0 &&

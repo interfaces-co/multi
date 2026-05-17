@@ -22,7 +22,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import { OrchestrationEventStoreLive } from "../../src/persistence/OrchestrationEventStore.ts";
 import { OrchestrationCommandReceiptRepositoryLive } from "../../src/persistence/OrchestrationCommandReceipts.ts";
 import { SqlitePersistenceMemory } from "../../src/persistence/Sqlite.ts";
-import { ProviderService, type ProviderServiceShape } from "../../src/provider/ProviderService.service.ts";
+import {
+  ProviderService,
+  type ProviderServiceShape,
+} from "../../src/provider/ProviderService.service.ts";
 import { RepositoryIdentityResolverLive } from "../../src/project/RepositoryIdentityResolver.ts";
 import { OrchestrationEngineLive } from "../../src/orchestration/OrchestrationEngine.ts";
 import { OrchestrationProjectionPipelineLive } from "../../src/orchestration/ProjectionPipeline.ts";

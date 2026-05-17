@@ -8,7 +8,10 @@ import { it } from "@effect/vitest";
 import { Effect, Stream } from "effect";
 import { describe, expect } from "vitest";
 
-import { AcpSessionRuntime, type AcpSessionRequestLogEvent } from "../../../src/provider/acp/AcpSessionRuntime.ts";
+import {
+  AcpSessionRuntime,
+  type AcpSessionRequestLogEvent,
+} from "../../../src/provider/acp/AcpSessionRuntime.ts";
 import type * as EffectAcpProtocol from "effect-acp/protocol";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

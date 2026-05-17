@@ -61,10 +61,7 @@ export const ComposerFooterShell = memo(function ComposerFooterShell(props: {
       )}
     >
       <PromptInputToolbarLeft className="-m-1 flex min-w-0 flex-1 items-center gap-1 overflow-x-auto p-1 scrollbar-none [&::-webkit-scrollbar]:hidden">
-        <span
-          className="inline-flex min-w-0 overflow-hidden"
-          data-compact-visible=""
-        >
+        <span className="inline-flex min-w-0 overflow-hidden" data-compact-visible="">
           {props.providerModelPicker}
         </span>
 
@@ -73,10 +70,7 @@ export const ComposerFooterShell = memo(function ComposerFooterShell(props: {
             {props.compactControlsMenu}
           </span>
         ) : (
-          <span
-            className="inline-flex min-w-0 shrink-0 items-center gap-1"
-            data-compact-visible=""
-          >
+          <span className="inline-flex min-w-0 shrink-0 items-center gap-1" data-compact-visible="">
             {props.providerTraitsPicker ? (
               <>
                 <Separator orientation="vertical" className="mx-0.5 hidden h-4 sm:block" />

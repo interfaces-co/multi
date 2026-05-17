@@ -84,11 +84,7 @@ export const MessageMetaRow = memo(function MessageMetaRow(props: {
 });
 
 export const MessageMeta = memo(function MessageMeta(props: { children: ReactNode }) {
-  return (
-    <p className="m-0 select-none text-caption text-multi-fg-tertiary/55">
-      {props.children}
-    </p>
-  );
+  return <p className="m-0 select-none text-caption text-multi-fg-tertiary/55">{props.children}</p>;
 });
 
 export const MessageActions = memo(function MessageActions(props: { children: ReactNode }) {

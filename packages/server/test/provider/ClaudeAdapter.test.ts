@@ -26,7 +26,10 @@ import { ServerConfig } from "../../src/config.ts";
 import { ServerSettingsService } from "../../src/server-settings.ts";
 import { ProviderAdapterValidationError } from "../../src/provider/Errors.ts";
 import { ClaudeAdapter } from "../../src/provider/ClaudeAdapter.service.ts";
-import { makeClaudeAdapterLive, type ClaudeAdapterLiveOptions } from "../../src/provider/ClaudeAdapter.ts";
+import {
+  makeClaudeAdapterLive,
+  type ClaudeAdapterLiveOptions,
+} from "../../src/provider/ClaudeAdapter.ts";
 
 class FakeClaudeQuery implements AsyncIterable<SDKMessage> {
   private readonly queue: Array<SDKMessage> = [];
@@ -1468,10 +1471,7 @@ describe("ClaudeAdapterLive", () => {
       const progressEvent = runtimeEvents.find((event) => event.type === "task.progress");
       assert.equal(progressEvent?.type, "task.progress");
       if (progressEvent?.type === "task.progress") {
-        assert.equal(
-          progressEvent.payload.summary,
-          "Code reviewer checked the schema edge cases.",
-        );
+        assert.equal(progressEvent.payload.summary, "Code reviewer checked the schema edge cases.");
         assert.equal(progressEvent.payload.description, "Running background teammate");
       }
     }).pipe(

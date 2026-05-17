@@ -47,10 +47,7 @@ import {
 } from "../types";
 import { readEnvironmentApi } from "~/environment-api";
 import { readLocalApi } from "~/local-api";
-import {
-  clampTerminalDimensions,
-  waitForTerminalLayoutFrame,
-} from "~/lib/terminal-dimensions";
+import { clampTerminalDimensions, waitForTerminalLayoutFrame } from "~/lib/terminal-dimensions";
 import {
   readTerminalHostFontFamily,
   readTerminalHostFontSize,

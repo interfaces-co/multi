@@ -3,7 +3,10 @@ import { assert, it } from "@effect/vitest";
 import { assertTrue } from "@effect/vitest/utils";
 import { Effect, Option } from "effect";
 
-import { ServerLifecycleEvents, ServerLifecycleEventsLive } from "../../src/server-lifecycle-events.ts";
+import {
+  ServerLifecycleEvents,
+  ServerLifecycleEventsLive,
+} from "../../src/server-lifecycle-events.ts";
 
 it.effect(
   "publishes lifecycle events without subscribers and snapshots the latest welcome/ready",

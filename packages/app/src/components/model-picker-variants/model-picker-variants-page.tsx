@@ -899,9 +899,7 @@ function MenuFlatSearchableModelPicker() {
                 );
               })}
               {filtered.length === 0 && (
-                <div className="px-3 py-2 text-body text-multi-fg-tertiary">
-                  No models match
-                </div>
+                <div className="px-3 py-2 text-body text-multi-fg-tertiary">No models match</div>
               )}
             </div>
           </ScrollArea>
@@ -1165,9 +1163,7 @@ function CursorStyleModelPicker() {
                   );
                 })}
                 {filtered.length === 0 && (
-                  <div className="px-3 py-2 text-body text-multi-fg-tertiary">
-                    No models match
-                  </div>
+                  <div className="px-3 py-2 text-body text-multi-fg-tertiary">No models match</div>
                 )}
               </div>
 

@@ -136,7 +136,9 @@ function buildProviderInstanceUpdatePatch(input: {
   readonly settings: Pick<UnifiedSettings, "providerInstances">;
   readonly instanceId: ProviderInstanceId;
   readonly instance: ProviderInstanceConfig;
-  readonly textGenerationModelSelection?: UnifiedSettings["textGenerationModelSelection"] | undefined;
+  readonly textGenerationModelSelection?:
+    | UnifiedSettings["textGenerationModelSelection"]
+    | undefined;
 }): Partial<UnifiedSettings> {
   return {
     providerInstances: {

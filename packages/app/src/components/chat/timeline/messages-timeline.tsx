@@ -733,9 +733,7 @@ const HumanTimelineRow = memo(function HumanTimelineRow({
         isEditing={isEditingUserMessage}
         editDisabled={editUserMessagesDisabled}
         isServerThread={ctx.isServerThread}
-        editComposer={
-          isEditingUserMessage ? (ctx.renderEditComposer?.(row.message) ?? null) : null
-        }
+        editComposer={isEditingUserMessage ? (ctx.renderEditComposer?.(row.message) ?? null) : null}
         onImageExpand={ctx.onImageExpand}
         onBeginEditUserMessage={ctx.onBeginEditUserMessage}
       />

@@ -27,7 +27,10 @@ import {
 import { OrchestrationEventStoreLive } from "../../src/persistence/OrchestrationEventStore.ts";
 import { OrchestrationCommandReceiptRepositoryLive } from "../../src/persistence/OrchestrationCommandReceipts.ts";
 import { SqlitePersistenceMemory } from "../../src/persistence/Sqlite.ts";
-import { ProviderService, type ProviderServiceShape } from "../../src/provider/ProviderService.service.ts";
+import {
+  ProviderService,
+  type ProviderServiceShape,
+} from "../../src/provider/ProviderService.service.ts";
 import { GitCore, type GitCoreShape } from "../../src/git/GitCore.service.ts";
 import {
   GitStatusBroadcaster,

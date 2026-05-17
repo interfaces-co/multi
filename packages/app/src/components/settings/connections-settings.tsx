@@ -341,7 +341,9 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
               tooltipText={`Link created at ${formatAccessTimestamp(pairingLink.createdAt)}`}
               dotClassName="bg-amber-400"
             />
-            <h3 className={textVariants({ size: "sm", tone: "primary", weight: "medium" })}>{primaryLabel}</h3>
+            <h3 className={textVariants({ size: "sm", tone: "primary", weight: "medium" })}>
+              {primaryLabel}
+            </h3>
             <Popover>
               {shareablePairingUrl ? (
                 <>
@@ -493,7 +495,9 @@ const ConnectedClientListRow = memo(function ConnectedClientListRow({
               dotClassName={isLive ? "bg-success" : "bg-muted-foreground/30"}
               pingClassName={isLive ? "bg-success/60 duration-2000" : null}
             />
-            <h3 className={textVariants({ size: "sm", tone: "primary", weight: "medium" })}>{primaryLabel}</h3>
+            <h3 className={textVariants({ size: "sm", tone: "primary", weight: "medium" })}>
+              {primaryLabel}
+            </h3>
             {clientSession.current ? (
               <span className="text-caption text-muted-foreground/80 rounded-md border border-border/50 bg-muted/50 px-1 py-0.5">
                 This device
@@ -730,7 +734,9 @@ function SavedBackendListRow({
                 connectionState === "connecting" ? "bg-warning/60 duration-2000" : null
               }
             />
-            <h3 className={textVariants({ size: "sm", tone: "primary", weight: "medium" })}>{record.label}</h3>
+            <h3 className={textVariants({ size: "sm", tone: "primary", weight: "medium" })}>
+              {record.label}
+            </h3>
           </div>
           {metadataBits.length > 0 ? (
             <p className="text-xs text-muted-foreground">{metadataBits.join(" · ")}</p>

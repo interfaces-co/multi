@@ -2,7 +2,10 @@ import * as NodeServices from "@effect/platform-node/NodeServices";
 import { it, describe, expect } from "@effect/vitest";
 import { Effect, FileSystem, Layer, Path } from "effect";
 
-import { coerceAccessibleProjectCwd, pickAccessibleDirectory } from "../../src/project/AccessibleProjectCwd.ts";
+import {
+  coerceAccessibleProjectCwd,
+  pickAccessibleDirectory,
+} from "../../src/project/AccessibleProjectCwd.ts";
 
 const TestLayer = Layer.empty.pipe(Layer.provideMerge(NodeServices.layer));
 

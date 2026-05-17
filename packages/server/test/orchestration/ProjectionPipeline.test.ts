@@ -15,7 +15,10 @@ import * as SqlClient from "effect/unstable/sql/SqlClient";
 
 import { OrchestrationCommandReceiptRepositoryLive } from "../../src/persistence/OrchestrationCommandReceipts.ts";
 import { OrchestrationEventStoreLive } from "../../src/persistence/OrchestrationEventStore.ts";
-import { makeSqlitePersistenceLive, SqlitePersistenceMemory } from "../../src/persistence/Sqlite.ts";
+import {
+  makeSqlitePersistenceLive,
+  SqlitePersistenceMemory,
+} from "../../src/persistence/Sqlite.ts";
 import { OrchestrationEventStore } from "../../src/persistence/OrchestrationEventStore.service.ts";
 import { RepositoryIdentityResolverLive } from "../../src/project/RepositoryIdentityResolver.ts";
 import { OrchestrationEngineLive } from "../../src/orchestration/OrchestrationEngine.ts";

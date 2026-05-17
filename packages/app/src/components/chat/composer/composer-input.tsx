@@ -47,10 +47,7 @@ import { useComposerFooterLayout } from "./use-composer-footer-layout";
 import { useComposerImageAttachments } from "./use-composer-image-attachments";
 import { ComposerFooterShell } from "./composer-footer-shell";
 import { ComposerImageAttachmentStrip } from "./composer-image-attachment-strip";
-import {
-  type ComposerInputHandle,
-  type ComposerInputProps,
-} from "./composer-input-contract";
+import { type ComposerInputHandle, type ComposerInputProps } from "./composer-input-contract";
 import { QueuedComposerItemsPanel } from "./queued-composer-items-panel";
 
 export type { ComposerInputHandle, ComposerInputProps } from "./composer-input-contract";
@@ -555,11 +552,7 @@ export const ComposerInput = memo(
       setComposerHighlightedSearchKey((existing) =>
         existing === composerMenuSearchKey ? existing : composerMenuSearchKey,
       );
-    }, [
-      activeComposerMenuItemId,
-      composerMenuOpen,
-      composerMenuSearchKey,
-    ]);
+    }, [activeComposerMenuItemId, composerMenuOpen, composerMenuSearchKey]);
 
     const lastSyncedPendingInputRef = useRef<{
       requestId: string | null;
@@ -1116,8 +1109,7 @@ export const ComposerInput = memo(
         popoverPlacement={modelPickerPlacement}
         {...(composerProviderState.ultrathinkActive
           ? {
-              activeProviderIconClassName:
-                "animate-[ultrathink-chroma-shift_10s_linear_infinite]",
+              activeProviderIconClassName: "animate-[ultrathink-chroma-shift_10s_linear_infinite]",
             }
           : {})}
         onOpenChange={(open) => {
@@ -1363,7 +1355,9 @@ export const ComposerInput = memo(
                   hasSendableContent:
                     composerSendState.hasSendableContent || canSubmitQueuedComposerItem,
                   sendWhileStreamingBehavior: settings.agentWindowSendWhileStreamingBehavior,
-                  submitActionLabel: isEditingQueuedComposerItem ? "Save queued message" : undefined,
+                  submitActionLabel: isEditingQueuedComposerItem
+                    ? "Save queued message"
+                    : undefined,
                 }}
                 onToggleInteractionMode={toggleInteractionMode}
                 onRuntimeModeChange={handleRuntimeModeChange}

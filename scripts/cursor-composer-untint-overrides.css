@@ -14,8 +14,10 @@ body.cursor-dark[data-cursor-glass-mode="true"] [data-component="root"] {
   --glass-chat-surface-background: var(--vscode-editor-background) !important;
 }
 
-body.cursor-light.cursor-glass-os-vibrancy-on[data-cursor-glass-mode="true"] [data-component="root"],
-body.cursor-dark.cursor-glass-os-vibrancy-on[data-cursor-glass-mode="true"] [data-component="root"] {
+body.cursor-light.cursor-glass-os-vibrancy-on[data-cursor-glass-mode="true"]
+  [data-component="root"],
+body.cursor-dark.cursor-glass-os-vibrancy-on[data-cursor-glass-mode="true"]
+  [data-component="root"] {
   --glass-chat-surface-background: var(--vscode-editor-background) !important;
 }
 
@@ -39,9 +41,7 @@ body[data-cursor-glass-mode="true"] .composer-human-message.standalone-glass {
   background-color: var(--vscode-editor-background) !important;
 }
 
-body[data-cursor-glass-mode="true"]
-  .composer-human-message-container
-  .ui-prompt-input__container {
+body[data-cursor-glass-mode="true"] .composer-human-message-container .ui-prompt-input__container {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
   background-color: var(--vscode-editor-background) !important;

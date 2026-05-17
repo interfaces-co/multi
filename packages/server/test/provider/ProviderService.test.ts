@@ -39,7 +39,10 @@ import { ProviderSessionDirectoryLive } from "../../src/provider/ProviderSession
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { ProviderSessionRuntimeRepositoryLive } from "../../src/persistence/ProviderSessionRuntime.ts";
 import { ProviderSessionRuntimeRepository } from "../../src/persistence/ProviderSessionRuntime.service.ts";
-import { makeSqlitePersistenceLive, SqlitePersistenceMemory } from "../../src/persistence/Sqlite.ts";
+import {
+  makeSqlitePersistenceLive,
+  SqlitePersistenceMemory,
+} from "../../src/persistence/Sqlite.ts";
 import { ServerSettingsService } from "../../src/server-settings.ts";
 import { AnalyticsService } from "../../src/telemetry/AnalyticsService.service.ts";
 

@@ -71,10 +71,7 @@ export function extractAskQuestions(
   }));
 }
 
-function mapCursorAnswerValue(
-  question: typeof CursorAskQuestion.Type,
-  value: unknown,
-): unknown {
+function mapCursorAnswerValue(question: typeof CursorAskQuestion.Type, value: unknown): unknown {
   if (typeof value !== "string") {
     return value;
   }

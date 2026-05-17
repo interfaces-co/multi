@@ -342,10 +342,11 @@ Multi already has this behavior locally through `planSidebarDismissedForTurnRef`
 Use a key like:
 
 ```ts
-const planKey =
-  activeProposedPlan ? `proposed:${threadId}:${activeProposedPlan.id}` :
-  activePlan ? `steps:${threadId}:${activePlan.turnId ?? activePlan.createdAt}` :
-  null;
+const planKey = activeProposedPlan
+  ? `proposed:${threadId}:${activeProposedPlan.id}`
+  : activePlan
+    ? `steps:${threadId}:${activePlan.turnId ?? activePlan.createdAt}`
+    : null;
 ```
 
 When the user switches from `plan` to any other tab, mark the current `planKey` as dismissed for this session.

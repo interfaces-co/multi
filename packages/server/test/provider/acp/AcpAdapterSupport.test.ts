@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import * as EffectAcpErrors from "effect-acp/errors";
 
-import { acpPermissionOutcome, mapAcpToAdapterError } from "../../../src/provider/acp/AcpAdapterSupport.ts";
+import {
+  acpPermissionOutcome,
+  mapAcpToAdapterError,
+} from "../../../src/provider/acp/AcpAdapterSupport.ts";
 
 describe("AcpAdapterSupport", () => {
   it("maps ACP approval decisions to permission outcomes", () => {

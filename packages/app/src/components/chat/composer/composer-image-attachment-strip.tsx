@@ -37,11 +37,7 @@ export const ComposerImageAttachmentStrip = memo(function ComposerImageAttachmen
                 props.onExpandImage(preview);
               }}
             >
-              <img
-                src={image.previewUrl}
-                alt={image.name}
-                className="h-full w-full object-cover"
-              />
+              <img src={image.previewUrl} alt={image.name} className="h-full w-full object-cover" />
             </button>
           ) : (
             <div className="flex h-full w-full items-center justify-center px-1 text-center text-caption text-muted-foreground/70">

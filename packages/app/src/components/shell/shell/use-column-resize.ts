@@ -86,29 +86,32 @@ export function useColumnResize<TElement extends HTMLElement>(input: {
     };
   }, []);
 
-  const stopResize = useCallback((pointerId: number) => {
-    const drag = stateRef.current;
-    if (!drag || drag.pointerId !== pointerId) {
-      return;
-    }
+  const stopResize = useCallback(
+    (pointerId: number) => {
+      const drag = stateRef.current;
+      if (!drag || drag.pointerId !== pointerId) {
+        return;
+      }
 
-    const nextWidth = liveWidthRef.current;
-    if (applyWidthFrameRef.current !== null) {
-      window.cancelAnimationFrame(applyWidthFrameRef.current);
-      applyWidthFrameRef.current = null;
-    }
-    pendingWidthRef.current = null;
-    applyWidth(nextWidth);
-    if (drag.sash.hasPointerCapture(pointerId)) {
-      drag.sash.releasePointerCapture(pointerId);
-    }
+      const nextWidth = liveWidthRef.current;
+      if (applyWidthFrameRef.current !== null) {
+        window.cancelAnimationFrame(applyWidthFrameRef.current);
+        applyWidthFrameRef.current = null;
+      }
+      pendingWidthRef.current = null;
+      applyWidth(nextWidth);
+      if (drag.sash.hasPointerCapture(pointerId)) {
+        drag.sash.releasePointerCapture(pointerId);
+      }
 
-    stateRef.current = null;
-    setDragging(false);
-    document.body.style.removeProperty("cursor");
-    document.body.style.removeProperty("user-select");
-    onCommitRef.current(nextWidth);
-  }, [applyWidth]);
+      stateRef.current = null;
+      setDragging(false);
+      document.body.style.removeProperty("cursor");
+      document.body.style.removeProperty("user-select");
+      onCommitRef.current(nextWidth);
+    },
+    [applyWidth],
+  );
 
   const onPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {

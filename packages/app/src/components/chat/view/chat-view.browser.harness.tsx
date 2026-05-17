@@ -1,4 +1,11 @@
-import { ORCHESTRATION_WS_METHODS, WS_METHODS, type MessageId, type OrchestrationReadModel, type ThreadId, type TurnId } from "@multi/contracts";
+import {
+  ORCHESTRATION_WS_METHODS,
+  WS_METHODS,
+  type MessageId,
+  type OrchestrationReadModel,
+  type ThreadId,
+  type TurnId,
+} from "@multi/contracts";
 import { RouterProvider, createMemoryHistory } from "@tanstack/react-router";
 import { HttpResponse, http, ws } from "msw";
 import { setupWorker } from "msw/browser";
@@ -8,7 +15,10 @@ import { render } from "vitest-browser-react";
 import { useCommandPaletteStore } from "../../../stores/ui/command-palette-store";
 import { useComposerDraftStore } from "../../../composer-draft-store";
 import { __resetEnvironmentApiOverridesForTests } from "../../../environment-api";
-import { resetSavedEnvironmentRegistryStoreForTests, resetSavedEnvironmentRuntimeStoreForTests } from "../../../environments/runtime";
+import {
+  resetSavedEnvironmentRegistryStoreForTests,
+  resetSavedEnvironmentRuntimeStoreForTests,
+} from "../../../environments/runtime";
 import { isMacPlatform } from "../../../lib/utils";
 import { shortcutForCommand, shortcutLabelForCommand } from "../../../keybindings";
 import { __resetLocalApiForTests } from "../../../local-api";
@@ -19,7 +29,10 @@ import { selectBootstrapCompleteForActiveEnvironment, useStore } from "../../../
 import { useTerminalStateStore } from "../../../terminal-state-store";
 import { useUiStateStore } from "../../../stores/ui-state-store";
 import { createAuthenticatedSessionHandlers } from "../../../../test/authHttpHandlers";
-import { BrowserWsRpcHarness, type NormalizedWsRpcRequestBody } from "../../../../test/wsRpcHarness";
+import {
+  BrowserWsRpcHarness,
+  type NormalizedWsRpcRequestBody,
+} from "../../../../test/wsRpcHarness";
 import {
   ATTACHMENT_SVG,
   DEFAULT_VIEWPORT,
@@ -112,7 +125,9 @@ async function waitForAppBootstrap(): Promise<void> {
     { timeout: 8_000, interval: 16 },
   );
 }
-export async function materializePromotedDraftThreadViaDomainEvent(threadId: ThreadId): Promise<void> {
+export async function materializePromotedDraftThreadViaDomainEvent(
+  threadId: ThreadId,
+): Promise<void> {
   await waitForWsClient();
   fixture.snapshot = addThreadToSnapshot(fixture.snapshot, threadId);
   fixture.snapshot = updateThreadSessionInSnapshot(fixture.snapshot, threadId, null);
@@ -418,9 +433,9 @@ export async function waitForComposerText(
       expect(useComposerDraftStore.getState().draftsByThreadKey[THREAD_KEY]?.prompt ?? "").toBe(
         expectedText,
       );
-      expect(document.querySelector<HTMLElement>('[contenteditable="true"]')?.textContent ?? "").toBe(
-        expectedRenderedText,
-      );
+      expect(
+        document.querySelector<HTMLElement>('[contenteditable="true"]')?.textContent ?? "",
+      ).toBe(expectedRenderedText);
     },
     { timeout: 8_000, interval: 16 },
   );

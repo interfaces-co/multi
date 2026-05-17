@@ -59,9 +59,7 @@ export type BaseMessagesTimelineRow =
   | ProposedPlanTimelineRow
   | WorkingTimelineRow;
 
-export type MessagesTimelineRow =
-  | BaseMessagesTimelineRow
-  | WorkedHeaderTimelineRow;
+export type MessagesTimelineRow = BaseMessagesTimelineRow | WorkedHeaderTimelineRow;
 
 export interface StableMessagesTimelineRowsState {
   byId: Map<string, MessagesTimelineRow>;
@@ -167,9 +165,7 @@ export function deriveMessagesTimelineRows(input: {
   return addWorkedHeaderRows(baseRows);
 }
 
-function addWorkedHeaderRows(
-  rows: ReadonlyArray<BaseMessagesTimelineRow>,
-): MessagesTimelineRow[] {
+function addWorkedHeaderRows(rows: ReadonlyArray<BaseMessagesTimelineRow>): MessagesTimelineRow[] {
   const result: MessagesTimelineRow[] = [];
 
   for (let index = 0; index < rows.length; ) {
