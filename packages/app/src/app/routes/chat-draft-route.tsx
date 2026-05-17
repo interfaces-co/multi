@@ -82,7 +82,6 @@ export function DraftChatThreadRouteView() {
   }
 
   if (!draftSession) {
-    traceBrowserEvent("route.draft.empty.no-draft-session", { draftId }, "warn");
     return null;
   }
 

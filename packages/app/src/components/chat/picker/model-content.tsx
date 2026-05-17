@@ -129,10 +129,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
   }, [focusSearchInput, props.openSearchSeed, props.popoverOpen]);
 
   // Create a Set for efficient lookup. Favorites are keyed by
-  // `${instanceId}:${slug}`; the storage schema widened from ProviderDriverKind
-  // to ProviderInstanceId so pre-migration favorites keyed by driver slugs
-  // (e.g. `"codex:gpt-5"`) still resolve — the default instance id equals
-  // the driver slug.
+  // `${instanceId}:${slug}`; built-in instance ids match their driver slugs.
   const favoritesSet = useMemo(() => {
     return new Set(favorites.map((fav) => providerModelKey(fav.provider, fav.model)));
   }, [favorites]);

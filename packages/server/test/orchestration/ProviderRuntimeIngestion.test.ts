@@ -48,7 +48,7 @@ const asMessageId = (value: string): MessageId => MessageId.make(value);
 const asThreadId = (value: string): ThreadId => ThreadId.make(value);
 const asTurnId = (value: string): TurnId => TurnId.make(value);
 
-type LegacyProviderRuntimeEvent = {
+type FixtureProviderRuntimeEvent = {
   readonly type: string;
   readonly eventId: EventId;
   readonly provider: ProviderRuntimeEvent["provider"];
@@ -62,16 +62,16 @@ type LegacyProviderRuntimeEvent = {
   readonly [key: string]: unknown;
 };
 
-type LegacyTurnCompletedEvent = LegacyProviderRuntimeEvent & {
+type FixtureTurnCompletedEvent = FixtureProviderRuntimeEvent & {
   readonly type: "turn.completed";
   readonly payload?: undefined;
   readonly status: "completed" | "failed" | "interrupted" | "cancelled";
   readonly errorMessage?: string | undefined;
 };
 
-function isLegacyTurnCompletedEvent(
-  event: LegacyProviderRuntimeEvent,
-): event is LegacyTurnCompletedEvent {
+function isFixtureTurnCompletedEvent(
+  event: FixtureProviderRuntimeEvent,
+): event is FixtureTurnCompletedEvent {
   return (
     event.type === "turn.completed" &&
     event.payload === undefined &&
@@ -108,8 +108,8 @@ function createProviderServiceHarness() {
     runtimeSessions.push(session);
   };
 
-  const normalizeLegacyEvent = (event: LegacyProviderRuntimeEvent): ProviderRuntimeEvent => {
-    if (isLegacyTurnCompletedEvent(event)) {
+  const normalizeFixtureEvent = (event: FixtureProviderRuntimeEvent): ProviderRuntimeEvent => {
+    if (isFixtureTurnCompletedEvent(event)) {
       const normalized: Extract<ProviderRuntimeEvent, { type: "turn.completed" }> = {
         ...(event as Omit<Extract<ProviderRuntimeEvent, { type: "turn.completed" }>, "payload">),
         payload: {
@@ -123,8 +123,8 @@ function createProviderServiceHarness() {
     return event as ProviderRuntimeEvent;
   };
 
-  const emit = (event: LegacyProviderRuntimeEvent): void => {
-    Effect.runSync(PubSub.publish(runtimeEventPubSub, normalizeLegacyEvent(event)));
+  const emit = (event: FixtureProviderRuntimeEvent): void => {
+    Effect.runSync(PubSub.publish(runtimeEventPubSub, normalizeFixtureEvent(event)));
   };
 
   return {

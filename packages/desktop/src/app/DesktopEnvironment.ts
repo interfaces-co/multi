@@ -1,7 +1,5 @@
 import type {
   DesktopAppBranding,
-  DesktopAppStageLabel,
-  DesktopRuntimeArch,
   DesktopRuntimeInfo,
 } from "@multi/contracts";
 import * as Config from "effect/Config";
@@ -15,8 +13,9 @@ import {
   type DesktopSettings,
   resolveDefaultDesktopSettings,
 } from "../settings/DesktopAppSettings";
+import { resolveDesktopAppBranding } from "../app-branding";
+import { resolveDesktopRuntimeInfo } from "../runtime-arch";
 import * as DesktopConfig from "./DesktopConfig";
-import { isNightlyDesktopVersion } from "../updates/updateChannels";
 
 export interface MakeDesktopEnvironmentInput {
   readonly dirname: string;
@@ -67,7 +66,6 @@ export interface DesktopEnvironmentShape {
   readonly linuxDesktopEntryName: string;
   readonly linuxWmClass: string;
   readonly userDataDirName: string;
-  readonly legacyUserDataDirName: string;
   readonly defaultDesktopSettings: DesktopSettings;
   readonly runtimeInfo: DesktopRuntimeInfo;
   readonly resolvePickFolderDefaultPath: (rawOptions: unknown) => Option.Option<string>;
@@ -79,61 +77,6 @@ export class DesktopEnvironment extends Context.Service<
   DesktopEnvironment,
   DesktopEnvironmentShape
 >()("multi/desktop/Environment") {}
-
-const APP_BASE_NAME = "Multi";
-
-function resolveDesktopAppStageLabel(input: {
-  readonly isDevelopment: boolean;
-  readonly appVersion: string;
-}): DesktopAppStageLabel {
-  if (input.isDevelopment) {
-    return "Dev";
-  }
-
-  return isNightlyDesktopVersion(input.appVersion) ? "Nightly" : "Alpha";
-}
-
-function resolveDesktopAppBranding(input: {
-  readonly isDevelopment: boolean;
-  readonly appVersion: string;
-}): DesktopAppBranding {
-  const stageLabel = resolveDesktopAppStageLabel(input);
-  return {
-    baseName: APP_BASE_NAME,
-    stageLabel,
-    displayName: `${APP_BASE_NAME} (${stageLabel})`,
-  };
-}
-
-function normalizeDesktopArch(arch: string): DesktopRuntimeArch {
-  if (arch === "arm64") return "arm64";
-  if (arch === "x64") return "x64";
-  return "other";
-}
-
-function resolveDesktopRuntimeInfo(input: {
-  readonly platform: NodeJS.Platform;
-  readonly processArch: string;
-  readonly runningUnderArm64Translation: boolean;
-}): DesktopRuntimeInfo {
-  const appArch = normalizeDesktopArch(input.processArch);
-
-  if (input.platform !== "darwin") {
-    return {
-      hostArch: appArch,
-      appArch,
-      runningUnderArm64Translation: false,
-    };
-  }
-
-  const hostArch = appArch === "arm64" || input.runningUnderArm64Translation ? "arm64" : appArch;
-
-  return {
-    hostArch,
-    appArch,
-    runningUnderArm64Translation: input.runningUnderArm64Translation,
-  };
-}
 
 export function resolveDefaultBackendCwd(input: { readonly documentsDirectory: string }): string {
   return input.documentsDirectory;
@@ -163,12 +106,10 @@ const makeDesktopEnvironment = Effect.fn("desktop.environment.make")(function* (
   });
   const branding = resolveDesktopAppBranding({
     isDevelopment,
-    appVersion: input.appVersion,
   });
   const displayName = branding.displayName;
   const stateDir = path.join(baseDir, "userdata");
   const userDataDirName = isDevelopment ? "multi-dev" : "multi";
-  const legacyUserDataDirName = isDevelopment ? "Multi (Dev)" : "Multi (Alpha)";
   const resourcesPath = input.resourcesPath;
 
   return DesktopEnvironment.of({
@@ -209,7 +150,6 @@ const makeDesktopEnvironment = Effect.fn("desktop.environment.make")(function* (
     linuxDesktopEntryName: isDevelopment ? "multi-dev.desktop" : "multi.desktop",
     linuxWmClass: isDevelopment ? "multi-dev" : "multi",
     userDataDirName,
-    legacyUserDataDirName,
     defaultDesktopSettings: resolveDefaultDesktopSettings(input.appVersion),
     runtimeInfo: resolveDesktopRuntimeInfo({
       platform: input.platform,

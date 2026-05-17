@@ -219,9 +219,9 @@ export const PlanWorkbenchPanel = memo(function PlanWorkbenchPanel({
                 Tasks
               </h2>
               <div className="grid gap-1">
-                {activePlan.steps.map((step, index) => (
+                {activePlan.steps.map((step) => (
                   <div
-                    key={`${index}:${step.step}`}
+                    key={step.step}
                     className={cn(
                       "flex min-w-0 items-start gap-2.5 rounded-multi-control px-2.5 py-2 transition-colors duration-150 ease-out",
                       step.status === "inProgress" && "bg-blue-500/5",

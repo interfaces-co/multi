@@ -21,8 +21,8 @@ describe("branding", () => {
         desktopBridge: {
           getAppBranding: () => ({
             baseName: "Multi",
-            stageLabel: "Nightly",
-            displayName: "Multi (Nightly)",
+            stageLabel: "Alpha",
+            displayName: "Multi (Alpha)",
           }),
         },
       },
@@ -31,7 +31,7 @@ describe("branding", () => {
     const branding = await import("./branding");
 
     expect(branding.APP_BASE_NAME).toBe("Multi");
-    expect(branding.APP_STAGE_LABEL).toBe("Nightly");
-    expect(branding.APP_DISPLAY_NAME).toBe("Multi (Nightly)");
+    expect(branding.APP_STAGE_LABEL).toBe("Alpha");
+    expect(branding.APP_DISPLAY_NAME).toBe("Multi (Alpha)");
   });
 });

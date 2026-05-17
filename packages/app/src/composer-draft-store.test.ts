@@ -136,19 +136,19 @@ function providerModelOptions(
 
 const TEST_ENVIRONMENT_ID = EnvironmentId.make("environment-local");
 const OTHER_TEST_ENVIRONMENT_ID = EnvironmentId.make("environment-remote");
-const LEGACY_TEST_ENVIRONMENT_ID = EnvironmentId.make("__legacy__");
+const UNSCOPED_TEST_ENVIRONMENT_ID = EnvironmentId.make("__unscoped__");
 
 function threadKeyFor(
   threadId: ThreadId,
-  environmentId: EnvironmentId = LEGACY_TEST_ENVIRONMENT_ID,
+  environmentId: EnvironmentId = UNSCOPED_TEST_ENVIRONMENT_ID,
 ): string {
-  if (environmentId === LEGACY_TEST_ENVIRONMENT_ID) {
+  if (environmentId === UNSCOPED_TEST_ENVIRONMENT_ID) {
     return threadId;
   }
   return scopedThreadKey(scopeThreadRef(environmentId, threadId));
 }
 
-function draftFor(threadId: ThreadId, environmentId: EnvironmentId = LEGACY_TEST_ENVIRONMENT_ID) {
+function draftFor(threadId: ThreadId, environmentId: EnvironmentId = UNSCOPED_TEST_ENVIRONMENT_ID) {
   const store = useComposerDraftStore.getState().draftsByThreadKey;
   return store[threadKeyFor(threadId, environmentId)] ?? store[threadId] ?? undefined;
 }
@@ -429,52 +429,6 @@ describe("composerDraftStore terminal contexts", () => {
       persistedState.draftsByThreadKey?.[threadKeyFor(threadId, TEST_ENVIRONMENT_ID)]
         ?.terminalContexts?.[0]?.text,
     ).toBeUndefined();
-  });
-
-  it("hydrates persisted terminal contexts without in-memory snapshot text", () => {
-    const persistApi = useComposerDraftStore.persist as unknown as {
-      getOptions: () => {
-        merge: (
-          persistedState: unknown,
-          currentState: ReturnType<typeof useComposerDraftStore.getState>,
-        ) => ReturnType<typeof useComposerDraftStore.getState>;
-      };
-    };
-    const mergedState = persistApi.getOptions().merge(
-      {
-        draftsByThreadId: {
-          [threadId]: {
-            prompt: INLINE_TERMINAL_CONTEXT_PLACEHOLDER,
-            attachments: [],
-            terminalContexts: [
-              {
-                id: "ctx-rehydrated",
-                threadId,
-                createdAt: "2026-03-13T12:00:00.000Z",
-                terminalId: "default",
-                terminalLabel: "Terminal 1",
-                lineStart: 4,
-                lineEnd: 5,
-              },
-            ],
-          },
-        },
-        draftThreadsByThreadId: {},
-        projectDraftThreadIdByProjectKey: {},
-      },
-      useComposerDraftStore.getInitialState(),
-    );
-
-    expect(mergedState.draftsByThreadKey[threadKeyFor(threadId)]?.terminalContexts).toMatchObject([
-      {
-        id: "ctx-rehydrated",
-        terminalId: "default",
-        terminalLabel: "Terminal 1",
-        lineStart: 4,
-        lineEnd: 5,
-        text: "",
-      },
-    ]);
   });
 
   it("sanitizes malformed persisted drafts during merge", () => {

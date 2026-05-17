@@ -104,25 +104,15 @@ export function ChatThreadRouteView() {
     finalizePromotedDraftThreadByRef(threadRef);
   }, [draftThread?.promotedTo, serverThreadStarted, threadRef]);
 
-  if (!threadRef || !bootstrapComplete) {
-    traceBrowserEvent("route.thread.empty.waiting-bootstrap", {
-      hasThreadRef: Boolean(threadRef),
-      bootstrapComplete,
-    });
+  if (!threadRef) {
+    throw new Error("Thread route rendered without thread route params.");
+  }
+
+  if (!bootstrapComplete) {
     return null;
   }
 
   if (!routeThreadExists) {
-    traceBrowserEvent(
-      "route.thread.empty.missing-thread",
-      {
-        environmentId: threadRef.environmentId,
-        threadId: threadRef.threadId,
-        threadExists,
-        draftThreadExists,
-      },
-      "warn",
-    );
     return null;
   }
 

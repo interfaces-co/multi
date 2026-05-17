@@ -1383,12 +1383,10 @@ const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
           ?.trim()
           .toLowerCase();
         const startServiceTier =
-          configuredServiceTier === "priority"
+          configuredServiceTier ??
+          (getModelSelectionBooleanOptionValue(input.modelSelection, "fastMode") === true
             ? "fast"
-            : (configuredServiceTier ??
-              (getModelSelectionBooleanOptionValue(input.modelSelection, "fastMode") === true
-                ? "fast"
-                : undefined));
+            : undefined);
         const runtimeInput: CodexSessionRuntimeOptions = {
           threadId: input.threadId,
           cwd: input.cwd ?? serverConfig.cwd,
@@ -1523,12 +1521,10 @@ const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
       ?.trim()
       .toLowerCase();
     const serviceTier =
-      configuredServiceTier === "priority"
+      configuredServiceTier ??
+      (getModelSelectionBooleanOptionValue(input.modelSelection, "fastMode") === true
         ? "fast"
-        : (configuredServiceTier ??
-          (getModelSelectionBooleanOptionValue(input.modelSelection, "fastMode") === true
-            ? "fast"
-            : undefined));
+        : undefined);
     return yield* session.runtime
       .sendTurn({
         ...(input.input !== undefined ? { input: input.input } : {}),

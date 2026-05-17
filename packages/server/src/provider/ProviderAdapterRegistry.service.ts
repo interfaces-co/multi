@@ -35,22 +35,6 @@ export interface ProviderAdapterRegistryShape {
 
   readonly listInstances: () => Effect.Effect<ReadonlyArray<ProviderInstanceId>>;
 
-  /**
-   * Resolve the adapter for a provider kind.
-   *
-   * @deprecated Prefer `getByInstance`.
-   */
-  readonly getByProvider: (
-    provider: ProviderDriverKind,
-  ) => Effect.Effect<ProviderAdapterShape<ProviderAdapterError>, ProviderUnsupportedError>;
-
-  /**
-   * List provider kinds currently registered.
-   *
-   * @deprecated Prefer `listInstances`.
-   */
-  readonly listProviders: () => Effect.Effect<ReadonlyArray<ProviderDriverKind>>;
-
   readonly streamChanges: Stream.Stream<void>;
 
   readonly subscribeChanges: Effect.Effect<PubSub.Subscription<void>, never, Scope.Scope>;

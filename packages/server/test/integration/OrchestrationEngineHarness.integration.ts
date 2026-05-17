@@ -4,6 +4,7 @@ import * as NodeServices from "@effect/platform-node/NodeServices";
 import {
   ApprovalRequestId,
   ProviderDriverKind,
+  ProviderInstanceId,
   type OrchestrationEvent,
   type OrchestrationThread,
 } from "@multi/contracts";
@@ -254,12 +255,7 @@ export const makeOrchestrationIntegrationHarness = (
                     enabled: true,
                   })
                 : Effect.fail(new ProviderUnsupportedError({ provider: instanceId })),
-            listInstances: () => Effect.succeed([input.instanceId]),
-            getByProvider: (resolvedProvider) =>
-              resolvedProvider === input.provider
-                ? Effect.succeed(input.adapter)
-                : Effect.fail(new ProviderUnsupportedError({ provider: resolvedProvider })),
-            listProviders: () => Effect.succeed([input.provider]),
+            listInstances: () => Effect.succeed([ProviderInstanceId.make(input.instanceId)]),
             streamChanges: Stream.fromPubSub(changesPubSub),
             subscribeChanges: PubSub.subscribe(changesPubSub),
           } as const;
@@ -310,12 +306,7 @@ export const makeOrchestrationIntegrationHarness = (
                   enabled: true,
                 })
               : Effect.fail(new ProviderUnsupportedError({ provider: instanceId })),
-          listInstances: () => Effect.succeed(["codex"]),
-          getByProvider: (resolvedProvider) =>
-            resolvedProvider === "codex"
-              ? Effect.succeed(codexAdapter)
-              : Effect.fail(new ProviderUnsupportedError({ provider: resolvedProvider })),
-          listProviders: () => Effect.succeed(["codex"]),
+          listInstances: () => Effect.succeed([ProviderInstanceId.make("codex")]),
           streamChanges: Stream.fromPubSub(changesPubSub),
           subscribeChanges: PubSub.subscribe(changesPubSub),
         } as const;

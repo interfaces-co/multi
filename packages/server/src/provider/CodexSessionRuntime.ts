@@ -270,13 +270,14 @@ function buildThreadStartParams(input: {
   readonly serviceTier: string | null | undefined;
 }): EffectCodexSchema.V2ThreadStartParams {
   const config = runtimeModeToThreadConfig(input.runtimeMode);
-  const serviceTier = input.serviceTier === "priority" ? "fast" : input.serviceTier;
   return {
     cwd: input.cwd,
     approvalPolicy: config.approvalPolicy,
     sandbox: config.sandbox,
     ...(input.model ? { model: input.model } : {}),
-    ...(serviceTier === "fast" || serviceTier === "flex" ? { serviceTier } : {}),
+    ...(input.serviceTier === "fast" || input.serviceTier === "flex"
+      ? { serviceTier: input.serviceTier }
+      : {}),
   };
 }
 
@@ -348,7 +349,6 @@ export function buildTurnStartParams(input: {
   }
 
   const config = runtimeModeToThreadConfig(input.runtimeMode);
-  const serviceTier = input.serviceTier === "priority" ? "fast" : input.serviceTier;
   const collaborationMode = buildCodexCollaborationMode({
     ...(input.interactionMode ? { interactionMode: input.interactionMode } : {}),
     ...(input.model ? { model: input.model } : {}),
@@ -361,7 +361,9 @@ export function buildTurnStartParams(input: {
     approvalPolicy: config.approvalPolicy,
     sandboxPolicy: runtimeModeToTurnSandboxPolicy(input.runtimeMode),
     ...(input.model ? { model: input.model } : {}),
-    ...(serviceTier === "fast" || serviceTier === "flex" ? { serviceTier } : {}),
+    ...(input.serviceTier === "fast" || input.serviceTier === "flex"
+      ? { serviceTier: input.serviceTier }
+      : {}),
     ...(input.effort ? { effort: input.effort } : {}),
     ...(collaborationMode ? { collaborationMode } : {}),
   }).pipe(

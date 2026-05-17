@@ -72,23 +72,23 @@ const makeProviderAdapterRegistry = Effect.fn("makeProviderAdapterRegistry")(fun
       ),
     );
 
-  const getByProvider: ProviderAdapterRegistryShape["getByProvider"] = (provider) => {
-    const adapter = byProvider.get(provider);
+  const getByDriver = (driver: ProviderDriverKind) => {
+    const adapter = byProvider.get(driver);
     if (!adapter) {
-      return Effect.fail(new ProviderUnsupportedError({ provider }));
+      return Effect.fail(new ProviderUnsupportedError({ provider: driver }));
     }
     return Effect.succeed(adapter);
   };
 
   const getByInstance: ProviderAdapterRegistryShape["getByInstance"] = (instanceId) =>
-    resolveDriverForInstance(instanceId).pipe(Effect.flatMap(getByProvider));
+    resolveDriverForInstance(instanceId).pipe(Effect.flatMap(getByDriver));
 
   const getInstanceInfo: ProviderAdapterRegistryShape["getInstanceInfo"] = (instanceId) =>
     Effect.gen(function* () {
       const settings = yield* getSettingsOrDefault;
       const instanceConfig = yield* getProviderInstanceConfig(instanceId);
       const driverKind = instanceConfig?.driver ?? ProviderDriverKind.make(instanceId);
-      yield* getByProvider(driverKind);
+      yield* getByDriver(driverKind);
       return {
         instanceId,
         driverKind,
@@ -114,9 +114,6 @@ const makeProviderAdapterRegistry = Effect.fn("makeProviderAdapterRegistry")(fun
       }),
     );
 
-  const listProviders: ProviderAdapterRegistryShape["listProviders"] = () =>
-    Effect.sync(() => Array.from(byProvider.keys()));
-
   const changesPubSub = yield* PubSub.unbounded<void>();
   yield* Stream.runForEach(serverSettings.streamChanges, () =>
     PubSub.publish(changesPubSub, undefined),
@@ -126,8 +123,6 @@ const makeProviderAdapterRegistry = Effect.fn("makeProviderAdapterRegistry")(fun
     getByInstance,
     getInstanceInfo,
     listInstances,
-    getByProvider,
-    listProviders,
     streamChanges: Stream.fromPubSub(changesPubSub),
     subscribeChanges: PubSub.subscribe(changesPubSub),
   } satisfies ProviderAdapterRegistryShape;

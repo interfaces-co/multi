@@ -158,7 +158,11 @@ export const AgentRow = memo(
           <span className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
             <StatusSlot item={props.item} />
             <span className="flex min-w-0 flex-1 flex-col gap-0.5 overflow-hidden pl-0.5">
-              <span className="min-w-0 truncate text-body font-normal text-multi-fg-secondary group-data-[selected=true]/agent-row:text-multi-fg-primary">
+              <span
+                className="min-w-0 truncate text-body font-normal text-multi-fg-secondary group-data-[selected=true]/agent-row:text-multi-fg-primary"
+                data-agent-sidebar-title=""
+                title={props.item.title}
+              >
                 {props.item.title}
               </span>
             </span>
@@ -239,7 +243,11 @@ export const AgentRow = memo(
             <span className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
               <StatusSlot item={props.item} />
               <span className="flex min-w-0 flex-1 flex-col gap-0.5 overflow-hidden pl-0.5">
-                <span className="min-w-0 truncate text-body font-normal text-multi-fg-secondary group-data-[selected=true]/agent-row:text-multi-fg-primary">
+                <span
+                  className="min-w-0 truncate text-body font-normal text-multi-fg-secondary group-data-[selected=true]/agent-row:text-multi-fg-primary"
+                  data-agent-sidebar-title=""
+                  title={props.item.title}
+                >
                   {props.item.title}
                 </span>
               </span>

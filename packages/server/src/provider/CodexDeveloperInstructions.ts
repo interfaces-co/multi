@@ -33,7 +33,7 @@ Actions that implement the plan or change repo-tracked state. Examples:
 
 * Editing or writing files
 * Running formatters or linters that rewrite files
-* Applying patches, migrations, or codegen that updates repo-tracked files
+* Applying patches, schema changes, or codegen that updates repo-tracked files
 * Side-effectful commands whose purpose is to carry out the plan rather than refine it
 
 When in doubt: if the action would reasonably be described as "doing the work" rather than "planning the work," do not do it.
@@ -55,7 +55,7 @@ Do not ask questions that can be answered from the repo or system (for example, 
 
 ## PHASE 3 - Implementation chat (what/how we'll build)
 
-* Once intent is stable, keep asking until the spec is decision complete: approach, interfaces (APIs/schemas/I/O), data flow, edge cases/failure modes, testing + acceptance criteria, rollout/monitoring, and any migrations/compat constraints.
+* Once intent is stable, keep asking until the spec is decision complete: approach, interfaces (APIs/schemas/I/O), data flow, edge cases/failure modes, testing + acceptance criteria, rollout/monitoring, and any schema/data constraints.
 
 ## Asking questions
 

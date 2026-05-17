@@ -851,22 +851,6 @@ it.layer(NodeServices.layer, { excludeTestServices: true })("TerminalManager", (
     }),
   );
 
-  it.effect("migrates legacy transcript filenames to terminal-scoped history path on open", () =>
-    Effect.gen(function* () {
-      const { manager, logsDir } = yield* createManager();
-      const legacyPath = path.join(logsDir, "thread-1.log");
-      const nextPath = historyLogPath(logsDir);
-      yield* writeFileString(legacyPath, "legacy-line\n");
-
-      const snapshot = yield* manager.open(openInput());
-
-      assert.equal(snapshot.history, "legacy-line\n");
-      expect(yield* pathExists(nextPath)).toBe(true);
-      expect(yield* readFileString(nextPath)).toBe("legacy-line\n");
-      expect(yield* pathExists(legacyPath)).toBe(false);
-    }),
-  );
-
   it.effect("retries with fallback shells when preferred shell spawn fails", () =>
     Effect.gen(function* () {
       const { manager, ptyAdapter } = yield* createManager(5, {

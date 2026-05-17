@@ -1,5 +1,5 @@
 import { ProviderRuntimeEvent } from "@multi/contracts";
-import { ThreadId } from "@multi/contracts";
+import { ProviderInstanceId, ThreadId } from "@multi/contracts";
 import { DEFAULT_SERVER_SETTINGS } from "@multi/contracts/settings";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { it, assert } from "@effect/vitest";
@@ -60,12 +60,7 @@ const makeIntegrationFixture = Effect.gen(function* () {
             enabled: true,
           })
         : Effect.fail(new ProviderUnsupportedError({ provider: instanceId })),
-    listInstances: () => Effect.succeed(["codex"]),
-    getByProvider: (provider) =>
-      provider === "codex"
-        ? Effect.succeed(harness.adapter)
-        : Effect.fail(new ProviderUnsupportedError({ provider })),
-    listProviders: () => Effect.succeed(["codex"]),
+    listInstances: () => Effect.succeed([ProviderInstanceId.make("codex")]),
     streamChanges: Stream.empty,
     subscribeChanges: PubSub.unbounded<void>().pipe(Effect.flatMap(PubSub.subscribe)),
   };

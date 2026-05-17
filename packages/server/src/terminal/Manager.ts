@@ -625,10 +625,6 @@ function sanitizeTerminalHistoryChunk(
   return { visibleText, pendingControlSequence: "" };
 }
 
-function legacySafeThreadId(threadId: string): string {
-  return threadId.replace(/[^a-zA-Z0-9._-]/g, "_");
-}
-
 function toSafeThreadId(threadId: string): string {
   return `terminal_${Encoding.encodeBase64Url(threadId)}`;
 }
@@ -760,11 +756,8 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
       return path.join(logsDir, `${threadPart}_${toSafeTerminalId(terminalId)}.log`);
     };
 
-    const legacyHistoryPath = (threadId: string) =>
-      path.join(logsDir, `${legacySafeThreadId(threadId)}.log`);
-
     const toTerminalHistoryError =
-      (operation: "read" | "truncate" | "migrate", threadId: string, terminalId: string) =>
+      (operation: "read" | "truncate", threadId: string, terminalId: string) =>
       (cause: unknown) =>
         new TerminalHistoryError({
           operation,
@@ -996,31 +989,7 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
         return "";
       }
 
-      const legacyPath = legacyHistoryPath(threadId);
-      if (
-        !(yield* fileSystem
-          .exists(legacyPath)
-          .pipe(Effect.mapError(toTerminalHistoryError("migrate", threadId, terminalId))))
-      ) {
-        return "";
-      }
-
-      const raw = yield* fileSystem
-        .readFileString(legacyPath)
-        .pipe(Effect.mapError(toTerminalHistoryError("migrate", threadId, terminalId)));
-      const capped = capHistory(raw, historyLineLimit);
-      yield* fileSystem
-        .writeFileString(nextPath, capped)
-        .pipe(Effect.mapError(toTerminalHistoryError("migrate", threadId, terminalId)));
-      yield* fileSystem.remove(legacyPath, { force: true }).pipe(
-        Effect.catch((cleanupError) =>
-          Effect.logWarning("failed to remove legacy terminal history", {
-            threadId,
-            error: cleanupError,
-          }),
-        ),
-      );
-      return capped;
+      return "";
     });
 
     const deleteHistory = Effect.fn("terminal.deleteHistory")(function* (
@@ -1036,17 +1005,6 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
           }),
         ),
       );
-      if (terminalId === DEFAULT_TERMINAL_ID) {
-        yield* fileSystem.remove(legacyHistoryPath(threadId), { force: true }).pipe(
-          Effect.catch((error) =>
-            Effect.logWarning("failed to delete terminal history", {
-              threadId,
-              terminalId,
-              error,
-            }),
-          ),
-        );
-      }
     });
 
     const deleteAllHistoryForThread = Effect.fn("terminal.deleteAllHistoryForThread")(function* (
@@ -1059,9 +1017,7 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
       yield* Effect.forEach(
         entries.filter(
           (name) =>
-            name === `${toSafeThreadId(threadId)}.log` ||
-            name === `${legacySafeThreadId(threadId)}.log` ||
-            name.startsWith(threadPrefix),
+            name === `${toSafeThreadId(threadId)}.log` || name.startsWith(threadPrefix),
         ),
         (name) =>
           fileSystem.remove(path.join(logsDir, name), { force: true }).pipe(

@@ -516,4 +516,4 @@ Current high-value span and metric boundaries include:
 
 - logs outside spans are not persisted
 - metrics are not snapshotted locally
-- the old `serverLogPath` still exists in config for compatibility, but the trace file is the persisted artifact that matters
+- the trace file is the persisted artifact that matters

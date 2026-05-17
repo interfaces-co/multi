@@ -198,7 +198,7 @@ describe("orchestration projector", () => {
     expect(unarchived.threads[0]?.archivedAt).toBeNull();
   });
 
-  it("keeps projector forward-compatible for unhandled event types", async () => {
+  it("ignores unhandled event types", async () => {
     const now = new Date().toISOString();
     const model = createEmptyReadModel(now);
 

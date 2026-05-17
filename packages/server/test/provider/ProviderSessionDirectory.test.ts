@@ -252,12 +252,12 @@ it.layer(makeDirectoryLayer(SqlitePersistenceMemory))("ProviderSessionDirectoryL
           assert.equal(resolvedBinding.value.threadId, threadId);
         }
 
-        const legacyTableRows = yield* sql<{ readonly name: string }>`
+        const staleTableRows = yield* sql<{ readonly name: string }>`
           SELECT name
           FROM sqlite_master
           WHERE type = 'table' AND name = 'provider_sessions'
         `;
-        assert.equal(legacyTableRows.length, 0);
+        assert.equal(staleTableRows.length, 0);
       }).pipe(Effect.provide(directoryLayer));
 
       fs.rmSync(tempDir, { recursive: true, force: true });

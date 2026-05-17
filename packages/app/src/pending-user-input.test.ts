@@ -111,13 +111,13 @@ describe("buildPendingUserInputAnswers", () => {
         [
           singleSelectQuestion,
           {
-            id: "compat",
-            header: "Compat",
-            question: "How strict should compatibility be?",
+            id: "format",
+            header: "Format",
+            question: "Which response format should be used?",
             options: [
               {
-                label: "Keep current envelope",
-                description: "Preserve current wire format",
+                label: "Use structured envelope",
+                description: "Return the current wire format",
               },
             ],
             multiSelect: false,
@@ -127,14 +127,14 @@ describe("buildPendingUserInputAnswers", () => {
           scope: {
             selectedOptionLabels: ["Orchestration-first"],
           },
-          compat: {
+          format: {
             customAnswer: "Keep the current envelope for one release window",
           },
         },
       ),
     ).toEqual({
       scope: "Orchestration-first",
-      compat: "Keep the current envelope for one release window",
+      format: "Keep the current envelope for one release window",
     });
   });
 
@@ -159,13 +159,13 @@ describe("pending user input question progress", () => {
   const questions = [
     singleSelectQuestion,
     {
-      id: "compat",
-      header: "Compat",
-      question: "How strict should compatibility be?",
+      id: "format",
+      header: "Format",
+      question: "Which response format should be used?",
       options: [
         {
-          label: "Keep current envelope",
-          description: "Preserve current wire format",
+          label: "Use structured envelope",
+          description: "Return the current wire format",
         },
       ],
       multiSelect: false,
@@ -198,7 +198,7 @@ describe("pending user input question progress", () => {
         scope: {
           selectedOptionLabels: ["Orchestration-first"],
         },
-        compat: {
+        format: {
           customAnswer: "Keep it for one release window",
         },
       }),

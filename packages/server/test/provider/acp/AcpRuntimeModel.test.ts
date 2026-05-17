@@ -245,7 +245,7 @@ describe("AcpRuntimeModel", () => {
     ]);
   });
 
-  it("keeps permission request parsing compatible with loose extension payloads", () => {
+  it("parses loose extension permission request payloads", () => {
     const request = parsePermissionRequest({
       sessionId: "session-1",
       options: [

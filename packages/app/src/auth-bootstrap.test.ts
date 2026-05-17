@@ -289,7 +289,7 @@ describe("resolveInitialServerAuthGateState", () => {
     expect(testWindow.location.searchParams.get("token")).toBeNull();
   });
 
-  it("accepts query-string pairing tokens as a backward-compatible fallback", async () => {
+  it("accepts query-string pairing tokens", async () => {
     const testWindow = installTestBrowser("http://localhost/?token=pairing-token");
     const { takePairingTokenFromUrl } = await import("./environments/primary");
 

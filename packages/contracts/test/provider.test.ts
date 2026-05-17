@@ -21,7 +21,7 @@ function getOptionValue(
 }
 
 describe("ProviderSessionStartInput", () => {
-  it("accepts codex-compatible payloads", () => {
+  it("accepts codex payloads", () => {
     const parsed = decodeProviderSessionStartInput({
       threadId: "thread-1",
       provider: "codex",

@@ -2,18 +2,6 @@ import { Debouncer } from "@tanstack/react-pacer";
 import { create } from "zustand";
 
 const PERSISTED_STATE_KEY = "multi:ui-state:v1";
-const LEGACY_PERSISTED_STATE_KEYS = [
-  "multi:renderer-state:v8",
-  "multi:renderer-state:v7",
-  "multi:renderer-state:v6",
-  "multi:renderer-state:v5",
-  "multi:renderer-state:v4",
-  "multi:renderer-state:v3",
-  "codething:renderer-state:v4",
-  "codething:renderer-state:v3",
-  "codething:renderer-state:v2",
-  "codething:renderer-state:v1",
-] as const;
 
 interface PersistedUiState {
   collapsedProjectCwds?: string[];
@@ -60,8 +48,6 @@ const persistedProjectOrderCwds: string[] = [];
 const currentProjectCwdById = new Map<string, string>();
 const currentProjectCwdsByLogicalKey = new Map<string, string[]>();
 const currentLogicalKeyByPhysicalKey = new Map<string, string>();
-let persistedProjectStateUsesLegacyShape = false;
-let legacyKeysCleanedUp = false;
 
 function readPersistedState(): UiState {
   if (typeof window === "undefined") {
@@ -70,14 +56,6 @@ function readPersistedState(): UiState {
   try {
     const raw = window.localStorage.getItem(PERSISTED_STATE_KEY);
     if (!raw) {
-      for (const legacyKey of LEGACY_PERSISTED_STATE_KEYS) {
-        const legacyRaw = window.localStorage.getItem(legacyKey);
-        if (!legacyRaw) {
-          continue;
-        }
-        hydratePersistedProjectState(JSON.parse(legacyRaw) as PersistedUiState);
-        return initialState;
-      }
       return initialState;
     }
     const parsed = JSON.parse(raw) as PersistedUiState;
@@ -125,7 +103,6 @@ function hydratePersistedProjectState(parsed: PersistedUiState): void {
   persistedCollapsedProjectCwds.clear();
   persistedExpandedProjectCwds.clear();
   persistedProjectOrderCwds.length = 0;
-  persistedProjectStateUsesLegacyShape = !Array.isArray(parsed.collapsedProjectCwds);
   for (const cwd of parsed.collapsedProjectCwds ?? []) {
     if (typeof cwd === "string" && cwd.length > 0) {
       persistedCollapsedProjectCwds.add(cwd);
@@ -175,12 +152,6 @@ function persistState(state: UiState): void {
         threadChangedFilesExpandedById,
       } satisfies PersistedUiState),
     );
-    if (!legacyKeysCleanedUp) {
-      legacyKeysCleanedUp = true;
-      for (const legacyKey of LEGACY_PERSISTED_STATE_KEYS) {
-        window.localStorage.removeItem(legacyKey);
-      }
-    }
   } catch {
     // Ignore quota/storage errors to avoid breaking chat UX.
   }
@@ -292,9 +263,6 @@ export function syncProjects(state: UiState, projects: readonly SyncProjectInput
           return true;
         }
         if (groupCwds.some((cwd) => persistedCollapsedProjectCwds.has(cwd))) {
-          return false;
-        }
-        if (persistedProjectStateUsesLegacyShape && persistedExpandedProjectCwds.size > 0) {
           return false;
         }
         return true;

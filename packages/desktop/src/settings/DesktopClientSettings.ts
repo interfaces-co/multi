@@ -14,21 +14,8 @@ import * as Ref from "effect/Ref";
 
 import * as DesktopEnvironment from "../app/DesktopEnvironment";
 
-const ClientSettingsDocumentSchema = Schema.Struct({
-  settings: ClientSettingsSchema,
-});
-
 const ClientSettingsJson = fromLenientJson(ClientSettingsSchema);
-const LegacyClientSettingsDocumentJson = fromLenientJson(ClientSettingsDocumentSchema);
-const decodeLegacyClientSettingsDocumentJson = Schema.decodeEffect(
-  LegacyClientSettingsDocumentJson,
-);
-const decodeClientSettingsJsonValue = Schema.decodeEffect(ClientSettingsJson);
-const decodeClientSettingsJson = (raw: string): Effect.Effect<ClientSettings, Schema.SchemaError> =>
-  decodeLegacyClientSettingsDocumentJson(raw).pipe(
-    Effect.map((document) => document.settings),
-    Effect.catch(() => decodeClientSettingsJsonValue(raw)),
-  );
+const decodeClientSettingsJson = Schema.decodeEffect(ClientSettingsJson);
 const encodeClientSettingsJson = Schema.encodeEffect(ClientSettingsJson);
 
 export class DesktopClientSettingsWriteError extends Data.TaggedError(

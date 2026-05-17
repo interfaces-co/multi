@@ -66,9 +66,9 @@ function mapProjectScripts(scripts: ReadonlyArray<Project["scripts"][number]>): 
 
 function mapSession(session: OrchestrationSession): ThreadSession {
   return {
-    provider: toLegacyProvider(session.providerName),
+    provider: resolveProviderDriverForThreadState(session.providerName),
     providerInstanceId: session.providerInstanceId ?? undefined,
-    status: toLegacySessionStatus(session.status),
+    status: mapSessionStatusForThreadState(session.status),
     orchestrationStatus: session.status,
     activeTurnId: session.activeTurnId ?? undefined,
     createdAt: session.updatedAt,
@@ -849,7 +849,7 @@ function rebindTurnDiffSummariesForAssistantMessage(
   return changed ? nextSummaries : [...turnDiffSummaries];
 }
 
-function toLegacySessionStatus(
+function mapSessionStatusForThreadState(
   status: OrchestrationSessionStatus,
 ): "connecting" | "ready" | "running" | "error" | "closed" {
   switch (status) {
@@ -868,7 +868,7 @@ function toLegacySessionStatus(
   }
 }
 
-function toLegacyProvider(providerName: string | null): ProviderDriverKind {
+function resolveProviderDriverForThreadState(providerName: string | null): ProviderDriverKind {
   if (isProviderDriverKind(providerName)) {
     return providerName;
   }

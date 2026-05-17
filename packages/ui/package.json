@@ -180,7 +180,7 @@
   "dependencies": {
     "@base-ui/react": "^1.4.1",
     "@multi/shared": "workspace:*",
-    "central-icons": "npm:@central-icons-react/round-outlined-radius-2-stroke-1.5@^1.1.233",
+    "central-icons": "npm:@central-icons-react/round-outlined-radius-2-stroke-1.5@^1.1.237",
     "class-variance-authority": "^0.7.1",
     "react": "^19.2.6",
     "tailwind-merge": "^3.6.0"

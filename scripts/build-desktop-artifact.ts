@@ -420,7 +420,7 @@ export function resolveMockUpdateServerUrl(mockUpdateServerPort: number | undefi
   return `http://localhost:${mockUpdateServerPort ?? 3000}`;
 }
 
-export function resolveDesktopProductName(version: string): string {
+export function resolveDesktopProductName(): string {
   return desktopPackageJson.productName ?? "Multi";
 }
 
@@ -433,7 +433,7 @@ function createBuildConfig(
 ): Record<string, unknown> {
   const buildConfig: Record<string, unknown> = {
     appId: "com.interfacesco.multi",
-    productName: resolveDesktopProductName(version),
+    productName: resolveDesktopProductName(),
     artifactName: "Multi-${version}-${arch}.${ext}",
     directories: {
       buildResources: "packages/desktop/resources",

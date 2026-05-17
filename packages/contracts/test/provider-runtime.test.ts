@@ -117,7 +117,7 @@ describe("ProviderRuntimeEvent", () => {
     expect(parsed.payload.answers.sandbox_mode).toBe("project-write");
   });
 
-  it("rejects legacy message.delta type", () => {
+  it("rejects message.delta event type", () => {
     expect(() =>
       decodeRuntimeEvent({
         type: "message.delta",
@@ -126,7 +126,7 @@ describe("ProviderRuntimeEvent", () => {
         providerInstanceId: "codex",
         sessionId: "runtime-session-3",
         createdAt: "2026-02-28T00:00:03.000Z",
-        payload: { delta: "legacy" },
+        payload: { delta: "old" },
       }),
     ).toThrow();
   });

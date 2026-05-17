@@ -15,25 +15,34 @@ export function useComposerFooterLayout(input: {
   shouldAutoScrollRef: MutableRefObject<boolean>;
   scheduleStickToBottom: () => void;
 }) {
+  const {
+    activeThreadId,
+    actionLayoutKey,
+    formRef,
+    hasWideActions,
+    isModelPickerOpen,
+    scheduleStickToBottom,
+    shouldAutoScrollRef,
+  } = input;
   const [isComposerFooterCompact, setIsComposerFooterCompact] = useState(false);
   const [isComposerPrimaryActionsCompact, setIsComposerPrimaryActionsCompact] = useState(false);
   const composerFormHeightRef = useRef(0);
-  const isComposerModelPickerOpenRef = useRef(input.isModelPickerOpen);
-  isComposerModelPickerOpenRef.current = input.isModelPickerOpen;
+  const isComposerModelPickerOpenRef = useRef(isModelPickerOpen);
+  isComposerModelPickerOpenRef.current = isModelPickerOpen;
 
   useLayoutEffect(() => {
-    const composerForm = input.formRef.current;
+    const composerForm = formRef.current;
     if (!composerForm) return;
     const measureComposerFormWidth = () => composerForm.clientWidth;
     const measureFooterCompactness = () => {
       const composerFormWidth = measureComposerFormWidth();
       const footerCompact = shouldUseCompactComposerFooter(composerFormWidth, {
-        hasWideActions: input.hasWideActions,
+        hasWideActions,
       });
       const primaryActionsCompact =
         footerCompact &&
         shouldUseCompactComposerPrimaryActions(composerFormWidth, {
-          hasWideActions: input.hasWideActions,
+          hasWideActions,
         });
       return {
         primaryActionsCompact,
@@ -66,8 +75,8 @@ export function useComposerFooterLayout(input: {
       // The model picker owns a portalled popover whose opening can resize the footer.
       // Keep the timeline stationary while Base UI is anchoring that popup.
       if (isComposerModelPickerOpenRef.current) return;
-      if (!input.shouldAutoScrollRef.current) return;
-      input.scheduleStickToBottom();
+      if (!shouldAutoScrollRef.current) return;
+      scheduleStickToBottom();
     });
 
     observer.observe(composerForm);
@@ -75,12 +84,12 @@ export function useComposerFooterLayout(input: {
       observer.disconnect();
     };
   }, [
-    input.activeThreadId,
-    input.actionLayoutKey,
-    input.formRef,
-    input.hasWideActions,
-    input.scheduleStickToBottom,
-    input.shouldAutoScrollRef,
+    activeThreadId,
+    actionLayoutKey,
+    formRef,
+    hasWideActions,
+    scheduleStickToBottom,
+    shouldAutoScrollRef,
   ]);
 
   return {

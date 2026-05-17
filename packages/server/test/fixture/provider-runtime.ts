@@ -1,5 +1,5 @@
 import { EventId, RuntimeRequestId } from "@multi/contracts";
-import type { LegacyProviderRuntimeEvent } from "../integration/TestProviderAdapter.integration.ts";
+import type { FixtureProviderRuntimeEvent } from "../integration/TestProviderAdapter.integration.ts";
 
 const PROVIDER = "codex" as const;
 const SESSION_ID = "fixture-session";
@@ -10,7 +10,7 @@ const REQUEST_ID = RuntimeRequestId.make("req-1");
 function baseEvent(
   eventId: string,
   createdAt: string,
-): Pick<LegacyProviderRuntimeEvent, "eventId" | "provider" | "sessionId" | "createdAt"> {
+): Pick<FixtureProviderRuntimeEvent, "eventId" | "provider" | "sessionId" | "createdAt"> {
   return {
     eventId: EventId.make(eventId),
     provider: PROVIDER,
@@ -56,7 +56,7 @@ export const codexTurnTextFixture = [
       state: "completed",
     },
   },
-] satisfies ReadonlyArray<LegacyProviderRuntimeEvent>;
+] satisfies ReadonlyArray<FixtureProviderRuntimeEvent>;
 
 export const codexTurnToolFixture = [
   {
@@ -108,7 +108,7 @@ export const codexTurnToolFixture = [
       state: "completed",
     },
   },
-] satisfies ReadonlyArray<LegacyProviderRuntimeEvent>;
+] satisfies ReadonlyArray<FixtureProviderRuntimeEvent>;
 
 export const codexTurnApprovalFixture = [
   {
@@ -159,4 +159,4 @@ export const codexTurnApprovalFixture = [
       state: "completed",
     },
   },
-] satisfies ReadonlyArray<LegacyProviderRuntimeEvent>;
+] satisfies ReadonlyArray<FixtureProviderRuntimeEvent>;

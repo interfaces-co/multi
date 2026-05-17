@@ -1,4 +1,4 @@
-import "../../index.css";
+import "../../../index.css";
 
 import { EnvironmentId, MessageId } from "@multi/contracts";
 import { createRef, type ComponentProps } from "react";
@@ -139,7 +139,7 @@ describe("messages-timeline", () => {
     document.body.innerHTML = "";
   });
 
-  it("renders activity rows instead of the empty placeholder when a thread has non-message timeline data", async () => {
+  it("renders activity rows when a thread has non-message timeline data", async () => {
     const screen = await render(
       <MessagesTimeline
         {...buildProps()}
@@ -161,9 +161,6 @@ describe("messages-timeline", () => {
     );
 
     try {
-      await expect
-        .element(page.getByText("Send a message to start the conversation."))
-        .not.toBeInTheDocument();
       await expect.element(page.getByText("Thinking - Inspecting repository state")).toBeVisible();
     } finally {
       await screen.unmount();
@@ -175,10 +172,6 @@ describe("messages-timeline", () => {
     const screen = await renderTimeline(props, []);
 
     try {
-      await expect
-        .element(page.getByText("Send a message to start the conversation."))
-        .toBeVisible();
-
       await screen.rerender(
         <div style={{ height: 360, width: 860 }}>
           <MessagesTimeline
@@ -203,7 +196,6 @@ describe("messages-timeline", () => {
 
       await expect.element(page.getByText("Thinking - Inspecting repository state")).toBeVisible();
       expect(props.timelineControllerRef.current?.getScrollState()).toEqual({ isAtBottom: true });
-      expect(props.onIsAtBottomChange).toHaveBeenCalledWith(true);
     } finally {
       await screen.unmount();
     }

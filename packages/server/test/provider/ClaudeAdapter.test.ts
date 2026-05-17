@@ -1454,7 +1454,7 @@ describe("ClaudeAdapterLive", () => {
         subtype: "task_progress",
         task_id: "task-subagent-1",
         description: "Running background teammate",
-        summary: "Code reviewer checked the migration edge cases.",
+        summary: "Code reviewer checked the schema edge cases.",
         usage: {
           total_tokens: 123,
           tool_uses: 4,
@@ -1470,7 +1470,7 @@ describe("ClaudeAdapterLive", () => {
       if (progressEvent?.type === "task.progress") {
         assert.equal(
           progressEvent.payload.summary,
-          "Code reviewer checked the migration edge cases.",
+          "Code reviewer checked the schema edge cases.",
         );
         assert.equal(progressEvent.payload.description, "Running background teammate");
       }

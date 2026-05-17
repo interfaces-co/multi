@@ -100,7 +100,7 @@ describe("shouldRenderThreadScopedToast", () => {
     );
   });
 
-  it("keeps legacy thread-id scoped toasts working", () => {
+  it("keeps thread-id scoped toasts working", () => {
     assert.equal(
       shouldRenderThreadScopedToast(
         {

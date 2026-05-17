@@ -20,7 +20,7 @@ import {
 import { __resetLocalApiForTests } from "../../../local-api";
 
 // Mock the environments/runtime module to provide a mock primary environment connection
-vi.mock("../../environments/runtime", () => {
+vi.mock("../../../environments/runtime", () => {
   const primaryConnection = {
     kind: "primary" as const,
     knownEnvironment: {
@@ -305,11 +305,6 @@ async function mountPicker(props: {
 
   return {
     onInstanceModelChange,
-    // Back-compat alias used by callers that still assert on the old callback
-    // name. Delegates to the instance-aware mock so existing expectations work.
-    get onProviderModelChange() {
-      return onInstanceModelChange;
-    },
     cleanup: async () => {
       await screen.unmount();
       host.remove();
@@ -814,7 +809,7 @@ describe("ProviderModelPicker", () => {
       });
       await userEvent.keyboard("{Enter}");
 
-      expect(mounted.onProviderModelChange).toHaveBeenCalledWith(
+      expect(mounted.onInstanceModelChange).toHaveBeenCalledWith(
         "claudeAgent",
         "claude-sonnet-4-6",
       );
@@ -1143,7 +1138,7 @@ describe("ProviderModelPicker", () => {
       await modelRow.click();
 
       // Verify callback was called with correct values
-      expect(mounted.onProviderModelChange).toHaveBeenCalledWith(
+      expect(mounted.onInstanceModelChange).toHaveBeenCalledWith(
         "claudeAgent",
         "claude-sonnet-4-6",
       );

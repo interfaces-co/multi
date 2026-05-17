@@ -44,7 +44,7 @@ import { ProjectPathsLive } from "../../src/project/ProjectPaths.ts";
 const asProjectId = (value: string): ProjectId => ProjectId.make(value);
 const asTurnId = (value: string): TurnId => TurnId.make(value);
 
-type LegacyProviderRuntimeEvent = {
+type FixtureProviderRuntimeEvent = {
   readonly type: string;
   readonly eventId: EventId;
   readonly provider: ProviderDriverKind;
@@ -101,7 +101,7 @@ function createProviderServiceHarness(
     },
   };
 
-  const emit = (event: LegacyProviderRuntimeEvent): void => {
+  const emit = (event: FixtureProviderRuntimeEvent): void => {
     Effect.runSync(PubSub.publish(runtimeEventPubSub, event as unknown as ProviderRuntimeEvent));
   };
 

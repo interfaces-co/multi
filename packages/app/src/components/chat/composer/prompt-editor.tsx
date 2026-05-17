@@ -1204,7 +1204,19 @@ export const ComposerPromptEditor = forwardRef<
       pendingSurroundSelectionRef.current = null;
       return false;
     }
-    pendingSurroundSelectionRef.current = captureSurroundSelection(editor);
+    const surroundSelection = captureSurroundSelection(editor);
+    pendingSurroundSelectionRef.current = surroundSelection;
+    const close = SURROUND_SYMBOLS_MAP.get(event.key);
+    if (
+      surroundSelection &&
+      close &&
+      applySurroundInput(editor, surroundSelection, event.key, close)
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      pendingSurroundSelectionRef.current = null;
+      return true;
+    }
     return false;
   };
 

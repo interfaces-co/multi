@@ -1673,7 +1673,7 @@ describe("ProviderCommandReactor", () => {
   it("forwards user input responses while a provider turn is waiting", async () => {
     const harness = await createHarness();
     const now = new Date().toISOString();
-    let releaseTurn = () => {};
+    let releaseTurn: (() => void) | undefined;
     const turnReleased = new Promise<void>((resolve) => {
       releaseTurn = resolve;
     });
@@ -1729,7 +1729,7 @@ describe("ProviderCommandReactor", () => {
         },
       });
     } finally {
-      releaseTurn();
+      releaseTurn?.();
     }
   });
 

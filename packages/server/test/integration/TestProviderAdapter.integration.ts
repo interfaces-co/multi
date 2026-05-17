@@ -46,9 +46,6 @@ export type FixtureProviderRuntimeEvent = {
   readonly [key: string]: unknown;
 };
 
-// Temporary alias while fixtures migrate to the new name.
-export type LegacyProviderRuntimeEvent = FixtureProviderRuntimeEvent;
-
 interface SessionState {
   readonly session: ProviderSession;
   snapshot: ProviderThreadSnapshot;
@@ -325,9 +322,9 @@ export const makeTestProviderAdapterHarness = (options?: MakeTestProviderAdapter
               assistantDeltas.push(payload.delta);
             }
           } else if (runtimeType === "message.delta") {
-            const legacyDelta = (runtimeEvent as { delta?: unknown }).delta;
-            if (typeof legacyDelta === "string") {
-              assistantDeltas.push(legacyDelta);
+            const messageDelta = (runtimeEvent as { delta?: unknown }).delta;
+            if (typeof messageDelta === "string") {
+              assistantDeltas.push(messageDelta);
             }
           }
           if (runtimeEvent.type === "turn.completed") {

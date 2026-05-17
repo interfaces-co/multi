@@ -99,7 +99,6 @@ interface MessagesTimelineProps {
   editingUserMessageId?: MessageId | null | undefined;
   onBeginEditUserMessage: ((messageId: MessageId) => void) | undefined;
   renderEditComposer?: ((message: ChatMessage) => ReactNode) | undefined;
-  showEmptyState?: boolean | undefined;
   awaitingServerThreadDetail?: boolean | undefined;
   onIsAtBottomChange: (isAtBottom: boolean) => void;
 }
@@ -130,7 +129,6 @@ export const MessagesTimeline = memo(function MessagesTimeline({
   editingUserMessageId = null,
   onBeginEditUserMessage,
   renderEditComposer,
-  showEmptyState = true,
   awaitingServerThreadDetail = false,
   onIsAtBottomChange,
 }: MessagesTimelineProps) {
@@ -462,16 +460,6 @@ export const MessagesTimeline = memo(function MessagesTimeline({
     return (
       <div className="flex h-full items-center justify-center" aria-busy="true">
         <Spinner className="size-6 text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (rows.length === 0 && !isWorking && showEmptyState) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <p className="text-sm text-muted-foreground/30">
-          Send a message to start the conversation.
-        </p>
       </div>
     );
   }

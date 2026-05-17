@@ -13,6 +13,7 @@ import {
   ApprovalRequestId,
   EventId,
   type ProviderDriverKind,
+  ProviderInstanceId,
   ProviderSessionStartInput,
   ThreadId,
   TurnId,
@@ -68,7 +69,7 @@ for (const cwd of [
   ensureExistingDirectory(cwd);
 }
 
-type LegacyProviderRuntimeEvent = {
+type FixtureProviderRuntimeEvent = {
   readonly type: string;
   readonly eventId: EventId;
   readonly provider: ProviderDriverKind;
@@ -87,6 +88,7 @@ function makeRegistry(
 ): typeof ProviderAdapterRegistry.Service {
   const changes = Effect.runSync(PubSub.unbounded<void>());
   const providers = Object.keys(adapters) as ProviderDriverKind[];
+  const instances = providers.map((provider) => ProviderInstanceId.make(provider));
   const disabledSet = new Set(disabledInstances);
 
   return {
@@ -107,14 +109,7 @@ function makeRegistry(
           })
         : Effect.fail(new ProviderUnsupportedError({ provider: instanceId }));
     },
-    listInstances: () => Effect.succeed(providers),
-    getByProvider: (provider) => {
-      const adapter = adapters[provider];
-      return adapter
-        ? Effect.succeed(adapter)
-        : Effect.fail(new ProviderUnsupportedError({ provider }));
-    },
-    listProviders: () => Effect.succeed(providers),
+    listInstances: () => Effect.succeed(instances),
     streamChanges: Stream.fromPubSub(changes),
     subscribeChanges: PubSub.subscribe(changes),
   };
@@ -252,7 +247,7 @@ function makeFakeCodexAdapter(provider: ProviderDriverKind = "codex") {
     },
   };
 
-  const emit = (event: LegacyProviderRuntimeEvent): void => {
+  const emit = (event: FixtureProviderRuntimeEvent): void => {
     Effect.runSync(PubSub.publish(runtimeEventPubSub, event as unknown as ProviderRuntimeEvent));
   };
 
@@ -488,7 +483,7 @@ it.effect("ProviderServiceLive keeps persisted resumable sessions on startup", (
     }).pipe(Effect.provide(runtimeRepositoryLayer));
     assert.equal(Option.isSome(runtime), true);
 
-    const legacyTableRows = yield* Effect.gen(function* () {
+    const staleTableRows = yield* Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
       return yield* sql<{ readonly name: string }>`
         SELECT name
@@ -496,7 +491,7 @@ it.effect("ProviderServiceLive keeps persisted resumable sessions on startup", (
         WHERE type = 'table' AND name = 'provider_sessions'
       `;
     }).pipe(Effect.provide(persistenceLayer));
-    assert.equal(legacyTableRows.length, 0);
+    assert.equal(staleTableRows.length, 0);
 
     fs.rmSync(tempDir, { recursive: true, force: true });
   }).pipe(Effect.provide(NodeServices.layer)),
@@ -1289,7 +1284,7 @@ fanout.layer("ProviderServiceLive fanout", (it) => {
       ).pipe(Effect.forkChild);
       yield* sleep(50);
 
-      const completedEvent: LegacyProviderRuntimeEvent = {
+      const completedEvent: FixtureProviderRuntimeEvent = {
         type: "turn.completed",
         eventId: asEventId("evt-1"),
         provider: "codex",
@@ -1398,7 +1393,7 @@ fanout.layer("ProviderServiceLive fanout", (it) => {
       );
       yield* sleep(50);
 
-      const events: ReadonlyArray<LegacyProviderRuntimeEvent> = [
+      const events: ReadonlyArray<FixtureProviderRuntimeEvent> = [
         {
           type: "tool.completed",
           eventId: asEventId("evt-ordered-1"),

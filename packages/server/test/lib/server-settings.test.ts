@@ -41,28 +41,6 @@ it.layer(NodeServices.layer)("server settings", (it) => {
     }),
   );
 
-  it.effect(
-    "decodes legacy object-shaped textGenerationModelSelection.options from settings.json",
-    () =>
-      Effect.sync(() => {
-        const decode = Schema.decodeUnknownSync(ServerSettings);
-
-        const decoded = decode({
-          textGenerationModelSelection: {
-            instanceId: "codex",
-            model: "gpt-5.4-mini",
-            options: { reasoningEffort: "low" },
-          },
-        });
-
-        assert.deepEqual(decoded.textGenerationModelSelection, {
-          instanceId: "codex",
-          model: "gpt-5.4-mini",
-          options: [{ id: "reasoningEffort", value: "low" }],
-        });
-      }),
-  );
-
   it.effect("deep merges nested settings updates without dropping siblings", () =>
     Effect.gen(function* () {
       const serverSettings = yield* ServerSettingsService;

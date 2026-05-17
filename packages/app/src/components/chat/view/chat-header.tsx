@@ -6,7 +6,7 @@ import {
 import { memo } from "react";
 import { IconSidebar } from "central-icons";
 import { Button } from "@multi/ui/button";
-import type { NewProjectScriptInput } from "../../project-scripts-control";
+import ProjectScriptsControl, { type NewProjectScriptInput } from "../../project-scripts-control";
 import { shellPanelsActions } from "~/stores/shell-panels-store";
 
 interface ChatHeaderProps {
@@ -30,7 +30,16 @@ interface ChatHeaderProps {
   onToggleDiff: () => void;
 }
 
-export const ChatHeader = memo(function ChatHeader({ activeThreadTitle }: ChatHeaderProps) {
+export const ChatHeader = memo(function ChatHeader({
+  activeThreadTitle,
+  activeProjectScripts,
+  preferredScriptId,
+  keybindings,
+  onRunProjectScript,
+  onAddProjectScript,
+  onUpdateProjectScript,
+  onDeleteProjectScript,
+}: ChatHeaderProps) {
   return (
     <div className="@container/header-actions flex min-w-0 flex-1 select-none items-center gap-2 text-body">
       <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
@@ -55,6 +64,19 @@ export const ChatHeader = memo(function ChatHeader({ activeThreadTitle }: ChatHe
           </button>
         </div>
       </div>
+      {activeProjectScripts ? (
+        <div className="no-drag flex shrink-0 items-center">
+          <ProjectScriptsControl
+            scripts={activeProjectScripts}
+            keybindings={keybindings}
+            preferredScriptId={preferredScriptId}
+            onRunScript={onRunProjectScript}
+            onAddScript={onAddProjectScript}
+            onUpdateScript={onUpdateProjectScript}
+            onDeleteScript={onDeleteProjectScript}
+          />
+        </div>
+      ) : null}
     </div>
   );
 });

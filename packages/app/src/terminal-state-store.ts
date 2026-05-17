@@ -5,7 +5,7 @@
  * API constrained to store actions/selectors.
  */
 
-import { parseScopedThreadKey, scopedThreadKey } from "@multi/client-runtime";
+import { scopedThreadKey } from "@multi/client-runtime";
 import { type ScopedThreadRef, type TerminalEvent } from "@multi/contracts";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
@@ -44,22 +44,6 @@ const MAX_TERMINAL_EVENT_BUFFER = 200;
 
 interface PersistedTerminalStateStoreState {
   terminalStateByThreadKey?: Record<string, ThreadTerminalState>;
-}
-
-export function migratePersistedTerminalStateStoreState(
-  persistedState: unknown,
-  version: number,
-): PersistedTerminalStateStoreState {
-  if (version === 1 && persistedState && typeof persistedState === "object") {
-    const candidate = persistedState as PersistedTerminalStateStoreState;
-    const nextTerminalStateByThreadKey = Object.fromEntries(
-      Object.entries(candidate.terminalStateByThreadKey ?? {}).filter(([threadKey]) =>
-        parseScopedThreadKey(threadKey),
-      ),
-    );
-    return { terminalStateByThreadKey: nextTerminalStateByThreadKey };
-  }
-  return { terminalStateByThreadKey: {} };
 }
 
 function createTerminalStateStorage() {
@@ -838,7 +822,6 @@ export const useTerminalStateStore = create<TerminalStateStoreState>()(
       name: TERMINAL_STATE_STORAGE_KEY,
       version: 2,
       storage: createJSONStorage(createTerminalStateStorage),
-      migrate: migratePersistedTerminalStateStoreState,
       partialize: (state) => ({
         terminalStateByThreadKey: state.terminalStateByThreadKey,
       }),

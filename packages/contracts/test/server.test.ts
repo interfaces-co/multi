@@ -6,7 +6,7 @@ import { ServerProvider } from "../src/server";
 const decodeServerProvider = Schema.decodeUnknownSync(ServerProvider);
 
 describe("ServerProvider", () => {
-  it("defaults capability arrays when decoding legacy snapshots", () => {
+  it("defaults capability arrays when optional fields are absent", () => {
     const parsed = decodeServerProvider({
       instanceId: "codex",
       driver: "codex",

@@ -1,4 +1,4 @@
-import { ProviderDriverKind } from "@multi/contracts";
+import { ProviderInstanceId } from "@multi/contracts";
 import { it, assert, vi } from "@effect/vitest";
 import { assertFailure } from "@effect/vitest/utils";
 
@@ -106,17 +106,17 @@ layer("ProviderAdapterRegistryLive", (it) => {
   it.effect("resolves a registered provider adapter", () =>
     Effect.gen(function* () {
       const registry = yield* ProviderAdapterRegistry;
-      const codex = yield* registry.getByProvider("codex");
-      const claude = yield* registry.getByProvider("claudeAgent");
-      const openCode = yield* registry.getByProvider("opencode");
-      const cursor = yield* registry.getByProvider("cursor");
+      const codex = yield* registry.getByInstance(ProviderInstanceId.make("codex"));
+      const claude = yield* registry.getByInstance(ProviderInstanceId.make("claudeAgent"));
+      const openCode = yield* registry.getByInstance(ProviderInstanceId.make("opencode"));
+      const cursor = yield* registry.getByInstance(ProviderInstanceId.make("cursor"));
       assert.equal(codex, fakeCodexAdapter);
       assert.equal(claude, fakeClaudeAdapter);
       assert.equal(openCode, fakeOpenCodeAdapter);
       assert.equal(cursor, fakeCursorAdapter);
 
-      const providers = yield* registry.listProviders();
-      assert.deepEqual(providers, ["codex", "claudeAgent", "opencode", "cursor"]);
+      const instances = yield* registry.listInstances();
+      assert.deepEqual(instances, ["codex", "claudeAgent", "opencode", "cursor"]);
     }),
   );
 
@@ -124,7 +124,7 @@ layer("ProviderAdapterRegistryLive", (it) => {
     Effect.gen(function* () {
       const registry = yield* ProviderAdapterRegistry;
       const adapter = yield* registry
-        .getByProvider("unknown" as ProviderDriverKind)
+        .getByInstance(ProviderInstanceId.make("unknown"))
         .pipe(Effect.result);
       assertFailure(adapter, new ProviderUnsupportedError({ provider: "unknown" }));
     }),

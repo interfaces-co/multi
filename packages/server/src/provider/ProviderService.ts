@@ -13,6 +13,7 @@ import {
   ModelSelection,
   NonNegativeInt,
   ThreadId,
+  defaultInstanceIdForDriver,
   ProviderInterruptTurnInput,
   ProviderRespondToRequestInput,
   ProviderRespondToUserInputInput,
@@ -834,7 +835,9 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
   );
 
   const getCapabilities: ProviderServiceShape["getCapabilities"] = (provider) =>
-    registry.getByProvider(provider).pipe(Effect.map((adapter) => adapter.capabilities));
+    registry
+      .getByInstance(defaultInstanceIdForDriver(provider))
+      .pipe(Effect.map((adapter) => adapter.capabilities));
 
   const rollbackConversation: ProviderServiceShape["rollbackConversation"] = Effect.fn(
     "rollbackConversation",

@@ -7,25 +7,22 @@ describe("resolveDesktopAppStageLabel", () => {
     expect(
       resolveDesktopAppStageLabel({
         isDevelopment: true,
-        appVersion: "0.0.17-nightly.20260414.1",
       }),
     ).toBe("Dev");
   });
 
-  it("uses Nightly for packaged nightly builds", () => {
+  it("uses Alpha for packaged builds", () => {
     expect(
       resolveDesktopAppStageLabel({
         isDevelopment: false,
-        appVersion: "0.0.17-nightly.20260414.1",
       }),
-    ).toBe("Nightly");
+    ).toBe("Alpha");
   });
 
   it("uses Alpha for packaged stable builds", () => {
     expect(
       resolveDesktopAppStageLabel({
         isDevelopment: false,
-        appVersion: "0.0.17",
       }),
     ).toBe("Alpha");
   });
@@ -36,12 +33,11 @@ describe("resolveDesktopAppBranding", () => {
     expect(
       resolveDesktopAppBranding({
         isDevelopment: false,
-        appVersion: "0.0.17-nightly.20260414.1",
       }),
     ).toEqual({
       baseName: "Multi",
-      stageLabel: "Nightly",
-      displayName: "Multi (Nightly)",
+      stageLabel: "Alpha",
+      displayName: "Multi (Alpha)",
     });
   });
 });

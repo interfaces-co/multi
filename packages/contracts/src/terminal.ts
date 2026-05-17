@@ -185,7 +185,7 @@ export class TerminalCwdError extends Schema.TaggedErrorClass<TerminalCwdError>(
 export class TerminalHistoryError extends Schema.TaggedErrorClass<TerminalHistoryError>()(
   "TerminalHistoryError",
   {
-    operation: Schema.Literals(["read", "truncate", "migrate"]),
+    operation: Schema.Literals(["read", "truncate"]),
     threadId: Schema.String,
     terminalId: Schema.String,
     cause: Schema.optional(Schema.Defect),

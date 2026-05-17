@@ -70,7 +70,7 @@ describe("deriveComposerSendState", () => {
 });
 
 describe("buildExpiredTerminalContextToastCopy", () => {
-  it("formats clear empty-state guidance", () => {
+  it("formats guidance for unsent messages", () => {
     expect(buildExpiredTerminalContextToastCopy(1, "empty")).toEqual({
       title: "Expired terminal context won't be sent",
       description: "Remove it or re-add it to include terminal output.",

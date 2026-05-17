@@ -1,22 +1,19 @@
 import type { DesktopAppBranding, DesktopAppStageLabel } from "@multi/contracts";
 
 const APP_BASE_NAME = "Multi";
-const NIGHTLY_VERSION_PATTERN = /-nightly\.\d{8}\.\d+$/;
 
 export function resolveDesktopAppStageLabel(input: {
   readonly isDevelopment: boolean;
-  readonly appVersion: string;
 }): DesktopAppStageLabel {
   if (input.isDevelopment) {
     return "Dev";
   }
 
-  return NIGHTLY_VERSION_PATTERN.test(input.appVersion) ? "Nightly" : "Alpha";
+  return "Alpha";
 }
 
 export function resolveDesktopAppBranding(input: {
   readonly isDevelopment: boolean;
-  readonly appVersion: string;
 }): DesktopAppBranding {
   const stageLabel = resolveDesktopAppStageLabel(input);
   return {
