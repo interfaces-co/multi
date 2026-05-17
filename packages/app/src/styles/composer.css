@@ -99,10 +99,6 @@ html.dark {
   position: relative;
 }
 
-.agent-panel-followup-input:has(.glass-composer-usage-status-bar-mount > * > *) {
-  padding-bottom: 10px;
-}
-
 .agent-panel-followup-input--disabled .ui-prompt-input {
   pointer-events: none;
 }
@@ -167,13 +163,6 @@ html.dark {
 .agent-panel-followup-input--conversation-overlay .ui-prompt-input {
   position: relative;
   z-index: 1;
-}
-
-.agent-panel-followup-input--conversation-overlay:not([data-scrolled-to-bottom])
-  .glass-composer-usage-status-bar-mount {
-  max-height: 0;
-  opacity: 0;
-  overflow: hidden;
 }
 
 /* ============================================================

@@ -24,10 +24,6 @@ body.cursor-high-contrast [data-component="root"] {
   --glass-chat-bubble-background: var(--vscode-editor-background) !important;
 }
 
-.monaco-workbench .agent-panel .glass-agent-conversation-tiling {
-  background: var(--vscode-editor-background) !important;
-}
-
 .composer-human-message {
   background-color: var(--vscode-editor-background) !important;
 }

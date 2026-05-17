@@ -62,10 +62,7 @@ export const ComposerFooterShell = memo(function ComposerFooterShell(props: {
     >
       <PromptInputToolbarLeft className="-m-1 flex min-w-0 flex-1 items-center gap-1 overflow-x-auto p-1 scrollbar-none [&::-webkit-scrollbar]:hidden">
         <span
-          className={cn(
-            "glass-model-picker-wrapper inline-flex min-w-0 max-w-(--agent-prompt-model-picker-max-width) overflow-hidden [--agent-prompt-model-picker-max-width:240px]",
-            props.isFooterCompact && "[--agent-prompt-model-picker-max-width:200px]",
-          )}
+          className="inline-flex min-w-0 overflow-hidden"
           data-compact-visible=""
         >
           {props.providerModelPicker}

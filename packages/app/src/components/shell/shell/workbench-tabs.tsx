@@ -113,7 +113,7 @@ export function WorkbenchTabBar(props: {
         }}
       >
         <Menu.Trigger
-          className="glass-editor-panel-new-tab-menu-trigger ui-icon-button my-1.5 flex size-(--multi-workbench-action-size) shrink-0 items-center justify-center rounded-multi-control text-multi-icon-secondary hover:bg-multi-bg-quaternary hover:text-multi-icon-primary data-[popup-open]:bg-multi-bg-tertiary data-[popup-open]:text-multi-icon-primary"
+          className="ui-icon-button my-1.5 flex size-(--multi-workbench-action-size) shrink-0 items-center justify-center rounded-multi-control text-multi-icon-secondary hover:bg-multi-bg-quaternary hover:text-multi-icon-primary data-popup-open:bg-multi-bg-tertiary data-popup-open:text-multi-icon-primary"
           aria-expanded={open}
           aria-label="Open new tab menu"
           title="Open new tab menu"
@@ -130,7 +130,6 @@ export function WorkbenchTabBar(props: {
             <Menu.Popup
               className={cn(
                 workbenchMenuPopupClassName,
-                "glass-editor-panel-new-tab-menu",
                 NEW_TAB_MENU_WIDTH,
                 NEW_TAB_MENU_MAX_HEIGHT,
               )}
