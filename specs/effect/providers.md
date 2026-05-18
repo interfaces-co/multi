@@ -3,14 +3,13 @@
 This spec defines the provider surface Multi supports in this unreleased line.
 Provider support is canonical only when contracts, server registries, adapters,
 runtime discovery, settings, and picker UI all agree on the same driver list.
-ACP support is intentionally narrow: Amp and Cursor are the only ACP-first
-providers in this foundation.
+ACP support is intentionally narrow: Cursor is the ACP-first provider in this
+foundation.
 
 ## Canonical Providers
 
 - [x] Codex/OpenAI: supported through the Codex app-server provider and adapter.
 - [x] Claude: supported through the Claude provider and adapter.
-- [~] Amp: supported through `amp-acp` over ACP stdio.
 - [x] OpenCode: supported through the OpenCode server/SDK provider and adapter.
 - [~] Cursor: supported through Cursor Agent ACP over stdio.
 - [ ] Pi: visible only as an unsupported pending provider. It must not route
@@ -35,31 +34,12 @@ appear in settings, picker rails, or built-in server registries.
 
 - [x] `codex`
 - [x] `claudeAgent`
-- [~] `amp`
 - [x] `opencode`
 - [~] `cursor`
 - [ ] `pi` as pending only
 
-Driver keys are persisted identifiers. UI labels may say `Claude`, `Amp`, or
-`Pi`, but server routing uses the exact driver key above.
-
-## Amp ACP Contract
-
-Research source: `codebase update amp-acp` and
-`~/.agents/codebases/amp-acp`.
-
-- [x] Binary: `amp-acp`.
-- [x] Transport: ACP JSON-RPC over stdio.
-- [x] Auth method: `setup`; the adapter accepts `AMP_API_KEY` from provider
-      settings/env or the `amp-acp` credentials file.
-- [x] Setup: `amp-acp --setup` stores an API key under the user config dir.
-- [x] Sessions: `newSession` returns `default` and `bypass` modes.
-- [x] Prompt: text and image prompt parts are accepted; `/init` is translated by
-      `amp-acp` into AGENTS.md generation instructions.
-- [x] Model switching: `setSessionModel` is a no-op. Multi exposes one logical
-      model, `amp`.
-- [x] Events: assistant text, thinking, tool calls, tool results, and available
-      command updates are emitted as ACP session updates.
+Driver keys are persisted identifiers. UI labels may say `Claude` or `Pi`, but
+server routing uses the exact driver key above.
 
 ## Cursor ACP Contract
 
@@ -76,12 +56,10 @@ Research source: `codebase update amp-acp` and
 
 ## Done Means
 
-- [ ] `packages/contracts` exposes Amp settings and model capability schema
-      without provider-specific model defaults.
-- [ ] `packages/server` has Amp provider status, adapter routing, runtime
-      wiring, and text-generation routing.
-- [ ] Built-in server registries include only Codex/OpenAI, Claude, Amp,
-      OpenCode, and Cursor.
+- [ ] `packages/contracts` exposes model capability schema without
+      provider-specific model defaults.
+- [ ] Built-in server registries include only Codex/OpenAI, Claude, OpenCode,
+      and Cursor.
 - [ ] Renderer provider settings and model picker include only supported
       providers plus Pi pending.
 - [ ] Typecheck passes after the provider rewrite.

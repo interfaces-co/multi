@@ -121,9 +121,9 @@ P6  EFFECT
       into the consuming picker files.
 - [ ] Add full provider settings browser coverage before collapsing
       settings-provider component boundaries.
-- [~] Rewire supported providers to the canonical list in
-      [providers.md](./providers.md): Codex/OpenAI, Claude, Amp, OpenCode,
-      Cursor, and Pi pending only.
+- [x] Rewire supported providers to the canonical list in
+      [providers.md](./providers.md): Codex/OpenAI, Claude, OpenCode, Cursor,
+      and Pi pending only.
 - [x] Remove provider-specific model constants, aliases, display names, and
       per-provider defaults from `packages/contracts/src/model.ts`; model
       catalogs are provider/runtime-owned.

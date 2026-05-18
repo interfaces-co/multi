@@ -445,7 +445,6 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsService.layerTest()))(
             decodeServerSettings(
               deepMerge(DEFAULT_SERVER_SETTINGS, {
                 providers: {
-                  amp: { enabled: false },
                   codex: { enabled: false },
                   cursor: { enabled: false },
                 },
@@ -511,9 +510,6 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsService.layerTest()))(
               decodeServerSettings(
                 deepMerge(DEFAULT_SERVER_SETTINGS, {
                   providers: {
-                    amp: {
-                      enabled: false,
-                    },
                     codex: {
                       enabled: false,
                     },
@@ -564,7 +560,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsService.layerTest()))(
 
               assert.deepStrictEqual(
                 providers.map((provider) => provider.driver),
-                ["amp", "claudeAgent", "codex", "cursor", "opencode"],
+                ["claudeAgent", "codex", "cursor", "opencode"],
               );
               assert.strictEqual(cursorProvider?.enabled, false);
               assert.strictEqual(cursorProvider?.status, "disabled");

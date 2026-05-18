@@ -1,5 +1,4 @@
 import {
-  AmpSettings,
   ClaudeSettings,
   CodexSettings,
   CursorSettings,
@@ -16,12 +15,10 @@ import { Schema } from "effect";
 
 const CODEX_PROVIDER = ProviderDriverKind.make("codex");
 const CLAUDE_AGENT_PROVIDER = ProviderDriverKind.make("claudeAgent");
-const AMP_PROVIDER = ProviderDriverKind.make("amp");
 const CURSOR_PROVIDER = ProviderDriverKind.make("cursor");
 const OPENCODE_PROVIDER = ProviderDriverKind.make("opencode");
 const decodeCodexSettings = Schema.decodeUnknownSync(CodexSettings);
 const decodeClaudeSettings = Schema.decodeUnknownSync(ClaudeSettings);
-const decodeAmpSettings = Schema.decodeUnknownSync(AmpSettings);
 const decodeCursorSettings = Schema.decodeUnknownSync(CursorSettings);
 const decodeOpenCodeSettings = Schema.decodeUnknownSync(OpenCodeSettings);
 const DEFAULT_CURSOR_SETTINGS = decodeCursorSettings({});
@@ -29,14 +26,9 @@ const DEFAULT_CURSOR_SETTINGS = decodeCursorSettings({});
 export const CANONICAL_PROVIDER_DRIVER_ORDER = [
   CODEX_PROVIDER,
   CLAUDE_AGENT_PROVIDER,
-  AMP_PROVIDER,
   OPENCODE_PROVIDER,
   CURSOR_PROVIDER,
 ] as const satisfies ReadonlyArray<ProviderDriverKind>;
-
-export type ResolvedAmpSettings = typeof AmpSettings.Type & {
-  readonly environment: ProviderInstanceEnvironment;
-};
 
 export type ResolvedOpenCodeSettings = typeof OpenCodeSettings.Type & {
   readonly environment: ProviderInstanceEnvironment;
@@ -99,12 +91,6 @@ function fallbackCursorSettings(settings: ServerSettings, instanceId: ProviderIn
     : DEFAULT_CURSOR_SETTINGS;
 }
 
-function fallbackAmpSettings(settings: ServerSettings, instanceId: ProviderInstanceId) {
-  return isDefaultProviderInstance(AMP_PROVIDER, instanceId)
-    ? settings.providers.amp
-    : DEFAULT_SERVER_SETTINGS.providers.amp;
-}
-
 function fallbackOpenCodeSettings(settings: ServerSettings, instanceId: ProviderInstanceId) {
   return isDefaultProviderInstance(OPENCODE_PROVIDER, instanceId)
     ? settings.providers.opencode
@@ -159,27 +145,6 @@ export function resolveCursorSettings(
   );
 }
 
-export function resolveAmpSettings(
-  settings: ServerSettings,
-  instanceId: ProviderInstanceId = defaultInstanceIdForDriver(AMP_PROVIDER),
-): ResolvedAmpSettings {
-  const instance = resolveProviderInstanceConfig({
-    settings,
-    driver: AMP_PROVIDER,
-    instanceId,
-  });
-  const resolved = decodeAmpSettings(
-    resolveSettingsRecord({
-      fallback: fallbackAmpSettings(settings, instanceId),
-      instance,
-    }),
-  );
-  return {
-    ...resolved,
-    environment: instance?.environment ?? [],
-  };
-}
-
 export function resolveOpenCodeSettings(
   settings: ServerSettings,
   instanceId: ProviderInstanceId = defaultInstanceIdForDriver(OPENCODE_PROVIDER),
@@ -212,8 +177,6 @@ export function resolveProviderEnabled(input: {
       return resolveCodexSettings(input.settings, instanceId).enabled;
     case CLAUDE_AGENT_PROVIDER:
       return resolveClaudeSettings(input.settings, instanceId).enabled;
-    case AMP_PROVIDER:
-      return resolveAmpSettings(input.settings, instanceId).enabled;
     case OPENCODE_PROVIDER:
       return resolveOpenCodeSettings(input.settings, instanceId).enabled;
     case CURSOR_PROVIDER:

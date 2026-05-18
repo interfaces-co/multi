@@ -26,7 +26,6 @@ import {
 import { ClaudeAdapter } from "./ClaudeAdapter.service.ts";
 import { CodexAdapter } from "./CodexAdapter.service.ts";
 import { CursorAdapter } from "./CursorAdapter.service.ts";
-import { AmpAdapter } from "./AmpAdapter.service.ts";
 import { OpenCodeAdapter } from "./OpenCodeAdapter.service.ts";
 import { createBuiltInAdapterList } from "./builtInProviderCatalog.ts";
 import { ServerSettingsService } from "../server-settings.ts";
@@ -46,7 +45,6 @@ const makeProviderAdapterRegistry = Effect.fn("makeProviderAdapterRegistry")(fun
       : createBuiltInAdapterList({
           codex: yield* CodexAdapter,
           claudeAgent: yield* ClaudeAdapter,
-          amp: yield* AmpAdapter,
           opencode: yield* OpenCodeAdapter,
           cursor: yield* CursorAdapter,
         });
