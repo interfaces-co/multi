@@ -15,7 +15,7 @@ import {
 } from "central-icons";
 import type { ComponentType } from "react";
 
-export type Icon = ComponentType<CentralIconBaseProps>;
+type ProviderDriverIcon = ComponentType<CentralIconBaseProps>;
 
 type ProviderSettingsSchema = {
   readonly fields: Readonly<Record<string, Schema.Top>>;
@@ -27,16 +27,16 @@ type ProviderSettingsSchema = {
  * field annotations plus provider-level presentation metadata, then renders
  * settings generically.
  */
-export interface ProviderClientDefinition {
+export interface DriverOption {
   readonly value: ProviderDriverKind;
   readonly label: string;
-  readonly icon: Icon;
+  readonly icon: ProviderDriverIcon;
   readonly settingsSchema: ProviderSettingsSchema;
   /** Optional short label rendered as a `variant="warning"` badge next to the instance title. */
   readonly badgeLabel?: string;
 }
 
-export const PROVIDER_CLIENT_DEFINITIONS: readonly ProviderClientDefinition[] = [
+export const DRIVER_OPTIONS: readonly DriverOption[] = [
   {
     value: ProviderDriverKind.make("codex"),
     label: "Codex",
@@ -63,15 +63,9 @@ export const PROVIDER_CLIENT_DEFINITIONS: readonly ProviderClientDefinition[] = 
   },
 ];
 
-export const PROVIDER_CLIENT_DEFINITION_BY_VALUE: Partial<
-  Record<ProviderDriverKind, ProviderClientDefinition>
-> = Object.fromEntries(
-  PROVIDER_CLIENT_DEFINITIONS.map((definition) => [definition.value, definition]),
+const DRIVER_OPTION_BY_VALUE: Partial<Record<ProviderDriverKind, DriverOption>> = Object.fromEntries(
+  DRIVER_OPTIONS.map((definition) => [definition.value, definition]),
 );
-
-export const DRIVER_OPTIONS = PROVIDER_CLIENT_DEFINITIONS;
-export const DRIVER_OPTION_BY_VALUE = PROVIDER_CLIENT_DEFINITION_BY_VALUE;
-export type DriverOption = ProviderClientDefinition;
 
 /**
  * Look up the driver metadata for an instance's `driver` field. Accepts
@@ -80,5 +74,5 @@ export type DriverOption = ProviderClientDefinition;
  */
 export function getDriverOption(driver: ProviderDriverKind | undefined): DriverOption | undefined {
   if (driver === undefined) return undefined;
-  return PROVIDER_CLIENT_DEFINITION_BY_VALUE[driver];
+  return DRIVER_OPTION_BY_VALUE[driver];
 }

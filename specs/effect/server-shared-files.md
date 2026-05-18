@@ -7,15 +7,15 @@ shared-package drift before deletion or movement.
 Inventory command:
 
 ```bash
-git ls-files --cached --others --exclude-standard packages/server packages/shared
+rg --files packages/server packages/shared
 ```
 
 Current count:
 
-- [x] `packages/server/src`: `231` files.
-- [x] `packages/server/test`: `89` files.
-- [x] `packages/shared/src`: `23` files.
-- [x] `packages/shared/test`: `11` files.
+- [x] `packages/server/src`: `233` files.
+- [x] `packages/server/test`: `90` files.
+- [x] `packages/shared/src`: `19` files.
+- [x] `packages/shared/test`: `9` files.
 
 Source grouping:
 
@@ -31,7 +31,7 @@ Source grouping:
 - [x] `packages/server/src/provider`: `47`.
 - [x] `packages/server/src/telemetry`: `3`.
 - [x] `packages/server/src/terminal`: `5`.
-- [x] `packages/shared/src` root files: `19`.
+- [x] `packages/shared/src` root files: `15`.
 - [x] `packages/shared/src/observability`: `4`.
 
 ## Server Boundaries To Keep
@@ -116,7 +116,11 @@ Keep as shared boundaries:
 - [x] `logging.ts`: rotating file sink used by server observability/provider
       logging.
 - [x] `model.ts`: shared model primitives used by app resolver/picker/store and
-      server provider/Git text-generation code.
+      server provider/Git text-generation code. It owns runtime-neutral model
+      selection creation, descriptor normalization, slug aliases, capability
+      helpers, and prompt-effort prefix parsing only; app fallback,
+      availability, ordering, and missing-state policy stay in
+      `packages/app/src/model`.
 - [x] `path.ts`: shared path classification for app project paths and server
       project entries.
 - [x] `project-scripts.ts`: canonical project-script runtime helper shared by
@@ -132,17 +136,21 @@ Keep as shared boundaries:
 
 Classify before keeping public:
 
-- [x] `KeyedCoalescingWorker.ts`: currently one production consumer in
-      `packages/server/src/terminal/Manager.ts`; keep only if the worker remains a
-      reusable Effect primitive.
-- [x] `String.ts`: currently one production consumer in chat view; inline or
-      move unless another package needs the exact string helper.
-- [x] `subagents.ts`: currently app session/worklog-only; move decision needs
-      session/worklog ownership design first.
+- [x] `KeyedCoalescingWorker.ts`: moved to
+      `packages/server/src/terminal/KeyedCoalescingWorker.ts` with its focused
+      worker test under `packages/server/test/terminal` because terminal history
+      persistence is the only production consumer.
+- [x] `String.ts`: deleted as a shared export after moving thread title
+      trimming/truncation into `packages/app/src/components/chat/view/chat-view-send-flow.ts`.
+      The retained behavior is covered by the first-send worktree draft browser
+      test assertion on the `thread.meta.update` title.
+- [x] `subagents.ts`: moved to `packages/app/src/session/subagents.ts` because
+      the only production consumer is app session/worklog derivation.
 - [x] `thread-segments.ts`: used by server attachment storage and app command
       palette; keep until thread/path ownership is decided.
-- [x] `tool-activity.ts`: currently server ACP runtime-only; move to server
-      unless app consumption is planned.
+- [x] `tool-activity.ts`: moved to
+      `packages/server/src/provider/acp/tool-activity.ts` because the only
+      production consumer is ACP runtime normalization.
 
 ## Observability Duplication
 
@@ -201,24 +209,40 @@ Rules:
 
 - [ ] Make shared observability canonical and remove server duplicate
       trace/sink/tracer files.
-- [ ] Reclassify `KeyedCoalescingWorker.ts` as shared primitive or terminal
+- [x] Reclassify `KeyedCoalescingWorker.ts` as shared primitive or terminal
       private helper.
-- [ ] Reclassify `String.ts` as app-local helper or inline usage.
-- [ ] Reclassify `tool-activity.ts` as server ACP helper unless app use is
+- [x] Reclassify `String.ts` as app-local helper or inline usage.
+- [x] Reclassify `tool-activity.ts` as server ACP helper unless app use is
       planned.
-- [ ] Document `shared/model.ts` as primitive-only and keep app model resolver
+- [x] Reclassify `subagents.ts` as app session/worklog helper.
+- [x] Document `shared/model.ts` as primitive-only and keep app model resolver
       policy in `packages/app/src/model`.
 - [ ] Keep `shared/project-scripts.ts` canonical and move app project-script
       tests to the behavior owner.
 
 ## Done Means
 
-- [ ] Each moved/deleted server/shared file has caller inventory captured with
+- [x] Each moved/deleted server/shared file has caller inventory captured with
       `rg`, `git ls-files`, or `knip`.
-- [ ] Public `@multi/shared` exports remain intentional in
+- [x] Public `@multi/shared` exports remain intentional in
       `packages/shared/package.json`.
 - [ ] Server runtime boundaries still expose typed Effect errors where
       expected failures are possible.
 - [ ] Proposed-plan chain still runs provider event to projection to native
       workbench.
-- [ ] `pnpm run typecheck` passes for code changes.
+- [x] `pnpm run typecheck` passes for code changes.
+
+Current cleanup evidence:
+
+- [x] `rg` found no production consumers for
+      `@multi/shared/KeyedCoalescingWorker`, `@multi/shared/subagents`, or
+      `@multi/shared/tool-activity` after the moves.
+- [x] `@multi/shared` no longer exports those three package subpaths.
+- [x] `@multi/shared` no longer exports the one-caller `./String` subpath.
+- [x] The moved keyed worker test passed from `packages/server` with
+      `pnpm exec vitest run test/terminal/KeyedCoalescingWorker.test.ts`.
+- [x] The retained thread title trim/truncate behavior passed from
+      `packages/app` with
+      `pnpm exec vitest run --config vitest.browser.config.ts src/components/chat/view/chat-view.browser.tsx -t "keeps new-worktree mode on empty server threads and bootstraps the first send"`.
+- [x] `pnpm run typecheck` passed after the shared export removals.
+- [x] Strict oxlint passed with warnings denied, and `git diff --check` is clean.

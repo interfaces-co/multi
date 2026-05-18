@@ -8,12 +8,12 @@ import { DEFAULT_PROJECTLESS_CWD, type EditorId, type EnvironmentId } from "@mul
 import type { TimestampFormat } from "@multi/contracts/settings";
 import { useMutation } from "@tanstack/react-query";
 import { Outlet, useNavigate, useParams, useRouter } from "@tanstack/react-router";
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useShallow } from "zustand/react/shallow";
 import { IconBranch, IconConsole, IconFileText, IconSquareChecklist } from "central-icons";
 
-import { readLastChatRouteTarget } from "~/chat-route-persistence";
+import { readLastChatRouteTarget } from "~/app/routes/chat-route-persistence";
 import { prefetchDraftNavigation, prefetchThreadNavigation } from "~/app/thread-prefetch";
 import { useCommandPaletteStore } from "~/stores/ui/command-palette-store";
 import { isElectron } from "~/env";
@@ -22,7 +22,7 @@ import { useHandleNewThread } from "~/hooks/use-handle-new-thread";
 import { useRouteThreadId } from "~/hooks/use-route-thread-id";
 import { getServerConfig, useServerAvailableEditors } from "~/rpc/server-state";
 import { useComposerDraftStore } from "~/stores/chat-drafts";
-import { resolveChatModelSelection } from "~/model/chat-selection";
+import { resolveAppProviderModelState } from "~/model/selection";
 import { readEnvironmentApi } from "~/environment-api";
 import {
   startNewThreadFromContext,
@@ -46,7 +46,7 @@ import {
 } from "~/stores/shell-panels-store";
 import { useThreadUnreadStore } from "~/stores/thread-unread-store";
 import { writeStoredProjectCwd } from "~/lib/project-state";
-import { buildPlanImplementationPrompt } from "~/proposed-plan";
+import { buildPlanImplementationPrompt } from "~/plan/proposed-plan";
 import {
   buildProjectChatSections,
   type SidebarDraftSummary,
@@ -76,7 +76,7 @@ import {
   type SidebarThreadSummary as StoreSidebarThreadSummary,
   type Thread,
 } from "~/types";
-import { resolveThreadRouteTarget } from "~/thread-routes";
+import { resolveThreadRouteTarget } from "~/app/routes/thread-route-targets";
 import { GitPanel } from "./shell/git/panel";
 import { ProjectFilesPanel } from "./shell/files/project-files-panel";
 import { AppShell, type RightWorkbenchDefinition } from "./shell/shell/app";
@@ -144,6 +144,47 @@ function hasGitAgentStartFailure(thread: Thread, action: GitAgentAction): boolea
       activity.kind === "provider.turn.start.failed" &&
       activity.createdAt >= latestUserMessage.createdAt,
   );
+}
+
+function resolveActiveGitAgentHandoff(input: {
+  activeRun: GitAgentRun | null;
+  activeThread: Thread | null;
+  mutationIsPending: boolean;
+  orchestrationHandoff: GitAgentActionHandoff | null;
+}): GitAgentActionHandoff | null {
+  if (input.activeRun !== null || input.orchestrationHandoff === null) {
+    return null;
+  }
+
+  if (input.mutationIsPending) {
+    return input.orchestrationHandoff;
+  }
+
+  const activeThread = input.activeThread;
+  if (
+    activeThread === null ||
+    activeThread.environmentId !== input.orchestrationHandoff.target.environmentId ||
+    activeThread.id !== input.orchestrationHandoff.target.threadId
+  ) {
+    return input.orchestrationHandoff;
+  }
+
+  const orchestrationStatus = activeThread.session?.orchestrationStatus ?? null;
+  if (orchestrationStatus === "starting" || orchestrationStatus === "running") {
+    return input.orchestrationHandoff;
+  }
+
+  const latestTurnState = activeThread.latestTurn?.state ?? null;
+  if (
+    latestTurnState === "completed" ||
+    latestTurnState === "interrupted" ||
+    latestTurnState === "error" ||
+    hasGitAgentStartFailure(activeThread, input.orchestrationHandoff.action)
+  ) {
+    return null;
+  }
+
+  return input.orchestrationHandoff;
 }
 
 function toSummaryFromSidebarThread(
@@ -525,7 +566,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
           ? useComposerDraftStore.getState().draftsByThreadKey[composerDraftKey]
           : undefined;
       const serverConfig = getServerConfig();
-      const resolved = resolveChatModelSelection({
+      const resolved = resolveAppProviderModelState({
         draft: composerDraft,
         providers: serverConfig?.providers ?? [],
         settings,
@@ -845,7 +886,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
           ? useComposerDraftStore.getState().draftsByThreadKey[composerDraftKey]
           : undefined;
       const serverConfig = getServerConfig();
-      const modelSelection = resolveChatModelSelection({
+      const modelSelection = resolveAppProviderModelState({
         draft: composerDraft,
         providers: serverConfig?.providers ?? [],
         settings,
@@ -961,15 +1002,30 @@ function ChatShellHost(props: { children?: ReactNode }) {
       toast.error(error instanceof Error ? error.message : "Failed to start Git action.");
     },
   });
+  const activeGitAgentHandoff = useMemo(
+    () =>
+      resolveActiveGitAgentHandoff({
+        activeRun: activeGitAgentRun,
+        activeThread,
+        mutationIsPending: gitAgentActionMutation.isPending,
+        orchestrationHandoff: gitAgentOrchestrationHandoff,
+      }),
+    [
+      activeGitAgentRun,
+      activeThread,
+      gitAgentActionMutation.isPending,
+      gitAgentOrchestrationHandoff,
+    ],
+  );
   const interruptGitAgentActionMutation = useMutation({
     mutationKey: [
       "git",
       "agent-action",
       "interrupt",
       activeGitAgentRun?.target.environmentId ??
-        gitAgentOrchestrationHandoff?.target.environmentId ??
+        activeGitAgentHandoff?.target.environmentId ??
         null,
-      activeGitAgentRun?.target.threadId ?? gitAgentOrchestrationHandoff?.target.threadId ?? null,
+      activeGitAgentRun?.target.threadId ?? activeGitAgentHandoff?.target.threadId ?? null,
     ] as const,
     onMutate: () => {
       setGitAgentOrchestrationHandoff(null);
@@ -994,54 +1050,21 @@ function ChatShellHost(props: { children?: ReactNode }) {
       setGitAgentOrchestrationHandoff(null);
     },
   });
-  useEffect(() => {
-    if (activeGitAgentRun !== null) {
-      setGitAgentOrchestrationHandoff(null);
-      return;
-    }
-    if (gitAgentOrchestrationHandoff === null || gitAgentActionMutation.isPending) {
-      return;
-    }
-    const targetMatchesActiveThread =
-      activeThread?.environmentId === gitAgentOrchestrationHandoff.target.environmentId &&
-      activeThread.id === gitAgentOrchestrationHandoff.target.threadId;
-    if (!targetMatchesActiveThread) {
-      return;
-    }
-    const orchestrationStatus = activeThread.session?.orchestrationStatus ?? null;
-    if (orchestrationStatus === "starting" || orchestrationStatus === "running") {
-      return;
-    }
-    const latestTurnState = activeThread.latestTurn?.state ?? null;
-    if (
-      latestTurnState === "completed" ||
-      latestTurnState === "interrupted" ||
-      latestTurnState === "error" ||
-      hasGitAgentStartFailure(activeThread, gitAgentOrchestrationHandoff.action)
-    ) {
-      setGitAgentOrchestrationHandoff(null);
-    }
-  }, [
-    activeGitAgentRun,
-    activeThread,
-    gitAgentActionMutation.isPending,
-    gitAgentOrchestrationHandoff,
-  ]);
   const pendingGitAgentAction = resolvePendingGitAgentAction({
     activeRun: activeGitAgentRun,
     mutationIsPending: gitAgentActionMutation.isPending,
     mutationVariables: gitAgentActionMutation.variables,
-    orchestrationHandoff: gitAgentOrchestrationHandoff,
+    orchestrationHandoff: activeGitAgentHandoff,
   });
   const gitAgentInterruptTarget =
-    activeGitAgentRun?.target ?? gitAgentOrchestrationHandoff?.target ?? null;
+    activeGitAgentRun?.target ?? activeGitAgentHandoff?.target ?? null;
   const stopGitAgentAction = gitAgentInterruptTarget
     ? () => interruptGitAgentActionMutation.mutate(gitAgentInterruptTarget)
     : null;
   const stoppingGitAgentAction =
     interruptGitAgentActionMutation.isPending && pendingGitAgentAction !== null;
   const center = (
-    <GitAgentActionHandoffContext.Provider value={gitAgentOrchestrationHandoff}>
+    <GitAgentActionHandoffContext.Provider value={activeGitAgentHandoff}>
       {props.children ?? <Outlet />}
     </GitAgentActionHandoffContext.Provider>
   );
@@ -1222,13 +1245,16 @@ function ChatWorkbenchShellHost(props: {
   ]);
 
   return (
-    <AppShell
-      cwd={props.cwd}
-      routeThreadId={props.routeThreadId}
-      gitFocusId={git.focusId}
-      left={props.left}
-      center={props.center}
-      right={right}
-    />
+    <>
+      {git.lifecycleSync}
+      <AppShell
+        cwd={props.cwd}
+        routeThreadId={props.routeThreadId}
+        gitFocusId={git.focusId}
+        left={props.left}
+        center={props.center}
+        right={right}
+      />
+    </>
   );
 }

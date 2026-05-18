@@ -1,7 +1,7 @@
 import { type TurnId } from "@multi/contracts";
 import { prepareFileTreeInput } from "@pierre/trees";
 import type { FileTreeRowDecoration, FileTreeRowDecorationRenderer } from "@pierre/trees";
-import { memo, useEffect, useMemo, useRef } from "react";
+import { memo, useMemo, useRef } from "react";
 
 import { type TurnDiffFileChange } from "../../../types";
 import { normalizeTreePath, Tree, useTreeModel } from "../../tree";
@@ -40,21 +40,11 @@ export const ChangedFilesTree = memo(function ChangedFilesTree(props: {
   onOpenTurnDiff: (turnId: TurnId, filePath?: string) => void;
 }) {
   const { files, allDirectoriesExpanded, onOpenTurnDiff, resolvedTheme, turnId } = props;
-  const filePathSetRef = useRef<ReadonlySet<string>>(new Set());
-  const onOpenTurnDiffRef = useRef(onOpenTurnDiff);
-  const rowDecorationsByPathRef = useRef<ReadonlyMap<string, FileTreeRowDecoration>>(new Map());
-  const turnIdRef = useRef(turnId);
-  const lastOpenedPathRef = useRef<string | null>(null);
-
-  onOpenTurnDiffRef.current = onOpenTurnDiff;
-  turnIdRef.current = turnId;
-
   const treePaths = useMemo(
     () => files.map((file) => normalizeTreePath(file.path)).filter((path) => path.length > 0),
     [files],
   );
-
-  const preparedInput = useMemo(() => prepareFileTreeInput(treePaths), [treePaths]);
+  const treePathsKey = useMemo(() => treePaths.join("\0"), [treePaths]);
   const directoryPaths = useMemo(() => collectDirectoryPaths(treePaths), [treePaths]);
   const filePathSet = useMemo(() => new Set(treePaths), [treePaths]);
   const rowDecorationsByPath = useMemo(() => {
@@ -68,6 +58,49 @@ export const ChangedFilesTree = memo(function ChangedFilesTree(props: {
     }
     return decorations;
   }, [files]);
+
+  return (
+    <ChangedFilesTreeModel
+      key={`${turnId}:${allDirectoriesExpanded ? "all" : "default"}:${treePathsKey}`}
+      allDirectoriesExpanded={allDirectoriesExpanded}
+      directoryPaths={directoryPaths}
+      filePathSet={filePathSet}
+      onOpenTurnDiff={onOpenTurnDiff}
+      resolvedTheme={resolvedTheme}
+      rowDecorationsByPath={rowDecorationsByPath}
+      treePaths={treePaths}
+      treePathsKey={treePathsKey}
+      turnId={turnId}
+    />
+  );
+});
+
+function ChangedFilesTreeModel(props: {
+  readonly allDirectoriesExpanded: boolean;
+  readonly directoryPaths: readonly string[];
+  readonly filePathSet: ReadonlySet<string>;
+  readonly onOpenTurnDiff: (turnId: TurnId, filePath?: string) => void;
+  readonly resolvedTheme: "light" | "dark";
+  readonly rowDecorationsByPath: ReadonlyMap<string, FileTreeRowDecoration>;
+  readonly treePaths: readonly string[];
+  readonly treePathsKey: string;
+  readonly turnId: TurnId;
+}) {
+  const filePathSetRef = useRef<ReadonlySet<string>>(new Set());
+  const onOpenTurnDiffRef = useRef(props.onOpenTurnDiff);
+  const rowDecorationsByPathRef = useRef<ReadonlyMap<string, FileTreeRowDecoration>>(new Map());
+  const turnIdRef = useRef(props.turnId);
+  const treeIdentityRef = useRef({ turnId: props.turnId, treePathsKey: props.treePathsKey });
+  const lastOpenedPathRef = useRef<{
+    readonly turnId: TurnId;
+    readonly treePathsKey: string;
+    readonly path: string;
+  } | null>(null);
+
+  onOpenTurnDiffRef.current = props.onOpenTurnDiff;
+  turnIdRef.current = props.turnId;
+
+  const preparedInput = useMemo(() => prepareFileTreeInput(props.treePaths), [props.treePaths]);
   const renderRowDecoration = useMemo<FileTreeRowDecorationRenderer>(
     () =>
       ({ row }) =>
@@ -75,45 +108,40 @@ export const ChangedFilesTree = memo(function ChangedFilesTree(props: {
     [],
   );
 
+  filePathSetRef.current = props.filePathSet;
+  rowDecorationsByPathRef.current = props.rowDecorationsByPath;
+  treeIdentityRef.current = { turnId: props.turnId, treePathsKey: props.treePathsKey };
+
   const { model } = useTreeModel({
-    paths: [],
-    initialExpansion: allDirectoriesExpanded ? "open" : "closed",
+    paths: props.treePaths,
+    preparedInput,
+    initialExpansion: props.allDirectoriesExpanded ? "open" : "closed",
+    initialExpandedPaths: props.allDirectoriesExpanded ? props.directoryPaths : [],
     renderRowDecoration,
     onSelectionChange: (selectedPaths) => {
       const path = selectedPaths[0] ?? null;
-      if (!path || path === lastOpenedPathRef.current || !filePathSetRef.current.has(path)) {
+      const currentIdentity = treeIdentityRef.current;
+      const lastOpened = lastOpenedPathRef.current;
+      if (
+        !path ||
+        (lastOpened?.path === path &&
+          lastOpened.turnId === currentIdentity.turnId &&
+          lastOpened.treePathsKey === currentIdentity.treePathsKey) ||
+        !filePathSetRef.current.has(path)
+      ) {
         return;
       }
-      lastOpenedPathRef.current = path;
+      lastOpenedPathRef.current = { ...currentIdentity, path };
       onOpenTurnDiffRef.current(turnIdRef.current, path);
     },
   });
 
-  useEffect(() => {
-    filePathSetRef.current = filePathSet;
-  }, [filePathSet]);
-
-  useEffect(() => {
-    rowDecorationsByPathRef.current = rowDecorationsByPath;
-  }, [rowDecorationsByPath]);
-
-  useEffect(() => {
-    lastOpenedPathRef.current = null;
-  }, [turnId, treePaths]);
-
-  useEffect(() => {
-    model.resetPaths(treePaths, {
-      preparedInput,
-      initialExpandedPaths: allDirectoriesExpanded ? directoryPaths : [],
-    });
-  }, [allDirectoriesExpanded, directoryPaths, model, preparedInput, treePaths]);
-
   return (
     <div
       className="min-h-0 overflow-hidden"
-      style={{ height: getEstimatedTreeHeight(treePaths.length) }}
+      style={{ height: getEstimatedTreeHeight(props.treePaths.length) }}
     >
-      <Tree model={model} resolvedTheme={resolvedTheme} />
+      <Tree model={model} resolvedTheme={props.resolvedTheme} />
     </div>
   );
-});
+}

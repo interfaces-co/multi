@@ -57,6 +57,7 @@ import {
   dispatchChatNewShortcut,
   expectComposerActionsContained,
   findButtonByText,
+  findComposerProviderModelPicker,
   fixture,
   installChatViewBrowserHarness,
   materializePromotedDraftThreadViaDomainEvent,
@@ -172,6 +173,51 @@ async function openSidebarThreadContextMenu(title = THREAD_TITLE): Promise<void>
   await waitForElement(
     () => document.querySelector<HTMLElement>('[data-slot="context-menu-popup"]'),
     "Unable to find sidebar thread context menu.",
+  );
+}
+
+async function expectCompactModelPickerContained(): Promise<void> {
+  const composer = await waitForElement(
+    () => document.querySelector<HTMLElement>('[data-model-picker-placement="top-start"]'),
+    "Unable to find compact composer model-picker placement.",
+  );
+  const footer = await waitForElement(
+    () => document.querySelector<HTMLElement>('[data-chat-input-footer="true"]'),
+    "Unable to find composer footer.",
+  );
+  const trigger = await waitForElement(
+    () => findComposerProviderModelPicker(),
+    "Unable to find composer model picker trigger.",
+  );
+
+  await vi.waitFor(
+    () => {
+      expect(footer.dataset.chatInputFooterCompact).toBe("true");
+      const composerRect = composer.getBoundingClientRect();
+      const footerRect = footer.getBoundingClientRect();
+      const triggerRect = trigger.getBoundingClientRect();
+      expect(triggerRect.width).toBeGreaterThan(0);
+      expect(triggerRect.left).toBeGreaterThanOrEqual(composerRect.left - 0.5);
+      expect(triggerRect.right).toBeLessThanOrEqual(composerRect.right + 0.5);
+      expect(triggerRect.left).toBeGreaterThanOrEqual(footerRect.left - 0.5);
+      expect(triggerRect.right).toBeLessThanOrEqual(footerRect.right + 0.5);
+    },
+    { timeout: 8_000, interval: 16 },
+  );
+
+  trigger.click();
+  const popup = await waitForElement(
+    () => document.querySelector<HTMLElement>('[data-slot="popover-positioner"]'),
+    "Unable to find model picker popover.",
+  );
+  await vi.waitFor(
+    () => {
+      const popupRect = popup.getBoundingClientRect();
+      expect(popupRect.width).toBeGreaterThan(0);
+      expect(popupRect.left).toBeGreaterThanOrEqual(-0.5);
+      expect(popupRect.right).toBeLessThanOrEqual(window.innerWidth + 0.5);
+    },
+    { timeout: 8_000, interval: 16 },
   );
 }
 
@@ -819,7 +865,9 @@ describe("ChatView timeline estimator parity (full app)", () => {
       await vi.waitFor(
         () => {
           const dispatchRequest = wsRequests.find(
-            (request) => request._tag === ORCHESTRATION_WS_METHODS.dispatchCommand,
+            (request) =>
+              request._tag === ORCHESTRATION_WS_METHODS.dispatchCommand &&
+              request.type === "thread.turn.start",
           ) as
             | {
                 _tag: string;
@@ -913,7 +961,12 @@ describe("ChatView timeline estimator parity (full app)", () => {
         { timeout: 8_000, interval: 16 },
       );
 
-      useComposerDraftStore.getState().setPrompt(THREAD_REF, "Ship it");
+      useComposerDraftStore
+        .getState()
+        .setPrompt(
+          THREAD_REF,
+          "   Ship this first thread title through the trimmed auto title path now   ",
+        );
       await waitForLayout();
 
       const sendButton = await waitForSendButton();
@@ -922,6 +975,23 @@ describe("ChatView timeline estimator parity (full app)", () => {
 
       await vi.waitFor(
         () => {
+          const titleRequest = wsRequests.find(
+            (request) =>
+              request._tag === ORCHESTRATION_WS_METHODS.dispatchCommand &&
+              request.type === "thread.meta.update",
+          ) as
+            | {
+                _tag: string;
+                type?: string;
+                title?: string;
+              }
+            | undefined;
+          expect(titleRequest).toMatchObject({
+            _tag: ORCHESTRATION_WS_METHODS.dispatchCommand,
+            type: "thread.meta.update",
+            title: "Ship this first thread title through the trimmed a...",
+          });
+
           const turnStartRequest = wsRequests.find(
             (request) =>
               request._tag === ORCHESTRATION_WS_METHODS.dispatchCommand &&
@@ -3215,6 +3285,24 @@ describe("ChatView timeline estimator parity (full app)", () => {
 
       await mounted.setContainerSize(COMPACT_FOOTER_VIEWPORT);
       await expectComposerActionsContained();
+    } finally {
+      await mounted.cleanup();
+    }
+  });
+
+  it("keeps the compact model selector inside the composer after a viewport resize", async () => {
+    const mounted = await mountChatView({
+      viewport: WIDE_FOOTER_VIEWPORT,
+      snapshot: createSnapshotForTargetUser({
+        targetMessageId: "msg-compact-model-selector" as MessageId,
+        targetText: "compact model selector",
+      }),
+    });
+
+    try {
+      await waitForComposerEditor();
+      await mounted.setViewport(COMPACT_FOOTER_VIEWPORT);
+      await expectCompactModelPickerContained();
     } finally {
       await mounted.cleanup();
     }

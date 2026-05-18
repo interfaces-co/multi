@@ -1,5 +1,5 @@
-import { formatProjectRelativePath } from "../../../file-path-display";
-import { resolvePathLinkTarget, splitPathAndPosition } from "../../../terminal-links";
+import { formatProjectRelativePath } from "../shared/file-path-display";
+import { resolvePathLinkTarget, splitPathAndPosition } from "../../../lib/terminal-links";
 
 const WINDOWS_DRIVE_PATH_PATTERN = /^[A-Za-z]:[\\/]/;
 const WINDOWS_UNC_PATH_PATTERN = /^\\\\/;

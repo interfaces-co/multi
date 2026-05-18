@@ -31,7 +31,7 @@ import {
   decodeSubagentAgentStates,
   decodeSubagentReceiverAgents,
   decodeSubagentReceiverThreadIds,
-} from "@multi/shared/subagents";
+} from "./session/subagents";
 
 export type ProviderPickerKind = ProviderDriverKind;
 

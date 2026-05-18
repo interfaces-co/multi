@@ -1,7 +1,6 @@
 import { type TurnId } from "@multi/contracts";
 import { memo } from "react";
 import { type TurnDiffSummary, type ChatMessage } from "../../../types";
-import { summarizeTurnDiffStats } from "../../../lib/turn-diff-tree";
 import ChatMarkdown from "../markdown/chat-markdown";
 import { Button } from "@multi/ui/button";
 import { ChangedFilesTree } from "./changed-files-tree";
@@ -16,6 +15,24 @@ interface AssistantMessageProps {
   markdownCwd: string | undefined;
   resolvedTheme: "light" | "dark";
   onOpenTurnDiff: (turnId: TurnId, filePath?: string) => void;
+}
+
+function summarizeTurnDiffStats(files: TurnDiffSummary["files"]): {
+  additions: number;
+  deletions: number;
+} {
+  return files.reduce(
+    (acc, file) => {
+      if (typeof file.additions !== "number" || typeof file.deletions !== "number") {
+        return acc;
+      }
+      return {
+        additions: acc.additions + file.additions,
+        deletions: acc.deletions + file.deletions,
+      };
+    },
+    { additions: 0, deletions: 0 },
+  );
 }
 
 export const AssistantMessage = memo(function AssistantMessage({

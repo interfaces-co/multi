@@ -9,6 +9,7 @@ import {
 import type { SidebarThreadSummary, Thread } from "../types";
 import { cn } from "./utils";
 import { isLatestTurnSettled } from "../session-logic";
+import { useMountEffect } from "../hooks/use-mount-effect";
 
 export const THREAD_SELECTION_SAFE_SELECTOR = "[data-thread-item], [data-thread-selection-safe]";
 export const THREAD_JUMP_HINT_SHOW_DELAY_MS = 100;
@@ -117,7 +118,7 @@ export function useThreadJumpHintVisibility(): {
   const [showThreadJumpHints, setShowThreadJumpHints] = React.useState(false);
   const controllerRef = React.useRef<ThreadJumpHintVisibilityController | null>(null);
 
-  React.useEffect(() => {
+  useMountEffect(() => {
     const controller = createThreadJumpHintVisibilityController({
       delayMs: THREAD_JUMP_HINT_SHOW_DELAY_MS,
       onVisibilityChange: (visible) => {
@@ -132,7 +133,7 @@ export function useThreadJumpHintVisibility(): {
       controller.dispose();
       controllerRef.current = null;
     };
-  }, []);
+  });
 
   const updateThreadJumpHintsVisibility = React.useCallback((shouldShow: boolean) => {
     controllerRef.current?.sync(shouldShow);

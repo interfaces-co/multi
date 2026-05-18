@@ -20,7 +20,7 @@ import {
   markPromotedDraftThreadsByRef,
   useComposerDraftStore,
 } from "~/stores/chat-drafts";
-import { deriveOrchestrationBatchEffects } from "~/orchestration-event-effects";
+import { deriveOrchestrationBatchEffects } from "./orchestration-event-effects";
 import { refreshGitStatus } from "~/lib/git-status-state";
 import { invalidateGitPatchQueries } from "~/lib/native-git-react-query";
 import { projectQueryKeys } from "~/lib/project-react-query";
@@ -39,7 +39,7 @@ import { useTerminalStateStore } from "~/terminal-state-store";
 import { useUiStateStore } from "~/stores/ui-state-store";
 import { WsTransport } from "../../rpc/ws-transport";
 import { createWsRpcClient } from "../../rpc/ws-rpc-client";
-import { deriveLogicalProjectKey, getProjectOrderKey } from "~/logical-project";
+import { deriveLogicalProjectKey, getProjectOrderKey } from "~/stores/project-identity";
 import { dispatchNextQueuedComposerItemForThread } from "~/stores/chat-send-queue-dispatch";
 
 type EnvironmentServiceState = {

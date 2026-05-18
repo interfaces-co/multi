@@ -1,14 +1,14 @@
 import type { EnvironmentId, GitResolvePullRequestResult, ThreadId } from "@multi/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDebouncedValue } from "@tanstack/react-pacer";
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useId, useMemo, useRef, useState } from "react";
 
 import {
   gitPreparePullRequestThreadMutationOptions,
   gitResolvePullRequestQueryOptions,
 } from "~/lib/git-react-query";
 import { cn } from "~/lib/utils";
-import { parsePullRequestReference } from "~/pull-request-reference";
+import { parsePullRequestReference } from "~/git/pull-request-reference";
 import { Button } from "@multi/ui/button";
 import {
   Dialog,
@@ -32,7 +32,12 @@ interface PullRequestThreadDialogProps {
   onPrepared: (input: { branch: string; worktreePath: string | null }) => Promise<void> | void;
 }
 
-export function PullRequestThreadDialog({
+export function PullRequestThreadDialog(props: PullRequestThreadDialogProps) {
+  const sessionKey = props.open ? `open:${props.initialReference ?? ""}` : "closed";
+  return <PullRequestThreadDialogSession key={sessionKey} {...props} />;
+}
+
+function PullRequestThreadDialogSession({
   open,
   environmentId,
   threadId,
@@ -43,7 +48,7 @@ export function PullRequestThreadDialog({
 }: PullRequestThreadDialogProps) {
   const queryClient = useQueryClient();
   const referenceInputId = useId();
-  const referenceInputRef = useRef<HTMLInputElement>(null);
+  const referenceFocusFrameRef = useRef<number | null>(null);
   const [reference, setReference] = useState(initialReference ?? "");
   const [referenceDirty, setReferenceDirty] = useState(false);
   const [preparingMode, setPreparingMode] = useState<"local" | "worktree" | null>(null);
@@ -53,23 +58,26 @@ export function PullRequestThreadDialog({
     (debouncerState) => ({ isPending: debouncerState.isPending }),
   );
 
-  useEffect(() => {
-    if (!open) return;
-    setReference(initialReference ?? "");
-    setReferenceDirty(false);
-    setPreparingMode(null);
-  }, [initialReference, open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const frame = window.requestAnimationFrame(() => {
-      referenceInputRef.current?.focus();
-      referenceInputRef.current?.select();
-    });
-    return () => {
-      window.cancelAnimationFrame(frame);
-    };
-  }, [open]);
+  const focusReferenceInput = useCallback(
+    (node: HTMLInputElement | null) => {
+      if (referenceFocusFrameRef.current !== null) {
+        window.cancelAnimationFrame(referenceFocusFrameRef.current);
+        referenceFocusFrameRef.current = null;
+      }
+      if (!node || !open) {
+        return;
+      }
+      referenceFocusFrameRef.current = window.requestAnimationFrame(() => {
+        referenceFocusFrameRef.current = null;
+        if (!node.isConnected) {
+          return;
+        }
+        node.focus();
+        node.select();
+      });
+    },
+    [open],
+  );
 
   const parsedReference = parsePullRequestReference(reference);
   const parsedDebouncedReference = parsePullRequestReference(debouncedReference);
@@ -200,7 +208,7 @@ export function PullRequestThreadDialog({
             <span className="text-xs font-medium text-foreground">Pull request</span>
             <Input
               id={referenceInputId}
-              ref={referenceInputRef}
+              ref={focusReferenceInput}
               placeholder="https://github.com/owner/repo/pull/42, gh pr checkout 42, or #42"
               value={reference}
               onChange={(event) => {

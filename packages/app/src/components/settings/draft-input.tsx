@@ -1,4 +1,4 @@
-import { type ChangeEvent, type KeyboardEvent, useEffect, useRef, useState } from "react";
+import { type ChangeEvent, type KeyboardEvent, useRef, useState } from "react";
 
 import { Input, type InputProps } from "@multi/ui/input";
 
@@ -10,20 +10,16 @@ export type DraftInputProps = Omit<InputProps, "value" | "onChange" | "defaultVa
 function useCommitOnBlur(value: string, onCommit: (next: string) => void) {
   const [draft, setDraft] = useState(value);
   const focusedRef = useRef(false);
-
-  useEffect(() => {
-    if (!focusedRef.current) {
-      setDraft(value);
-    }
-  }, [value]);
+  const displayedValue = focusedRef.current ? draft : value;
 
   return {
-    value: draft,
+    value: displayedValue,
     onChange: (event: ChangeEvent<HTMLInputElement>) => {
       setDraft(event.target.value);
     },
     onFocus: () => {
       focusedRef.current = true;
+      setDraft(value);
     },
     onBlur: () => {
       focusedRef.current = false;

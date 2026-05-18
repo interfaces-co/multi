@@ -19,13 +19,9 @@ import { sortModelsForProviderInstance } from "./ordering";
 import {
   type ProviderInstanceEntry,
   deriveProviderInstanceEntriesForSettings,
+  resolveProviderDriverKindForInstanceSelection,
   sortProviderInstanceEntries,
 } from "./provider-instances";
-import {
-  getDefaultServerModel,
-  getProviderModels,
-  resolveSelectableProvider,
-} from "./provider-models";
 import { getComposerProviderState } from "./provider-state";
 
 const MAX_CUSTOM_MODEL_COUNT = 32;
@@ -59,10 +55,24 @@ function readInstanceCustomModels(
 export interface AppModelOption {
   slug: string;
   name: string;
-  shortName?: string;
-  subProvider?: string;
-  selectable?: boolean;
+  shortName?: string | undefined;
+  subProvider?: string | undefined;
+  selectable?: boolean | undefined;
   isCustom: boolean;
+}
+
+export interface AppModelCatalogItem {
+  readonly slug: string;
+  readonly name: string;
+  readonly shortName?: string | undefined;
+  readonly subProvider?: string | undefined;
+  readonly selectable?: boolean | undefined;
+  readonly instanceId: ProviderInstanceId;
+  readonly driverKind: ProviderDriverKind;
+  readonly instanceDisplayName: string;
+  readonly instanceAccentColor?: string | undefined;
+  readonly continuationGroupKey?: string | undefined;
+  readonly modelSelection: ModelSelection;
 }
 
 export type AppModelResolverStatus =
@@ -94,6 +104,9 @@ export interface AppProviderModelState {
   readonly status: AppModelResolverStatus;
   readonly providerInstanceEntries: ReadonlyArray<ProviderInstanceEntry>;
   readonly modelOptionsByInstance: ReadonlyMap<ProviderInstanceId, ReadonlyArray<AppModelOption>>;
+  readonly modelCatalogItems: ReadonlyArray<AppModelCatalogItem>;
+  readonly selectedCatalogItem: AppModelCatalogItem | undefined;
+  readonly modelOptionSelectionsByInstance: ProviderOptionSelectionsByInstance | null;
   readonly requestedInstanceId: ProviderInstanceId | null;
   readonly requestedModel: string | null;
   readonly selectedProviderEntry: ProviderInstanceEntry | undefined;
@@ -105,6 +118,27 @@ export interface AppProviderModelState {
   readonly selectedProviderModels: ProviderInstanceEntry["models"];
   readonly modelSelection: ModelSelection;
 }
+
+type AppChatModelDraft = {
+  readonly activeProvider: ProviderInstanceId | null;
+  readonly modelSelectionByProvider: Partial<Record<ProviderInstanceId, ModelSelection>>;
+};
+
+type ProviderOptionSelectionsByInstance = Partial<
+  Record<string, ReadonlyArray<ProviderOptionSelection>>
+>;
+
+type EffectiveChatModelState = {
+  readonly selectedModel: string | null;
+  readonly modelOptionSelectionsByInstance: ProviderOptionSelectionsByInstance | null;
+};
+
+type AppProviderModelRequest = {
+  readonly requestedInstanceId: ProviderInstanceId | null;
+  readonly requestedModel: string | null;
+  readonly requestedOptions: ReadonlyArray<ProviderOptionSelection> | null | undefined;
+  readonly modelOptionSelectionsByInstance: ProviderOptionSelectionsByInstance | null;
+};
 
 function toAppModelOption(model: ServerProvider["models"][number]): AppModelOption {
   const option: AppModelOption = {
@@ -177,42 +211,7 @@ function normalizeCustomModelSlugs(
   return normalizedModels;
 }
 
-export function getAppModelOptions(
-  settings: UnifiedSettings,
-  providers: ReadonlyArray<ServerProvider>,
-  provider: ProviderDriverKind,
-  _selectedModel?: string | null,
-): AppModelOption[] {
-  const options: AppModelOption[] = getProviderModels(providers, provider).map(toAppModelOption);
-  const seen = new Set(options.map((option) => option.slug));
-  const builtInModelSlugs = new Set(
-    getProviderModels(providers, provider)
-      .filter((model) => !model.isCustom)
-      .map((model) => model.slug),
-  );
-
-  const defaultInstanceId = defaultInstanceIdForDriver(provider);
-  const customModels = readInstanceCustomModels(settings, defaultInstanceId, provider);
-  for (const slug of normalizeCustomModelSlugs(customModels, builtInModelSlugs, provider)) {
-    if (seen.has(slug)) {
-      continue;
-    }
-
-    seen.add(slug);
-    options.push({
-      slug,
-      name: slug,
-      isCustom: true,
-    });
-  }
-
-  return applyInstanceModelPreferences(
-    options,
-    readInstanceModelPreferences(settings, defaultInstanceId),
-  );
-}
-
-export function getAppModelOptionsForInstance(
+function getAppModelOptionsForInstance(
   settings: UnifiedSettings,
   entry: ProviderInstanceEntry,
 ): AppModelOption[] {
@@ -249,8 +248,57 @@ function buildModelOptionsByInstance(
   return out;
 }
 
+function buildAppModelCatalogItems(input: {
+  readonly providerInstanceEntries: ReadonlyArray<ProviderInstanceEntry>;
+  readonly modelOptionsByInstance: ReadonlyMap<ProviderInstanceId, ReadonlyArray<AppModelOption>>;
+}): AppModelCatalogItem[] {
+  const out: AppModelCatalogItem[] = [];
+  for (const entry of input.providerInstanceEntries) {
+    if (entry.status !== "ready") {
+      continue;
+    }
+
+    const models = input.modelOptionsByInstance.get(entry.instanceId) ?? [];
+    for (const model of models) {
+      out.push({
+        slug: model.slug,
+        name: model.name,
+        ...(model.shortName ? { shortName: model.shortName } : {}),
+        ...(model.subProvider ? { subProvider: model.subProvider } : {}),
+        ...(model.selectable === false ? { selectable: false } : {}),
+        instanceId: entry.instanceId,
+        driverKind: entry.driverKind,
+        instanceDisplayName: entry.displayName,
+        modelSelection: createModelSelection(entry.instanceId, model.slug),
+        ...(entry.accentColor ? { instanceAccentColor: entry.accentColor } : {}),
+        ...(entry.continuationGroupKey ? { continuationGroupKey: entry.continuationGroupKey } : {}),
+      });
+    }
+  }
+  return out;
+}
+
+function resolveAppModelCatalogSelection(input: {
+  readonly catalogItems: ReadonlyArray<AppModelCatalogItem>;
+  readonly instanceId: ProviderInstanceId;
+  readonly model: string | null | undefined;
+}): AppModelCatalogItem | undefined {
+  const selectableItems = input.catalogItems.filter(
+    (item) => item.instanceId === input.instanceId && isAppModelOptionSelectable(item),
+  );
+  const driverKind = selectableItems[0]?.driverKind;
+  const resolvedSlug = driverKind
+    ? resolveSelectableModel(driverKind, input.model, selectableItems)
+    : null;
+  return (
+    selectableItems.find((item) => item.slug === resolvedSlug) ??
+    selectableItems.find((item) => item.slug === input.model) ??
+    selectableItems[0]
+  );
+}
+
 function selectableProviderEntry(entry: ProviderInstanceEntry): boolean {
-  return entry.enabled && entry.isAvailable;
+  return entry.enabled && entry.isAvailable && entry.status === "ready";
 }
 
 function getRequestedProviderStatus(input: {
@@ -330,6 +378,187 @@ function getModelStatus(input: {
   return input.providerStatus;
 }
 
+function providerSelectionsFromModelSelection(
+  modelSelection: ModelSelection | null | undefined,
+): ProviderOptionSelectionsByInstance | null {
+  if (!modelSelection) {
+    return null;
+  }
+  const options = modelSelection.options;
+  if (!options || options.length === 0) {
+    return null;
+  }
+  return { [modelSelection.instanceId]: options };
+}
+
+function modelSelectionByProviderToInstanceOptions(
+  map: Partial<Record<string, ModelSelection>> | null | undefined,
+): ProviderOptionSelectionsByInstance | null {
+  if (!map) return null;
+  const result: ProviderOptionSelectionsByInstance = {};
+  for (const [provider, selection] of Object.entries(map)) {
+    if (selection?.options && selection.options.length > 0) {
+      result[provider] = selection.options;
+    }
+  }
+  return Object.keys(result).length > 0 ? result : null;
+}
+
+function deriveEffectiveChatModelState(input: {
+  draft: AppChatModelDraft | null | undefined;
+  selectedProvider: ProviderDriverKind;
+  selectedInstanceId?: ProviderInstanceId | null | undefined;
+  threadModelSelection: ModelSelection | null | undefined;
+  defaultModelSelection: ModelSelection | null | undefined;
+  projectModelSelection: ModelSelection | null | undefined;
+}): EffectiveChatModelState {
+  const baseModel =
+    input.threadModelSelection?.model ??
+    input.defaultModelSelection?.model ??
+    input.projectModelSelection?.model ??
+    null;
+  const activeSelectionInstanceId =
+    input.selectedInstanceId ?? ProviderInstanceId.make(input.selectedProvider);
+  const activeSelection = input.draft?.modelSelectionByProvider?.[activeSelectionInstanceId];
+  const selectedModel = activeSelection?.model ?? baseModel;
+  const modelOptionSelectionsByInstance =
+    modelSelectionByProviderToInstanceOptions(input.draft?.modelSelectionByProvider) ??
+    providerSelectionsFromModelSelection(input.threadModelSelection) ??
+    providerSelectionsFromModelSelection(input.defaultModelSelection) ??
+    providerSelectionsFromModelSelection(input.projectModelSelection) ??
+    null;
+
+  return {
+    selectedModel,
+    modelOptionSelectionsByInstance,
+  };
+}
+
+function resolveSelectedInstanceId(input: {
+  providerInstanceEntries: ReadonlyArray<ProviderInstanceEntry>;
+  selectedProvider: ProviderDriverKind;
+  candidateInstanceIds: ReadonlyArray<ProviderInstanceId | null | undefined>;
+  explicitSelectedInstanceId: ProviderInstanceId | null | undefined;
+  threadModelSelection: ModelSelection | null | undefined;
+  projectModelSelection: ModelSelection | null | undefined;
+}): ProviderInstanceId {
+  for (const candidate of input.candidateInstanceIds) {
+    if (!candidate) {
+      continue;
+    }
+    const match = input.providerInstanceEntries.find(
+      (entry) => entry.instanceId === candidate && entry.enabled,
+    );
+    if (match) {
+      return match.instanceId;
+    }
+  }
+
+  if (
+    input.explicitSelectedInstanceId &&
+    !input.providerInstanceEntries.some(
+      (entry) => entry.instanceId === input.explicitSelectedInstanceId,
+    )
+  ) {
+    return input.explicitSelectedInstanceId;
+  }
+
+  return (
+    input.providerInstanceEntries.find(
+      (entry) => entry.enabled && entry.driverKind === input.selectedProvider,
+    )?.instanceId ??
+    input.providerInstanceEntries.find((entry) => entry.enabled)?.instanceId ??
+    input.providerInstanceEntries[0]?.instanceId ??
+    input.threadModelSelection?.instanceId ??
+    input.projectModelSelection?.instanceId ??
+    ProviderInstanceId.make("codex")
+  );
+}
+
+function hasChatModelSelectionInput(input: {
+  readonly draft?: AppChatModelDraft | null | undefined;
+  readonly sessionProviderInstanceId?: ProviderInstanceId | null | undefined;
+  readonly threadModelSelection?: ModelSelection | null | undefined;
+  readonly projectModelSelection?: ModelSelection | null | undefined;
+}): boolean {
+  return (
+    input.draft !== undefined ||
+    input.sessionProviderInstanceId !== undefined ||
+    input.threadModelSelection !== undefined ||
+    input.projectModelSelection !== undefined
+  );
+}
+
+function resolveAppProviderModelRequest(input: {
+  readonly settings: UnifiedSettings;
+  readonly providers: ReadonlyArray<ServerProvider>;
+  readonly providerInstanceEntries: ReadonlyArray<ProviderInstanceEntry>;
+  readonly requestedSelection?: ModelSelection | null | undefined;
+  readonly requestedInstanceId?: ProviderInstanceId | null | undefined;
+  readonly requestedModel?: string | null | undefined;
+  readonly requestedOptions?: ReadonlyArray<ProviderOptionSelection> | null | undefined;
+  readonly draft?: AppChatModelDraft | null | undefined;
+  readonly sessionProviderInstanceId?: ProviderInstanceId | null | undefined;
+  readonly threadModelSelection?: ModelSelection | null | undefined;
+  readonly projectModelSelection?: ModelSelection | null | undefined;
+}): AppProviderModelRequest {
+  if (!hasChatModelSelectionInput(input)) {
+    const requestedSelectionOptions = providerSelectionsFromModelSelection(
+      input.requestedSelection,
+    );
+    return {
+      requestedInstanceId:
+        input.requestedSelection?.instanceId ?? input.requestedInstanceId ?? null,
+      requestedModel: input.requestedSelection?.model ?? input.requestedModel ?? null,
+      requestedOptions: input.requestedSelection?.options ?? input.requestedOptions,
+      modelOptionSelectionsByInstance: requestedSelectionOptions,
+    };
+  }
+
+  const threadProvider =
+    input.sessionProviderInstanceId ??
+    input.threadModelSelection?.instanceId ??
+    input.settings.textGenerationModelSelection.instanceId ??
+    input.projectModelSelection?.instanceId ??
+    null;
+  const explicitSelectedInstanceId = input.draft?.activeProvider ?? threadProvider;
+  const selectedProvider =
+    resolveProviderDriverKindForInstanceSelection(
+      input.providerInstanceEntries,
+      input.providers,
+      explicitSelectedInstanceId,
+    ) ?? DEFAULT_TEXT_GENERATION_DRIVER_KIND;
+  const selectedInstanceId = resolveSelectedInstanceId({
+    providerInstanceEntries: input.providerInstanceEntries,
+    selectedProvider,
+    candidateInstanceIds: [
+      input.draft?.activeProvider,
+      input.sessionProviderInstanceId,
+      input.threadModelSelection?.instanceId,
+      input.settings.textGenerationModelSelection.instanceId,
+      input.projectModelSelection?.instanceId,
+    ],
+    explicitSelectedInstanceId,
+    threadModelSelection: input.threadModelSelection,
+    projectModelSelection: input.projectModelSelection,
+  });
+  const effectiveModelState = deriveEffectiveChatModelState({
+    draft: input.draft,
+    selectedProvider,
+    selectedInstanceId,
+    threadModelSelection: input.threadModelSelection,
+    defaultModelSelection: input.settings.textGenerationModelSelection,
+    projectModelSelection: input.projectModelSelection,
+  });
+
+  return {
+    requestedInstanceId: selectedInstanceId,
+    requestedModel: effectiveModelState.selectedModel,
+    requestedOptions: effectiveModelState.modelOptionSelectionsByInstance?.[selectedInstanceId],
+    modelOptionSelectionsByInstance: effectiveModelState.modelOptionSelectionsByInstance,
+  };
+}
+
 export function resolveAppProviderModelState(input: {
   readonly settings: UnifiedSettings;
   readonly providers: ReadonlyArray<ServerProvider>;
@@ -337,18 +566,37 @@ export function resolveAppProviderModelState(input: {
   readonly requestedInstanceId?: ProviderInstanceId | null | undefined;
   readonly requestedModel?: string | null | undefined;
   readonly requestedOptions?: ReadonlyArray<ProviderOptionSelection> | null | undefined;
+  readonly draft?: AppChatModelDraft | null | undefined;
+  readonly sessionProviderInstanceId?: ProviderInstanceId | null | undefined;
+  readonly threadModelSelection?: ModelSelection | null | undefined;
+  readonly projectModelSelection?: ModelSelection | null | undefined;
 }): AppProviderModelState {
   const providerInstanceEntries = sortProviderInstanceEntries(
     deriveProviderInstanceEntriesForSettings(input.settings, input.providers),
   );
+  const request = resolveAppProviderModelRequest({
+    settings: input.settings,
+    providers: input.providers,
+    providerInstanceEntries,
+    requestedSelection: input.requestedSelection,
+    requestedInstanceId: input.requestedInstanceId,
+    requestedModel: input.requestedModel,
+    requestedOptions: input.requestedOptions,
+    draft: input.draft,
+    sessionProviderInstanceId: input.sessionProviderInstanceId,
+    threadModelSelection: input.threadModelSelection,
+    projectModelSelection: input.projectModelSelection,
+  });
   const modelOptionsByInstance = buildModelOptionsByInstance(
     input.settings,
     providerInstanceEntries,
   );
-  const requestedInstanceId =
-    input.requestedSelection?.instanceId ?? input.requestedInstanceId ?? null;
-  const requestedModel = input.requestedSelection?.model ?? input.requestedModel ?? null;
-  const requestedOptions = input.requestedSelection?.options ?? input.requestedOptions;
+  const modelCatalogItems = buildAppModelCatalogItems({
+    providerInstanceEntries,
+    modelOptionsByInstance,
+  });
+  const requestedInstanceId = request.requestedInstanceId;
+  const requestedModel = request.requestedModel;
   const requestedEntry = requestedInstanceId
     ? providerInstanceEntries.find((entry) => entry.instanceId === requestedInstanceId)
     : undefined;
@@ -391,13 +639,20 @@ export function resolveAppProviderModelState(input: {
     model: selectedModel,
     models: selectedProviderModels,
     prompt: "",
-    modelOptions: requestedOptions,
+    modelOptions: request.requestedOptions,
   });
 
   return {
     status,
     providerInstanceEntries,
     modelOptionsByInstance,
+    modelCatalogItems,
+    selectedCatalogItem: resolveAppModelCatalogSelection({
+      catalogItems: modelCatalogItems,
+      instanceId: selectedInstanceId,
+      model: selectedModel,
+    }),
+    modelOptionSelectionsByInstance: request.modelOptionSelectionsByInstance,
     requestedInstanceId,
     requestedModel,
     selectedProviderEntry,
@@ -413,43 +668,4 @@ export function resolveAppProviderModelState(input: {
       modelOptionsForDispatch,
     ),
   };
-}
-
-export function resolveAppModelSelection(
-  provider: ProviderDriverKind,
-  settings: UnifiedSettings,
-  providers: ReadonlyArray<ServerProvider>,
-  selectedModel: string | null | undefined,
-): string {
-  const resolvedProvider = resolveSelectableProvider(providers, provider);
-  const options = getAppModelOptions(settings, providers, resolvedProvider, selectedModel);
-  const selectableOptions = options.filter(isAppModelOptionSelectable);
-  return (
-    resolveSelectableModel(resolvedProvider, selectedModel, selectableOptions) ??
-    getDefaultServerModel(providers, resolvedProvider)
-  );
-}
-
-export function resolveAppModelSelectionForInstance(
-  instanceId: ProviderInstanceId,
-  settings: UnifiedSettings,
-  providers: ReadonlyArray<ServerProvider>,
-  selectedModel: string | null | undefined,
-): string | null {
-  const state = resolveAppProviderModelState({
-    settings,
-    providers,
-    requestedInstanceId: instanceId,
-    requestedModel: selectedModel,
-  });
-  if (
-    state.status.kind === "loading" ||
-    state.status.kind === "missing-provider" ||
-    state.status.kind === "disabled-provider" ||
-    state.status.kind === "empty-catalog" ||
-    state.selectedProviderEntry?.instanceId !== instanceId
-  ) {
-    return null;
-  }
-  return state.selectedModel;
 }

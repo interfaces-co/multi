@@ -3,7 +3,7 @@ import ReactDOM from "react-dom/client";
 import { RouterProvider } from "@tanstack/react-router";
 import { createHashHistory, createBrowserHistory } from "@tanstack/react-router";
 
-import "./appearance-boot";
+import "./app/appearance-boot";
 import "@xterm/xterm/css/xterm.css";
 import "./index.css";
 import "./styles/tokens.css";
@@ -11,7 +11,7 @@ import "./styles/app.css";
 
 import { isElectron } from "./env";
 import { getRouter } from "./router";
-import { APP_DISPLAY_NAME } from "./branding";
+import { APP_DISPLAY_NAME } from "./app/branding";
 
 interface WindowControlsOverlayLike {
   readonly visible: boolean;

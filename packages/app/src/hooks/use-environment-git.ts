@@ -7,7 +7,15 @@ import {
 import type { GitFileState } from "~/lib/ui-session-types";
 import { type QueryClient, useQueries, useQueryClient } from "@tanstack/react-query";
 import * as Schema from "effect/Schema";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createElement,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type MutableRefObject,
+  type ReactNode,
+} from "react";
 
 import { readNativeGitApi, type NativeGitApi } from "../lib/native-git-api";
 import { refreshGitStatus, useGitStatus } from "../lib/git-status-state";
@@ -17,13 +25,23 @@ import {
   invalidateGitPatchQueries,
   type GitPatchData,
 } from "../lib/native-git-react-query";
-import { useShellLayoutStore } from "../stores/shell-layout-store";
 import { useLocalStorage } from "./use-local-storage";
+import { useMountEffect } from "./use-mount-effect";
 import { useShellState } from "./use-shell-cwd";
 
 const DiffStyle = Schema.Literals(["unified", "split"]);
 const MAX_ACTIVE_GIT_PATCH_QUERIES = 80;
 const GIT_PANEL_FOCUS_REFRESH_DEBOUNCE_MS = 500;
+
+function useValueIdentityVersion<TValue>(value: TValue): number {
+  const valueRef = useRef(value);
+  const versionRef = useRef(0);
+  if (valueRef.current !== value) {
+    valueRef.current = value;
+    versionRef.current += 1;
+  }
+  return versionRef.current;
+}
 
 export function useDiffStylePreference() {
   return useLocalStorage<"unified" | "split", "unified" | "split">(
@@ -65,6 +83,7 @@ export interface GitPanelModel {
   diffLoadingByPath: Set<string>;
   diffErrorByPath: Map<string, string>;
   expandedIds: Set<string>;
+  lifecycleSync: ReactNode;
   requestDiff: (id: string) => void;
   toggleExpand: (id: string, open?: boolean) => void;
   expandAll: () => void;
@@ -78,58 +97,6 @@ interface GitStatusSnapshot {
   readonly data: GitStatusResult | null;
   readonly error: GitManagerServiceError | null;
   readonly isPending: boolean;
-}
-
-function clean(path: string): string {
-  const raw = path.replace(/\\/g, "/");
-  const win = /^[A-Za-z]:\//.test(raw) ? raw.slice(0, 2) : "";
-  const abs = win.length > 0 || raw.startsWith("/");
-  const body = (win ? raw.slice(2) : raw).split("/");
-  const out: string[] = [];
-
-  for (const seg of body) {
-    if (!seg || seg === ".") continue;
-    if (seg === "..") {
-      out.pop();
-      continue;
-    }
-    out.push(seg);
-  }
-
-  if (win) return out.length > 0 ? `${win}/${out.join("/")}` : `${win}/`;
-  if (abs) return out.length > 0 ? `/${out.join("/")}` : "/";
-  return out.join("/");
-}
-
-function join(base: string, path: string): string {
-  const next = clean(path);
-  if (next.startsWith("/") || /^[A-Za-z]:\//.test(next)) return next;
-  return clean(`${clean(base)}/${next}`);
-}
-
-function rel(path: string, root: string): string | null {
-  const file = clean(path);
-  const base = clean(root).replace(/\/+$/, "");
-  if (file === base) return "";
-  if (!file.startsWith(`${base}/`)) return null;
-  return file.slice(base.length + 1);
-}
-
-function pick(path: string, cwd: string, root: string | null): string | null {
-  if (!root) return null;
-  if (path.startsWith("~/")) return null;
-  const file = path.startsWith("/") || /^[A-Za-z]:\//.test(path) ? clean(path) : join(cwd, path);
-  return rel(file, root);
-}
-
-function hit(paths: string[], cwd: string, root: string | null, files: DiffRow[]): DiffRow | null {
-  for (const path of paths) {
-    const next = pick(path, cwd, root);
-    if (next === null) continue;
-    const file = files.find((row) => row.path === next || row.prevPath === next);
-    if (file) return file;
-  }
-  return null;
 }
 
 function workingTreeStatusToGitFileState(status: GitWorkingTreeFileStatus): GitFileState {
@@ -215,6 +182,49 @@ export function syncRows(prev: DiffRow[], next: DiffRow[]) {
   return { ids, drop };
 }
 
+function EnvironmentGitPanelRowsSync({
+  cwd,
+  environmentId,
+  prevRows,
+  queryClient,
+  rows,
+}: {
+  cwd: string | null;
+  environmentId: EnvironmentId | null;
+  prevRows: MutableRefObject<DiffRow[]>;
+  queryClient: QueryClient;
+  rows: DiffRow[];
+}) {
+  useMountEffect(() => {
+    const previousRows = prevRows.current;
+    const next = syncRows(previousRows, rows);
+    prevRows.current = rows;
+
+    if (!cwd) {
+      return;
+    }
+
+    const removed = new Set(previousRows.map((row) => row.id));
+    for (const row of rows) {
+      removed.delete(row.id);
+    }
+
+    for (const id of removed) {
+      queryClient.removeQueries({
+        queryKey: gitQueryKeys.patch(environmentId, cwd, id),
+      });
+    }
+
+    for (const id of next.drop) {
+      void queryClient.invalidateQueries({
+        queryKey: gitQueryKeys.patch(environmentId, cwd, id),
+      });
+    }
+  });
+
+  return null;
+}
+
 export async function revalidateGitPanelPatches(input: {
   environmentId: EnvironmentId | null;
   cwd: string;
@@ -265,7 +275,6 @@ export function useEnvironmentGitPanel(
   const queryClient = useQueryClient();
   const status = useGitStatus({ environmentId: environmentId ?? null, cwd });
   const view = deriveGitPanelViewState({ cwd, status });
-  const paths = useShellLayoutStore((state) => state.paths);
 
   const rows = useMemo(
     () => (view.kind === "changed" ? toRows(status.data) : []),
@@ -275,59 +284,16 @@ export function useEnvironmentGitPanel(
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => new Set());
   const [requestedDiffIds, setRequestedDiffIds] = useState<Set<string>>(() => new Set());
   const prevRows = useRef<DiffRow[]>([]);
-
-  useEffect(() => {
-    const previousRows = prevRows.current;
-    const next = syncRows(previousRows, rows);
-    prevRows.current = rows;
-
-    setCollapsedIds((current) => {
-      let changed = false;
-      const kept = new Set<string>();
-      for (const id of current) {
-        if (!next.ids.has(id)) {
-          changed = true;
-          continue;
-        }
-        kept.add(id);
-      }
-      return changed ? kept : current;
-    });
-
-    setRequestedDiffIds((current) => {
-      let changed = false;
-      const kept = new Set<string>();
-      for (const id of current) {
-        if (!next.ids.has(id)) {
-          changed = true;
-          continue;
-        }
-        kept.add(id);
-      }
-      return changed ? kept : current;
-    });
-
-    if (!cwd) {
-      return;
-    }
-
-    const removed = new Set(previousRows.map((row) => row.id));
-    for (const row of rows) {
-      removed.delete(row.id);
-    }
-
-    for (const id of removed) {
-      queryClient.removeQueries({
-        queryKey: gitQueryKeys.patch(environmentId ?? null, cwd, id),
-      });
-    }
-
-    for (const id of next.drop) {
-      void queryClient.invalidateQueries({
-        queryKey: gitQueryKeys.patch(environmentId ?? null, cwd, id),
-      });
-    }
-  }, [cwd, environmentId, queryClient, rows]);
+  const rowsVersion = useValueIdentityVersion(rows);
+  const queryClientVersion = useValueIdentityVersion(queryClient);
+  const gitPanelRowsSync = createElement(EnvironmentGitPanelRowsSync, {
+    key: [cwd ?? "", environmentId ?? "", queryClientVersion, rowsVersion].join("\0"),
+    cwd,
+    environmentId: environmentId ?? null,
+    prevRows,
+    queryClient,
+    rows,
+  });
 
   const rowIds = useMemo(() => new Set(rows.map((row) => row.id)), [rows]);
 
@@ -381,12 +347,7 @@ export function useEnvironmentGitPanel(
     }
   }
 
-  const focusId = useMemo(() => {
-    if (!cwd || rows.length === 0) {
-      return null;
-    }
-    return hit(paths, cwd, cwd, rows)?.id ?? null;
-  }, [cwd, paths, rows]);
+  const focusId = null;
 
   const revalidate = useCallback(async () => {
     if (!cwd) {
@@ -410,19 +371,23 @@ export function useEnvironmentGitPanel(
     await revalidate();
   }, [revalidate]);
 
-  useEffect(() => {
-    if (!cwd) {
-      return;
-    }
+  const cwdRef = useRef(cwd);
+  const revalidateRef = useRef(revalidate);
+  cwdRef.current = cwd;
+  revalidateRef.current = revalidate;
 
+  useMountEffect(() => {
     let refreshTimeout: number | null = null;
     const scheduleRevalidation = () => {
+      if (!cwdRef.current) {
+        return;
+      }
       if (refreshTimeout !== null) {
         window.clearTimeout(refreshTimeout);
       }
       refreshTimeout = window.setTimeout(() => {
         refreshTimeout = null;
-        void revalidate().catch(() => undefined);
+        void revalidateRef.current().catch(() => undefined);
       }, GIT_PANEL_FOCUS_REFRESH_DEBOUNCE_MS);
     };
     const handleVisibilityChange = () => {
@@ -441,7 +406,7 @@ export function useEnvironmentGitPanel(
       window.removeEventListener("focus", scheduleRevalidation);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [cwd, revalidate]);
+  });
 
   const init = useCallback(async () => {
     if (!cwd) {
@@ -533,6 +498,7 @@ export function useEnvironmentGitPanel(
     diffLoadingByPath,
     diffErrorByPath,
     expandedIds,
+    lifecycleSync: gitPanelRowsSync,
     requestDiff,
     toggleExpand,
     expandAll: () => setCollapsedIds(new Set()),

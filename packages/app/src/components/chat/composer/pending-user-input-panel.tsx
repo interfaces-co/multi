@@ -4,7 +4,7 @@ import { type PendingUserInput } from "../../../session-logic";
 import {
   derivePendingUserInputProgress,
   type PendingUserInputDraftAnswer,
-} from "../../../pending-user-input";
+} from "./pending-user-input";
 import { IconCheckmark1 } from "central-icons";
 import { cn } from "~/lib/utils";
 

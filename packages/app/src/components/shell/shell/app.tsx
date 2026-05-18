@@ -9,9 +9,10 @@ import {
 import { TabsPanel, TabsRoot } from "@multi/ui/tabs";
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import { cva } from "class-variance-authority";
-import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useRef } from "react";
+import { type CSSProperties, type ReactNode, useCallback, useMemo, useRef } from "react";
 
 import { isElectron, isElectronHost } from "~/env";
+import { useMountEffect } from "~/hooks/use-mount-effect";
 import { useSettings } from "~/hooks/use-settings";
 import {
   type WorkbenchTab,
@@ -189,28 +190,6 @@ function RightAside(props: {
     muted,
   });
 
-  useEffect(() => {
-    if (!isElectronHost()) {
-      return;
-    }
-    if (search.diff === "1") {
-      if (activeTab !== "git") {
-        shellPanelsActions.setActiveTab("git");
-      }
-      if (muted) {
-        shellPanelsActions.setMuted(false);
-      }
-      return;
-    }
-    const w = search.workbench;
-    if (w === undefined) {
-      return;
-    }
-    if (w !== activeTab) {
-      shellPanelsActions.setActiveTab(w);
-    }
-  }, [search.diff, search.workbench, activeTab, muted]);
-
   const handleWorkbenchTabChange = useCallback(
     (value: unknown) => {
       if (!isWorkbenchTab(value)) {
@@ -260,6 +239,13 @@ function RightAside(props: {
       ref={asideRef}
       aria-hidden={!rightOpen ? true : undefined}
     >
+      <RightAsideRouteSearchSync
+        key={`${search.diff ?? ""}:${search.workbench ?? ""}:${activeTab}:${muted}`}
+        activeTab={activeTab}
+        muted={muted}
+        searchDiff={search.diff}
+        searchWorkbench={search.workbench}
+      />
       {rightOpen ? (
         <>
           <TabsRoot
@@ -286,6 +272,36 @@ function RightAside(props: {
       ) : null}
     </aside>
   );
+}
+
+function RightAsideRouteSearchSync(props: {
+  readonly activeTab: WorkbenchTab;
+  readonly muted: boolean;
+  readonly searchDiff: string | undefined;
+  readonly searchWorkbench: WorkbenchTab | undefined;
+}) {
+  useMountEffect(() => {
+    if (!isElectronHost()) {
+      return;
+    }
+    if (props.searchDiff === "1") {
+      if (props.activeTab !== "git") {
+        shellPanelsActions.setActiveTab("git");
+      }
+      if (props.muted) {
+        shellPanelsActions.setMuted(false);
+      }
+      return;
+    }
+    if (props.searchWorkbench === undefined) {
+      return;
+    }
+    if (props.searchWorkbench !== props.activeTab) {
+      shellPanelsActions.setActiveTab(props.searchWorkbench);
+    }
+  });
+
+  return null;
 }
 
 function RightAsidePanels(props: { activeTab: WorkbenchTab; right: RightWorkbenchDefinition }) {
@@ -422,7 +438,7 @@ export function AppShell(props: {
     [leftWidth, rightWidth, agentWindowChatMaxWidth],
   );
 
-  useEffect(() => {
+  useMountEffect(() => {
     const previousValue = document.body.getAttribute("data-cursor-glass-mode");
     document.body.setAttribute("data-cursor-glass-mode", "true");
     return () => {
@@ -432,7 +448,7 @@ export function AppShell(props: {
         document.body.setAttribute("data-cursor-glass-mode", previousValue);
       }
     };
-  }, []);
+  });
 
   return (
     <div

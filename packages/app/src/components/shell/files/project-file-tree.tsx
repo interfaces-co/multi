@@ -15,8 +15,8 @@ import type {
 import { useQueryClient } from "@tanstack/react-query";
 import {
   forwardRef,
+  type MutableRefObject,
   useCallback,
-  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -24,15 +24,17 @@ import {
 } from "react";
 import { toast } from "sonner";
 
-import { resolveAndPersistPreferredEditor } from "~/editor-preferences";
+import { resolveAndPersistPreferredEditor } from "~/editor/preferences";
 import { useGitStatus } from "~/lib/git-status-state";
 import { ensureNativeApi } from "~/lib/native-runtime-api";
 import { projectListDirectoryQueryOptions } from "~/lib/project-react-query";
 import { cn } from "~/lib/utils";
 import { useTheme } from "~/hooks/use-theme";
+import { useMountEffect } from "~/hooks/use-mount-effect";
 import { normalizeTreePath, Tree, useTreeModel } from "../../tree";
 
 const DIRECTORY_PLACEHOLDER_FILE_NAME = "Loading...";
+type ProjectTreeModel = ReturnType<typeof useTreeModel>["model"];
 
 function projectEntryToTreePath(entry: ProjectEntry): string {
   const p = normalizeTreePath(entry.path);
@@ -51,10 +53,14 @@ function directoryPlaceholderPath(relativeDir: string): string {
 }
 
 function isDirectoryPlaceholderPath(path: string): boolean {
-  return normalizeTreePath(path).endsWith(`/${DIRECTORY_PLACEHOLDER_FILE_NAME}`);
+  return normalizeTreePath(path).endsWith(
+    `/${DIRECTORY_PLACEHOLDER_FILE_NAME}`,
+  );
 }
 
-function isDirectoryHandle(item: FileTreeItemHandle | null): item is FileTreeDirectoryHandle {
+function isDirectoryHandle(
+  item: FileTreeItemHandle | null,
+): item is FileTreeDirectoryHandle {
   return item?.isDirectory() === true;
 }
 
@@ -81,7 +87,9 @@ function joinProjectPath(cwd: string, relativePath: string): string {
   return `${cwd.replace(/[\\/]+$/, "")}${separator}${relativePath.replace(/^[\\/]+/, "")}`;
 }
 
-function workingTreeFileStatusToTreesStatus(status: GitWorkingTreeFileStatus): GitStatus {
+function workingTreeFileStatusToTreesStatus(
+  status: GitWorkingTreeFileStatus,
+): GitStatus {
   switch (status) {
     case "added":
       return "added";
@@ -100,7 +108,9 @@ function workingTreeFileStatusToTreesStatus(status: GitWorkingTreeFileStatus): G
   }
 }
 
-function toGitStatusEntries(status: ReturnType<typeof useGitStatus>["data"]): GitStatusEntry[] {
+function toGitStatusEntries(
+  status: ReturnType<typeof useGitStatus>["data"],
+): GitStatusEntry[] {
   if (!status?.workingTree.files.length) {
     return [];
   }
@@ -112,7 +122,7 @@ function toGitStatusEntries(status: ReturnType<typeof useGitStatus>["data"]): Gi
 }
 
 function getExpandedDirectoryPaths(
-  model: ReturnType<typeof useTreeModel>["model"],
+  model: ProjectTreeModel,
   treePaths: readonly string[],
 ): string[] {
   return treePaths.filter((treePath) => {
@@ -125,6 +135,36 @@ function getExpandedDirectoryPaths(
     }
     return item.isExpanded();
   });
+}
+
+function createProjectFileTreeContextKey(input: {
+  active: boolean | undefined;
+  cwd: string | null;
+  environmentId: EnvironmentId | null;
+}): string {
+  return JSON.stringify([
+    input.active === true,
+    input.cwd,
+    input.environmentId,
+  ]);
+}
+
+function createGitStatusKey(
+  gitStatusEntries: readonly GitStatusEntry[],
+): string {
+  return gitStatusEntries
+    .map((entry) => `${entry.path}:${entry.status}`)
+    .join("\0");
+}
+
+function useValueIdentityVersion<TValue>(value: TValue): number {
+  const valueRef = useRef(value);
+  const versionRef = useRef(0);
+  if (valueRef.current !== value) {
+    valueRef.current = value;
+    versionRef.current += 1;
+  }
+  return versionRef.current;
 }
 
 export type ProjectFileTreeHandle = {
@@ -147,7 +187,10 @@ export const ProjectFileTree = forwardRef<
   const availableEditorsRef = useRef(props.availableEditors);
   const cwdRef = useRef(props.cwd);
   const onOpenFileRef = useRef(props.onOpenFile);
-  const loadContextRef = useRef({ cwd: props.cwd, environmentId: props.environmentId });
+  const loadContextRef = useRef({
+    cwd: props.cwd,
+    environmentId: props.environmentId,
+  });
   const loadedDirectoriesRef = useRef<Set<string>>(new Set());
   const loadingDirectoriesRef = useRef<Set<string>>(new Set());
   const lastOpenedPathRef = useRef<string | null>(null);
@@ -161,13 +204,18 @@ export const ProjectFileTree = forwardRef<
   availableEditorsRef.current = props.availableEditors;
   cwdRef.current = props.cwd;
   onOpenFileRef.current = props.onOpenFile;
-  loadContextRef.current = { cwd: props.cwd, environmentId: props.environmentId };
+  loadContextRef.current = {
+    cwd: props.cwd,
+    environmentId: props.environmentId,
+  };
 
   const openPath = useCallback((relativePath: string) => {
     const cwd = cwdRef.current;
     if (!cwd) return;
 
-    const editor = resolveAndPersistPreferredEditor(availableEditorsRef.current);
+    const editor = resolveAndPersistPreferredEditor(
+      availableEditorsRef.current,
+    );
     if (!editor) {
       toast.error("No available editor found.");
       return;
@@ -250,9 +298,15 @@ export const ProjectFileTree = forwardRef<
         setLoadError(null);
         setTreePaths((currentPaths) => {
           const nextPaths = new Set(
-            currentPaths.filter((path) => path !== directoryPlaceholderPath(normalizedRelativeDir)),
+            currentPaths.filter(
+              (path) =>
+                path !== directoryPlaceholderPath(normalizedRelativeDir),
+            ),
           );
-          for (const treePath of entriesToTreePaths(result.entries, loadedDirectoriesRef.current)) {
+          for (const treePath of entriesToTreePaths(
+            result.entries,
+            loadedDirectoriesRef.current,
+          )) {
             nextPaths.add(treePath);
           }
           return [...nextPaths];
@@ -271,33 +325,42 @@ export const ProjectFileTree = forwardRef<
     },
     [props.active, props.cwd, props.environmentId, queryClient],
   );
-  const gitStatus = useGitStatus({ environmentId: props.environmentId, cwd: props.cwd });
+  const gitStatus = useGitStatus({
+    environmentId: props.environmentId,
+    cwd: props.cwd,
+  });
 
   const filePathSet = useMemo(
     () =>
       new Set(
         treePaths
-          .filter((path) => !path.endsWith("/") && !isDirectoryPlaceholderPath(path))
+          .filter(
+            (path) => !path.endsWith("/") && !isDirectoryPlaceholderPath(path),
+          )
           .map((path) => normalizeTreePath(path)),
       ),
     [treePaths],
   );
-  const gitStatusEntries = useMemo(() => toGitStatusEntries(gitStatus.data), [gitStatus.data]);
+  const treePathsKey = useMemo(() => treePaths.join("\0"), [treePaths]);
+  const gitStatusEntries = useMemo(
+    () => toGitStatusEntries(gitStatus.data),
+    [gitStatus.data],
+  );
+  const gitStatusKey = useMemo(
+    () => createGitStatusKey(gitStatusEntries),
+    [gitStatusEntries],
+  );
+  const externalSelectedPath = props.selectedPath
+    ? normalizeTreePath(props.selectedPath)
+    : null;
+  const projectFileTreeContextKey = createProjectFileTreeContextKey({
+    active: props.active,
+    cwd: props.cwd,
+    environmentId: props.environmentId,
+  });
+  const loadDirectoryVersion = useValueIdentityVersion(loadDirectory);
 
   filePathSetRef.current = filePathSet;
-
-  useEffect(() => {
-    const expandedPaths = getExpandedDirectoryPaths(model, treePaths);
-    model.resetPaths(treePaths, { initialExpandedPaths: expandedPaths });
-  }, [model, treePaths]);
-
-  useEffect(() => {
-    loadedDirectoriesRef.current = new Set();
-    loadingDirectoriesRef.current = new Set();
-    setTreePaths([]);
-    setLoadError(null);
-    setLoadRevision((revision) => revision + 1);
-  }, [props.cwd, props.environmentId]);
 
   const refreshFiles = useCallback(() => {
     loadedDirectoriesRef.current = new Set();
@@ -316,61 +379,6 @@ export const ProjectFileTree = forwardRef<
     [refreshFiles],
   );
 
-  useEffect(() => {
-    if (!props.active || !props.cwd || !props.environmentId) {
-      return;
-    }
-    void loadDirectory("");
-  }, [loadDirectory, props.active, props.cwd, props.environmentId]);
-
-  useEffect(() => {
-    return model.subscribe(() => {
-      if (!props.active || !props.cwd || !props.environmentId) {
-        return;
-      }
-      for (const treePath of treePaths) {
-        if (!treePath.endsWith("/")) {
-          continue;
-        }
-        const item = model.getItem(treePath);
-        if (isDirectoryHandle(item) && item.isExpanded()) {
-          void loadDirectory(treeDirectoryPathToRelativeDir(treePath));
-        }
-      }
-    });
-  }, [loadDirectory, model, props.active, props.cwd, props.environmentId, treePaths]);
-
-  useEffect(() => {
-    const externalSelected = props.selectedPath ? normalizeTreePath(props.selectedPath) : null;
-    if (!externalSelected) {
-      for (const selectedPath of model.getSelectedPaths()) {
-        model.getItem(selectedPath)?.deselect();
-      }
-      lastOpenedPathRef.current = null;
-      return;
-    }
-    if (
-      !filePathSet.has(externalSelected) ||
-      normalizeTreePath(model.getSelectedPaths()[0] ?? "") === externalSelected
-    ) {
-      return;
-    }
-    const selectedItem = model.getItem(externalSelected);
-    if (!selectedItem) {
-      return;
-    }
-    suppressSelectionOpenRef.current = externalSelected;
-    for (const selectedPath of model.getSelectedPaths()) {
-      model.getItem(selectedPath)?.deselect();
-    }
-    selectedItem.select();
-    model.focusPath(externalSelected);
-  }, [filePathSet, model, props.selectedPath]);
-
-  useEffect(() => {
-    model.setGitStatus(gitStatusEntries);
-  }, [gitStatusEntries, model]);
-
   return (
     <section
       className={cn(
@@ -378,6 +386,40 @@ export const ProjectFileTree = forwardRef<
         props.className,
       )}
     >
+      <ProjectFileTreePathsSync
+        key={treePathsKey}
+        model={model}
+        treePaths={treePaths}
+      />
+      <ProjectFileTreeInitialLoadSync
+        key={`${projectFileTreeContextKey}:${loadDirectoryVersion}`}
+        active={props.active}
+        cwd={props.cwd}
+        environmentId={props.environmentId}
+        loadDirectory={loadDirectory}
+      />
+      <ProjectFileTreeExpandedDirectoryLoader
+        key={`${projectFileTreeContextKey}:${loadDirectoryVersion}:${treePathsKey}`}
+        active={props.active}
+        cwd={props.cwd}
+        environmentId={props.environmentId}
+        loadDirectory={loadDirectory}
+        model={model}
+        treePaths={treePaths}
+      />
+      <ProjectFileTreeSelectionSync
+        key={`${treePathsKey}:${externalSelectedPath ?? ""}`}
+        externalSelectedPath={externalSelectedPath}
+        filePathSet={filePathSet}
+        lastOpenedPathRef={lastOpenedPathRef}
+        model={model}
+        suppressSelectionOpenRef={suppressSelectionOpenRef}
+      />
+      <ProjectFileTreeGitStatusSync
+        key={gitStatusKey}
+        gitStatusEntries={gitStatusEntries}
+        model={model}
+      />
       <div className="min-h-0 flex-1 overflow-hidden">
         {props.cwd && props.environmentId ? (
           <Tree
@@ -408,9 +450,139 @@ export const ProjectFileTree = forwardRef<
         )}
 
         {loadError ? (
-          <div className="px-3 py-2 text-detail text-destructive/80">Unable to load files.</div>
+          <div className="px-3 py-2 text-detail text-destructive/80">
+            Unable to load files.
+          </div>
         ) : null}
       </div>
     </section>
   );
 });
+
+function ProjectFileTreePathsSync({
+  model,
+  treePaths,
+}: {
+  model: ProjectTreeModel;
+  treePaths: readonly string[];
+}) {
+  useMountEffect(() => {
+    const expandedPaths = getExpandedDirectoryPaths(model, treePaths);
+    model.resetPaths(treePaths, { initialExpandedPaths: expandedPaths });
+  });
+
+  return null;
+}
+
+function ProjectFileTreeInitialLoadSync({
+  active,
+  cwd,
+  environmentId,
+  loadDirectory,
+}: {
+  active: boolean | undefined;
+  cwd: string | null;
+  environmentId: EnvironmentId | null;
+  loadDirectory: (relativeDir: string) => Promise<void>;
+}) {
+  useMountEffect(() => {
+    if (!active || !cwd || !environmentId) {
+      return;
+    }
+    void loadDirectory("");
+  });
+
+  return null;
+}
+
+function ProjectFileTreeExpandedDirectoryLoader({
+  active,
+  cwd,
+  environmentId,
+  loadDirectory,
+  model,
+  treePaths,
+}: {
+  active: boolean | undefined;
+  cwd: string | null;
+  environmentId: EnvironmentId | null;
+  loadDirectory: (relativeDir: string) => Promise<void>;
+  model: ProjectTreeModel;
+  treePaths: readonly string[];
+}) {
+  useMountEffect(() => {
+    return model.subscribe(() => {
+      if (!active || !cwd || !environmentId) {
+        return;
+      }
+      for (const treePath of treePaths) {
+        if (!treePath.endsWith("/")) {
+          continue;
+        }
+        const item = model.getItem(treePath);
+        if (isDirectoryHandle(item) && item.isExpanded()) {
+          void loadDirectory(treeDirectoryPathToRelativeDir(treePath));
+        }
+      }
+    });
+  });
+
+  return null;
+}
+
+function ProjectFileTreeSelectionSync({
+  externalSelectedPath,
+  filePathSet,
+  lastOpenedPathRef,
+  model,
+  suppressSelectionOpenRef,
+}: {
+  externalSelectedPath: string | null;
+  filePathSet: ReadonlySet<string>;
+  lastOpenedPathRef: MutableRefObject<string | null>;
+  model: ProjectTreeModel;
+  suppressSelectionOpenRef: MutableRefObject<string | null>;
+}) {
+  useMountEffect(() => {
+    if (!externalSelectedPath) {
+      for (const selectedPath of model.getSelectedPaths()) {
+        model.getItem(selectedPath)?.deselect();
+      }
+      lastOpenedPathRef.current = null;
+      return;
+    }
+    if (
+      !filePathSet.has(externalSelectedPath) ||
+      normalizeTreePath(model.getSelectedPaths()[0] ?? "") ===
+        externalSelectedPath
+    ) {
+      return;
+    }
+    const selectedItem = model.getItem(externalSelectedPath);
+    if (!selectedItem) {
+      return;
+    }
+    suppressSelectionOpenRef.current = externalSelectedPath;
+    for (const selectedPath of model.getSelectedPaths()) {
+      model.getItem(selectedPath)?.deselect();
+    }
+    selectedItem.select();
+    model.focusPath(externalSelectedPath);
+  });
+
+  return null;
+}
+
+function ProjectFileTreeGitStatusSync({
+  gitStatusEntries,
+  model,
+}: {
+  gitStatusEntries: readonly GitStatusEntry[];
+  model: ProjectTreeModel;
+}) {
+  useMountEffect(() => {
+    model.setGitStatus(gitStatusEntries);
+  });
+
+  return null;
+}

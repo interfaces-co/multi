@@ -1,5 +1,7 @@
 import * as React from "react";
 
+import { useMountEffect } from "./use-mount-effect";
+
 export function useCopyToClipboard<TContext = void>({
   timeout = 2000,
   onCopy,
@@ -53,13 +55,13 @@ export function useCopyToClipboard<TContext = void>({
     );
   }, []);
 
-  React.useEffect(() => {
+  useMountEffect(() => {
     return (): void => {
       if (timeoutIdRef.current) {
         clearTimeout(timeoutIdRef.current);
       }
     };
-  }, []);
+  });
 
   return { copyToClipboard, isCopied };
 }

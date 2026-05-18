@@ -1,4 +1,4 @@
-import type { MessageId, ModelSelection, ProviderInstanceId } from "@multi/contracts";
+import type { MessageId, ModelSelection } from "@multi/contracts";
 import { memo, useCallback, useRef } from "react";
 
 import {
@@ -8,7 +8,6 @@ import {
   useComposerThreadDraft,
 } from "../../../stores/chat-drafts";
 import type { TerminalContextDraft } from "../../../lib/terminal-context";
-import { resolveAppModelSelectionForInstance } from "../../../model/selection";
 import type { ChatMessage } from "../../../types";
 import { deriveComposerSendState } from "../composer/send";
 import {
@@ -109,32 +108,16 @@ export const InlineMessageEditComposer = memo(function InlineMessageEditComposer
   }, []);
 
   const handleProviderModelSelect = useCallback(
-    (instanceId: ProviderInstanceId, model: string) => {
-      const resolvedModel = resolveAppModelSelectionForInstance(
-        instanceId,
-        settings,
-        providerStatuses,
-        model,
-      );
-      if (resolvedModel === null) {
-        scheduleComposerFocus();
-        return;
-      }
-      const nextModelSelection: ModelSelection = {
-        instanceId,
-        model: resolvedModel,
-      };
-      setComposerDraftModelSelection(composerDraftTarget, nextModelSelection);
-      setStickyComposerModelSelection(nextModelSelection);
+    (selection: ModelSelection) => {
+      setComposerDraftModelSelection(composerDraftTarget, selection);
+      setStickyComposerModelSelection(selection);
       scheduleComposerFocus();
     },
     [
       composerDraftTarget,
-      providerStatuses,
       scheduleComposerFocus,
       setComposerDraftModelSelection,
       setStickyComposerModelSelection,
-      settings,
     ],
   );
 

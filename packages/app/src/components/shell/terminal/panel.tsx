@@ -1,9 +1,13 @@
 "use client";
 
-import { type EnvironmentId, DEFAULT_TERMINAL_ID, type TerminalEvent } from "@multi/contracts";
+import {
+  type EnvironmentId,
+  DEFAULT_TERMINAL_ID,
+  type TerminalEvent,
+} from "@multi/contracts";
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import {
   readTerminalHostFontFamily,
@@ -12,13 +16,19 @@ import {
 } from "~/components/shell/terminal/terminal-host-theme";
 import { subscribeTerminalHostDocument } from "~/components/shell/terminal/terminal-xterm-host-sync";
 import { readNativeEnvironmentApi } from "~/lib/native-runtime-api";
-import { clampTerminalDimensions, waitForTerminalLayoutFrame } from "~/lib/terminal-dimensions";
+import {
+  clampTerminalDimensions,
+  waitForTerminalLayoutFrame,
+} from "~/lib/terminal-dimensions";
+import { useMountEffect } from "~/hooks/use-mount-effect";
 
 function workbenchThreadId(cwd: string) {
   return `workbench:${cwd}`;
 }
 
-type WorkbenchTerminalApi = NonNullable<ReturnType<typeof readNativeEnvironmentApi>>["terminal"];
+type WorkbenchTerminalApi = NonNullable<
+  ReturnType<typeof readNativeEnvironmentApi>
+>["terminal"];
 
 function readWorkbenchTerminalApi(
   environmentId: EnvironmentId | null | undefined,
@@ -35,26 +45,73 @@ export function TerminalPanel(props: {
   environmentId?: EnvironmentId | null;
   terminalId?: string;
 }) {
+  const activeTerminalId = props.terminalId ?? DEFAULT_TERMINAL_ID;
+
+  if (!props.cwd) {
+    return (
+      <div className="flex min-h-0 flex-1 items-center justify-center px-4 text-center">
+        <p className="text-body text-muted-foreground/60">No project open</p>
+      </div>
+    );
+  }
+
+  return (
+    <TerminalPanelSession
+      key={createTerminalPanelSessionKey({
+        cwd: props.cwd,
+        environmentId: props.environmentId,
+        terminalId: activeTerminalId,
+      })}
+      cwd={props.cwd}
+      environmentId={props.environmentId}
+      terminalId={activeTerminalId}
+    />
+  );
+}
+
+function createTerminalPanelSessionKey(input: {
+  cwd: string;
+  environmentId: EnvironmentId | null | undefined;
+  terminalId: string;
+}): string {
+  return JSON.stringify([
+    input.cwd,
+    input.environmentId ?? null,
+    input.terminalId,
+  ]);
+}
+
+function TerminalPanelSession({
+  cwd,
+  environmentId,
+  terminalId,
+}: {
+  cwd: string;
+  environmentId: EnvironmentId | null | undefined;
+  terminalId: string;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const term = useRef<Terminal | null>(null);
   const fit = useRef<FitAddon | null>(null);
-  const size = useRef<{ thread: string; cols: number; rows: number } | null>(null);
-  const openSession = useRef<{ thread: string; terminalId: string } | null>(null);
+  const size = useRef<{ thread: string; cols: number; rows: number } | null>(
+    null,
+  );
+  const openSession = useRef<{ thread: string; terminalId: string } | null>(
+    null,
+  );
   const [bootErr, setBootErr] = useState<string | null>(null);
 
   const dev = import.meta.env.DEV;
-  const activeTerminalId = props.terminalId ?? DEFAULT_TERMINAL_ID;
 
-  useEffect(() => {
+  useMountEffect(() => {
     const el = ref.current;
-    const api = readWorkbenchTerminalApi(props.environmentId);
-    if (!el || !api || !props.cwd) {
+    const api = readWorkbenchTerminalApi(environmentId);
+    if (!el || !api) {
       return;
     }
 
-    const cwd = props.cwd;
     const thread = workbenchThreadId(cwd);
-    const termId = activeTerminalId;
+    const termId = terminalId;
     const cfg = readTerminalHostThemeForMount(el);
     const family = readTerminalHostFontFamily(el);
     const fontSize = readTerminalHostFontSize(el);
@@ -128,7 +185,10 @@ export function TerminalPanel(props: {
       event.preventDefault();
       event.stopPropagation();
       clear();
-      if (openSession.current?.thread === thread && openSession.current.terminalId === termId) {
+      if (
+        openSession.current?.thread === thread &&
+        openSession.current.terminalId === termId
+      ) {
         void api
           .clear({
             threadId: thread,
@@ -140,7 +200,10 @@ export function TerminalPanel(props: {
     });
 
     data = next.onData((chunk) => {
-      if (openSession.current?.thread !== thread || openSession.current.terminalId !== termId) {
+      if (
+        openSession.current?.thread !== thread ||
+        openSession.current.terminalId !== termId
+      ) {
         return;
       }
       void api
@@ -173,12 +236,18 @@ export function TerminalPanel(props: {
 
     const syncPtySize = (terminal: Terminal) => {
       const addon = fit.current;
-      if (!addon || !live || !props.cwd) return;
+      if (!addon || !live) return;
       addon.fit();
-      if (openSession.current?.thread !== thread || openSession.current?.terminalId !== termId) {
+      if (
+        openSession.current?.thread !== thread ||
+        openSession.current?.terminalId !== termId
+      ) {
         return;
       }
-      const nextSize = clampTerminalDimensions({ cols: terminal.cols, rows: terminal.rows });
+      const nextSize = clampTerminalDimensions({
+        cols: terminal.cols,
+        rows: terminal.rows,
+      });
       const prev = size.current;
       if (
         prev &&
@@ -249,7 +318,10 @@ export function TerminalPanel(props: {
 
     return () => {
       live = false;
-      if (openSession.current?.thread === thread && openSession.current.terminalId === termId) {
+      if (
+        openSession.current?.thread === thread &&
+        openSession.current.terminalId === termId
+      ) {
         openSession.current = null;
       }
       unsubscribeTerminalHost();
@@ -261,25 +333,31 @@ export function TerminalPanel(props: {
       size.current = null;
       el.replaceChildren();
     };
-  }, [activeTerminalId, dev, props.cwd, props.environmentId]);
+  });
 
-  useEffect(() => {
+  useMountEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const termId = activeTerminalId;
+    const termId = terminalId;
     let fitFrame: number | null = null;
     const fitAndResize = () => {
       fitFrame = null;
       const addon = fit.current;
       const next = term.current;
-      const api = readWorkbenchTerminalApi(props.environmentId);
-      if (!addon || !next || !api || !props.cwd) return;
+      const api = readWorkbenchTerminalApi(environmentId);
+      if (!addon || !next || !api) return;
       addon.fit();
-      const thread = workbenchThreadId(props.cwd);
-      if (openSession.current?.thread !== thread || openSession.current.terminalId !== termId) {
+      const thread = workbenchThreadId(cwd);
+      if (
+        openSession.current?.thread !== thread ||
+        openSession.current.terminalId !== termId
+      ) {
         return;
       }
-      const nextSize = clampTerminalDimensions({ cols: next.cols, rows: next.rows });
+      const nextSize = clampTerminalDimensions({
+        cols: next.cols,
+        rows: next.rows,
+      });
       const prev = size.current;
       if (
         prev &&
@@ -311,22 +389,19 @@ export function TerminalPanel(props: {
         window.cancelAnimationFrame(fitFrame);
       }
     };
-  }, [activeTerminalId, props.cwd, props.environmentId]);
-
-  if (!props.cwd) {
-    return (
-      <div className="flex min-h-0 flex-1 items-center justify-center px-4 text-center">
-        <p className="text-body text-muted-foreground/60">No project open</p>
-      </div>
-    );
-  }
+  });
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       {bootErr ? (
-        <p className="shrink-0 px-2 py-1 text-detail text-destructive">{bootErr}</p>
+        <p className="shrink-0 px-2 py-1 text-detail text-destructive">
+          {bootErr}
+        </p>
       ) : null}
-      <div ref={ref} className="workbench-terminal-viewport min-h-0 flex-1 overflow-hidden" />
+      <div
+        ref={ref}
+        className="workbench-terminal-viewport min-h-0 flex-1 overflow-hidden"
+      />
     </div>
   );
 }

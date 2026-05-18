@@ -4,7 +4,6 @@ import {
   type KeyboardEvent,
   type MouseEvent,
   type MutableRefObject,
-  useEffect,
   useRef,
 } from "react";
 import { toast } from "sonner";
@@ -12,11 +11,12 @@ import { toast } from "sonner";
 import { PretextOneLine } from "~/components/pretext-one-line";
 import type { DiffRow } from "~/hooks/use-environment-git";
 import type { GitPatchData } from "~/lib/native-git-react-query";
-import { VsFileIcon } from "~/lib/vscode-file-icon";
 import { cn } from "~/lib/utils";
+import { useMountEffect } from "~/hooks/use-mount-effect";
 
 import { DiffViewer } from "./diff-viewer";
 import { GitKindBadge } from "./git-kind-badge";
+import { VsFileIcon } from "./vscode-file-icon";
 
 function splitPath(path: string) {
   const idx = path.lastIndexOf("/");
@@ -41,31 +41,6 @@ export function GitDiffCard(props: {
   diffLayoutKey: string;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const prefetchedRef = useRef(false);
-
-  useEffect(() => {
-    prefetchedRef.current = false;
-    if (!props.expanded) return;
-
-    const el = rootRef.current;
-    if (!el) return;
-
-    const obs = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (!entry.isIntersecting || prefetchedRef.current) continue;
-          prefetchedRef.current = true;
-          props.requestPrefetchForIdRef.current(props.file.id);
-          obs.disconnect();
-          return;
-        }
-      },
-      { root: null, rootMargin: "600px 0px 480px 0px", threshold: 0 },
-    );
-
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [props.expanded, props.file.id, props.requestPrefetchForIdRef]);
 
   const copyPath = (event: MouseEvent) => {
     event.stopPropagation();
@@ -93,6 +68,14 @@ export function GitDiffCard(props: {
         props.selected && "bg-(--multi-git-diff-editor-background)",
       )}
     >
+      {props.expanded ? (
+        <ExpandedGitDiffCardPrefetchObserver
+          key={props.file.id}
+          fileId={props.file.id}
+          rootRef={rootRef}
+          requestPrefetchForIdRef={props.requestPrefetchForIdRef}
+        />
+      ) : null}
       <div
         className={cn(
           "group/git-diff-header flex min-h-[30px] shrink-0 cursor-pointer flex-nowrap items-center gap-1.5 overflow-hidden border-b px-1.5 py-1 hover:bg-multi-workbench-toolbar-hover-wash",
@@ -215,4 +198,34 @@ export function GitDiffCard(props: {
       ) : null}
     </div>
   );
+}
+
+function ExpandedGitDiffCardPrefetchObserver(props: {
+  readonly fileId: string;
+  readonly rootRef: MutableRefObject<HTMLDivElement | null>;
+  readonly requestPrefetchForIdRef: MutableRefObject<(id: string) => void>;
+}) {
+  useMountEffect(() => {
+    const el = props.rootRef.current;
+    if (!el) return;
+
+    let prefetched = false;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting || prefetched) continue;
+          prefetched = true;
+          props.requestPrefetchForIdRef.current(props.fileId);
+          obs.disconnect();
+          return;
+        }
+      },
+      { root: null, rootMargin: "600px 0px 480px 0px", threshold: 0 },
+    );
+
+    obs.observe(el);
+    return () => obs.disconnect();
+  });
+
+  return null;
 }

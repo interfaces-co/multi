@@ -14,7 +14,7 @@ import {
   resetEnvironmentServiceForTests,
 } from "./environments/runtime";
 import { type WsRpcClient } from "./rpc/ws-rpc-client";
-import { showContextMenuFallback } from "./context-menu-fallback";
+import { showContextMenuFallback } from "./browser/context-menu-fallback";
 import { getLocalStorageItem, setLocalStorageItem } from "./hooks/use-local-storage";
 
 let cachedApi: LocalApi | undefined;

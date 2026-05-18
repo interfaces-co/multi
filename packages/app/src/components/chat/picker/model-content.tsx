@@ -1,17 +1,14 @@
 import {
+  type ModelSelection,
   type ProviderInstanceId,
-  type ProviderDriverKind,
   type ResolvedKeybindingsConfig,
 } from "@multi/contracts";
-import { resolveSelectableModel } from "@multi/shared/model";
-import { memo, useMemo, useState, useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import { normalizeSearchQuery, scoreQueryMatch } from "@multi/shared/search-ranking";
+import { memo, useMemo, useState, useCallback, useLayoutEffect, useRef } from "react";
 import { IconMagnifyingGlass } from "central-icons";
 import { ModelListRow } from "./model-list-row";
 import { ModelPickerSidebar } from "./model-sidebar";
-import { isModelPickerNewModel } from "./model-picker-model-highlights";
-import { buildModelPickerSearchText, scoreModelPickerSearch } from "./model-search";
 import { Combobox, ComboboxEmpty, ComboboxInput, ComboboxList } from "@multi/ui/combobox";
-import { ModelEsque } from "./icon-utils";
 import {
   modelPickerJumpCommandForIndex,
   modelPickerJumpIndexFromCommand,
@@ -21,21 +18,25 @@ import {
 import { useSettings, useUpdateSettings } from "~/hooks/use-settings";
 import type { ProviderInstanceEntry } from "../../../model/provider-instances";
 import { providerModelKey, sortProviderModelItems } from "../../../model/ordering";
+import type { AppModelCatalogItem, AppModelResolverStatus } from "../../../model/selection";
+import { useMountEffect } from "~/hooks/use-mount-effect";
 
-type ModelPickerItem = {
-  slug: string;
+const EMPTY_MODEL_JUMP_LABELS = new Map<string, string>();
+const MODEL_PICKER_FAVORITE_SCORE_BOOST = 24;
+const NEW_MODEL_KEYS = new Set<string>([
+  // Add entries as `provider:slug` when freshly shipped models should show a NEW chip.
+]);
+
+type ModelPickerSearchableModel = {
+  /** Driver kind, indexed so "codex" still matches a Codex Personal instance. */
+  driverKind: string;
+  /** Instance display name, indexed so custom instance names match directly. */
+  providerDisplayName: string;
   name: string;
   shortName?: string;
   subProvider?: string;
-  instanceId: ProviderInstanceId;
-  driverKind: ProviderDriverKind;
-  instanceDisplayName: string;
-  instanceAccentColor?: string | undefined;
-  continuationGroupKey?: string | undefined;
-  selectable?: boolean | undefined;
+  isFavorite?: boolean;
 };
-
-const EMPTY_MODEL_JUMP_LABELS = new Map<string, string>();
 
 // Split a `${instanceId}:${slug}` combobox key back into its pieces. Slugs
 // can contain colons (e.g. some vendor model ids), so we only split on the
@@ -51,6 +52,72 @@ function splitInstanceModelKey(key: string): { instanceId: ProviderInstanceId; s
   };
 }
 
+function isModelPickerNewModel(provider: string, slug: string): boolean {
+  return NEW_MODEL_KEYS.has(`${provider}:${slug}`);
+}
+
+function buildModelPickerSearchText(model: ModelPickerSearchableModel): string {
+  return normalizeSearchQuery(
+    [model.name, model.shortName, model.subProvider, model.driverKind, model.providerDisplayName]
+      .filter((value): value is string => typeof value === "string" && value.length > 0)
+      .join(" "),
+  );
+}
+
+function getModelPickerSearchFields(model: ModelPickerSearchableModel): string[] {
+  return [
+    normalizeSearchQuery(model.name),
+    ...(model.shortName ? [normalizeSearchQuery(model.shortName)] : []),
+    ...(model.subProvider ? [normalizeSearchQuery(model.subProvider)] : []),
+    normalizeSearchQuery(model.driverKind),
+    normalizeSearchQuery(model.providerDisplayName),
+    buildModelPickerSearchText(model),
+  ];
+}
+
+function scoreModelPickerSearchToken(
+  field: string,
+  token: string,
+  fieldBase: number,
+): number | null {
+  return scoreQueryMatch({
+    value: field,
+    query: token,
+    exactBase: fieldBase,
+    prefixBase: fieldBase + 2,
+    boundaryBase: fieldBase + 4,
+    includesBase: fieldBase + 6,
+    ...(token.length >= 3 ? { fuzzyBase: fieldBase + 100 } : {}),
+  });
+}
+
+function scoreModelPickerSearch(model: ModelPickerSearchableModel, query: string): number | null {
+  const tokens = normalizeSearchQuery(query)
+    .split(/\s+/u)
+    .filter((token) => token.length > 0);
+
+  if (tokens.length === 0) {
+    return 0;
+  }
+
+  const fields = getModelPickerSearchFields(model);
+  let score = 0;
+
+  for (const token of tokens) {
+    const tokenScores = fields
+      .map((field, index) => scoreModelPickerSearchToken(field, token, index * 10))
+      .filter((fieldScore): fieldScore is number => fieldScore !== null);
+
+    if (tokenScores.length === 0) {
+      return null;
+    }
+
+    score += Math.min(...tokenScores);
+  }
+
+  return model.isFavorite ? score - MODEL_PICKER_FAVORITE_SCORE_BOOST : score;
+}
+
 export const ModelPickerContent = memo(function ModelPickerContent(props: {
   /** The instance currently selected in the composer (combobox "value"). */
   activeInstanceId: ProviderInstanceId;
@@ -61,13 +128,8 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
    */
   instanceEntries: ReadonlyArray<ProviderInstanceEntry>;
   keybindings?: ResolvedKeybindingsConfig;
-  /**
-   * Model options per instance. Keyed by `ProviderInstanceId` so the
-   * default Codex instance and any custom Codex instances each have their
-   * own list (custom instances typically start with the same built-in
-   * model set but are free to diverge via customModels).
-   */
-  modelOptionsByInstance: ReadonlyMap<ProviderInstanceId, ReadonlyArray<ModelEsque>>;
+  availabilityStatus?: AppModelResolverStatus | undefined;
+  modelCatalogItems: ReadonlyArray<AppModelCatalogItem>;
   terminalOpen: boolean;
   /** When the host popover opens, mirror this for search seeding (e.g. `/model` query). */
   popoverOpen: boolean;
@@ -77,13 +139,13 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
    */
   openSearchSeed?: string | undefined;
   onRequestClose?: () => void;
-  onInstanceModelChange: (instanceId: ProviderInstanceId, model: string) => void;
+  onSelectionChange: (selection: ModelSelection) => void;
 }) {
   const {
     keybindings: providedKeybindings,
-    modelOptionsByInstance,
+    modelCatalogItems,
     instanceEntries,
-    onInstanceModelChange,
+    onSelectionChange,
   } = props;
   const [searchQuery, setSearchQuery] = useState("");
   const [railSelection, setRailSelection] = useState<ProviderInstanceId | "favorites">(
@@ -151,61 +213,13 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
     [favorites, updateSettings],
   );
 
-  /**
-   * Lookup table keyed by `instanceId`. Used for display name + driver
-   * kind enrichment and for `ready`/enabled filtering before flattening
-   * models into the search list.
-   */
-  const entryByInstanceId = useMemo(
-    () => new Map(instanceEntries.map((entry) => [entry.instanceId, entry])),
-    [instanceEntries],
+  const flatModels = modelCatalogItems;
+
+  const flatModelByKey = useMemo(
+    (): ReadonlyMap<string, AppModelCatalogItem> =>
+      new Map(flatModels.map((model) => [providerModelKey(model.instanceId, model.slug), model])),
+    [flatModels],
   );
-
-  const readyInstanceSet = useMemo(() => {
-    const ready = new Set<ProviderInstanceId>();
-    for (const entry of instanceEntries) {
-      if (entry.status === "ready") {
-        ready.add(entry.instanceId);
-      }
-    }
-    return ready;
-  }, [instanceEntries]);
-
-  // Flatten models into a searchable array. One pass over the
-  // instance-keyed map; each model carries its instance id + driver kind
-  // so the list row can render the right icon and display name without
-  // another lookup.
-  const flatModels = useMemo(() => {
-    const out: ModelPickerItem[] = [];
-    for (const [instanceId, models] of modelOptionsByInstance) {
-      const entry = entryByInstanceId.get(instanceId);
-      if (!entry) {
-        // Instance disappeared between renders (configuration change). Skip
-        // its models — stale options shouldn't appear in the picker.
-        continue;
-      }
-      if (!readyInstanceSet.has(instanceId)) {
-        continue;
-      }
-      for (const model of models) {
-        out.push({
-          slug: model.slug,
-          name: model.name,
-          ...(model.shortName ? { shortName: model.shortName } : {}),
-          ...(model.subProvider ? { subProvider: model.subProvider } : {}),
-          ...(model.selectable === false ? { selectable: false } : {}),
-          instanceId,
-          driverKind: entry.driverKind,
-          instanceDisplayName: entry.displayName,
-          ...(entry.accentColor ? { instanceAccentColor: entry.accentColor } : {}),
-          ...(entry.continuationGroupKey
-            ? { continuationGroupKey: entry.continuationGroupKey }
-            : {}),
-        });
-      }
-    }
-    return out;
-  }, [modelOptionsByInstance, entryByInstanceId, readyInstanceSet]);
 
   const instanceOrder = useMemo(
     () => [
@@ -248,7 +262,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
           (
             rankedModel,
           ): rankedModel is {
-            model: ModelPickerItem;
+            model: AppModelCatalogItem;
             score: number;
             isFavorite: boolean;
             tieBreaker: string;
@@ -295,24 +309,13 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
 
   const handleModelSelect = useCallback(
     (modelSlug: string, instanceId: ProviderInstanceId) => {
-      const options = modelOptionsByInstance.get(instanceId);
-      if (!options) {
+      const selectedItem = flatModelByKey.get(providerModelKey(instanceId, modelSlug));
+      if (!selectedItem || selectedItem.selectable === false) {
         return;
       }
-      const entry = entryByInstanceId.get(instanceId);
-      if (!entry) {
-        return;
-      }
-      const selectableOptions = options.filter((option) => option.selectable !== false);
-      // `resolveSelectableModel` uses the driver kind for normalization
-      // (slug casing etc.). Custom instances share their driver's
-      // normalization rules, so pass the driver kind here.
-      const resolvedModel = resolveSelectableModel(entry.driverKind, modelSlug, selectableOptions);
-      if (resolvedModel) {
-        onInstanceModelChange(instanceId, resolvedModel);
-      }
+      onSelectionChange(selectedItem.modelSelection);
     },
-    [entryByInstanceId, modelOptionsByInstance, onInstanceModelChange],
+    [flatModelByKey, onSelectionChange],
   );
 
   const modelJumpCommandByKey = useMemo(() => {
@@ -329,7 +332,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
       if (!jumpCommand) {
         return mapping;
       }
-      mapping.set(`${model.instanceId}:${model.slug}`, jumpCommand);
+      mapping.set(providerModelKey(model.instanceId, model.slug), jumpCommand);
       selectableModelIndex += 1;
     }
     return mapping;
@@ -339,16 +342,25 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
     [modelJumpCommandByKey],
   );
   const allModelKeys = useMemo(
-    (): string[] => flatModels.map((model) => `${model.instanceId}:${model.slug}`),
+    (): string[] => flatModels.map((model) => providerModelKey(model.instanceId, model.slug)),
     [flatModels],
   );
   const filteredModelKeys = useMemo(
-    (): string[] => filteredModels.map((model) => `${model.instanceId}:${model.slug}`),
+    (): string[] => filteredModels.map((model) => providerModelKey(model.instanceId, model.slug)),
     [filteredModels],
   );
+  const availabilityMessage =
+    props.availabilityStatus && props.availabilityStatus.kind !== "ready"
+      ? props.availabilityStatus.message
+      : null;
+  const emptyMessage = searchQuery.trim()
+    ? "No models found"
+    : (availabilityMessage ?? "No models found");
   const filteredModelByKey = useMemo(
-    (): ReadonlyMap<string, ModelPickerItem> =>
-      new Map(filteredModels.map((model) => [`${model.instanceId}:${model.slug}`, model] as const)),
+    (): ReadonlyMap<string, AppModelCatalogItem> =>
+      new Map(
+        filteredModels.map((model) => [providerModelKey(model.instanceId, model.slug), model]),
+      ),
     [filteredModels],
   );
   const modelJumpShortcutContext = useMemo(
@@ -377,30 +389,38 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
     }
     return mapping.size > 0 ? mapping : EMPTY_MODEL_JUMP_LABELS;
   }, [keybindings, modelJumpCommandByKey, modelJumpShortcutContext]);
+  const handleModelSelectRef = useRef(handleModelSelect);
+  const keybindingsRef = useRef(keybindings);
+  const modelJumpModelKeysRef = useRef(modelJumpModelKeys);
+  const modelJumpShortcutContextRef = useRef(modelJumpShortcutContext);
+  handleModelSelectRef.current = handleModelSelect;
+  keybindingsRef.current = keybindings;
+  modelJumpModelKeysRef.current = modelJumpModelKeys;
+  modelJumpShortcutContextRef.current = modelJumpShortcutContext;
 
-  useEffect(() => {
+  useMountEffect(() => {
     const onWindowKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.defaultPrevented || event.repeat) {
         return;
       }
 
-      const command = resolveShortcutCommand(event, keybindings, {
+      const command = resolveShortcutCommand(event, keybindingsRef.current, {
         platform: navigator.platform,
-        context: modelJumpShortcutContext,
+        context: modelJumpShortcutContextRef.current,
       });
       const jumpIndex = modelPickerJumpIndexFromCommand(command ?? "");
       if (jumpIndex === null) {
         return;
       }
 
-      const targetModelKey = modelJumpModelKeys[jumpIndex];
+      const targetModelKey = modelJumpModelKeysRef.current[jumpIndex];
       if (!targetModelKey) {
         return;
       }
       const { instanceId, slug } = splitInstanceModelKey(targetModelKey);
       event.preventDefault();
       event.stopPropagation();
-      handleModelSelect(slug, instanceId);
+      handleModelSelectRef.current(slug, instanceId);
     };
 
     window.addEventListener("keydown", onWindowKeyDown, true);
@@ -408,7 +428,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
     return () => {
       window.removeEventListener("keydown", onWindowKeyDown, true);
     };
-  }, [handleModelSelect, keybindings, modelJumpModelKeys, modelJumpShortcutContext]);
+  });
 
   const sidebarVisible = !searchQuery.trim();
   const handleSidebarInstanceSelect = useCallback(
@@ -501,9 +521,18 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
                 />
               </div>
 
-              <div ref={listRegionRef} className="relative min-h-0 flex-1">
+              <div ref={listRegionRef} className="relative flex min-h-0 flex-1 flex-col">
+                {availabilityMessage ? (
+                  <div
+                    className="border-b border-multi-stroke-tertiary px-2 py-1.5 text-xs/4 text-multi-fg-tertiary"
+                    data-model-picker-status-message="true"
+                    role="status"
+                  >
+                    {availabilityMessage}
+                  </div>
+                ) : null}
                 <ComboboxList
-                  className="model-picker-list size-full px-1 pb-1"
+                  className="model-picker-list min-h-0 flex-1 px-1 pb-1"
                   data-model-picker-list="true"
                 >
                   {filteredModelKeys.map((modelKey, index) => {
@@ -538,7 +567,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
                 </ComboboxList>
               </div>
               <ComboboxEmpty className="not-empty:py-5 empty:h-0 text-xs/4 font-normal text-multi-fg-tertiary">
-                No models found
+                {emptyMessage}
               </ComboboxEmpty>
             </div>
           </Combobox>

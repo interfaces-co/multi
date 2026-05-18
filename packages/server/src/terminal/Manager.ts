@@ -6,7 +6,6 @@ import {
   type TerminalSessionSnapshot,
   type TerminalSessionStatus,
 } from "@multi/contracts";
-import { makeKeyedCoalescingWorker } from "@multi/shared/KeyedCoalescingWorker";
 import { listLoginShellCandidates, readUserLoginShell } from "@multi/shared/shell";
 import {
   Effect,
@@ -45,6 +44,7 @@ import {
   coerceAccessibleProjectCwd,
   type ProjectCwdCandidate,
 } from "../project/AccessibleProjectCwd.ts";
+import { makeKeyedCoalescingWorker } from "./KeyedCoalescingWorker";
 
 const DEFAULT_HISTORY_LINE_LIMIT = 5_000;
 const DEFAULT_PERSIST_DEBOUNCE_MS = 40;

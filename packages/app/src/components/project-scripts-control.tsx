@@ -1,4 +1,9 @@
-import type { ProjectScript, ProjectScriptIcon, ResolvedKeybindingsConfig } from "@multi/contracts";
+import type {
+  KeybindingCommand,
+  ProjectScript,
+  ProjectScriptIcon,
+  ResolvedKeybindingsConfig,
+} from "@multi/contracts";
 import {
   IconBug,
   IconChecklist,
@@ -15,9 +20,7 @@ import React, { type FormEvent, type KeyboardEvent, useCallback, useMemo, useSta
 import {
   commandForProjectScript,
   decodeProjectScriptKeybindingRule,
-  keybindingValueForCommand,
   nextProjectScriptId,
-  primaryProjectScript,
 } from "~/lib/project-scripts";
 import { shortcutLabelForCommand } from "~/keybindings";
 import { isMacPlatform } from "~/lib/utils";
@@ -139,6 +142,37 @@ function keybindingFromEvent(event: KeyboardEvent<HTMLInputElement>): string | n
   }
   parts.push(keyToken);
   return parts.join("+");
+}
+
+function primaryProjectScript(scripts: ProjectScript[]): ProjectScript | null {
+  const regular = scripts.find((script) => !script.runOnWorktreeCreate);
+  return regular ?? scripts[0] ?? null;
+}
+
+function keybindingValueForCommand(
+  keybindings: ResolvedKeybindingsConfig,
+  command: KeybindingCommand,
+): string | null {
+  for (let index = keybindings.length - 1; index >= 0; index -= 1) {
+    const binding = keybindings[index];
+    if (!binding || binding.command !== command) continue;
+
+    const parts: string[] = [];
+    if (binding.shortcut.modKey) parts.push("mod");
+    if (binding.shortcut.ctrlKey) parts.push("ctrl");
+    if (binding.shortcut.metaKey) parts.push("meta");
+    if (binding.shortcut.altKey) parts.push("alt");
+    if (binding.shortcut.shiftKey) parts.push("shift");
+    const keyToken =
+      binding.shortcut.key === " "
+        ? "space"
+        : binding.shortcut.key === "escape"
+          ? "esc"
+          : binding.shortcut.key;
+    parts.push(keyToken);
+    return parts.join("+");
+  }
+  return null;
 }
 
 export default function ProjectScriptsControl({

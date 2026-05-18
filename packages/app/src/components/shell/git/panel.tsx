@@ -11,7 +11,7 @@ import {
   IconStop,
 } from "central-icons";
 import { Virtualizer } from "@pierre/diffs/react";
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
@@ -32,6 +32,7 @@ import {
   type GitPanelModel,
   useDiffStylePreference,
 } from "~/hooks/use-environment-git";
+import { useMountEffect } from "~/hooks/use-mount-effect";
 import {
   GIT_AGENT_ACTIONS,
   GIT_AGENT_ACTION_ORDER,
@@ -39,7 +40,7 @@ import {
   type GitAgentAction,
 } from "~/lib/git-agent-actions";
 import { useGitViewed } from "~/hooks/use-git-viewed-state";
-import { parseDiffRouteSearch, stripDiffSearchParams } from "~/diff-route-search";
+import { parseDiffRouteSearch, stripDiffSearchParams } from "~/app/routes/chat-shell-search";
 import { cn } from "~/lib/utils";
 import ReviewDiffPanel from "~/components/diff-panel";
 import { DiffWorkerPoolProvider } from "~/components/diff-worker-pool-provider";
@@ -51,6 +52,11 @@ import { WorkbenchIconButton, WorkbenchTextButton } from "../shell/workbench-ico
 import { RightWorkbenchLayout } from "../shell/right-workbench-layout";
 
 type GitChangesFilter = "uncommitted" | "unstaged" | "staged" | "branch";
+type GitPanelSelectionState = {
+  readonly filesKey: string;
+  readonly focusId: string | null;
+  readonly selectedId: string | null;
+};
 
 const GIT_CHANGES_FILTERS: readonly GitChangesFilter[] = [
   "uncommitted",
@@ -65,6 +71,26 @@ const GIT_CHANGES_FILTER_LABELS: Record<GitChangesFilter, string> = {
   staged: "Staged",
   branch: "All commits",
 };
+
+function resolveGitPanelSelectedId(input: {
+  readonly visibleFiles: readonly DiffRow[];
+  readonly previousSelectedId: string | null;
+  readonly focusId: string | null;
+}): string | null {
+  if (input.visibleFiles.length === 0) {
+    return null;
+  }
+  if (input.focusId && input.visibleFiles.some((row) => row.id === input.focusId)) {
+    return input.focusId;
+  }
+  if (
+    input.previousSelectedId !== null &&
+    input.visibleFiles.some((row) => row.id === input.previousSelectedId)
+  ) {
+    return input.previousSelectedId;
+  }
+  return input.visibleFiles[0]?.id ?? null;
+}
 
 export function GitPanel(props: {
   git: GitPanelModel;
@@ -192,7 +218,28 @@ function GitPanelInner(props: {
     [visibleFiles],
   );
   const filesKey = useMemo(() => visibleFiles.map((row) => row.id).join("\n"), [visibleFiles]);
-  const [selectedId, setSelectedId] = useState<string | null>(() => visibleFiles[0]?.id ?? null);
+  const [selectionState, setSelectionState] = useState<GitPanelSelectionState>(() => ({
+    filesKey,
+    focusId: git.focusId,
+    selectedId: resolveGitPanelSelectedId({
+      visibleFiles,
+      previousSelectedId: null,
+      focusId: git.focusId,
+    }),
+  }));
+  let selectedId = selectionState.selectedId;
+  if (selectionState.filesKey !== filesKey || selectionState.focusId !== git.focusId) {
+    selectedId = resolveGitPanelSelectedId({
+      visibleFiles,
+      previousSelectedId: selectionState.selectedId,
+      focusId: git.focusId,
+    });
+    setSelectionState({
+      filesKey,
+      focusId: git.focusId,
+      selectedId,
+    });
+  }
   const allDiffCardsCollapsed =
     visibleFiles.length > 0 && visibleFiles.every((row) => !git.expandedIds.has(row.id));
   const diffLayoutKey = gitRailOpen ? `rail:${gitRailWidth}` : "rail:closed";
@@ -206,42 +253,6 @@ function GitPanelInner(props: {
   prefetchRef.current = (id: string) => {
     git.requestDiff(id);
   };
-
-  useEffect(() => {
-    if (visibleFiles.length === 0) {
-      setSelectedId(null);
-      return;
-    }
-
-    setSelectedId((previous) => {
-      if (git.focusId && visibleFiles.some((row) => row.id === git.focusId)) {
-        return git.focusId;
-      }
-
-      return previous !== null && visibleFiles.some((row) => row.id === previous)
-        ? previous
-        : visibleFiles[0]!.id;
-    });
-  }, [filesKey, git.focusId, visibleFiles]);
-
-  useEffect(() => {
-    if (!selectedId) return;
-    gitRef.current.toggleExpand(selectedId, true);
-  }, [selectedId]);
-
-  useEffect(() => {
-    if (!selectedId) return;
-    const root = deckRootRef.current;
-    if (!root) return;
-
-    requestAnimationFrame(() => {
-      const escaped = CSS.escape(selectedId);
-      root.querySelector(`[data-diff-card-id="${escaped}"]`)?.scrollIntoView({
-        block: "nearest",
-        behavior: "smooth",
-      });
-    });
-  }, [selectedId]);
 
   const confirmDiscard = useCallback(() => {
     if (!pending) return;
@@ -270,7 +281,7 @@ function GitPanelInner(props: {
   }, [onAgentAction, props.pendingAgentAction]);
 
   const handleSelectFile = useCallback((file: DiffRow) => {
-    setSelectedId(file.id);
+    setSelectionState((current) => ({ ...current, selectedId: file.id }));
   }, []);
   const closeReview = useCallback(() => {
     void navigate({
@@ -329,6 +340,14 @@ function GitPanelInner(props: {
             ref={deckRootRef}
             className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-(--glass-editor-surface-background)"
           >
+            {selectedId ? (
+              <SelectedGitDiffSync
+                key={selectedId}
+                selectedId={selectedId}
+                deckRootRef={deckRootRef}
+                gitRef={gitRef}
+              />
+            ) : null}
             {props.reviewingTurnDiff ? (
               <GitReviewDiffSurface layoutKey={diffLayoutKey} />
             ) : visibleFiles.length === 0 ? (
@@ -387,6 +406,30 @@ function GitPanelInner(props: {
       />
     </>
   );
+}
+
+function SelectedGitDiffSync(props: {
+  readonly selectedId: string;
+  readonly deckRootRef: { readonly current: HTMLDivElement | null };
+  readonly gitRef: { readonly current: GitPanelModel };
+}) {
+  useMountEffect(() => {
+    props.gitRef.current.toggleExpand(props.selectedId, true);
+    const root = props.deckRootRef.current;
+    if (!root) return;
+
+    const frame = requestAnimationFrame(() => {
+      const escaped = CSS.escape(props.selectedId);
+      root.querySelector(`[data-diff-card-id="${escaped}"]`)?.scrollIntoView({
+        block: "nearest",
+        behavior: "smooth",
+      });
+    });
+
+    return () => cancelAnimationFrame(frame);
+  });
+
+  return null;
 }
 
 function GitReviewOnlyPanel() {

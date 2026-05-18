@@ -118,7 +118,7 @@ vi.mock("./environments/runtime", () => ({
   resetEnvironmentServiceForTests: vi.fn(),
 }));
 
-vi.mock("./context-menu-fallback", () => ({
+vi.mock("./browser/context-menu-fallback", () => ({
   showContextMenuFallback: showContextMenuFallbackMock,
 }));
 

@@ -4,7 +4,6 @@ import {
   type KeyboardEvent,
   memo,
   useCallback,
-  useEffect,
   useRef,
   useState,
 } from "react";
@@ -74,16 +73,13 @@ export const AgentRow = memo(
     const mark = useThreadUnreadStore((s) => s.mark);
     const [renaming, setRenaming] = useState(false);
     const [renameValue, setRenameValue] = useState("");
-    const inputRef = useRef<HTMLInputElement | null>(null);
     const committedRef = useRef(false);
 
-    useEffect(() => {
-      if (!renaming) return;
-      const node = inputRef.current;
+    const focusRenameInput = useCallback((node: HTMLInputElement | null) => {
       if (!node) return;
       node.focus();
       node.select();
-    }, [renaming]);
+    }, []);
 
     const finishRename = useCallback(() => {
       setRenaming(false);
@@ -211,7 +207,7 @@ export const AgentRow = memo(
               <StatusSlot item={props.item} />
               <span className="flex min-w-0 flex-1 flex-col gap-0.5 overflow-hidden pl-0.5">
                 <input
-                  ref={inputRef}
+                  ref={focusRenameInput}
                   type="text"
                   value={renameValue}
                   onChange={(e) => setRenameValue(e.target.value)}

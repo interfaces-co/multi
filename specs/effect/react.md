@@ -11,17 +11,20 @@ Snapshot commands:
 ```bash
 rg --count "\\buseEffect\\b" packages/app/src --glob '!*.test.*' --glob '!*.browser.*'
 rg --count "\\buseLayoutEffect\\b" packages/app/src --glob '!*.test.*' --glob '!*.browser.*'
-rg -n "useMountEffect" packages/app/src --glob '!*.test.*' --glob '!*.browser.*'
+rg -n "useMountEffect|no-direct-use-effect" packages/app/src scripts .oxlintrc.json --glob '!*.test.*' --glob '!*.browser.*'
 ```
 
 Snapshot result:
 
-- [x] Direct `useEffect` appears in `49` production app files with `182`
+- [x] Direct `useEffect` appears only in
+      `packages/app/src/hooks/use-mount-effect.ts`, with `2` matches.
+- [x] Direct `useLayoutEffect` appears in `6` production app files with `13`
       matches.
-- [x] Direct `useLayoutEffect` appears in `6` production app files with `14`
-      matches.
-- [x] No `useMountEffect` callsites were found in `packages/app/src`.
-- [~] Direct effect callsite classification is being captured in
+- [x] `packages/app/src/hooks/use-mount-effect.ts` defines the mount-only
+      external-sync wrapper. Route-level global shortcut listeners,
+      `use-copy-to-clipboard` timer cleanup, and thread jump hint controller
+      cleanup now use it.
+- [x] Direct effect callsite classification is captured in
   [react-effect-callsite-inventory.md](./react-effect-callsite-inventory.md).
 
 ## Rule
@@ -38,7 +41,7 @@ Allowed replacement patterns:
       actions.
 - [ ] State reset uses a keyed component boundary when the entity identity
       changes.
-- [ ] One-time external sync uses a dedicated `useMountEffect` wrapper.
+- [x] One-time external sync uses a dedicated `useMountEffect` wrapper.
 
 Allowed external sync categories:
 
@@ -71,9 +74,9 @@ export function useMountEffect(effect: () => void | (() => void)) {
 
 Rules:
 
-- [ ] The wrapper is the only file allowed to import and call React
+- [x] The wrapper is the only file allowed to import and call React
       `useEffect` directly once the lint rule is active.
-- [ ] The wrapper name makes mount-only external sync explicit.
+- [x] The wrapper name makes mount-only external sync explicit.
 - [ ] Do not use the wrapper to hide prop synchronization. If the behavior
       depends on an ID, remount the child with `key`.
 - [ ] Do not use the wrapper for data fetching. Use React Query.
@@ -83,55 +86,36 @@ Rules:
 The repository currently uses `oxlint` with the local
 `scripts/oxlint-plugin-multi.js` plugin.
 
-- [ ] Add a `multi/no-direct-use-effect` rule after the wrapper exists.
-- [ ] The rule should reject direct `useEffect` imports and
+- [x] Add a `multi/no-direct-use-effect` rule after the wrapper exists.
+- [x] The rule should reject direct `useEffect` imports and
       `React.useEffect(...)` calls outside the wrapper file.
 - [ ] The rule should allow `useLayoutEffect` only while the layout-effect
       migration remains explicitly tracked in this spec.
-- [ ] `pnpm exec oxlint --report-unused-disable-directives --deny-warnings`
-      must stay clean when the rule is enabled.
+- [x] `pnpm exec oxlint --report-unused-disable-directives --deny-warnings`
+      stays clean with the rule enabled as `error`.
 
 ## Migration Order
 
-1. [ ] Add `useMountEffect`.
-2. [ ] Read every direct `useEffect` callsite and classify it in this spec or a
+1. [x] Add `useMountEffect`.
+2. [x] Read every direct `useEffect` callsite and classify it in this spec or a
        linked inventory.
-3. [ ] Remove derived-state effects first.
-4. [ ] Remove action-relay effects second.
-5. [ ] Replace reset effects with keyed component boundaries.
-6. [ ] Keep true external sync effects, but move them behind
+3. [x] Remove derived-state effects first.
+4. [x] Remove action-relay effects second.
+5. [x] Replace reset effects with keyed component boundaries.
+6. [x] Keep true external sync effects, but move them behind
        `useMountEffect`, focused hooks, or owned integration components.
-7. [ ] Enable `multi/no-direct-use-effect` with warnings denied.
+7. [x] Enable `multi/no-direct-use-effect` with warnings denied.
 
 ## First Classification Buckets
 
-Read these files before editing. The counts are inventory facts only.
-
-- [ ] `packages/app/src/components/chat/view/chat-view.tsx` has `19`
-      `useEffect` matches.
-- [ ] `packages/app/src/components/thread-terminal-drawer.tsx` has `10`
-      `useEffect` matches.
-- [ ] `packages/app/src/components/chat/composer/input.tsx` has `8`
-      `useEffect` matches and `2` `useLayoutEffect` matches.
-- [ ] `packages/app/src/components/web-socket-connection-surface.tsx` has `7`
-      `useEffect` matches.
-- [ ] `packages/app/src/app/routes/root-route.tsx` has `7` `useEffect`
-      matches.
-- [ ] `packages/app/src/components/shell/files/project-file-tree.tsx` has `7`
-      `useEffect` matches.
-- [ ] `packages/app/src/components/diff-panel.tsx` has `6` `useEffect`
-      matches.
-- [ ] `packages/app/src/components/shell/agents/list.tsx` has `6`
-      `useEffect` matches.
-- [ ] `packages/app/src/components/chat/timeline/messages-timeline.tsx` has
-      `6` `useEffect` matches.
+No count-only direct-effect files remain.
 
 ## Done Means
 
-- [ ] New React code has no direct `useEffect`.
-- [ ] Existing direct effects are either removed or classified as external
+- [x] New React code has no direct `useEffect`.
+- [x] Existing direct effects are either removed or classified as external
       sync.
-- [ ] External sync lives in focused hooks or integration components.
-- [ ] Derived state stays derived in render.
-- [ ] User actions stay in handlers.
-- [ ] The lint rule prevents regression.
+- [x] External sync lives in focused hooks or integration components.
+- [x] Derived state stays derived in render.
+- [x] User actions stay in handlers.
+- [x] The lint rule prevents regression.

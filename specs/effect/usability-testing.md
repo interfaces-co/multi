@@ -54,7 +54,7 @@ Detailed sidebar plan: [sidebar-usability.md](./sidebar-usability.md).
 - [ ] Add delete-back-to-single-line coverage.
 - [ ] Add inline edit click-to-focus latency coverage.
 - [ ] Add inline edit height comparison against the source message bubble.
-- [ ] Add compact model selector overflow coverage.
+- [x] Add compact model selector overflow coverage.
 
 ## Plan Coverage
 
@@ -81,7 +81,7 @@ When a helper is deleted or inlined:
 
 Browser tests should not pass with large expected warning streams.
 
-- [ ] Fix WebSocket RPC `Cause` serialization warnings.
+- [x] Fix WebSocket RPC `Cause` serialization warnings.
 - [ ] Fail tests that emit unexpected console errors.
 - [ ] Allow specific warnings only with a local explanation and TODO.
 - [ ] Keep screenshots only for failures that need visual debugging.

@@ -64,9 +64,17 @@ P6  EFFECT
       examples.
 - [x] Surface branch checkout failures in the app instead of leaving an
       unhandled promise rejection.
-- [ ] Audit git action, plan implementation, project script, provider command,
+- [x] Audit git action, plan implementation, project script, provider command,
       and terminal actions for unhandled rejected promises.
-- [ ] Fix WebSocket RPC subscription error cause serialization so browser tests
+- [x] Convert startup missing project-root handling from log-only diagnostics to
+      a typed project state cleanup path: detect active projects whose
+      `projectRoot` is inaccessible during backend startup only, archive every
+      non-deleted, non-archived thread for the affected project, and keep the
+      original broken project path saved on the archived records for history.
+      Runtime path failures should still surface as action-specific errors, not
+      trigger this archival cleanup. This should replace repeatedly logging
+      `active project project root is not accessible` on every backend start.
+- [x] Fix WebSocket RPC subscription error cause serialization so browser tests
       do not emit repeated `SchemaError(Expected array, got Cause...)` warnings.
 - [ ] Pick one server route/RPC group and make expected errors explicit at the
       contract boundary.
@@ -83,7 +91,7 @@ P6  EFFECT
 - [x] Run strict oxlint with warnings denied after schema-rule cleanup.
 - [ ] Remove app-side duplicate DTOs that mirror contract schema types.
 - [ ] Schema-back persisted app store shapes that cross local persistence.
-- [ ] Remove editor-internal prompt JSON from composer persistence and queue
+- [x] Remove editor-internal prompt JSON from composer persistence and queue
       contracts.
 
 ## P2: Model
@@ -102,10 +110,10 @@ P6  EFFECT
       contract and delete unused exported resolver wrappers.
 - [x] Remove unused exports from provider/model helper files after caller
       inventory.
-- [ ] Keep picker components as consumers of model resolver output only.
-- [ ] Collapse `components/command-palette-model.ts` if it is just another
-      rendering of normalized model output.
-- [ ] Add compact model selector overflow browser coverage.
+- [x] Keep picker components as consumers of model resolver output only.
+- [x] Classify `components/command-palette-model.ts`: not normalized
+      provider/model output; leave any collapse to the delete inventory.
+- [x] Add compact model selector overflow browser coverage.
 
 ## P3: Composer And Plan
 
@@ -124,7 +132,7 @@ P6  EFFECT
       activation is driven by user actions and implementation actions.
 - [x] Prevent inactive right-workbench panels from mounting side-effectful
       bodies such as terminal hosts.
-- [ ] Finish deleting stale slash-menu helper files and tests.
+- [x] Finish deleting stale slash-menu helper files and tests.
 - [x] Typecheck the current composer/plan slice.
 - [x] Typecheck the provider-state and terminal-helper cleanup slice.
 - [ ] Verify rendered inline edit height and plan panel controls.
@@ -139,21 +147,27 @@ P6  EFFECT
 - [x] Delete root composer file names after moving real boundaries.
 - [x] Inventory project-script, pending-user-input, and terminal helper files
       before deletion.
-- [ ] Continue `knip` strict cleanup for exported-but-unused files.
-- [ ] Re-evaluate `packages/app/src/diff-route-search.ts` after route-search
-      ownership is decided.
+- [~] Continue `knip` strict cleanup for exported-but-unused files.
+  - [x] Re-ran `pnpm run knip:production`; repo-wide output still fails on
+        package entry/dependency noise, but filtering the same run to
+        `packages/app/src` reported no app source unused exports after the
+        model/provider cleanup wave.
+- [x] Re-evaluate `packages/app/src/diff-route-search.ts` after route-search
+      ownership is decided; keep the shared search contract at
+      `packages/app/src/app/routes/chat-shell-search.ts`.
 - [x] Decide current `diff-route-search.ts` ownership: keep the shared search
       contract for now, but move it under route ownership.
 - [x] Inline or delete terminal one-off helpers with single production callers.
-- [ ] Remove project-script and pending-user-input one-off helpers only when
-      caller inventory proves they are not boundaries.
-- [x] Classify all 49 root-level `packages/app/src/*.ts(x)` files as boundary,
-      move, inline, generated, or delete.
-- [ ] Re-run app file inventory before each deletion wave:
+- [x] Remove project-script one-off helpers only when caller inventory proves
+      they are not boundaries.
+- [x] Classify the initial 49 root-level `packages/app/src/*.ts(x)` files as
+      boundary, move, inline, generated, or delete.
+- [x] Re-run app file inventory before each deletion wave:
       `rg --files packages/app/src`.
+      Current run: `338` files; no remaining `*.logic.ts(x)` files.
 - [x] Classify the remaining `.logic.ts` file,
       `packages/app/src/app/toast.logic.ts`, as keep/inline/delete.
-- [ ] Inline `packages/app/src/app/toast.logic.ts` into `toast.tsx` and delete
+- [x] Inline `packages/app/src/app/toast.logic.ts` into `toast.tsx` and delete
       helper-only tests after toast behavior coverage is in place.
 - [x] Classify app CSS files into token/global renderer/feature-delete buckets.
 - [x] Add server/shared file inventory with canonical boundaries and duplicate
@@ -161,16 +175,16 @@ P6  EFFECT
 - [x] Add app state/store inventory covering `stores`, thread sync/state,
       sidebar projections, and timestamp helpers.
 - [ ] Consolidate duplicated server/shared observability trace files.
-- [ ] Reclassify app state one-consumer/overlap candidates:
-  - [ ] `stores/shell-layout-store.ts`
-  - [ ] `stores/thread-unread-store.ts`
-  - [ ] `stores/ui/model-picker-open-state.ts`
-  - [ ] `stores/chat-send-queue-dispatch.ts`
-- [ ] Reclassify one-consumer shared exports:
-  - [ ] `KeyedCoalescingWorker.ts`
-  - [ ] `String.ts`
-  - [ ] `subagents.ts`
-  - [ ] `tool-activity.ts`
+- [x] Reclassify app state one-consumer/overlap candidates:
+  - [x] `stores/shell-layout-store.ts`
+  - [x] `stores/thread-unread-store.ts`
+  - [x] `stores/ui/model-picker-open-state.ts`
+  - [x] `stores/chat-send-queue-dispatch.ts`
+- [x] Reclassify one-consumer shared exports:
+  - [x] `KeyedCoalescingWorker.ts`
+  - [x] `String.ts`
+  - [x] `subagents.ts`
+  - [x] `tool-activity.ts`
 - [ ] Delete helper tests only after moving retained behavior to a behavior
       suite.
 
@@ -196,13 +210,13 @@ P6  EFFECT
 - [x] Add a foundation spec for the no-direct-`useEffect` rule.
 - [x] Count current production direct `useEffect` and `useLayoutEffect`
       callsites.
-- [~] Classify direct `useEffect` callsites by replacement pattern before
+- [x] Classify direct `useEffect` callsites by replacement pattern before
   editing them.
-- [ ] Add a `useMountEffect` escape-hatch wrapper.
-- [ ] Implement `multi/no-direct-use-effect` in the existing oxlint plugin.
-- [ ] Enable the rule with warnings denied after the migration path is clean.
-- [ ] Move hardcoded route Escape handling through configurable keybindings.
-- [ ] Replace `shell-host.tsx` git-agent handoff cleanup effect with
+- [x] Add a `useMountEffect` escape-hatch wrapper.
+- [x] Implement `multi/no-direct-use-effect` in the existing oxlint plugin.
+- [x] Enable the rule with warnings denied after the migration path is clean.
+- [x] Move hardcoded route Escape handling through configurable keybindings.
+- [x] Replace `shell-host.tsx` git-agent handoff cleanup effect with
       source-owned or derived state.
 
 ### Terminal Helper Inventory
@@ -213,7 +227,7 @@ Keep these as real boundaries:
 - [x] `packages/app/src/terminal-state-store.ts`: terminal UI state owner.
 - [x] `packages/app/src/lib/terminal-context.ts`: prompt/display
       serialization boundary used across composer, messages, and send flow.
-- [x] `packages/app/src/terminal-links.ts`: shared link parsing/resolution.
+- [x] `packages/app/src/lib/terminal-links.ts`: shared link parsing/resolution.
 - [x] `packages/app/src/lib/terminal-dimensions.ts`: shared workbench/thread
       terminal sizing.
 - [x] `packages/app/src/lib/terminal-focus.ts`: cross-cutting terminal focus

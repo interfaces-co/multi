@@ -29,6 +29,16 @@ Keep these as reference patterns:
 - `packages/effect-acp/src/errors.ts`
 - `packages/effect-codex-app-server/src/errors.ts`
 
+Implemented cleanup paths:
+
+- `packages/server/src/server-runtime-startup.ts` handles inaccessible active
+  project roots only during backend startup, not through a recurring runtime
+  sweeper or backend-only diagnostic. Cleanup archives every non-deleted,
+  non-archived thread for the affected project while preserving the original
+  broken project path on the saved records/history; it does not delete records
+  or rewrite the stale path. Runtime path failures should stay action-specific
+  and must not trigger this archival cleanup.
+
 ## Service Error Shape
 
 Use schema-tagged errors for expected domain failures:
@@ -84,11 +94,25 @@ Rules:
 The app should surface command/provider/git failures where the action was
 triggered.
 
+Current renderer action audit:
+
+- [x] Git agent start/stop actions are TanStack mutations with `onError` toast
+      rendering in `packages/app/src/components/shell-host.tsx`.
+- [x] Plan implementation, plan copy, and save-to-project actions catch
+      rejected work and render toasts at the workbench action surface.
+- [x] Project script add/update/delete actions surface validation or toast
+      errors instead of relying on console-only failures.
+- [x] Provider slash-command selection is an editor-state replacement, not an
+      async provider command execution path.
+- [x] Terminal open/write paths surface errors through terminal system messages
+      or thread errors; resize/background cleanup failures are not
+      user-triggered command failures.
+
 Rules:
 
 - [x] Branch checkout catches failed `git.checkout` mutations and shows a toast
       with the command error message.
-- [ ] UI action handlers must not leave unhandled rejected promises for user
+- [x] UI action handlers must not leave unhandled rejected promises for user
       actions.
 - [ ] Toasts and banners should use the structured error message first, then a
       generic fallback.

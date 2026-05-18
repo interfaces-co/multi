@@ -156,13 +156,14 @@ export const launchStartupHeartbeat = recordStartupHeartbeat.pipe(
   Effect.asVoid,
 );
 
-export const logInaccessibleProjectProjectRoots = Effect.gen(function* () {
+export const archiveThreadsForInaccessibleProjectRoots = Effect.gen(function* () {
   const threadProjection = yield* ThreadProjection;
+  const orchestrationEngine = yield* OrchestrationEngineService;
   const fileSystem = yield* FileSystem.FileSystem;
 
   const snapshot = yield* threadProjection.getSnapshot().pipe(
     Effect.catch((cause) =>
-      Effect.logWarning("failed to validate startup project project roots", {
+      Effect.logWarning("failed to gather startup project project-root cleanup snapshot", {
         cause,
       }).pipe(Effect.as(null)),
     ),
@@ -176,19 +177,55 @@ export const logInaccessibleProjectProjectRoots = Effect.gen(function* () {
       continue;
     }
 
+    const activeThreadIds = snapshot.threads
+      .filter(
+        (thread) =>
+          thread.projectId === project.id &&
+          thread.deletedAt === null &&
+          thread.archivedAt === null,
+      )
+      .map((thread) => thread.id);
+    if (activeThreadIds.length === 0) {
+      continue;
+    }
+
     const stat = yield* Effect.exit(fileSystem.stat(project.projectRoot));
     if (Exit.isSuccess(stat) && stat.value.type === "Directory") {
       continue;
     }
 
-    yield* Effect.logError("active project project root is not accessible", {
+    const detail = Exit.isSuccess(stat)
+      ? `Not a directory: ${stat.value.type}`
+      : "Directory is not accessible.";
+    yield* Effect.logWarning("startup project root is inaccessible; archiving active threads", {
       projectId: project.id,
       title: project.title,
       projectRoot: project.projectRoot,
-      detail: Exit.isSuccess(stat)
-        ? `Not a directory: ${stat.value.type}`
-        : "Directory is not accessible.",
+      threadCount: activeThreadIds.length,
+      detail,
     });
+
+    yield* Effect.forEach(
+      activeThreadIds,
+      (threadId) =>
+        orchestrationEngine
+          .dispatch({
+            type: "thread.archive",
+            commandId: CommandId.make(crypto.randomUUID()),
+            threadId,
+          })
+          .pipe(
+            Effect.catchCause((cause) =>
+              Effect.logWarning("failed to archive thread for inaccessible project root", {
+                projectId: project.id,
+                threadId,
+                projectRoot: project.projectRoot,
+                cause,
+              }),
+            ),
+          ),
+      { concurrency: 1 },
+    );
   }
 });
 
@@ -377,8 +414,11 @@ export const makeServerRuntimeStartup = Effect.gen(function* () {
       }),
     );
 
-    yield* Effect.logDebug("startup phase: validating project project roots");
-    yield* runStartupPhase("projects.validate-project-roots", logInaccessibleProjectProjectRoots);
+    yield* Effect.logDebug("startup phase: cleaning up inaccessible project roots");
+    yield* runStartupPhase(
+      "projects.cleanup-inaccessible-project-roots",
+      archiveThreadsForInaccessibleProjectRoots,
+    );
 
     const welcomeBase = yield* resolveWelcomeBase;
     const environment = yield* serverEnvironment.getDescriptor;

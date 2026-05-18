@@ -1,6 +1,6 @@
 import * as Schema from "effect/Schema";
 import * as Record from "effect/Record";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 
 const isomorphicLocalStorage: Storage =
   typeof window !== "undefined"
@@ -62,86 +62,139 @@ function dispatchLocalStorageChange(key: string, origin: string) {
   );
 }
 
+function readLocalStorageValue<T, E>(
+  key: string,
+  schema: Schema.Codec<T, E>,
+  initialValue: T,
+): T {
+  try {
+    const item = getLocalStorageItem(key, schema);
+    return item ?? initialValue;
+  } catch (error) {
+    console.error("[LOCALSTORAGE] Error:", error);
+    return initialValue;
+  }
+}
+
+interface LocalStorageStore<T> {
+  readonly getSnapshot: () => T;
+  readonly subscribe: (listener: () => void) => () => void;
+  readonly setValue: (value: T | ((val: T) => T)) => void;
+}
+
+function createLocalStorageStore<T, E>(input: {
+  key: string;
+  schema: Schema.Codec<T, E>;
+  origin: string;
+  getInitialValue: () => T;
+}): LocalStorageStore<T> {
+  const listeners = new Set<() => void>();
+  let cachedSnapshot: { raw: string | null; value: T } | null = null;
+
+  const notify = () => {
+    for (const listener of listeners) {
+      listener();
+    }
+  };
+
+  const getSnapshot = () => {
+    const raw = isomorphicLocalStorage.getItem(input.key);
+    if (cachedSnapshot && cachedSnapshot.raw === raw) {
+      return cachedSnapshot.value;
+    }
+    const value = readLocalStorageValue(input.key, input.schema, input.getInitialValue());
+    cachedSnapshot = { raw, value };
+    return value;
+  };
+
+  return {
+    getSnapshot,
+    subscribe: (listener) => {
+      listeners.add(listener);
+      if (typeof window === "undefined") {
+        return () => {
+          listeners.delete(listener);
+        };
+      }
+
+      const handleStorageChange = (event: StorageEvent) => {
+        if (event.key !== input.key) {
+          return;
+        }
+        cachedSnapshot = null;
+        notify();
+      };
+
+      const handleLocalChange = (event: CustomEvent<LocalStorageChangeDetail>) => {
+        if (event.detail.key !== input.key || event.detail.origin === input.origin) {
+          return;
+        }
+        cachedSnapshot = null;
+        notify();
+      };
+
+      window.addEventListener("storage", handleStorageChange);
+      window.addEventListener(LOCAL_STORAGE_CHANGE_EVENT, handleLocalChange as EventListener);
+
+      return () => {
+        listeners.delete(listener);
+        window.removeEventListener("storage", handleStorageChange);
+        window.removeEventListener(LOCAL_STORAGE_CHANGE_EVENT, handleLocalChange as EventListener);
+      };
+    },
+    setValue: (value) => {
+      try {
+        const previousValue = getSnapshot();
+        const valueToStore =
+          typeof value === "function" ? (value as (val: T) => T)(previousValue) : value;
+        if (valueToStore === null) {
+          removeLocalStorageItem(input.key);
+        } else {
+          setLocalStorageItem(input.key, valueToStore, input.schema);
+        }
+        cachedSnapshot = {
+          raw: isomorphicLocalStorage.getItem(input.key),
+          value: valueToStore,
+        };
+        notify();
+        queueMicrotask(() => dispatchLocalStorageChange(input.key, input.origin));
+      } catch (error) {
+        console.error("[LOCALSTORAGE] Error:", error);
+      }
+    },
+  };
+}
+
 export function useLocalStorage<T, E>(
   key: string,
   initialValue: T,
   schema: Schema.Codec<T, E>,
 ): [T, (value: T | ((val: T) => T)) => void] {
   const originRef = useRef(nextLocalStorageOriginId());
-  const [storedValue, setStoredValue] = useState<T>(() => {
-    try {
-      const item = getLocalStorageItem(key, schema);
-      return item ?? initialValue;
-    } catch (error) {
-      console.error("[LOCALSTORAGE] Error:", error);
-      return initialValue;
-    }
-  });
+  const initialValueRef = useRef(initialValue);
+  initialValueRef.current = initialValue;
+  const store = useMemo(
+    () =>
+      createLocalStorageStore({
+        key,
+        schema,
+        origin: originRef.current,
+        getInitialValue: () => initialValueRef.current,
+      }),
+    [key, schema],
+  );
+  const storedValue = useSyncExternalStore(
+    store.subscribe,
+    store.getSnapshot,
+    () => initialValueRef.current,
+  );
 
   const setValue = useCallback(
     (value: T | ((val: T) => T)) => {
-      try {
-        setStoredValue((prev) => {
-          const valueToStore = typeof value === "function" ? (value as (val: T) => T)(prev) : value;
-          if (valueToStore === null) {
-            removeLocalStorageItem(key);
-          } else {
-            setLocalStorageItem(key, valueToStore, schema);
-          }
-          queueMicrotask(() => dispatchLocalStorageChange(key, originRef.current));
-          return valueToStore;
-        });
-      } catch (error) {
-        console.error("[LOCALSTORAGE] Error:", error);
-      }
+      store.setValue(value);
     },
-    [key, schema],
+    [store],
   );
-
-  const prevKeyRef = useRef(key);
-
-  useEffect(() => {
-    if (prevKeyRef.current !== key) {
-      prevKeyRef.current = key;
-      try {
-        const newValue = getLocalStorageItem(key, schema);
-        setStoredValue(newValue ?? initialValue);
-      } catch (error) {
-        console.error("[LOCALSTORAGE] Error:", error);
-      }
-    }
-  }, [key, initialValue, schema]);
-
-  useEffect(() => {
-    const syncFromStorage = () => {
-      try {
-        const newValue = getLocalStorageItem(key, schema);
-        setStoredValue(newValue ?? initialValue);
-      } catch (error) {
-        console.error("[LOCALSTORAGE] Error:", error);
-      }
-    };
-
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === key) {
-        syncFromStorage();
-      }
-    };
-
-    const handleLocalChange = (event: CustomEvent<LocalStorageChangeDetail>) => {
-      if (event.detail.key === key && event.detail.origin !== originRef.current) {
-        syncFromStorage();
-      }
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-    window.addEventListener(LOCAL_STORAGE_CHANGE_EVENT, handleLocalChange as EventListener);
-
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener(LOCAL_STORAGE_CHANGE_EVENT, handleLocalChange as EventListener);
-    };
-  }, [key, initialValue, schema]);
 
   return [storedValue, setValue];
 }

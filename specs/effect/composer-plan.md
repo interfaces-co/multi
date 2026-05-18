@@ -14,9 +14,9 @@ mode.
 - [x] Plan implementation is an explicit workbench action.
 - [x] Plan copy, download, and save-to-project actions live on the plan
       workbench.
-- [ ] Composer prompt persistence stores plain prompt text and structured
+- [x] Composer prompt persistence stores plain prompt text and structured
       attachments/context facts only.
-- [ ] Inline edit and dock composer share geometry rules without shared
+- [x] Inline edit and dock composer share geometry rules without shared
       one-off class buckets.
 
 ## Composer States
@@ -36,17 +36,34 @@ Thread composer:
 - [ ] Verify inline edit height against sent-message bubble geometry after the
       remaining edit-mode latency work.
 
+Current evidence:
+
+- [x] `InlineMessageEditComposer` delegates to `ComposerInput` with
+      `variant="inline-edit"`; it owns edit submission/cancel behavior, not
+      separate geometry.
+- [x] `ComposerInput` owns both inline-edit and dock geometry through
+      `isInlineEditComposer`, `composerVariant`, `isDockComposerExpanded`, and
+      `isDockComposerSingleLine` branches, with Tailwind utilities on the
+      rendered elements instead of shared BEM-style class buckets.
+
 Rules:
 
 - [x] Slash menu owns models and skills; `$` is not a separate trigger.
 - [x] Prompt editor JSON does not cross composer stores, queues, or send
       boundaries.
-- [ ] Delete stale slash-menu helper files and tests after caller inventory.
-- [ ] Do not delete `prompt-segments.ts` or `prompt-triggers.ts` as styling
+- [x] Delete stale slash-menu helper files and tests after caller inventory.
+- [x] Inline `provider-registry.tsx` into the composer input after caller
+      inventory showed a single production caller; provider trait rendering
+      remains owned by the picker components.
+- [x] Inline `use-model-state.ts` into the composer input after caller
+      inventory showed a single production caller; the resolver core remains in
+      `model/selection.ts` and provider dispatch options remain in
+      `model/provider-state.ts`.
+- [x] Do not delete `prompt-segments.ts` or `prompt-triggers.ts` as styling
       cleanup; they are active composer/slash-menu behavior helpers.
-- [ ] Replace unowned `ui-slash-menu__*`, `mentions-menu__content`, and
+- [x] Replace unowned `ui-slash-menu__*`, `mentions-menu__content`, and
       `ui-menu__*` class hooks only as part of slash menu ownership cleanup.
-- [ ] Keep mode toggles and keybindings configurable through the keybinding
+- [x] Keep mode toggles and keybindings configurable through the keybinding
       system.
 
 ## Plan Workbench
@@ -79,12 +96,12 @@ Rules:
       active proposed plan changes.
 - [x] Replace existing prop-to-state effects in composer controls with derived
       values or keyed boundaries.
-- [ ] Keep effects only for external systems: DOM/body integration, terminal
+- [x] Keep effects only for external systems: DOM/body integration, terminal
       renderer lifecycle, subscriptions, observers, and cleanup.
 
 ## Verification
 
-- [x] `packages/app/src/proposed-plan.test.ts` covers plan markdown export
+- [x] `packages/app/src/plan/proposed-plan.test.ts` covers plan markdown export
       normalization and filename derivation.
 - [x] `packages/app/src/components/shell/plan/plan-workbench-panel.browser.tsx`
       covers active plan plus proposed markdown rendering.

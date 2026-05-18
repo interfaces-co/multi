@@ -2,15 +2,17 @@ import {
   forwardRef,
   memo,
   useCallback,
-  useEffect,
   useImperativeHandle,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type ComponentType,
+  type Dispatch,
+  type MutableRefObject,
   type MouseEvent,
   type ReactNode,
+  type SetStateAction,
 } from "react";
 import { Button } from "@multi/ui/button";
 import {
@@ -37,7 +39,17 @@ import {
   IconUnlocked,
   type CentralIconBaseProps,
 } from "central-icons";
-import type { ProviderInteractionMode, RuntimeMode } from "@multi/contracts";
+import {
+  defaultInstanceIdForDriver,
+  type ModelSelection,
+  type ProviderDriverKind,
+  type ProviderInteractionMode,
+  type ProviderOptionSelection,
+  type RuntimeMode,
+  type ScopedThreadRef,
+  type ServerProvider,
+  type ServerProviderModel,
+} from "@multi/contracts";
 import type { UnifiedSettings } from "@multi/contracts/settings";
 import {
   clampCollapsedComposerCursor,
@@ -48,7 +60,12 @@ import {
   replaceTextRange,
 } from "./prompt-triggers";
 import { deriveComposerSendState } from "./send";
-import { useComposerDraftStore, useComposerThreadDraft } from "../../../stores/chat-drafts";
+import {
+  type ComposerThreadDraftState,
+  type DraftId,
+  useComposerDraftStore,
+  useComposerThreadDraft,
+} from "../../../stores/chat-drafts";
 import {
   type TerminalContextDraft,
   type TerminalContextSelection,
@@ -65,11 +82,9 @@ import {
 import { ComposerPendingApprovalActions } from "./pending-approval-actions";
 import { ComposerPendingApprovalPanel } from "./pending-approval-panel";
 import { ComposerPendingUserInputPanel } from "./pending-user-input-panel";
-import { renderProviderTraitsMenuContent, renderProviderTraitsPicker } from "./provider-registry";
 import { cn, randomUUID } from "~/lib/utils";
 import type { QueuedComposerItem, QueuedComposerItemId } from "../../../stores/chat-send-queue";
 import { useComposerModeHotkey } from "./use-mode-hotkey";
-import { useComposerModelState } from "./use-model-state";
 import { useComposerImageAttachments } from "./use-image-attachments";
 import { ComposerImageAttachmentStrip } from "./image-attachment-strip";
 import {
@@ -79,8 +94,19 @@ import {
 } from "./input-contract";
 import { QueuedComposerItemsPanel } from "./queued-items-panel";
 import { ContextWindowMeter } from "./context-window-meter";
-import type { ContextWindowSnapshot } from "../../../lib/context-window";
+import {
+  deriveLatestContextWindowSnapshot,
+  type ContextWindowSnapshot,
+} from "../../../lib/context-window";
 import { formatProviderSkillDisplayName } from "./provider-skills";
+import { useMountEffect } from "~/hooks/use-mount-effect";
+import {
+  getComposerProviderState,
+  resolveProviderTraitsState,
+  type ProviderTraitsScope,
+} from "../../../model/provider-state";
+import { TraitsMenuContent, TraitsPicker } from "../picker/traits-picker";
+import { resolveAppProviderModelState } from "../../../model/selection";
 
 export type { ComposerInputHandle, ComposerInputProps } from "./input-contract";
 
@@ -89,6 +115,201 @@ Object.freeze(EMPTY_QUEUED_COMPOSER_ITEMS);
 
 const EMPTY_PENDING_APPROVALS: NonNullable<ComposerInputProps["pendingApprovals"]> = [];
 Object.freeze(EMPTY_PENDING_APPROVALS);
+
+type TraitsRenderInput = {
+  provider: ProviderDriverKind;
+  threadRef?: ScopedThreadRef;
+  draftId?: DraftId;
+  model: string;
+  models: ReadonlyArray<ServerProviderModel>;
+  modelOptions: ReadonlyArray<ProviderOptionSelection> | undefined;
+  prompt: string;
+  onPromptChange: (prompt: string) => void;
+  traitsScope?: ProviderTraitsScope;
+};
+
+function renderTraitsControl(
+  Component: typeof TraitsMenuContent | typeof TraitsPicker,
+  input: TraitsRenderInput,
+): ReactNode {
+  const {
+    provider,
+    threadRef,
+    draftId,
+    model,
+    models,
+    modelOptions,
+    prompt,
+    onPromptChange,
+    traitsScope: traitsScopeRequested = "all",
+  } = input;
+  const traitsScopeForComponent = Component === TraitsPicker ? "all" : traitsScopeRequested;
+
+  const hasTarget = threadRef !== undefined || draftId !== undefined;
+  if (!hasTarget) {
+    return null;
+  }
+
+  const traitsState = resolveProviderTraitsState({
+    provider,
+    models,
+    model,
+    prompt,
+    modelOptions,
+    allowPromptInjectedEffort: true,
+  });
+  if (
+    (traitsScopeForComponent === "fast-only" && !traitsState.showFastMode) ||
+    (traitsScopeForComponent === "except-fast" && !traitsState.hasRestControls) ||
+    (traitsScopeForComponent === "all" && !traitsState.hasAnyControls)
+  ) {
+    return null;
+  }
+
+  return (
+    <Component
+      provider={provider}
+      models={models}
+      {...(threadRef ? { threadRef } : {})}
+      {...(draftId ? { draftId } : {})}
+      model={model}
+      modelOptions={modelOptions}
+      prompt={prompt}
+      onPromptChange={onPromptChange}
+      {...(Component === TraitsMenuContent ? { traitsScope: traitsScopeForComponent } : {})}
+    />
+  );
+}
+
+function renderProviderTraitsMenuContent(input: TraitsRenderInput): ReactNode {
+  return renderTraitsControl(TraitsMenuContent, input);
+}
+
+function renderProviderTraitsPicker(input: TraitsRenderInput): ReactNode {
+  return renderTraitsControl(TraitsPicker, input);
+}
+
+function getProviderInteractionModeToggle(
+  providers: ReadonlyArray<ServerProvider>,
+  provider: ProviderDriverKind,
+): boolean {
+  const defaultInstanceId = defaultInstanceIdForDriver(provider);
+  return (
+    providers.find((candidate) => candidate.instanceId === defaultInstanceId)
+      ?.showInteractionModeToggle ?? true
+  );
+}
+
+function useComposerModelState(input: {
+  composerDraft: Pick<ComposerThreadDraftState, "activeProvider" | "modelSelectionByProvider">;
+  prompt: string;
+  providerStatuses: ReadonlyArray<ServerProvider>;
+  settings: UnifiedSettings;
+  activeThread: ComposerInputProps["activeThread"];
+  activeProjectDefaultModelSelection: ModelSelection | null | undefined;
+  activeThreadModelSelection: ModelSelection | null | undefined;
+  activeThreadActivities: ComposerInputProps["activeThreadActivities"];
+}) {
+  const chatModelSelection = useMemo(
+    () =>
+      resolveAppProviderModelState({
+        draft: {
+          activeProvider: input.composerDraft.activeProvider,
+          modelSelectionByProvider: input.composerDraft.modelSelectionByProvider,
+        },
+        providers: input.providerStatuses,
+        settings: input.settings,
+        sessionProviderInstanceId: input.activeThread?.session?.providerInstanceId,
+        threadModelSelection: input.activeThreadModelSelection,
+        projectModelSelection: input.activeProjectDefaultModelSelection,
+      }),
+    [
+      input.activeProjectDefaultModelSelection,
+      input.activeThread?.session?.providerInstanceId,
+      input.activeThreadModelSelection,
+      input.composerDraft.activeProvider,
+      input.composerDraft.modelSelectionByProvider,
+      input.providerStatuses,
+      input.settings,
+    ],
+  );
+
+  const providerInstanceEntries = chatModelSelection.providerInstanceEntries;
+  const selectedProvider = chatModelSelection.selectedProvider;
+  const selectedInstanceId = chatModelSelection.selectedInstanceId;
+  const modelOptionSelectionsByInstance = chatModelSelection.modelOptionSelectionsByInstance;
+  const modelOptionsByInstance = chatModelSelection.modelOptionsByInstance;
+  const modelCatalogItems = chatModelSelection.modelCatalogItems;
+  const selectedCatalogItem = chatModelSelection.selectedCatalogItem;
+  const instanceCoherentSelectedModel = chatModelSelection.selectedModel;
+  const selectedProviderStatus = chatModelSelection.selectedProviderEntry?.snapshot ?? null;
+  const selectedProviderModels = chatModelSelection.selectedProviderModels;
+
+  const composerProviderState = useMemo(
+    () =>
+      getComposerProviderState({
+        provider: selectedProvider,
+        model: instanceCoherentSelectedModel,
+        models: selectedProviderModels,
+        prompt: input.prompt,
+        modelOptions: modelOptionSelectionsByInstance?.[selectedInstanceId],
+      }),
+    [
+      modelOptionSelectionsByInstance,
+      instanceCoherentSelectedModel,
+      input.prompt,
+      selectedProvider,
+      selectedInstanceId,
+      selectedProviderModels,
+    ],
+  );
+
+  const composerProviderControls = useMemo(
+    () => ({
+      showInteractionModeToggle: getProviderInteractionModeToggle(
+        input.providerStatuses,
+        selectedProvider,
+      ),
+    }),
+    [input.providerStatuses, selectedProvider],
+  );
+
+  const activeContextWindow = useMemo(
+    () => deriveLatestContextWindowSnapshot(input.activeThreadActivities ?? []),
+    [input.activeThreadActivities],
+  );
+  const visibleContextWindow = useMemo(() => {
+    if (!activeContextWindow || input.settings.agentWindowUsageSummaryDisplay === "never") {
+      return null;
+    }
+    if (input.settings.agentWindowUsageSummaryDisplay === "always") {
+      return activeContextWindow;
+    }
+    return activeContextWindow.usedPercentage !== null && activeContextWindow.usedPercentage >= 50
+      ? activeContextWindow
+      : null;
+  }, [activeContextWindow, input.settings.agentWindowUsageSummaryDisplay]);
+
+  return {
+    providerInstanceEntries,
+    selectedProvider,
+    selectedInstanceId,
+    modelOptionSelectionsByInstance,
+    modelOptionsByInstance,
+    modelCatalogItems,
+    selectedCatalogItem,
+    instanceCoherentSelectedModel,
+    selectedProviderStatus,
+    selectedProviderModels,
+    composerProviderState,
+    selectedPromptEffort: composerProviderState.promptEffort,
+    selectedModelOptionsForDispatch: composerProviderState.modelOptionsForDispatch,
+    composerProviderControls,
+    modelResolverStatus: chatModelSelection.status,
+    selectedModelSelection: chatModelSelection.modelSelection,
+    visibleContextWindow,
+  };
+}
 
 const EMPTY_PENDING_USER_INPUTS: NonNullable<ComposerInputProps["pendingUserInputs"]> = [];
 Object.freeze(EMPTY_PENDING_USER_INPUTS);
@@ -102,6 +323,16 @@ Object.freeze(EMPTY_RESPONDING_REQUEST_IDS);
 
 const ignoreQueuedComposerItem = (_itemId: QueuedComposerItemId): void => undefined;
 const ignoreQueuedComposerEditCancel = (): void => undefined;
+
+function useValueIdentityVersion<TValue>(value: TValue): number {
+  const valueRef = useRef(value);
+  const versionRef = useRef(0);
+  if (valueRef.current !== value) {
+    valueRef.current = value;
+    versionRef.current += 1;
+  }
+  return versionRef.current;
+}
 
 const missingPendingCapability = (name: string): never => {
   throw new Error(`Composer pending capability '${name}' is active without a handler.`);
@@ -184,6 +415,159 @@ const runtimeModeConfig: Record<
 };
 
 const runtimeModeOptions = Object.keys(runtimeModeConfig) as RuntimeMode[];
+
+function ComposerPromptCursorClampSync({
+  prompt,
+  setComposerCursor,
+}: {
+  prompt: string;
+  setComposerCursor: Dispatch<SetStateAction<number>>;
+}) {
+  useMountEffect(() => {
+    setComposerCursor((existing) => clampCollapsedComposerCursor(prompt, existing));
+  });
+
+  return null;
+}
+
+function ComposerMenuHighlightSync({
+  activeComposerMenuItemId,
+  composerMenuOpen,
+  composerMenuSearchKey,
+  setComposerHighlightedItemId,
+  setComposerHighlightedSearchKey,
+}: {
+  activeComposerMenuItemId: string | null;
+  composerMenuOpen: boolean;
+  composerMenuSearchKey: string | null;
+  setComposerHighlightedItemId: Dispatch<SetStateAction<string | null>>;
+  setComposerHighlightedSearchKey: Dispatch<SetStateAction<string | null>>;
+}) {
+  useMountEffect(() => {
+    if (!composerMenuOpen) {
+      setComposerHighlightedItemId(null);
+      setComposerHighlightedSearchKey(null);
+      return;
+    }
+    setComposerHighlightedItemId((existing) =>
+      existing === activeComposerMenuItemId ? existing : activeComposerMenuItemId,
+    );
+    setComposerHighlightedSearchKey((existing) =>
+      existing === composerMenuSearchKey ? existing : composerMenuSearchKey,
+    );
+  });
+
+  return null;
+}
+
+function ComposerPendingInputPromptSync({
+  activeQuestionId,
+  customAnswer,
+  lastSyncedPendingInputRef,
+  promptRef,
+  requestId,
+  resolveComposerTrigger,
+  setComposerCursor,
+  setComposerHighlightedItemId,
+  setComposerTrigger,
+}: {
+  activeQuestionId: string | null;
+  customAnswer: string | undefined;
+  lastSyncedPendingInputRef: MutableRefObject<{
+    requestId: string | null;
+    questionId: string | null;
+  } | null>;
+  promptRef: MutableRefObject<string>;
+  requestId: string | null;
+  resolveComposerTrigger: (text: string, expandedCursor: number) => ComposerTrigger | null;
+  setComposerCursor: Dispatch<SetStateAction<number>>;
+  setComposerHighlightedItemId: Dispatch<SetStateAction<string | null>>;
+  setComposerTrigger: Dispatch<SetStateAction<ComposerTrigger | null>>;
+}) {
+  useMountEffect(() => {
+    if (typeof customAnswer !== "string") {
+      lastSyncedPendingInputRef.current = null;
+      return;
+    }
+
+    const questionChanged =
+      lastSyncedPendingInputRef.current?.requestId !== requestId ||
+      lastSyncedPendingInputRef.current?.questionId !== activeQuestionId;
+    const textChangedExternally = promptRef.current !== customAnswer;
+
+    lastSyncedPendingInputRef.current = {
+      requestId,
+      questionId: activeQuestionId,
+    };
+
+    if (!questionChanged && !textChangedExternally) {
+      return;
+    }
+
+    promptRef.current = customAnswer;
+    const nextCursor = collapseExpandedComposerCursor(customAnswer, customAnswer.length);
+    setComposerCursor(nextCursor);
+    setComposerTrigger(
+      resolveComposerTrigger(customAnswer, expandCollapsedComposerCursor(customAnswer, nextCursor)),
+    );
+    setComposerHighlightedItemId(null);
+  });
+
+  return null;
+}
+
+function ComposerDraftResetSync({
+  dismissedComposerTriggerKeyRef,
+  initialComposerTriggerSuppressionPromptRef,
+  promptRef,
+  setComposerCursor,
+  setComposerHighlightedItemId,
+  setComposerTrigger,
+  suppressInitialComposerTriggerDetectionRef,
+}: {
+  dismissedComposerTriggerKeyRef: MutableRefObject<string | null>;
+  initialComposerTriggerSuppressionPromptRef: MutableRefObject<string>;
+  promptRef: MutableRefObject<string>;
+  setComposerCursor: Dispatch<SetStateAction<number>>;
+  setComposerHighlightedItemId: Dispatch<SetStateAction<string | null>>;
+  setComposerTrigger: Dispatch<SetStateAction<ComposerTrigger | null>>;
+  suppressInitialComposerTriggerDetectionRef: MutableRefObject<boolean>;
+}) {
+  useMountEffect(() => {
+    setComposerHighlightedItemId(null);
+    setComposerCursor(collapseExpandedComposerCursor(promptRef.current, promptRef.current.length));
+    suppressInitialComposerTriggerDetectionRef.current = true;
+    initialComposerTriggerSuppressionPromptRef.current = promptRef.current;
+    dismissedComposerTriggerKeyRef.current = null;
+    setComposerTrigger(null);
+  });
+
+  return null;
+}
+
+function ComposerCommandMenuPointerDismissSync({
+  composerFormRef,
+  dismissComposerCommandMenu,
+}: {
+  composerFormRef: MutableRefObject<HTMLFormElement | null>;
+  dismissComposerCommandMenu: () => void;
+}) {
+  useMountEffect(() => {
+    const onPointerDown = (event: PointerEvent) => {
+      const form = composerFormRef.current;
+      if (!form) return;
+      if (event.target instanceof Node && form.contains(event.target)) return;
+      dismissComposerCommandMenu();
+    };
+
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+    };
+  });
+
+  return null;
+}
 
 function parseInteractionMode(value: string | null | undefined): ProviderInteractionMode | null {
   if (value === "default" || value === "plan") return value;
@@ -602,7 +986,7 @@ const ComposerFooter = memo(function ComposerFooter(props: {
       className={cn(
         "min-w-0",
         dockSingleRow
-          ? "flex shrink-0 items-center gap-1"
+          ? "flex min-w-0 shrink items-center gap-1"
           : cn(
               "flex w-full items-center justify-between gap-2",
               props.inlineEdit ? "px-3 pb-2" : "px-2.5 pb-2.5 sm:px-3 sm:pb-3",
@@ -813,7 +1197,8 @@ export const ComposerInput = memo(
       selectedProvider,
       selectedInstanceId,
       modelOptionSelectionsByInstance,
-      modelOptionsByInstance,
+      modelCatalogItems,
+      selectedCatalogItem,
       instanceCoherentSelectedModel,
       selectedProviderStatus,
       selectedProviderModels,
@@ -821,6 +1206,7 @@ export const ComposerInput = memo(
       selectedPromptEffort,
       selectedModelOptionsForDispatch,
       composerProviderControls,
+      modelResolverStatus,
       selectedModelSelection,
       visibleContextWindow,
     } = useComposerModelState({
@@ -965,6 +1351,7 @@ export const ComposerInput = memo(
 
     const {
       composerImageInputRef,
+      composerImageAttachmentPersistenceSync,
       isDragOverComposer,
       nonPersistedComposerImageIdSet,
       onComposerPaste,
@@ -1108,95 +1495,14 @@ export const ComposerInput = memo(
     // ------------------------------------------------------------------
     // Sync refs back to parent
     // ------------------------------------------------------------------
-    useEffect(() => {
-      promptRef.current = prompt;
-      setComposerCursor((existing) => clampCollapsedComposerCursor(prompt, existing));
-    }, [prompt, promptRef]);
-
-    useEffect(() => {
-      composerImagesRef.current = composerImages;
-    }, [composerImages, composerImagesRef]);
-
-    useEffect(() => {
-      composerTerminalContextsRef.current = composerTerminalContexts;
-    }, [composerTerminalContexts, composerTerminalContextsRef]);
-
-    // ------------------------------------------------------------------
-    // Composer menu highlight sync
-    // ------------------------------------------------------------------
-    useEffect(() => {
-      if (!composerMenuOpen) {
-        setComposerHighlightedItemId(null);
-        setComposerHighlightedSearchKey(null);
-        return;
-      }
-      setComposerHighlightedItemId((existing) =>
-        existing === activeComposerMenuItemId ? existing : activeComposerMenuItemId,
-      );
-      setComposerHighlightedSearchKey((existing) =>
-        existing === composerMenuSearchKey ? existing : composerMenuSearchKey,
-      );
-    }, [activeComposerMenuItemId, composerMenuOpen, composerMenuSearchKey]);
+    promptRef.current = prompt;
+    composerImagesRef.current = composerImages;
+    composerTerminalContextsRef.current = composerTerminalContexts;
 
     const lastSyncedPendingInputRef = useRef<{
       requestId: string | null;
       questionId: string | null;
     } | null>(null);
-
-    useEffect(() => {
-      const nextCustomAnswer = activePendingProgress?.customAnswer;
-      if (typeof nextCustomAnswer !== "string") {
-        lastSyncedPendingInputRef.current = null;
-        return;
-      }
-
-      const nextRequestId = activePendingUserInput?.requestId ?? null;
-      const nextQuestionId = activePendingProgress?.activeQuestion?.id ?? null;
-      const questionChanged =
-        lastSyncedPendingInputRef.current?.requestId !== nextRequestId ||
-        lastSyncedPendingInputRef.current?.questionId !== nextQuestionId;
-      const textChangedExternally = promptRef.current !== nextCustomAnswer;
-
-      lastSyncedPendingInputRef.current = {
-        requestId: nextRequestId,
-        questionId: nextQuestionId,
-      };
-
-      if (!questionChanged && !textChangedExternally) {
-        return;
-      }
-
-      promptRef.current = nextCustomAnswer;
-      const nextCursor = collapseExpandedComposerCursor(nextCustomAnswer, nextCustomAnswer.length);
-      setComposerCursor(nextCursor);
-      setComposerTrigger(
-        resolveComposerTrigger(
-          nextCustomAnswer,
-          expandCollapsedComposerCursor(nextCustomAnswer, nextCursor),
-        ),
-      );
-      setComposerHighlightedItemId(null);
-    }, [
-      activePendingProgress?.customAnswer,
-      activePendingProgress?.activeQuestion?.id,
-      activePendingUserInput?.requestId,
-      promptRef,
-      resolveComposerTrigger,
-    ]);
-
-    // ------------------------------------------------------------------
-    // Reset composer state on thread/draft change
-    // ------------------------------------------------------------------
-    useEffect(() => {
-      setComposerHighlightedItemId(null);
-      setComposerCursor(
-        collapseExpandedComposerCursor(promptRef.current, promptRef.current.length),
-      );
-      suppressInitialComposerTriggerDetectionRef.current = true;
-      initialComposerTriggerSuppressionPromptRef.current = promptRef.current;
-      dismissedComposerTriggerKeyRef.current = null;
-      setComposerTrigger(null);
-    }, [draftId, activeThreadId, promptRef]);
 
     // ------------------------------------------------------------------
     // Callbacks: prompt change
@@ -1362,21 +1668,75 @@ export const ComposerInput = memo(
       setComposerHighlightedSearchKey(null);
     }, [composerTriggerDismissKey, readComposerSnapshot]);
 
-    useEffect(() => {
-      if (!composerMenuOpen) return;
-
-      const onPointerDown = (event: PointerEvent) => {
-        const form = composerFormRef.current;
-        if (!form) return;
-        if (event.target instanceof Node && form.contains(event.target)) return;
-        dismissComposerCommandMenu();
-      };
-
-      document.addEventListener("pointerdown", onPointerDown, true);
-      return () => {
-        document.removeEventListener("pointerdown", onPointerDown, true);
-      };
-    }, [composerMenuOpen, dismissComposerCommandMenu]);
+    const promptRefVersion = useValueIdentityVersion(promptRef);
+    const resolveComposerTriggerVersion = useValueIdentityVersion(resolveComposerTrigger);
+    const dismissComposerCommandMenuVersion = useValueIdentityVersion(
+      dismissComposerCommandMenu,
+    );
+    const pendingInputCustomAnswer = activePendingProgress?.customAnswer;
+    const pendingInputQuestionId = activePendingProgress?.activeQuestion?.id ?? null;
+    const pendingInputRequestId = activePendingUserInput?.requestId ?? null;
+    const lifecycleSync = (
+      <>
+        <ComposerPromptCursorClampSync
+          key={`prompt:${prompt}`}
+          prompt={prompt}
+          setComposerCursor={setComposerCursor}
+        />
+        <ComposerMenuHighlightSync
+          key={[
+            composerMenuOpen,
+            activeComposerMenuItemId ?? "",
+            composerMenuSearchKey ?? "",
+          ].join("\0")}
+          activeComposerMenuItemId={activeComposerMenuItemId}
+          composerMenuOpen={composerMenuOpen}
+          composerMenuSearchKey={composerMenuSearchKey}
+          setComposerHighlightedItemId={setComposerHighlightedItemId}
+          setComposerHighlightedSearchKey={setComposerHighlightedSearchKey}
+        />
+        <ComposerPendingInputPromptSync
+          key={[
+            pendingInputCustomAnswer ?? "",
+            pendingInputQuestionId ?? "",
+            pendingInputRequestId ?? "",
+            promptRefVersion,
+            resolveComposerTriggerVersion,
+          ].join("\0")}
+          activeQuestionId={pendingInputQuestionId}
+          customAnswer={pendingInputCustomAnswer}
+          lastSyncedPendingInputRef={lastSyncedPendingInputRef}
+          promptRef={promptRef}
+          requestId={pendingInputRequestId}
+          resolveComposerTrigger={resolveComposerTrigger}
+          setComposerCursor={setComposerCursor}
+          setComposerHighlightedItemId={setComposerHighlightedItemId}
+          setComposerTrigger={setComposerTrigger}
+        />
+        <ComposerDraftResetSync
+          key={[draftId ?? "", activeThreadId ?? "", promptRefVersion].join("\0")}
+          dismissedComposerTriggerKeyRef={dismissedComposerTriggerKeyRef}
+          initialComposerTriggerSuppressionPromptRef={
+            initialComposerTriggerSuppressionPromptRef
+          }
+          promptRef={promptRef}
+          setComposerCursor={setComposerCursor}
+          setComposerHighlightedItemId={setComposerHighlightedItemId}
+          setComposerTrigger={setComposerTrigger}
+          suppressInitialComposerTriggerDetectionRef={
+            suppressInitialComposerTriggerDetectionRef
+          }
+        />
+        {composerMenuOpen ? (
+          <ComposerCommandMenuPointerDismissSync
+            key={dismissComposerCommandMenuVersion}
+            composerFormRef={composerFormRef}
+            dismissComposerCommandMenu={dismissComposerCommandMenu}
+          />
+        ) : null}
+        {composerImageAttachmentPersistenceSync}
+      </>
+    );
 
     const onSelectComposerItem = useCallback(
       (item: ComposerCommandItem) => {
@@ -1678,7 +2038,9 @@ export const ComposerInput = memo(
         model={instanceCoherentSelectedModel}
         instanceEntries={providerInstanceEntries}
         keybindings={keybindings}
-        modelOptionsByInstance={modelOptionsByInstance}
+        modelCatalogItems={modelCatalogItems}
+        selectedCatalogItem={selectedCatalogItem}
+        availabilityStatus={modelResolverStatus}
         terminalOpen={terminalOpen}
         open={isComposerModelPickerOpen}
         openSearchSeed={modelPickerOpenSearchSeed}
@@ -1694,7 +2056,7 @@ export const ComposerInput = memo(
             setModelPickerOpenSearchSeed(undefined);
           }
         }}
-        onInstanceModelChange={onProviderModelSelect}
+        onSelectionChange={onProviderModelSelect}
       />
     );
     const compactControlsMenu = (
@@ -1720,6 +2082,7 @@ export const ComposerInput = memo(
         data-variant={composerVariant}
         data-chat-input-form="true"
       >
+        {lifecycleSync}
         <div
           className={cn(
             "flex w-full min-w-0 shrink-0 flex-col",

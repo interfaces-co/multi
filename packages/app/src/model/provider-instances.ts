@@ -64,7 +64,7 @@ function resolveInstanceDisplayName(
   return trimmedSnapshotName || kindLabel;
 }
 
-export function deriveProviderInstanceEntries(
+function deriveProviderInstanceEntries(
   providers: ReadonlyArray<ServerProvider>,
 ): ReadonlyArray<ProviderInstanceEntry> {
   return providers.map((snapshot) => {

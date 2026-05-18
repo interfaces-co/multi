@@ -16,8 +16,11 @@ import { Terminal } from "@xterm/xterm";
 import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
+  type Dispatch,
+  type MutableRefObject,
+  type RefObject,
+  type SetStateAction,
   useCallback,
-  useEffect,
   useEffectEvent,
   useMemo,
   useRef,
@@ -25,7 +28,7 @@ import {
 } from "react";
 import { Popover, PopoverPopup, PopoverTrigger } from "@multi/ui/popover";
 import { type TerminalContextSelection } from "~/lib/terminal-context";
-import { openInPreferredEditor } from "../editor-preferences";
+import { openInPreferredEditor } from "../editor/preferences";
 import {
   collectWrappedTerminalLinkLine,
   extractTerminalLinks,
@@ -33,7 +36,7 @@ import {
   resolvePathLinkTarget,
   resolveWrappedTerminalLinkRange,
   wrappedTerminalLinkRangeIntersectsBufferLine,
-} from "../terminal-links";
+} from "../lib/terminal-links";
 import {
   isTerminalClearShortcut,
   terminalDeleteShortcutData,
@@ -48,6 +51,7 @@ import {
 import { readEnvironmentApi } from "~/environment-api";
 import { readLocalApi } from "~/local-api";
 import { clampTerminalDimensions, waitForTerminalLayoutFrame } from "~/lib/terminal-dimensions";
+import { useMountEffect } from "~/hooks/use-mount-effect";
 import {
   readTerminalHostFontFamily,
   readTerminalHostFontSize,
@@ -59,6 +63,16 @@ import { selectTerminalEventEntries, useTerminalStateStore } from "../terminal-s
 const MIN_DRAWER_HEIGHT = 180;
 const MAX_DRAWER_HEIGHT_RATIO = 0.75;
 const MULTI_CLICK_SELECTION_ACTION_DELAY_MS = 260;
+
+function useValueIdentityVersion<TValue>(value: TValue): number {
+  const valueRef = useRef(value);
+  const versionRef = useRef(0);
+  if (valueRef.current !== value) {
+    valueRef.current = value;
+    versionRef.current += 1;
+  }
+  return versionRef.current;
+}
 
 function maxDrawerHeight(): number {
   if (typeof window === "undefined") return DEFAULT_THREAD_TERMINAL_HEIGHT;
@@ -290,7 +304,7 @@ export function TerminalViewport({
   });
   const readTerminalLabel = useEffectEvent(() => terminalLabel);
 
-  useEffect(() => {
+  useMountEffect(() => {
     const mount = containerRef.current;
     if (!mount) return;
 
@@ -777,12 +791,36 @@ export function TerminalViewport({
       fitAddonRef.current = null;
       terminal.dispose();
     };
-    // autoFocus is intentionally omitted;
-    // it is only read at mount time and must not trigger terminal teardown/recreation.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cwd, environmentId, runtimeEnv, terminalId, threadId]);
+  });
 
-  useEffect(() => {
+  return (
+    <>
+      <TerminalViewportFocusSync
+        key={`${autoFocus}:${focusRequestId}`}
+        autoFocus={autoFocus}
+        terminalRef={terminalRef}
+      />
+      <TerminalViewportResizeSync
+        key={`${drawerHeight}:${environmentId}:${resizeEpoch}:${terminalId}:${threadId}`}
+        environmentId={environmentId}
+        fitAddonRef={fitAddonRef}
+        terminalId={terminalId}
+        terminalRef={terminalRef}
+        threadId={threadId}
+      />
+      <div ref={containerRef} className="thread-terminal-viewport relative h-full w-full" />
+    </>
+  );
+}
+
+function TerminalViewportFocusSync({
+  autoFocus,
+  terminalRef,
+}: {
+  autoFocus: boolean;
+  terminalRef: RefObject<Terminal | null>;
+}) {
+  useMountEffect(() => {
     if (!autoFocus) return;
     const terminal = terminalRef.current;
     if (!terminal) return;
@@ -792,9 +830,25 @@ export function TerminalViewport({
     return () => {
       window.cancelAnimationFrame(frame);
     };
-  }, [autoFocus, focusRequestId]);
+  });
 
-  useEffect(() => {
+  return null;
+}
+
+function TerminalViewportResizeSync({
+  environmentId,
+  fitAddonRef,
+  terminalId,
+  terminalRef,
+  threadId,
+}: {
+  environmentId: ScopedThreadRef["environmentId"];
+  fitAddonRef: RefObject<FitAddon | null>;
+  terminalId: string;
+  terminalRef: RefObject<Terminal | null>;
+  threadId: ThreadId;
+}) {
+  useMountEffect(() => {
     const api = readEnvironmentApi(environmentId);
     const terminal = terminalRef.current;
     const fitAddon = fitAddonRef.current;
@@ -818,8 +872,9 @@ export function TerminalViewport({
     return () => {
       window.cancelAnimationFrame(frame);
     };
-  }, [drawerHeight, environmentId, resizeEpoch, terminalId, threadId]);
-  return <div ref={containerRef} className="thread-terminal-viewport relative h-full w-full" />;
+  });
+
+  return null;
 }
 
 interface ThreadTerminalDrawerProps {
@@ -873,6 +928,73 @@ function TerminalActionButton({ label, className, onClick, children }: TerminalA
       </PopoverPopup>
     </Popover>
   );
+}
+
+function ThreadTerminalDrawerHeightResetSync({
+  drawerHeightRef,
+  height,
+  lastSyncedHeightRef,
+  setDrawerHeight,
+}: {
+  drawerHeightRef: MutableRefObject<number>;
+  height: number;
+  lastSyncedHeightRef: MutableRefObject<number>;
+  setDrawerHeight: Dispatch<SetStateAction<number>>;
+}) {
+  useMountEffect(() => {
+    const clampedHeight = clampDrawerHeight(height);
+    setDrawerHeight(clampedHeight);
+    drawerHeightRef.current = clampedHeight;
+    lastSyncedHeightRef.current = clampedHeight;
+  });
+
+  return null;
+}
+
+function ThreadTerminalDrawerWindowResizeSync({
+  handleWindowResize,
+}: {
+  handleWindowResize: () => void;
+}) {
+  useMountEffect(() => {
+    const onWindowResize = () => {
+      handleWindowResize();
+    };
+    window.addEventListener("resize", onWindowResize);
+    return () => {
+      window.removeEventListener("resize", onWindowResize);
+    };
+  });
+
+  return null;
+}
+
+function ThreadTerminalDrawerVisibleResizeEpochSync({
+  setResizeEpoch,
+}: {
+  setResizeEpoch: Dispatch<SetStateAction<number>>;
+}) {
+  useMountEffect(() => {
+    setResizeEpoch((value) => value + 1);
+  });
+
+  return null;
+}
+
+function ThreadTerminalDrawerUnmountHeightSync({
+  drawerHeightRef,
+  syncHeight,
+}: {
+  drawerHeightRef: MutableRefObject<number>;
+  syncHeight: (nextHeight: number) => void;
+}) {
+  useMountEffect(() => {
+    return () => {
+      syncHeight(drawerHeightRef.current);
+    };
+  });
+
+  return null;
 }
 
 export default function ThreadTerminalDrawer({
@@ -1029,13 +1151,16 @@ export default function ThreadTerminalDrawer({
     onNewTerminal();
   }, [onNewTerminal]);
 
-  useEffect(() => {
-    onHeightChangeRef.current = onHeightChange;
-  }, [onHeightChange]);
+  onHeightChangeRef.current = onHeightChange;
+  drawerHeightRef.current = drawerHeight;
 
-  useEffect(() => {
-    drawerHeightRef.current = drawerHeight;
-  }, [drawerHeight]);
+  const runtimeEnvVersion = useValueIdentityVersion(runtimeEnv);
+  const terminalViewportSessionKey = [
+    threadRef.environmentId,
+    threadId,
+    cwd,
+    runtimeEnvVersion,
+  ].join("\0");
 
   const syncHeight = useCallback((nextHeight: number) => {
     const clampedHeight = clampDrawerHeight(nextHeight);
@@ -1043,13 +1168,6 @@ export default function ThreadTerminalDrawer({
     lastSyncedHeightRef.current = clampedHeight;
     onHeightChangeRef.current(clampedHeight);
   }, []);
-
-  useEffect(() => {
-    const clampedHeight = clampDrawerHeight(height);
-    setDrawerHeight(clampedHeight);
-    drawerHeightRef.current = clampedHeight;
-    lastSyncedHeightRef.current = clampedHeight;
-  }, [height, threadId]);
 
   const handleResizePointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
@@ -1108,38 +1226,32 @@ export default function ThreadTerminalDrawer({
     setResizeEpoch((value) => value + 1);
   });
 
-  useEffect(() => {
-    if (!visible) {
-      return;
-    }
-
-    const onWindowResize = () => {
-      handleWindowResize();
-    };
-    window.addEventListener("resize", onWindowResize);
-    return () => {
-      window.removeEventListener("resize", onWindowResize);
-    };
-  }, [visible]);
-
-  useEffect(() => {
-    if (!visible) {
-      return;
-    }
-    setResizeEpoch((value) => value + 1);
-  }, [visible]);
-
-  useEffect(() => {
-    return () => {
-      syncHeight(drawerHeightRef.current);
-    };
-  }, [syncHeight]);
-
   return (
     <aside
       className="thread-terminal-drawer relative flex min-w-0 shrink-0 flex-col overflow-hidden border-t"
       style={{ height: `${drawerHeight}px` }}
     >
+      <ThreadTerminalDrawerHeightResetSync
+        key={`${threadId}:${height}`}
+        drawerHeightRef={drawerHeightRef}
+        height={height}
+        lastSyncedHeightRef={lastSyncedHeightRef}
+        setDrawerHeight={setDrawerHeight}
+      />
+      {visible ? (
+        <>
+          <ThreadTerminalDrawerWindowResizeSync
+            handleWindowResize={handleWindowResize}
+          />
+          <ThreadTerminalDrawerVisibleResizeEpochSync
+            setResizeEpoch={setResizeEpoch}
+          />
+        </>
+      ) : null}
+      <ThreadTerminalDrawerUnmountHeightSync
+        drawerHeightRef={drawerHeightRef}
+        syncHeight={syncHeight}
+      />
       <div
         className="absolute inset-x-0 top-0 z-20 h-1.5 cursor-row-resize"
         onPointerDown={handleResizePointerDown}
@@ -1206,6 +1318,7 @@ export default function ThreadTerminalDrawer({
                   >
                     <div className="h-full">
                       <TerminalViewport
+                        key={`${terminalViewportSessionKey}:${terminalId}`}
                         threadRef={threadRef}
                         threadId={threadId}
                         terminalId={terminalId}
@@ -1227,7 +1340,7 @@ export default function ThreadTerminalDrawer({
             ) : (
               <div className="h-full">
                 <TerminalViewport
-                  key={resolvedActiveTerminalId}
+                  key={`${terminalViewportSessionKey}:${resolvedActiveTerminalId}`}
                   threadRef={threadRef}
                   threadId={threadId}
                   terminalId={resolvedActiveTerminalId}

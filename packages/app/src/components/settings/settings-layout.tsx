@@ -1,20 +1,10 @@
 import { IconChevronLeftMedium } from "central-icons";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode } from "react";
 
 import { cn } from "../../lib/utils";
 import { Button } from "@multi/ui/button";
 import { Text, textVariants } from "@multi/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@multi/ui/tooltip";
-
-/** Re-render every `intervalMs`; return a stable timestamp snapshot for render-time relative labels. */
-export function useRelativeTimeTick(intervalMs = 1_000) {
-  const [nowMs, setNowMs] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNowMs(Date.now()), intervalMs);
-    return () => clearInterval(id);
-  }, [intervalMs]);
-  return nowMs;
-}
 
 export function SettingsSection({
   title,

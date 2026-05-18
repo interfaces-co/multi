@@ -11,7 +11,14 @@ import {
   IconToolbox,
 } from "central-icons";
 import { cva } from "class-variance-authority";
-import { memo, type ComponentType, type ReactNode, useEffect, useRef, useState } from "react";
+import {
+  memo,
+  type ComponentType,
+  type ReactNode,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   formatDuration,
   type ToolCommandArtifact,
@@ -29,6 +36,11 @@ import { InlineToolDiff } from "./tool-inline-diff";
 type CentralIconComponent = ComponentType<{ className?: string | undefined }>;
 
 export type ToolCallConversationDensity = "minimal" | "verbose";
+
+interface ShellToolExpansionState {
+  readonly approvalStatus: ToolCallApproval["status"] | undefined;
+  readonly isExpanded: boolean;
+}
 
 export type ToolCase =
   | "awaitToolCall"
@@ -744,33 +756,39 @@ function ShellToolCall({
   defaultExpanded: boolean;
   onNestedToolExpand: ((callId: string | undefined, expanded: boolean) => void) | undefined;
 }) {
-  const [isExpanded, setIsExpanded] = useState(
-    approval && approval.status !== "pending" ? false : defaultExpanded,
-  );
-  const previousApprovalStatusRef = useRef<ToolCallApproval["status"] | undefined>(
-    approval?.status,
-  );
+  const currentApprovalStatus = approval?.status;
+  const [expansionState, setExpansionState] = useState<ShellToolExpansionState>(() => ({
+    approvalStatus: currentApprovalStatus,
+    isExpanded: approval && approval.status !== "pending" ? false : defaultExpanded,
+  }));
+  const activeExpansionState =
+    expansionState.approvalStatus === currentApprovalStatus
+      ? expansionState
+      : {
+          approvalStatus: currentApprovalStatus,
+          isExpanded:
+            expansionState.approvalStatus === "pending" && currentApprovalStatus !== "pending"
+              ? false
+              : expansionState.isExpanded,
+        };
+  if (activeExpansionState !== expansionState) {
+    setExpansionState(activeExpansionState);
+  }
   const metadataItems = getCommandMetadataItems(artifact);
   const hasContent = command.length > 0 || Boolean(output) || metadataItems.length > 0;
   const isPending = approval?.status === "pending";
   const expandable = hasContent;
-
-  useEffect(() => {
-    const previousStatus = previousApprovalStatusRef.current;
-    previousApprovalStatusRef.current = approval?.status;
-
-    if (previousStatus === "pending" && approval?.status !== "pending") {
-      setIsExpanded(false);
-      onNestedToolExpand?.(callId, false);
-    }
-  }, [approval?.status, callId, onNestedToolExpand]);
+  const isExpanded = activeExpansionState.isExpanded;
 
   const toggleExpanded = () => {
     if (!expandable) return;
-    setIsExpanded((current) => {
-      const next = !current;
+    setExpansionState((current) => {
+      const next = !current.isExpanded;
       onNestedToolExpand?.(callId, next);
-      return next;
+      return {
+        approvalStatus: currentApprovalStatus,
+        isExpanded: next,
+      };
     });
   };
 
@@ -1013,15 +1031,44 @@ function EditStats({ stats }: { stats: ToolCallModel["tool"]["value"]["stats"] |
 }
 
 function AwaitDetails({ details, startedAtMs }: { details: string; startedAtMs: number }) {
-  const [nowMs, setNowMs] = useState(() => Date.now());
-  useEffect(() => {
-    const intervalId = window.setInterval(() => setNowMs(Date.now()), 1000);
-    return () => window.clearInterval(intervalId);
-  }, []);
-
+  const nowMs = useNowMs(1000);
   const elapsedMs = Math.max(0, Math.floor((nowMs - startedAtMs) / 1000) * 1000);
   const elapsed = formatDuration(elapsedMs);
   return details ? `${details} ${elapsed}` : elapsed;
+}
+
+function useNowMs(intervalMs: number): number {
+  const store = useMemo(() => createNowMsStore(intervalMs), [intervalMs]);
+  return useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+}
+
+function createNowMsStore(intervalMs: number) {
+  let nowMs = Date.now();
+  let intervalId: ReturnType<typeof setInterval> | null = null;
+  const listeners = new Set<() => void>();
+
+  const tick = () => {
+    nowMs = Date.now();
+    for (const listener of listeners) {
+      listener();
+    }
+  };
+
+  return {
+    getSnapshot: () => nowMs,
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      intervalId ??= setInterval(tick, intervalMs);
+
+      return () => {
+        listeners.delete(listener);
+        if (listeners.size === 0 && intervalId !== null) {
+          clearInterval(intervalId);
+          intervalId = null;
+        }
+      };
+    },
+  };
 }
 
 function ShellCommandTokens({ command }: { command: string }) {

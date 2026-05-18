@@ -833,6 +833,8 @@ export function installChatViewBrowserHarness(): void {
     useCommandPaletteStore.setState({
       open: false,
       openIntent: null,
+      openSessionId: 0,
+      controller: null,
     });
     useStore.setState({
       activeEnvironmentId: null,

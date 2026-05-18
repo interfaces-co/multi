@@ -24,11 +24,14 @@ import {
   useStore,
 } from "../stores/thread-store";
 import { useTerminalStateStore } from "../terminal-state-store";
-import { buildThreadRouteParams, resolveThreadRouteTarget } from "../thread-routes";
+import {
+  buildThreadRouteParams,
+  resolveThreadRouteTarget,
+} from "~/app/routes/thread-route-targets";
 import {
   formatWorktreePathForDisplay,
   getOrphanedWorktreePathForThread,
-} from "../worktree-cleanup";
+} from "../git/worktree-cleanup";
 import { toastManager } from "~/app/toast";
 import { useSettings } from "./use-settings";
 

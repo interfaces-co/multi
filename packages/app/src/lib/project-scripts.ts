@@ -4,8 +4,6 @@ import {
   SCRIPT_RUN_COMMAND_PATTERN,
   type KeybindingCommand,
   type KeybindingRule,
-  type ProjectScript,
-  type ResolvedKeybindingsConfig,
 } from "@multi/contracts";
 import { Schema } from "effect";
 
@@ -68,11 +66,6 @@ export function nextProjectScriptId(name: string, existingIds: Iterable<string>)
   return `${baseId}-${Date.now()}`.slice(0, MAX_SCRIPT_ID_LENGTH);
 }
 
-export function primaryProjectScript(scripts: ProjectScript[]): ProjectScript | null {
-  const regular = scripts.find((script) => !script.runOnWorktreeCreate);
-  return regular ?? scripts[0] ?? null;
-}
-
 export function decodeProjectScriptKeybindingRule(input: {
   keybinding: string | null | undefined;
   command: KeybindingCommand;
@@ -88,30 +81,4 @@ export function decodeProjectScriptKeybindingRule(input: {
     throw new Error(PROJECT_SCRIPT_KEYBINDING_INVALID_MESSAGE);
   }
   return decoded.value;
-}
-
-export function keybindingValueForCommand(
-  keybindings: ResolvedKeybindingsConfig,
-  command: KeybindingCommand,
-): string | null {
-  for (let index = keybindings.length - 1; index >= 0; index -= 1) {
-    const binding = keybindings[index];
-    if (!binding || binding.command !== command) continue;
-
-    const parts: string[] = [];
-    if (binding.shortcut.modKey) parts.push("mod");
-    if (binding.shortcut.ctrlKey) parts.push("ctrl");
-    if (binding.shortcut.metaKey) parts.push("meta");
-    if (binding.shortcut.altKey) parts.push("alt");
-    if (binding.shortcut.shiftKey) parts.push("shift");
-    const keyToken =
-      binding.shortcut.key === " "
-        ? "space"
-        : binding.shortcut.key === "escape"
-          ? "esc"
-          : binding.shortcut.key;
-    parts.push(keyToken);
-    return parts.join("+");
-  }
-  return null;
 }

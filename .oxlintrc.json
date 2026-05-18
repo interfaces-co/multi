@@ -20,6 +20,7 @@
     "eslint/no-shadow": "off",
     "eslint/no-await-in-loop": "off",
     "eslint/no-underscore-dangle": "off",
-    "multi/no-inline-schema-compile": "error"
+    "multi/no-inline-schema-compile": "error",
+    "multi/no-direct-use-effect": "error"
   }
 }

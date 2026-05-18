@@ -4,7 +4,6 @@ import type {
   ModelSelection,
   ProviderApprovalDecision,
   ProviderDriverKind,
-  ProviderInstanceId,
   ProviderInteractionMode,
   ResolvedKeybindingsConfig,
   RuntimeMode,
@@ -18,7 +17,7 @@ import type { MutableRefObject, ReactNode } from "react";
 import type { ComposerImageAttachment, DraftId } from "../../../stores/chat-drafts";
 import type { QueuedComposerItem, QueuedComposerItemId } from "../../../stores/chat-send-queue";
 import type { TerminalContextDraft, TerminalContextSelection } from "../../../lib/terminal-context";
-import type { PendingUserInputDraftAnswer } from "../../../pending-user-input";
+import type { PendingUserInputDraftAnswer } from "./pending-user-input";
 import type { PendingApproval, PendingUserInput } from "../../../session-logic";
 import type { SessionPhase, Thread } from "../../../types";
 import type { ExpandedImagePreview } from "../message/expanded-image-preview";
@@ -153,7 +152,7 @@ export interface ComposerInputProps {
       ) => void)
     | undefined;
 
-  onProviderModelSelect: (instanceId: ProviderInstanceId, model: string) => void;
+  onProviderModelSelect: (selection: ModelSelection) => void;
   onBeginEditQueuedComposerItem?: ((itemId: QueuedComposerItemId) => void) | undefined;
   onCancelEditingQueuedComposerItem?: (() => void) | undefined;
   onRemoveQueuedComposerItem?: ((itemId: QueuedComposerItemId) => void) | undefined;

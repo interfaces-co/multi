@@ -72,12 +72,13 @@ styling.
 
 The active one-off-looking hooks are in TSX, not CSS files.
 
-- [ ] `packages/app/src/components/chat/composer/slash-menu.tsx` contains
-      `ui-slash-menu__*`, `mentions-menu__content`, and `ui-menu__*` class hooks.
+- [x] `packages/app/src/components/chat/composer/slash-menu.tsx` no longer
+      contains `ui-slash-menu__*`, `mentions-menu__content`, or `ui-menu__*`
+      class hooks.
 - [ ] Do not delete `prompt-segments.ts` or `prompt-triggers.ts` as styling
       cleanup; they are active behavior helpers used by composer, slash menu, and
       chat view.
-- [ ] Replace unowned menu class hooks only when the slash menu component is
+- [x] Replace unowned menu class hooks only when the slash menu component is
       rewritten or its behavior is covered by browser tests.
 
 ## Done Means

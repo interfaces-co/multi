@@ -1,9 +1,8 @@
 # App Toast File Inventory
 
-This inventory classifies the remaining `.logic.ts` file in `packages/app`.
-The current conclusion is explicit: `toast.logic.ts` is not a durable boundary.
-It should be inlined into the toast renderer or replaced by toast behavior
-coverage during a cleanup wave.
+This inventory classified the remaining `.logic.ts` file in `packages/app`.
+The conclusion was explicit: `toast.logic.ts` was not a durable boundary and
+has been inlined into the toast renderer.
 
 Inventory commands:
 
@@ -15,8 +14,7 @@ rg -n "toast\\.logic|shouldHideCollapsedToastContent|buildVisibleToastLayout|sho
 Current files:
 
 - [x] `packages/app/src/app/toast.tsx`
-- [x] `packages/app/src/app/toast.logic.ts`
-- [x] `packages/app/src/app/toast.logic.test.ts`
+- [x] `packages/app/src/components/toast-provider.browser.tsx`
 - [x] `packages/app/src/components/keybindings-toast.browser.tsx`
 
 ## Canonical Toast Boundary
@@ -69,20 +67,20 @@ Current exports:
 
 Target:
 
-- [ ] Inline these helpers into `toast.tsx` as private functions.
-- [ ] Delete `toast.logic.ts`.
-- [ ] Delete `toast.logic.test.ts` unless the behavior is not covered by a
+- [x] Inline these helpers into `toast.tsx` as private functions.
+- [x] Delete `toast.logic.ts`.
+- [x] Delete `toast.logic.test.ts` after replacing helper assertions with a
       toast/browser behavior suite.
-- [ ] If behavior coverage is added, cover visible stacking and thread-scoped
-      filtering through rendered toasts, not through helper exports.
+- [x] Cover thread-scoped filtering through rendered toasts, not helper exports.
+- [ ] Add rendered coverage for visible stacking.
 
 ## Toast Behavior Coverage Needed
 
 Before deleting the helper test, keep or add behavior coverage for:
 
-- [ ] A toast scoped to the active thread is visible.
-- [ ] A toast scoped to another environment/thread is hidden.
-- [ ] Global toasts remain visible without thread scope.
+- [x] A toast scoped to the active thread is visible.
+- [x] A toast scoped to another environment/thread is hidden.
+- [x] Global toasts remain visible without thread scope.
 - [ ] Multiple visible toasts keep the front-most toast readable in a collapsed
       stack.
 - [ ] Error toast descriptions can be copied.
@@ -102,8 +100,8 @@ before the toast is created.
 
 ## Done Means
 
-- [ ] No `*.logic.ts` remains under `packages/app/src/app`.
-- [ ] Toast helpers are private to `toast.tsx` or replaced by a real toast
+- [x] No `*.logic.ts` remains under `packages/app/src/app`.
+- [x] Toast helpers are private to `toast.tsx` or replaced by a real toast
       renderer test boundary.
 - [ ] User-visible error actions still surface messages and copyable details.
-- [ ] `pnpm run typecheck` passes for code changes.
+- [x] `pnpm run typecheck` passes for code changes.

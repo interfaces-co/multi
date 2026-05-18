@@ -57,6 +57,8 @@ const STATIC_KEYBINDING_COMMANDS = [
   "composer.cycleInteractionMode",
   "chat.new",
   "chat.newLocal",
+  "route.back",
+  "threadSelection.clear",
   "editor.openFavorite",
   ...MODEL_PICKER_KEYBINDING_COMMANDS,
   ...THREAD_KEYBINDING_COMMANDS,

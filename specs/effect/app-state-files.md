@@ -80,19 +80,18 @@ behavior coverage. Do not delete them as helper cleanup.
 
 Classify before code changes.
 
-- [x] `packages/app/src/stores/shell-layout-store.ts`: only production caller
-      is `hooks/use-environment-git.ts`; likely a narrow shell layout event/mute
-      helper. Inline or move into the Git/shell integration if caller inventory
-      stays single-caller.
-- [x] `packages/app/src/stores/chat-send-queue-dispatch.ts`: used by
-      `environments/runtime/service.ts`; keep only if dispatching queued composer
-      items remains an environment runtime boundary.
-- [x] `packages/app/src/stores/thread-unread-store.ts`: used by shell agents
-      list/row. Reconcile with `ui-state-store` visited/unread semantics before
-      keeping both.
-- [x] `packages/app/src/stores/ui/model-picker-open-state.ts`: one-surface
-      ephemeral picker state. Move next to model picker or delete when model picker
-      open-state sharing is simplified.
+- [x] `packages/app/src/stores/shell-layout-store.ts`: deleted after caller
+      inventory showed no production writers, so Git focus paths were always
+      empty.
+- [x] `packages/app/src/stores/chat-send-queue-dispatch.ts`: retained as an
+      environment runtime boundary; it drains queued composer items after thread
+      projection/session changes and dispatches through the environment API.
+- [x] `packages/app/src/stores/thread-unread-store.ts`: retained as sidebar
+      unread action state for row context-menu mark-unread and section mark-read.
+      Do not merge with persisted `ui-state-store` visit timestamps until sidebar
+      unread behavior has browser coverage.
+- [x] `packages/app/src/stores/ui/model-picker-open-state.ts`: deleted because
+      the only production caller wrote to it and no surface read it.
 - [x] `packages/app/src/stores/ui/command-palette-store.ts`: command palette
       owner. Keep if the command palette remains global; otherwise colocate with
       command palette component.
@@ -118,9 +117,9 @@ Target:
 - [ ] Move sidebar-only projections under the sidebar/shell agents ownership.
 - [ ] Merge duplicate relative-time behavior from `sidebar-chat-view-model.ts`
       with `timestamp-format.ts` or keep one private to the sidebar model.
-- [ ] Keep `thread-sort.ts` only if command palette and sidebar both need the
+- [x] Keep `thread-sort.ts` only if command palette and sidebar both need the
       same ordering contract; otherwise move it under sidebar ownership.
-- [ ] Keep `timestamp-format.ts` as an app display formatting boundary while it
+- [x] Keep `timestamp-format.ts` as an app display formatting boundary while it
       has multiple UI consumers.
 - [ ] Do not keep helper tests only because the helper files exist; replace
       helper coverage with sidebar and command-palette behavior tests where
@@ -147,11 +146,11 @@ Rules:
 
 ## First State Cleanup Candidates
 
-- [ ] Reclassify `shell-layout-store.ts` after reading
+- [x] Reclassify `shell-layout-store.ts` after reading
       `hooks/use-environment-git.ts`.
-- [ ] Reclassify `thread-unread-store.ts` against `ui-state-store` visited and
+- [x] Reclassify `thread-unread-store.ts` against `ui-state-store` visited and
       unread behavior.
-- [ ] Move `model-picker-open-state.ts` next to the model picker or replace it
+- [x] Move `model-picker-open-state.ts` next to the model picker or replace it
       with local/open prop state.
 - [ ] Move sidebar-only helpers out of `lib/thread-sidebar.ts` after adding
       sidebar behavior coverage.

@@ -11,11 +11,11 @@ import {
 import { newDraftId, newThreadId } from "../lib/utils";
 import { orderItemsByPreferredIds } from "../lib/thread-sidebar";
 import { findProjectByPath } from "../lib/project-paths";
-import { deriveLogicalProjectKey, getProjectOrderKey } from "../logical-project";
+import { deriveLogicalProjectKey, getProjectOrderKey } from "../stores/project-identity";
 import { useServerConfig } from "../rpc/server-state";
 import { selectProjectsAcrossEnvironments, useStore } from "../stores/thread-store";
 import { createThreadSelectorByRef } from "../stores/thread-selectors";
-import { resolveThreadRouteTarget } from "../thread-routes";
+import { resolveThreadRouteTarget } from "~/app/routes/thread-route-targets";
 import { useUiStateStore } from "../stores/ui-state-store";
 
 function useNewThreadState() {

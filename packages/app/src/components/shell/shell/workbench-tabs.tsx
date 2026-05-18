@@ -133,7 +133,7 @@ export function WorkbenchTabBar(props: {
                 NEW_TAB_MENU_MAX_HEIGHT,
               )}
             >
-              <div className="ui-menu__search-row flex items-center gap-1 border-b border-multi-stroke-tertiary px-1.5 py-1.5">
+              <div className="flex items-center gap-1 border-b border-multi-stroke-tertiary px-1.5 py-1.5">
                 <IconMagnifyingGlass
                   className="size-3.5 shrink-0 text-multi-fg-tertiary"
                   aria-hidden
@@ -146,7 +146,7 @@ export function WorkbenchTabBar(props: {
                   className="h-6 min-w-0 flex-1 bg-transparent text-body text-multi-fg-primary outline-none placeholder:text-multi-fg-quaternary"
                 />
               </div>
-              <div className="ui-menu__list flex flex-col gap-px p-1">
+              <div className="flex flex-col gap-px p-1">
                 {filteredOpenItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = item.id === props.active;
@@ -159,7 +159,7 @@ export function WorkbenchTabBar(props: {
                         props.onTab(item.id as WorkbenchTab);
                         setOpen(false);
                       }}
-                      className={cn(workbenchMenuItemClassName, "ui-menu__row gap-2")}
+                      className={cn(workbenchMenuItemClassName, "gap-2")}
                     >
                       <span className={workbenchMenuIconSlotClassName}>
                         <Icon className="size-3.5" aria-hidden />

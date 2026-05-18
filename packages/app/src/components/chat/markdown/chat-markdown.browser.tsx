@@ -1,4 +1,4 @@
-import "../index.css";
+import "../../../index.css";
 
 import { page } from "vitest/browser";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -12,11 +12,11 @@ const { openInPreferredEditorMock, readLocalApiMock } = vi.hoisted(() => ({
   })),
 }));
 
-vi.mock("../editor-preferences", () => ({
+vi.mock("../../../editor/preferences", () => ({
   openInPreferredEditor: openInPreferredEditorMock,
 }));
 
-vi.mock("../local-api", () => ({
+vi.mock("../../../local-api", () => ({
   ensureLocalApi: vi.fn(() => {
     throw new Error("ensureLocalApi not implemented in browser test");
   }),

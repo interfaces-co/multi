@@ -36,28 +36,28 @@ Current anchors:
 - `packages/app/src/routes/*.tsx`
 - `packages/app/src/app/routes/*.tsx`
 - `packages/app/src/routeTree.gen.ts`
-- `packages/app/src/thread-routes.ts`
-- `packages/app/src/chat-route-persistence.ts`
-- `packages/app/src/diff-route-search.ts`
+- `packages/app/src/app/routes/thread-route-targets.ts`
+- `packages/app/src/app/routes/chat-route-persistence.ts`
+- `packages/app/src/app/routes/chat-shell-search.ts`
 
 Rules:
 
 - [x] Route files may validate search and route params.
 - [x] Route files may retain search params across thread navigation when the
       search params are a real cross-route UI state.
-- [ ] Route files may not own settings workflows, provider/model selection,
+- [x] Route files may not own settings workflows, provider/model selection,
       composer policy, git orchestration, or plan implementation.
-- [ ] Shared route-search helpers are kept only when multiple route/component
+- [x] Shared route-search helpers are kept only when multiple route/component
       boundaries need the same search contract.
-- [ ] Thin route wrappers are deleted when they only forward props.
+- [x] Thin non-TanStack route wrappers are deleted when they only forward props.
 
 Detailed inventory: [app-route-files.md](./app-route-files.md).
 
 ## Diff Route Search
 
-`packages/app/src/diff-route-search.ts` is a route-search contract, not a
-random utility. It is kept only if these callers continue to share one search
-shape:
+`packages/app/src/app/routes/chat-shell-search.ts` is a route-search contract,
+not a random utility. It is kept only if these callers continue to share one
+search shape:
 
 - `packages/app/src/routes/_chat.tsx`
 - `packages/app/src/routes/_chat.$environmentId.$threadId.tsx`
@@ -67,7 +67,7 @@ shape:
 
 Rules:
 
-- [ ] If those callers still share the same route search shape, move the file
+- [x] If those callers still share the same route search shape, move the file
       beside route ownership and name it for chat route search.
 - [ ] If the shape becomes panel-local, inline it into the panel boundary and
       delete the shared file.
@@ -77,12 +77,12 @@ Current decision:
 
 - [x] Keep the contract for now because chat routes, diff panel, chat view, and
       Git panel still share the same search shape.
-- [ ] Move it out of root app files into route ownership.
+- [x] Move it out of root app files into route ownership.
 
 ## PR Checklist
 
-- [ ] Route files own routing only.
+- [x] Route files own routing only.
 - [ ] Server routes own transport translation only.
-- [ ] Search param contracts are colocated with route ownership.
+- [x] Search param contracts are colocated with route ownership.
 - [ ] Expected errors cross transport boundaries as explicit contract errors.
-- [ ] `routeTree.gen.ts` matches kept routes.
+- [x] `routeTree.gen.ts` matches kept routes.

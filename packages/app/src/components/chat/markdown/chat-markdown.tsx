@@ -12,7 +12,6 @@ import {
   isValidElement,
   useCallback,
   memo,
-  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -22,14 +21,21 @@ import { defaultUrlTransform, Streamdown } from "streamdown";
 import { VscodeEntryIcon } from "../shared/vscode-entry-icon";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@multi/ui/tooltip";
 import { toastManager } from "~/app/toast";
-import { openInPreferredEditor } from "../../../editor-preferences";
-import { resolveDiffThemeName, type DiffThemeName } from "../../../lib/diff-rendering";
+import { openInPreferredEditor } from "../../../editor/preferences";
+import {
+  resolveDiffThemeName,
+  type DiffThemeName,
+} from "../../../lib/diff-rendering";
 import { fnv1a32 } from "../../../lib/diff-rendering";
-import { LRUCache } from "../../../lib/lru-cache";
 import { useTheme } from "../../../hooks/use-theme";
-import { resolveMarkdownFileLinkMeta, rewriteMarkdownFileUriHref } from "./file-links";
+import {
+  resolveMarkdownFileLinkMeta,
+  rewriteMarkdownFileUriHref,
+} from "./file-links";
+import { LRUCache } from "./lru-cache";
 import { readLocalApi } from "../../../local-api";
 import { cn } from "../../../lib/utils";
+import { useMountEffect } from "../../../hooks/use-mount-effect";
 
 interface ChatMarkdownProps {
   text: string;
@@ -68,24 +74,40 @@ function extractFenceLanguage(className: string | undefined): string {
   if (normalized === "gitignore") return "ini";
 
   if (CODE_FENCE_LANGUAGE_NAME_REGEX.test(normalized)) {
-    return CODE_FENCE_LINE_REFERENCE_REGEX.test(normalized) ? "text" : normalized;
+    return CODE_FENCE_LINE_REFERENCE_REGEX.test(normalized)
+      ? "text"
+      : normalized;
   }
 
   return inferFenceLanguageFromFilename(raw) ?? "text";
 }
 
 function inferFenceLanguageFromFilename(raw: string): string | undefined {
-  const candidates = [raw, ...raw.split(":")].filter((candidate) => candidate.length > 0);
+  const candidates = [raw, ...raw.split(":")].filter(
+    (candidate) => candidate.length > 0,
+  );
   for (const candidate of candidates) {
-    if (!candidate.includes("/") && !candidate.includes("\\") && !candidate.startsWith(".")) {
+    if (
+      !candidate.includes("/") &&
+      !candidate.includes("\\") &&
+      !candidate.startsWith(".")
+    ) {
       continue;
     }
 
     const basename = candidate.split(/[\\/]/).at(-1)?.toLowerCase();
-    if (basename === ".zshrc" || basename === ".zshenv" || basename === ".zprofile") {
+    if (
+      basename === ".zshrc" ||
+      basename === ".zshenv" ||
+      basename === ".zprofile"
+    ) {
       return "zsh";
     }
-    if (basename === ".bashrc" || basename === ".bash_profile" || basename === ".profile") {
+    if (
+      basename === ".bashrc" ||
+      basename === ".bash_profile" ||
+      basename === ".profile"
+    ) {
       return "zsh";
     }
 
@@ -111,7 +133,11 @@ function nodeToPlainText(node: ReactNode): string {
   return "";
 }
 
-function createHighlightCacheKey(code: string, language: string, themeName: DiffThemeName): string {
+function createHighlightCacheKey(
+  code: string,
+  language: string,
+  themeName: DiffThemeName,
+): string {
   return `${fnv1a32(code).toString(36)}:${code.length}:${language}:${themeName}`;
 }
 
@@ -147,9 +173,13 @@ async function getHighlightedCodeHtml(
   language: string,
   themeName: DiffThemeName,
 ): Promise<string> {
-  const { highlighter, language: resolvedLanguage } = await getHighlighterPromise(language);
+  const { highlighter, language: resolvedLanguage } =
+    await getHighlighterPromise(language);
   try {
-    return highlighter.codeToHtml(code, { lang: resolvedLanguage, theme: themeName });
+    return highlighter.codeToHtml(code, {
+      lang: resolvedLanguage,
+      theme: themeName,
+    });
   } catch (error) {
     console.warn(
       `Code highlighting failed for language "${resolvedLanguage}", falling back to plain text.`,
@@ -159,9 +189,17 @@ async function getHighlightedCodeHtml(
   }
 }
 
-function MarkdownCodeBlock({ code, children }: { code: string; children: ReactNode }) {
+function MarkdownCodeBlock({
+  code,
+  children,
+}: {
+  code: string;
+  children: ReactNode;
+}) {
   const [copied, setCopied] = useState(false);
-  const resetCopied = useDebouncedCallback(() => setCopied(false), { wait: 1200 });
+  const resetCopied = useDebouncedCallback(() => setCopied(false), {
+    wait: 1200,
+  });
   const handleCopy = useCallback(() => {
     if (typeof navigator === "undefined" || navigator.clipboard == null) {
       return;
@@ -184,7 +222,11 @@ function MarkdownCodeBlock({ code, children }: { code: string; children: ReactNo
         title={copied ? "Copied" : "Copy code"}
         aria-label={copied ? "Copied" : "Copy code"}
       >
-        {copied ? <IconCheckmark1 className="size-3" /> : <IconClipboard className="size-3" />}
+        {copied ? (
+          <IconCheckmark1 className="size-3" />
+        ) : (
+          <IconClipboard className="size-3" />
+        )}
       </button>
       {children}
     </div>
@@ -216,38 +258,17 @@ interface ShikiCodeBlockProps {
   themeName: DiffThemeName;
 }
 
-function ShikiCodeBlock({ className, code, codeProps, themeName }: ShikiCodeBlockProps) {
+function ShikiCodeBlock({
+  className,
+  code,
+  codeProps,
+  themeName,
+}: ShikiCodeBlockProps) {
   const language = extractFenceLanguage(className);
   const cacheKey = createHighlightCacheKey(code, language, themeName);
   const cachedHighlightedHtml = highlightedCodeCache.get(cacheKey);
-  const [highlightedCode, setHighlightedCode] = useState<HighlightedCodeState | null>(null);
-
-  useEffect(() => {
-    if (highlightedCodeCache.get(cacheKey) != null) {
-      return undefined;
-    }
-
-    let isCurrent = true;
-    void getHighlightedCodeHtml(code, language, themeName).then(
-      (html) => {
-        if (!isCurrent) return;
-        highlightedCodeCache.set(cacheKey, html, estimateHighlightedSize(html, code));
-        setHighlightedCode({ cacheKey, html });
-      },
-      (error) => {
-        if (!isCurrent) return;
-        console.warn(
-          "Code highlighting failed, falling back to plain text.",
-          error instanceof Error ? error.message : error,
-        );
-        setHighlightedCode(null);
-      },
-    );
-
-    return () => {
-      isCurrent = false;
-    };
-  }, [cacheKey, code, language, themeName]);
+  const [highlightedCode, setHighlightedCode] =
+    useState<HighlightedCodeState | null>(null);
 
   if (cachedHighlightedHtml != null) {
     return (
@@ -267,7 +288,66 @@ function ShikiCodeBlock({ className, code, codeProps, themeName }: ShikiCodeBloc
     );
   }
 
-  return <PlainCodeBlock className={className} code={code} codeProps={codeProps} />;
+  return (
+    <>
+      <ShikiCodeBlockHighlightLoader
+        key={cacheKey}
+        cacheKey={cacheKey}
+        code={code}
+        language={language}
+        setHighlightedCode={setHighlightedCode}
+        themeName={themeName}
+      />
+      <PlainCodeBlock className={className} code={code} codeProps={codeProps} />
+    </>
+  );
+}
+
+function ShikiCodeBlockHighlightLoader({
+  cacheKey,
+  code,
+  language,
+  setHighlightedCode,
+  themeName,
+}: {
+  cacheKey: string;
+  code: string;
+  language: string;
+  setHighlightedCode: (highlightedCode: HighlightedCodeState | null) => void;
+  themeName: DiffThemeName;
+}) {
+  useMountEffect(() => {
+    if (highlightedCodeCache.get(cacheKey) != null) {
+      return undefined;
+    }
+
+    let isCurrent = true;
+    void getHighlightedCodeHtml(code, language, themeName).then(
+      (html) => {
+        if (!isCurrent) return;
+        highlightedCodeCache.set(
+          cacheKey,
+          html,
+          estimateHighlightedSize(html, code),
+        );
+        setHighlightedCode({ cacheKey, html });
+      },
+      (error) => {
+        if (!isCurrent) return;
+        console.warn(
+          "Code highlighting failed, falling back to plain text.",
+          error instanceof Error ? error.message : error,
+        );
+        setHighlightedCode(null);
+      },
+    );
+
+    return () => {
+      isCurrent = false;
+    };
+  });
+
+  return null;
 }
 
 interface MarkdownFileLinkProps {
@@ -280,15 +360,22 @@ interface MarkdownFileLinkProps {
   className?: string | undefined;
 }
 
-const MARKDOWN_LINK_HREF_PATTERN = /\[[^\]]*]\(([^)\s]+)(?:\s+["'][^"']*["'])?\)/g;
+const MARKDOWN_LINK_HREF_PATTERN =
+  /\[[^\]]*]\(([^)\s]+)(?:\s+["'][^"']*["'])?\)/g;
+const MARKDOWN_LINK_PATTERN =
+  /(\[[^\]]*]\()([^\s)]+)((?:\s+["'][^"']*["'])?\))/g;
 
 function pathParentSegments(path: string): string[] {
   const normalized = path.replaceAll("\\", "/");
-  const segments = normalized.split("/").filter((segment) => segment.length > 0);
+  const segments = normalized
+    .split("/")
+    .filter((segment) => segment.length > 0);
   return segments.slice(0, -1);
 }
 
-function buildFileLinkParentSuffixByPath(filePaths: ReadonlyArray<string>): Map<string, string> {
+function buildFileLinkParentSuffixByPath(
+  filePaths: ReadonlyArray<string>,
+): Map<string, string> {
   const groups = new Map<string, Set<string>>();
   for (const filePath of filePaths) {
     const pathSegments = filePath
@@ -334,7 +421,10 @@ function buildFileLinkParentSuffixByPath(filePaths: ReadonlyArray<string>): Map<
       const segments = parentSegmentsByPath.get(filePath) ?? [];
       if (segments.length === 0) continue;
       const minUniqueDepth = minUniqueDepthByPath.get(filePath) ?? 1;
-      const suffixDepth = Math.min(segments.length, Math.max(minUniqueDepth, 2));
+      const suffixDepth = Math.min(
+        segments.length,
+        Math.max(minUniqueDepth, 2),
+      );
       suffixByPath.set(filePath, segments.slice(-suffixDepth).join("/"));
     }
   }
@@ -354,6 +444,17 @@ function extractMarkdownLinkHrefs(text: string): string[] {
 
 function normalizeMarkdownLinkHrefKey(href: string): string {
   return rewriteMarkdownFileUriHref(href.trim()) ?? href.trim();
+}
+
+function rewriteMarkdownFileUriLinks(text: string): string {
+  return text.replace(
+    MARKDOWN_LINK_PATTERN,
+    (match, prefix: string, href: string, suffix: string) => {
+      const rewrittenHref = rewriteMarkdownFileUriHref(href);
+      if (!rewrittenHref) return match;
+      return `${prefix}${rewrittenHref}${suffix}`;
+    },
+  );
 }
 
 const MarkdownFileLink = memo(function MarkdownFileLink({
@@ -379,7 +480,8 @@ const MarkdownFileLink = memo(function MarkdownFileLink({
       toastManager.add({
         type: "error",
         title: "Unable to open file",
-        description: error instanceof Error ? error.message : "An error occurred.",
+        description:
+          error instanceof Error ? error.message : "An error occurred.",
       });
     });
   }, [targetPath]);
@@ -406,7 +508,8 @@ const MarkdownFileLink = memo(function MarkdownFileLink({
         toastManager.add({
           type: "error",
           title: `Failed to copy ${title.toLowerCase()}`,
-          description: error instanceof Error ? error.message : "An error occurred.",
+          description:
+            error instanceof Error ? error.message : "An error occurred.",
         });
       },
     );
@@ -467,7 +570,9 @@ const MarkdownFileLink = memo(function MarkdownFileLink({
               theme={theme}
               className="chat-markdown-file-link-icon size-3.5 shrink-0 text-current"
             />
-            <span className="chat-markdown-file-link-label min-w-0 truncate">{label}</span>
+            <span className="chat-markdown-file-link-label min-w-0 truncate">
+              {label}
+            </span>
           </a>
         }
       />
@@ -498,12 +603,13 @@ function areMarkdownFileLinkPropsEqual(
 function ChatMarkdown({ text, cwd, isStreaming = false }: ChatMarkdownProps) {
   const { resolvedTheme } = useTheme();
   const diffThemeName = resolveDiffThemeName(resolvedTheme);
+  const markdownText = useMemo(() => rewriteMarkdownFileUriLinks(text), [text]);
   const markdownFileLinkMetaByHref = useMemo(() => {
     const metaByHref = new Map<
       string,
       NonNullable<ReturnType<typeof resolveMarkdownFileLinkMeta>>
     >();
-    for (const href of extractMarkdownLinkHrefs(text)) {
+    for (const href of extractMarkdownLinkHrefs(markdownText)) {
       const normalizedHref = normalizeMarkdownLinkHrefKey(href);
       if (metaByHref.has(normalizedHref)) continue;
       const meta = resolveMarkdownFileLinkMeta(normalizedHref, cwd);
@@ -512,19 +618,25 @@ function ChatMarkdown({ text, cwd, isStreaming = false }: ChatMarkdownProps) {
       }
     }
     return metaByHref;
-  }, [cwd, text]);
+  }, [cwd, markdownText]);
   const fileLinkParentSuffixByPath = useMemo(() => {
-    const filePaths = [...markdownFileLinkMetaByHref.values()].map((meta) => meta.filePath);
+    const filePaths = [...markdownFileLinkMetaByHref.values()].map(
+      (meta) => meta.filePath,
+    );
     return buildFileLinkParentSuffixByPath(filePaths);
   }, [markdownFileLinkMetaByHref]);
   const markdownUrlTransform = useCallback<UrlTransform>((href, key, node) => {
-    return rewriteMarkdownFileUriHref(href) ?? defaultUrlTransform(href, key, node);
+    return (
+      rewriteMarkdownFileUriHref(href) ?? defaultUrlTransform(href, key, node)
+    );
   }, []);
   const markdownComponents = useMemo<Components>(
     () => ({
       a({ node: _node, href, ...props }) {
         const normalizedHref = href ? normalizeMarkdownLinkHrefKey(href) : "";
-        const fileLinkMeta = normalizedHref ? markdownFileLinkMetaByHref.get(normalizedHref) : null;
+        const fileLinkMeta = normalizedHref
+          ? markdownFileLinkMetaByHref.get(normalizedHref)
+          : null;
         if (!fileLinkMeta) {
           return (
             <a
@@ -540,7 +652,9 @@ function ChatMarkdown({ text, cwd, isStreaming = false }: ChatMarkdownProps) {
           );
         }
 
-        const parentSuffix = fileLinkParentSuffixByPath.get(fileLinkMeta.filePath);
+        const parentSuffix = fileLinkParentSuffixByPath.get(
+          fileLinkMeta.filePath,
+        );
         const labelParts = [fileLinkMeta.basename];
         if (typeof parentSuffix === "string" && parentSuffix.length > 0) {
           labelParts.push(parentSuffix);
@@ -591,7 +705,11 @@ function ChatMarkdown({ text, cwd, isStreaming = false }: ChatMarkdownProps) {
         if (isStreaming) {
           return (
             <MarkdownCodeBlock code={code}>
-              <PlainCodeBlock className={className} code={code} codeProps={props} />
+              <PlainCodeBlock
+                className={className}
+                code={code}
+                codeProps={props}
+              />
             </MarkdownCodeBlock>
           );
         }
@@ -608,7 +726,12 @@ function ChatMarkdown({ text, cwd, isStreaming = false }: ChatMarkdownProps) {
         );
       },
       p({ node: _node, className, ...props }) {
-        return <p {...props} className={cn("mt-0 mb-[0.85em] text-pretty", className)} />;
+        return (
+          <p
+            {...props}
+            className={cn("mt-0 mb-[0.85em] text-pretty", className)}
+          />
+        );
       },
       h1({ node: _node, className, ...props }) {
         return (
@@ -749,7 +872,12 @@ function ChatMarkdown({ text, cwd, isStreaming = false }: ChatMarkdownProps) {
         return <b {...props} className={cn("font-semibold", className)} />;
       },
       del({ node: _node, className, ...props }) {
-        return <del {...props} className={cn("text-muted-foreground line-through", className)} />;
+        return (
+          <del
+            {...props}
+            className={cn("text-muted-foreground line-through", className)}
+          />
+        );
       },
       img({ node: _node, className, ...props }) {
         return (
@@ -775,14 +903,20 @@ function ChatMarkdown({ text, cwd, isStreaming = false }: ChatMarkdownProps) {
       },
       table({ node: _node, className, ...props }) {
         return (
-          <table {...props} className={cn("mb-3 w-full border-collapse text-left", className)} />
+          <table
+            {...props}
+            className={cn("mb-3 w-full border-collapse text-left", className)}
+          />
         );
       },
       th({ node: _node, className, ...props }) {
         return (
           <th
             {...props}
-            className={cn("border border-(--multi-markdown-request-border) px-1.5 py-1", className)}
+            className={cn(
+              "border border-(--multi-markdown-request-border) px-1.5 py-1",
+              className,
+            )}
           />
         );
       },
@@ -790,7 +924,10 @@ function ChatMarkdown({ text, cwd, isStreaming = false }: ChatMarkdownProps) {
         return (
           <td
             {...props}
-            className={cn("border border-(--multi-markdown-request-border) px-1.5 py-1", className)}
+            className={cn(
+              "border border-(--multi-markdown-request-border) px-1.5 py-1",
+              className,
+            )}
           />
         );
       },
@@ -821,7 +958,7 @@ function ChatMarkdown({ text, cwd, isStreaming = false }: ChatMarkdownProps) {
         controls={false}
         className="chat-markdown-streamdown space-y-0"
       >
-        {text}
+        {markdownText}
       </Streamdown>
     </div>
   );

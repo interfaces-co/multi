@@ -34,7 +34,7 @@ import {
   normalizePlanMarkdownForExport,
   proposedPlanTitle,
   stripDisplayedPlanMarkdown,
-} from "~/proposed-plan";
+} from "~/plan/proposed-plan";
 import type { ActivePlanState, LatestProposedPlanState } from "~/session-logic";
 import { formatTimestamp } from "~/lib/timestamp-format";
 import { WorkbenchChromeRow } from "../shell/workbench-chrome-row";

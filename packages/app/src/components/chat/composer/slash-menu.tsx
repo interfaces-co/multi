@@ -28,8 +28,7 @@ import {
   type ComposerTrigger,
   type ComposerTriggerKind,
 } from "./prompt-triggers";
-import { cn } from "~/lib/utils";
-import { basenameOfPath } from "../../../vscode-icons";
+import { basenameOfPath } from "../shared/vscode-entry-icons";
 import { projectSearchEntriesQueryOptions } from "~/lib/project-react-query";
 import { formatProviderSkillDisplayName } from "./provider-skills";
 import {
@@ -569,21 +568,17 @@ export const ComposerCommandMenu = memo(function ComposerCommandMenu(props: {
     >
       <div
         ref={listRef}
-        className={cn(
-          "relative w-full max-w-full min-w-0 overflow-hidden rounded-lg border border-multi-stroke-secondary bg-[color-mix(in_srgb,var(--glass-chat-bubble-opaque-background)_96%,transparent)] font-multi text-body text-multi-fg-primary shadow-multi-popup backdrop-blur-[18px] motion-reduce:animate-none motion-reduce:transition-none",
-          "ui-slash-menu__content ui-slash-menu__content--glass",
-          props.menuKind === "slash" ? "ui-slash-menu" : "mentions-menu mentions-menu__content",
-        )}
+        className="relative w-full max-w-full min-w-0 overflow-hidden rounded-lg border border-multi-stroke-secondary bg-[color-mix(in_srgb,var(--glass-chat-bubble-opaque-background)_96%,transparent)] font-multi text-body text-multi-fg-primary shadow-multi-popup backdrop-blur-[18px] motion-reduce:animate-none motion-reduce:transition-none"
         data-menu-kind={props.menuKind}
         data-variant="glass"
       >
         <CommandList className="max-h-[342px]">
           {groups.map((group, groupIndex) => (
-            <div key={group.id} className="ui-menu__section">
+            <div key={group.id}>
               {groupIndex > 0 ? <CommandSeparator className="my-px" /> : null}
               <CommandGroup>
                 {group.label ? (
-                  <CommandGroupLabel className="ui-menu__section-title px-1.5 py-0.5 text-detail font-medium text-multi-fg-tertiary opacity-60">
+                  <CommandGroupLabel className="px-1.5 py-0.5 text-detail font-medium text-multi-fg-tertiary opacity-60">
                     {group.label}
                   </CommandGroupLabel>
                 ) : null}
@@ -602,7 +597,7 @@ export const ComposerCommandMenu = memo(function ComposerCommandMenu(props: {
           ))}
         </CommandList>
         {props.items.length === 0 ? (
-          <div className="ui-menu__empty px-2.5 py-2">
+          <div className="px-2.5 py-2">
             <p className="text-body text-multi-fg-tertiary">
               {props.isLoading
                 ? "Searching project files..."
@@ -642,7 +637,7 @@ const ComposerCommandMenuItem = memo(function ComposerCommandMenuItem(props: {
       data-composer-item-id={props.item.id}
       data-is-selected={props.isActive ? "" : undefined}
       data-menu-item-type={props.item.type}
-      className="ui-slash-menu__item ui-menu__item flex min-h-[22px] cursor-pointer items-center gap-1.5 rounded-multi-control px-1.5 py-1 text-body text-multi-fg-primary select-none hover:bg-multi-bg-quaternary data-highlighted:bg-multi-bg-quaternary data-[is-selected]:bg-multi-bg-quaternary"
+      className="flex min-h-[22px] cursor-pointer items-center gap-1.5 rounded-multi-control px-1.5 py-1 text-body text-multi-fg-primary select-none hover:bg-multi-bg-quaternary data-highlighted:bg-multi-bg-quaternary data-[is-selected]:bg-multi-bg-quaternary"
       onMouseMove={() => {
         if (!props.isActive) props.onHighlight(props.item.id);
       }}
@@ -661,28 +656,28 @@ const ComposerCommandMenuItem = memo(function ComposerCommandMenuItem(props: {
         />
       ) : null}
       {SlashIcon ? (
-        <SlashIcon className="ui-slash-menu__item-icon size-4 shrink-0 text-multi-fg-secondary" />
+        <SlashIcon className="size-4 shrink-0 text-multi-fg-secondary" />
       ) : null}
       {props.item.type === "provider-slash-command" ? (
-        <span className="ui-slash-menu__item-icon inline-flex size-4 shrink-0 items-center justify-center text-multi-fg-secondary">
+        <span className="inline-flex size-4 shrink-0 items-center justify-center text-multi-fg-secondary">
           <IconSettingsSliderHor className="size-3.5" />
         </span>
       ) : null}
       {props.item.type === "skill" ? (
-        <span className="ui-slash-menu__item-icon inline-flex size-4 shrink-0 items-center justify-center text-multi-fg-secondary">
+        <span className="inline-flex size-4 shrink-0 items-center justify-center text-multi-fg-secondary">
           <IconBuildingBlocks className="size-3.5" />
         </span>
       ) : null}
-      <span className="ui-slash-menu__item-title-wrap flex min-w-0 flex-1 items-baseline gap-2">
-        <span className="ui-slash-menu__item-title min-w-0 flex-none truncate text-body font-medium text-multi-fg-primary">
+      <span className="flex min-w-0 flex-1 items-baseline gap-2">
+        <span className="min-w-0 flex-none truncate text-body font-medium text-multi-fg-primary">
           {props.item.label}
         </span>
-        <span className="ui-menu__item-description ui-slash-menu__item-inline-description min-w-0 flex-1 truncate text-detail text-multi-fg-tertiary">
+        <span className="min-w-0 flex-1 truncate text-detail text-multi-fg-tertiary">
           {props.item.description}
         </span>
       </span>
       {tertiaryText ? (
-        <span className="ui-slash-menu__item-tertiary-text flex-none whitespace-nowrap rounded-full border border-multi-stroke-secondary bg-multi-bg-tertiary/70 px-1.5 py-0 text-caption text-multi-fg-tertiary">
+        <span className="flex-none whitespace-nowrap rounded-full border border-multi-stroke-secondary bg-multi-bg-tertiary/70 px-1.5 py-0 text-caption text-multi-fg-tertiary">
           {tertiaryText}
         </span>
       ) : null}

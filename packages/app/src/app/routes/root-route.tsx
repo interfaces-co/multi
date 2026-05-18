@@ -1,10 +1,10 @@
 import { type ServerLifecycleWelcomePayload } from "@multi/contracts";
 import { scopedProjectKey, scopeProjectRef } from "@multi/client-runtime";
 import { getRouteApi, Outlet, type ErrorComponentProps, useNavigate } from "@tanstack/react-router";
-import { useEffect, useEffectEvent, useRef } from "react";
+import { useEffectEvent, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { APP_DISPLAY_NAME } from "~/branding";
+import { APP_DISPLAY_NAME } from "~/app/branding";
 import { CommandPalette } from "~/components/command-palette";
 import { TaskCompletionNotifications } from "~/notifications/taskCompletion";
 import {
@@ -14,7 +14,7 @@ import {
 } from "~/components/web-socket-connection-surface";
 import { Button } from "@multi/ui/button";
 import { AnchoredToastProvider, ToastProvider, toastManager } from "~/app/toast";
-import { resolveAndPersistPreferredEditor } from "~/editor-preferences";
+import { resolveAndPersistPreferredEditor } from "~/editor/preferences";
 import { readLocalApi } from "~/local-api";
 import {
   getServerConfigUpdatedNotification,
@@ -28,6 +28,7 @@ import {
 import { selectEnvironmentState, selectProjectByRef, useStore } from "~/stores/thread-store";
 import { useUiStateStore } from "~/stores/ui-state-store";
 import { syncBrowserChromeTheme } from "~/hooks/use-theme";
+import { useMountEffect } from "~/hooks/use-mount-effect";
 import {
   ensureEnvironmentConnectionBootstrapped,
   getPrimaryEnvironmentConnection,
@@ -35,26 +36,25 @@ import {
 } from "~/environments/runtime";
 import { updatePrimaryEnvironmentDescriptor } from "~/environments/primary";
 import { RouterDevtoolsPanel } from "~/dev/router-devtools";
-import { deriveLogicalProjectKey, derivePhysicalProjectKeyFromPath } from "~/logical-project";
+import {
+  deriveLogicalProjectKey,
+  derivePhysicalProjectKeyFromPath,
+} from "~/stores/project-identity";
 import { useSettings } from "~/hooks/use-settings";
 
 const routeApi = getRouteApi("__root__");
+type ServerEnvironmentDescriptor = NonNullable<ReturnType<typeof useServerEnvironment>>;
+type SetActiveEnvironmentId = (
+  environmentId: ServerEnvironmentDescriptor["environmentId"],
+) => void;
 
 export function RootRouteView() {
   const { authGateState } = routeApi.useRouteContext();
 
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      syncBrowserChromeTheme();
-    });
-    return () => {
-      window.cancelAnimationFrame(frame);
-    };
-  }, [authGateState.status]);
-
   if (authGateState.status !== "authenticated") {
     return (
       <>
+        <BrowserChromeThemeSync key={authGateState.status} />
         <AuthenticationRequiredView
           message={
             authGateState.errorMessage ??
@@ -67,6 +67,7 @@ export function RootRouteView() {
   }
   return (
     <ToastProvider>
+      <BrowserChromeThemeSync key={authGateState.status} />
       <AnchoredToastProvider>
         <CursorPreferenceSync />
         <ServerStateBootstrap />
@@ -86,14 +87,39 @@ export function RootRouteView() {
   );
 }
 
+function BrowserChromeThemeSync() {
+  useMountEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      syncBrowserChromeTheme();
+    });
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  });
+
+  return null;
+}
+
 function CursorPreferenceSync() {
   const cursorPointerOnButtons = useSettings((settings) => settings.cursorPointerOnButtons);
 
-  useEffect(() => {
+  return (
+    <CursorPreferenceDomSync
+      key={cursorPointerOnButtons ? "pointer-cursor" : "default-cursor"}
+      cursorPointerOnButtons={cursorPointerOnButtons}
+    />
+  );
+}
+
+function CursorPreferenceDomSync(props: { readonly cursorPointerOnButtons: boolean }) {
+  useMountEffect(() => {
     const root = document.documentElement;
-    root.style.setProperty("--multi-button-cursor", cursorPointerOnButtons ? "pointer" : "auto");
-    root.toggleAttribute("data-no-button-pointer", !cursorPointerOnButtons);
-  }, [cursorPointerOnButtons]);
+    root.style.setProperty(
+      "--multi-button-cursor",
+      props.cursorPointerOnButtons ? "pointer" : "auto",
+    );
+    root.toggleAttribute("data-no-button-pointer", !props.cursorPointerOnButtons);
+  });
 
   return null;
 }
@@ -214,9 +240,7 @@ function errorDetails(error: unknown): string {
 }
 
 function ServerStateBootstrap() {
-  useEffect(() => {
-    return startServerStateSync(getPrimaryEnvironmentConnection().client.server);
-  }, []);
+  useMountEffect(() => startServerStateSync(getPrimaryEnvironmentConnection().client.server));
 
   return null;
 }
@@ -224,9 +248,7 @@ function ServerStateBootstrap() {
 function EnvironmentConnectionManagerBootstrap() {
   const queryClient = useQueryClient();
 
-  useEffect(() => {
-    return startEnvironmentConnectionService(queryClient);
-  }, [queryClient]);
+  useMountEffect(() => startEnvironmentConnectionService(queryClient));
 
   return null;
 }
@@ -326,23 +348,47 @@ function EventRouter() {
     },
   );
 
-  useEffect(() => {
-    if (!serverEnvironment) {
-      return;
-    }
+  useMountEffect(() => {
+    disposedRef.current = false;
+    return () => {
+      disposedRef.current = true;
+    };
+  });
 
-    updatePrimaryEnvironmentDescriptor(serverEnvironment);
-    setActiveEnvironmentId(serverEnvironment.environmentId);
+  useServerWelcomeSubscription(handleWelcome);
+  useServerConfigUpdatedSubscription(handleServerConfigUpdated);
+
+  return serverEnvironment ? (
+    <ServerEnvironmentBootstrap
+      key={serverEnvironmentKey(serverEnvironment)}
+      serverEnvironment={serverEnvironment}
+      setActiveEnvironmentId={setActiveEnvironmentId}
+    />
+  ) : null;
+}
+
+function serverEnvironmentKey(serverEnvironment: ServerEnvironmentDescriptor): string {
+  return JSON.stringify(serverEnvironment);
+}
+
+function ServerEnvironmentBootstrap(props: {
+  readonly serverEnvironment: ServerEnvironmentDescriptor;
+  readonly setActiveEnvironmentId: SetActiveEnvironmentId;
+}) {
+  useMountEffect(() => {
+    updatePrimaryEnvironmentDescriptor(props.serverEnvironment);
+    props.setActiveEnvironmentId(props.serverEnvironment.environmentId);
 
     if (
-      selectEnvironmentState(useStore.getState(), serverEnvironment.environmentId).bootstrapComplete
+      selectEnvironmentState(useStore.getState(), props.serverEnvironment.environmentId)
+        .bootstrapComplete
     ) {
       return;
     }
 
     let disposed = false;
     void (async () => {
-      await ensureEnvironmentConnectionBootstrapped(serverEnvironment.environmentId);
+      await ensureEnvironmentConnectionBootstrapped(props.serverEnvironment.environmentId);
       if (disposed) {
         return;
       }
@@ -353,17 +399,7 @@ function EventRouter() {
     return () => {
       disposed = true;
     };
-  }, [serverEnvironment, setActiveEnvironmentId]);
-
-  useEffect(() => {
-    disposedRef.current = false;
-    return () => {
-      disposedRef.current = true;
-    };
-  }, []);
-
-  useServerWelcomeSubscription(handleWelcome);
-  useServerConfigUpdatedSubscription(handleServerConfigUpdated);
+  });
 
   return null;
 }

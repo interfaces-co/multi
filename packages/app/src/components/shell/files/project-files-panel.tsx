@@ -9,7 +9,7 @@ import {
   IconBarsThree,
   IconFiles,
 } from "central-icons";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { projectReadFileQueryOptions } from "~/lib/project-react-query";
@@ -192,6 +192,19 @@ export function ProjectFilesPanel(props: {
   environmentId: EnvironmentId | null;
   availableEditors: readonly EditorId[];
 }) {
+  return (
+    <ProjectFilesPanelContent
+      key={`${props.environmentId ?? "none"}:${props.cwd ?? "none"}`}
+      {...props}
+    />
+  );
+}
+
+function ProjectFilesPanelContent(props: {
+  cwd: string | null;
+  environmentId: EnvironmentId | null;
+  availableEditors: readonly EditorId[];
+}) {
   const [history, setHistory] = useState<PreviewHistory>(EMPTY_PREVIEW_HISTORY);
   const fileTreeRef = useRef<ProjectFileTreeHandle | null>(null);
   const activeTab = useActiveTab();
@@ -218,10 +231,6 @@ export function ProjectFilesPanel(props: {
       };
     });
   }, []);
-
-  useEffect(() => {
-    setHistory(EMPTY_PREVIEW_HISTORY);
-  }, [props.cwd, props.environmentId]);
 
   const tree = (
     <ProjectFileTree

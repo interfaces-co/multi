@@ -36,6 +36,14 @@ function formatErrorMessage(error: unknown): string {
   return String(error);
 }
 
+function isRpcStreamDoneCauseDecodeError(message: string): boolean {
+  return (
+    message.includes('SchemaError(Expected array, got {"_id":"Cause"') &&
+    message.includes('"~effect/Cause/Done":"~effect/Cause/Done"') &&
+    message.includes('at ["cause"]')
+  );
+}
+
 export class WsTransport {
   private readonly url: WsRpcProtocolSocketUrlProvider;
   private readonly lifecycleHandlers: WsProtocolLifecycleHandlers | undefined;
@@ -147,6 +155,11 @@ export class WsTransport {
           }
 
           const formattedError = formatErrorMessage(error);
+          if (isRpcStreamDoneCauseDecodeError(formattedError)) {
+            await sleep(retryDelayMs);
+            continue;
+          }
+
           if (!isTransportConnectionErrorMessage(formattedError)) {
             console.warn("WebSocket RPC subscription failed", {
               error: formattedError,

@@ -1,10 +1,28 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  createElement,
+  type MutableRefObject,
+  type ReactNode,
+  useCallback,
+  useRef,
+  useState,
+} from "react";
 
 import type { MessageId } from "@multi/contracts";
+import { useMountEffect } from "~/hooks/use-mount-effect";
 import type { ChatMessage } from "../../../types";
 import { revokeBlobPreviewUrl } from "../message/preview-url-lifecycle";
 
 type PreviewHandoffByMessageId = Record<string, string[]>;
+
+function useValueIdentityVersion<TValue>(value: TValue): number {
+  const valueRef = useRef(value);
+  const versionRef = useRef(0);
+  if (valueRef.current !== value) {
+    valueRef.current = value;
+    versionRef.current += 1;
+  }
+  return versionRef.current;
+}
 
 export function useAttachmentPreviewHandoff(input: {
   serverMessages: readonly ChatMessage[] | undefined;
@@ -13,10 +31,6 @@ export function useAttachmentPreviewHandoff(input: {
     useState<PreviewHandoffByMessageId>({});
   const attachmentPreviewHandoffByMessageIdRef = useRef<PreviewHandoffByMessageId>({});
   const attachmentPreviewPromotionInFlightByMessageIdRef = useRef<Record<string, true>>({});
-
-  useEffect(() => {
-    attachmentPreviewHandoffByMessageIdRef.current = attachmentPreviewHandoffByMessageId;
-  }, [attachmentPreviewHandoffByMessageId]);
 
   const clearAttachmentPreviewHandoff = useCallback(
     (messageId: MessageId, previewUrls?: ReadonlyArray<string>) => {
@@ -69,12 +83,86 @@ export function useAttachmentPreviewHandoff(input: {
     });
   }, []);
 
-  useEffect(() => {
-    if (
-      typeof Image === "undefined" ||
-      !input.serverMessages ||
-      input.serverMessages.length === 0
-    ) {
+  const serverMessagesVersion = useValueIdentityVersion(input.serverMessages);
+  const attachmentPreviewHandoffVersion = useValueIdentityVersion(
+    attachmentPreviewHandoffByMessageId,
+  );
+  const attachmentPreviewHandoffSync: ReactNode = createElement(
+    AttachmentPreviewHandoffPromotionSync,
+    {
+      key: `${serverMessagesVersion}:${attachmentPreviewHandoffVersion}`,
+      attachmentPreviewHandoffByMessageId,
+      attachmentPreviewPromotionInFlightByMessageIdRef,
+      clearAttachmentPreviewHandoff,
+      serverMessages: input.serverMessages,
+    },
+  );
+
+  const applyAttachmentPreviewHandoff = useCallback(
+    (messages: ChatMessage[]): ChatMessage[] => {
+      if (Object.keys(attachmentPreviewHandoffByMessageId).length === 0) {
+        return messages;
+      }
+
+      return messages.map((message) => {
+        if (message.role !== "user" || !message.attachments || message.attachments.length === 0) {
+          return message;
+        }
+        const handoffPreviewUrls = attachmentPreviewHandoffByMessageId[message.id];
+        if (!handoffPreviewUrls || handoffPreviewUrls.length === 0) {
+          return message;
+        }
+
+        let changed = false;
+        let imageIndex = 0;
+        const attachments = message.attachments.map((attachment) => {
+          if (attachment.type !== "image") {
+            return attachment;
+          }
+          const handoffPreviewUrl = handoffPreviewUrls[imageIndex];
+          imageIndex += 1;
+          if (!handoffPreviewUrl || attachment.previewUrl === handoffPreviewUrl) {
+            return attachment;
+          }
+          changed = true;
+          return {
+            ...attachment,
+            previewUrl: handoffPreviewUrl,
+          };
+        });
+
+        return changed ? { ...message, attachments } : message;
+      });
+    },
+    [attachmentPreviewHandoffByMessageId],
+  );
+
+  useMountEffect(() => clearAttachmentPreviewHandoffs);
+
+  return {
+    attachmentPreviewHandoffSync,
+    applyAttachmentPreviewHandoff,
+    clearAttachmentPreviewHandoffs,
+    handoffAttachmentPreviews,
+  };
+}
+
+function AttachmentPreviewHandoffPromotionSync({
+  attachmentPreviewHandoffByMessageId,
+  attachmentPreviewPromotionInFlightByMessageIdRef,
+  clearAttachmentPreviewHandoff,
+  serverMessages,
+}: {
+  attachmentPreviewHandoffByMessageId: PreviewHandoffByMessageId;
+  attachmentPreviewPromotionInFlightByMessageIdRef: MutableRefObject<Record<string, true>>;
+  clearAttachmentPreviewHandoff: (
+    messageId: MessageId,
+    previewUrls?: ReadonlyArray<string>,
+  ) => void;
+  serverMessages: readonly ChatMessage[] | undefined;
+}) {
+  useMountEffect(() => {
+    if (typeof Image === "undefined" || !serverMessages || serverMessages.length === 0) {
       return;
     }
 
@@ -87,7 +175,7 @@ export function useAttachmentPreviewHandoff(input: {
         continue;
       }
 
-      const serverMessage = input.serverMessages.find(
+      const serverMessage = serverMessages.find(
         (message) => message.id === messageId && message.role === "user",
       );
       if (!serverMessage?.attachments || serverMessage.attachments.length === 0) {
@@ -153,52 +241,7 @@ export function useAttachmentPreviewHandoff(input: {
         cleanup();
       }
     };
-  }, [attachmentPreviewHandoffByMessageId, clearAttachmentPreviewHandoff, input.serverMessages]);
+  });
 
-  const applyAttachmentPreviewHandoff = useCallback(
-    (messages: ChatMessage[]): ChatMessage[] => {
-      if (Object.keys(attachmentPreviewHandoffByMessageId).length === 0) {
-        return messages;
-      }
-
-      return messages.map((message) => {
-        if (message.role !== "user" || !message.attachments || message.attachments.length === 0) {
-          return message;
-        }
-        const handoffPreviewUrls = attachmentPreviewHandoffByMessageId[message.id];
-        if (!handoffPreviewUrls || handoffPreviewUrls.length === 0) {
-          return message;
-        }
-
-        let changed = false;
-        let imageIndex = 0;
-        const attachments = message.attachments.map((attachment) => {
-          if (attachment.type !== "image") {
-            return attachment;
-          }
-          const handoffPreviewUrl = handoffPreviewUrls[imageIndex];
-          imageIndex += 1;
-          if (!handoffPreviewUrl || attachment.previewUrl === handoffPreviewUrl) {
-            return attachment;
-          }
-          changed = true;
-          return {
-            ...attachment,
-            previewUrl: handoffPreviewUrl,
-          };
-        });
-
-        return changed ? { ...message, attachments } : message;
-      });
-    },
-    [attachmentPreviewHandoffByMessageId],
-  );
-
-  useEffect(() => clearAttachmentPreviewHandoffs, [clearAttachmentPreviewHandoffs]);
-
-  return {
-    applyAttachmentPreviewHandoff,
-    clearAttachmentPreviewHandoffs,
-    handoffAttachmentPreviews,
-  };
+  return null;
 }

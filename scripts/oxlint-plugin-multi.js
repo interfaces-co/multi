@@ -22,6 +22,8 @@ const COMPILER_METHODS = new Set([
   "encodeUnknownPromise",
   "encodeUnknownSync",
 ]);
+const APP_SRC_SEGMENT = "packages/app/src/";
+const MOUNT_EFFECT_WRAPPER_SUFFIX = "packages/app/src/hooks/use-mount-effect.ts";
 
 function unwrapExpression(node) {
   let current = node;
@@ -52,6 +54,23 @@ function getPropertyName(node) {
   if (property.type === "Literal" && typeof property.value === "string") return property.value;
   if (property.type === "StringLiteral") return property.value;
   return null;
+}
+
+function normalizedFilename(filename) {
+  return filename.replaceAll("\\", "/");
+}
+
+function isAppSourceFile(filename) {
+  const normalized = normalizedFilename(filename);
+  return (
+    (normalized.includes(`/${APP_SRC_SEGMENT}`) || normalized.startsWith(APP_SRC_SEGMENT)) &&
+    !/\.test\.[cm]?[jt]sx?$/.test(normalized) &&
+    !/\.browser\.[cm]?[jt]sx?$/.test(normalized)
+  );
+}
+
+function isMountEffectWrapperFile(filename) {
+  return normalizedFilename(filename).endsWith(MOUNT_EFFECT_WRAPPER_SUFFIX);
 }
 
 function getSchemaCompilerMethod(callee) {
@@ -157,11 +176,93 @@ const noInlineSchemaCompile = {
   },
 };
 
+const noDirectUseEffect = {
+  meta: {
+    type: "problem",
+    docs: {
+      description:
+        "Disallow direct React useEffect in app source; use useMountEffect for mount-only external sync or remove the effect.",
+    },
+  },
+  create(context) {
+    const filename = context.filename;
+    if (!isAppSourceFile(filename) || isMountEffectWrapperFile(filename)) {
+      return {};
+    }
+
+    const useEffectLocalNames = new Set();
+    const reactObjectNames = new Set();
+
+    function reportDirectUseEffect(node) {
+      context.report({
+        node,
+        message:
+          "Do not call React useEffect directly in app source. Derive state during render, use an event/keyed boundary, or use useMountEffect for mount-only external sync.",
+      });
+    }
+
+    return {
+      ImportDeclaration(node) {
+        if (node.source?.value !== "react") {
+          return;
+        }
+
+        for (const specifier of node.specifiers ?? []) {
+          if (specifier.type === "ImportSpecifier") {
+            const imported = getPropertyName(specifier.imported);
+            if (imported === "useEffect") {
+              useEffectLocalNames.add(specifier.local.name);
+              context.report({
+                node: specifier,
+                message:
+                  "Do not import React useEffect directly in app source. Import useMountEffect for mount-only external sync.",
+              });
+            }
+            continue;
+          }
+
+          if (
+            specifier.type === "ImportNamespaceSpecifier" ||
+            specifier.type === "ImportDefaultSpecifier"
+          ) {
+            reactObjectNames.add(specifier.local.name);
+          }
+        }
+      },
+      CallExpression(node) {
+        const callee = unwrapExpression(node.callee);
+        if (!callee) {
+          return;
+        }
+
+        if (callee.type === "Identifier" && useEffectLocalNames.has(callee.name)) {
+          reportDirectUseEffect(callee);
+          return;
+        }
+
+        if (callee.type !== "MemberExpression") {
+          return;
+        }
+
+        if (getPropertyName(callee.property) !== "useEffect") {
+          return;
+        }
+
+        const object = unwrapExpression(callee.object);
+        if (object?.type === "Identifier" && reactObjectNames.has(object.name)) {
+          reportDirectUseEffect(callee.property);
+        }
+      },
+    };
+  },
+};
+
 export default {
   meta: {
     name: "multi",
   },
   rules: {
     "no-inline-schema-compile": noInlineSchemaCompile,
+    "no-direct-use-effect": noDirectUseEffect,
   },
 };

@@ -5,8 +5,8 @@ import {
   type ThreadId,
 } from "@multi/contracts";
 import {
+  createElement,
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -14,6 +14,7 @@ import {
   type ClipboardEvent,
   type DragEvent,
   type MutableRefObject,
+  type ReactNode,
 } from "react";
 
 import {
@@ -25,8 +26,51 @@ import {
 import { randomUUID } from "~/lib/utils";
 import { toastManager } from "~/app/toast";
 import { readFileAsDataUrl } from "./send";
+import { useMountEffect } from "~/hooks/use-mount-effect";
 
 const IMAGE_SIZE_LIMIT_LABEL = `${Math.round(PROVIDER_SEND_TURN_MAX_IMAGE_BYTES / (1024 * 1024))}MB`;
+
+interface ComposerImageDragState {
+  readonly composerDraftTarget: ScopedThreadRef | DraftId;
+  readonly activeThreadId: ThreadId | null;
+  readonly depth: number;
+  readonly isOver: boolean;
+}
+
+function createComposerImageDragState(input: {
+  composerDraftTarget: ScopedThreadRef | DraftId;
+  activeThreadId: ThreadId | null;
+}): ComposerImageDragState {
+  return {
+    composerDraftTarget: input.composerDraftTarget,
+    activeThreadId: input.activeThreadId,
+    depth: 0,
+    isOver: false,
+  };
+}
+
+function isCurrentComposerImageDragState(
+  state: ComposerImageDragState,
+  input: {
+    composerDraftTarget: ScopedThreadRef | DraftId;
+    activeThreadId: ThreadId | null;
+  },
+): boolean {
+  return (
+    state.composerDraftTarget === input.composerDraftTarget &&
+    state.activeThreadId === input.activeThreadId
+  );
+}
+
+function useValueIdentityVersion<TValue>(value: TValue): number {
+  const valueRef = useRef(value);
+  const versionRef = useRef(0);
+  if (valueRef.current !== value) {
+    valueRef.current = value;
+    versionRef.current += 1;
+  }
+  return versionRef.current;
+}
 
 export function useComposerImageAttachments(input: {
   composerDraftTarget: ScopedThreadRef | DraftId;
@@ -48,9 +92,20 @@ export function useComposerImageAttachments(input: {
     focusComposer,
     setThreadError,
   } = input;
-  const [isDragOverComposer, setIsDragOverComposer] = useState(false);
   const composerImageInputRef = useRef<HTMLInputElement>(null);
-  const dragDepthRef = useRef(0);
+  const [dragState, setDragState] = useState<ComposerImageDragState>(() =>
+    createComposerImageDragState({ composerDraftTarget, activeThreadId }),
+  );
+  const activeDragState = isCurrentComposerImageDragState(dragState, {
+    composerDraftTarget,
+    activeThreadId,
+  })
+    ? dragState
+    : createComposerImageDragState({ composerDraftTarget, activeThreadId });
+  if (activeDragState !== dragState) {
+    setDragState(activeDragState);
+  }
+  const isDragOverComposer = activeDragState.isOver;
   const addComposerDraftImage = useComposerDraftStore((store) => store.addImage);
   const addComposerDraftImages = useComposerDraftStore((store) => store.addImages);
   const removeComposerDraftImage = useComposerDraftStore((store) => store.removeImage);
@@ -67,72 +122,32 @@ export function useComposerImageAttachments(input: {
     [nonPersistedComposerImageIds],
   );
 
-  useEffect(() => {
-    dragDepthRef.current = 0;
-    setIsDragOverComposer(false);
-  }, [activeThreadId, composerDraftTarget]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      if (composerImages.length === 0) {
-        clearComposerDraftPersistedAttachments(composerDraftTarget);
-        return;
-      }
-      const getPersistedAttachmentsForThread = () =>
-        getComposerDraft(composerDraftTarget)?.persistedAttachments ?? [];
-      try {
-        const currentPersistedAttachments = getPersistedAttachmentsForThread();
-        const existingPersistedById = new Map(
-          currentPersistedAttachments.map((attachment) => [attachment.id, attachment]),
-        );
-        const stagedAttachmentById = new Map<string, PersistedComposerImageAttachment>();
-        await Promise.all(
-          composerImages.map(async (image) => {
-            try {
-              const dataUrl = await readFileAsDataUrl(image.file);
-              stagedAttachmentById.set(image.id, {
-                id: image.id,
-                name: image.name,
-                mimeType: image.mimeType,
-                sizeBytes: image.sizeBytes,
-                dataUrl,
-              });
-            } catch {
-              const existingPersisted = existingPersistedById.get(image.id);
-              if (existingPersisted) {
-                stagedAttachmentById.set(image.id, existingPersisted);
-              }
-            }
-          }),
-        );
-        const serialized = Array.from(stagedAttachmentById.values());
-        if (cancelled) return;
-        syncComposerDraftPersistedAttachments(composerDraftTarget, serialized);
-      } catch {
-        const currentImageIds = new Set(composerImages.map((image) => image.id));
-        const fallbackPersistedAttachments = getPersistedAttachmentsForThread();
-        const fallbackPersistedIds = fallbackPersistedAttachments
-          .map((attachment) => attachment.id)
-          .filter((id) => currentImageIds.has(id));
-        const fallbackPersistedIdSet = new Set(fallbackPersistedIds);
-        const fallbackAttachments = fallbackPersistedAttachments.filter((attachment) =>
-          fallbackPersistedIdSet.has(attachment.id),
-        );
-        if (cancelled) return;
-        syncComposerDraftPersistedAttachments(composerDraftTarget, fallbackAttachments);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [
+  const composerDraftTargetVersion = useValueIdentityVersion(composerDraftTarget);
+  const composerImagesVersion = useValueIdentityVersion(composerImages);
+  const clearPersistedAttachmentsVersion = useValueIdentityVersion(
     clearComposerDraftPersistedAttachments,
-    composerDraftTarget,
-    composerImages,
-    getComposerDraft,
+  );
+  const getComposerDraftVersion = useValueIdentityVersion(getComposerDraft);
+  const syncPersistedAttachmentsVersion = useValueIdentityVersion(
     syncComposerDraftPersistedAttachments,
-  ]);
+  );
+  const composerImageAttachmentPersistenceSync: ReactNode = createElement(
+    ComposerImageAttachmentPersistenceSync,
+    {
+      key: [
+        composerDraftTargetVersion,
+        composerImagesVersion,
+        clearPersistedAttachmentsVersion,
+        getComposerDraftVersion,
+        syncPersistedAttachmentsVersion,
+      ].join("\0"),
+      clearComposerDraftPersistedAttachments,
+      composerDraftTarget,
+      composerImages,
+      getComposerDraft,
+      syncComposerDraftPersistedAttachments,
+    },
+  );
 
   const addComposerImages = useCallback(
     (files: File[]) => {
@@ -209,42 +224,79 @@ export function useComposerImageAttachments(input: {
     [addComposerImages],
   );
 
-  const onComposerDragEnter = useCallback((event: DragEvent<HTMLDivElement>) => {
-    if (!event.dataTransfer.types.includes("Files")) return;
-    event.preventDefault();
-    dragDepthRef.current += 1;
-    setIsDragOverComposer(true);
-  }, []);
+  const onComposerDragEnter = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      if (!event.dataTransfer.types.includes("Files")) return;
+      event.preventDefault();
+      setDragState((current) => {
+        const base = isCurrentComposerImageDragState(current, {
+          composerDraftTarget,
+          activeThreadId,
+        })
+          ? current
+          : createComposerImageDragState({ composerDraftTarget, activeThreadId });
+        return {
+          ...base,
+          depth: base.depth + 1,
+          isOver: true,
+        };
+      });
+    },
+    [activeThreadId, composerDraftTarget],
+  );
 
-  const onComposerDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
-    if (!event.dataTransfer.types.includes("Files")) return;
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "copy";
-    setIsDragOverComposer(true);
-  }, []);
+  const onComposerDragOver = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      if (!event.dataTransfer.types.includes("Files")) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+      setDragState((current) => {
+        const base = isCurrentComposerImageDragState(current, {
+          composerDraftTarget,
+          activeThreadId,
+        })
+          ? current
+          : createComposerImageDragState({ composerDraftTarget, activeThreadId });
+        return base.isOver ? base : { ...base, isOver: true };
+      });
+    },
+    [activeThreadId, composerDraftTarget],
+  );
 
-  const onComposerDragLeave = useCallback((event: DragEvent<HTMLDivElement>) => {
-    if (!event.dataTransfer.types.includes("Files")) return;
-    event.preventDefault();
-    const nextTarget = event.relatedTarget;
-    if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return;
-    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
-    if (dragDepthRef.current === 0) {
-      setIsDragOverComposer(false);
-    }
-  }, []);
+  const onComposerDragLeave = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      if (!event.dataTransfer.types.includes("Files")) return;
+      event.preventDefault();
+      const nextTarget = event.relatedTarget;
+      if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return;
+      setDragState((current) => {
+        const base = isCurrentComposerImageDragState(current, {
+          composerDraftTarget,
+          activeThreadId,
+        })
+          ? current
+          : createComposerImageDragState({ composerDraftTarget, activeThreadId });
+        const depth = Math.max(0, base.depth - 1);
+        return {
+          ...base,
+          depth,
+          isOver: depth > 0,
+        };
+      });
+    },
+    [activeThreadId, composerDraftTarget],
+  );
 
   const onComposerDrop = useCallback(
     (event: DragEvent<HTMLDivElement>) => {
       if (!event.dataTransfer.types.includes("Files")) return;
       event.preventDefault();
-      dragDepthRef.current = 0;
-      setIsDragOverComposer(false);
+      setDragState(createComposerImageDragState({ composerDraftTarget, activeThreadId }));
       const files = Array.from(event.dataTransfer.files);
       addComposerImages(files);
       focusComposer();
     },
-    [addComposerImages, focusComposer],
+    [activeThreadId, addComposerImages, composerDraftTarget, focusComposer],
   );
 
   const onComposerImageInputChange = useCallback(
@@ -260,6 +312,7 @@ export function useComposerImageAttachments(input: {
 
   return {
     composerImageInputRef,
+    composerImageAttachmentPersistenceSync,
     isDragOverComposer,
     nonPersistedComposerImageIdSet,
     onComposerPaste,
@@ -270,4 +323,80 @@ export function useComposerImageAttachments(input: {
     onComposerImageInputChange,
     removeComposerImage,
   };
+}
+
+function ComposerImageAttachmentPersistenceSync({
+  clearComposerDraftPersistedAttachments,
+  composerDraftTarget,
+  composerImages,
+  getComposerDraft,
+  syncComposerDraftPersistedAttachments,
+}: {
+  clearComposerDraftPersistedAttachments: ReturnType<
+    typeof useComposerDraftStore.getState
+  >["clearPersistedAttachments"];
+  composerDraftTarget: ScopedThreadRef | DraftId;
+  composerImages: ComposerImageAttachment[];
+  getComposerDraft: ReturnType<typeof useComposerDraftStore.getState>["getComposerDraft"];
+  syncComposerDraftPersistedAttachments: ReturnType<
+    typeof useComposerDraftStore.getState
+  >["syncPersistedAttachments"];
+}) {
+  useMountEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      if (composerImages.length === 0) {
+        clearComposerDraftPersistedAttachments(composerDraftTarget);
+        return;
+      }
+      const getPersistedAttachmentsForThread = () =>
+        getComposerDraft(composerDraftTarget)?.persistedAttachments ?? [];
+      try {
+        const currentPersistedAttachments = getPersistedAttachmentsForThread();
+        const existingPersistedById = new Map(
+          currentPersistedAttachments.map((attachment) => [attachment.id, attachment]),
+        );
+        const stagedAttachmentById = new Map<string, PersistedComposerImageAttachment>();
+        await Promise.all(
+          composerImages.map(async (image) => {
+            try {
+              const dataUrl = await readFileAsDataUrl(image.file);
+              stagedAttachmentById.set(image.id, {
+                id: image.id,
+                name: image.name,
+                mimeType: image.mimeType,
+                sizeBytes: image.sizeBytes,
+                dataUrl,
+              });
+            } catch {
+              const existingPersisted = existingPersistedById.get(image.id);
+              if (existingPersisted) {
+                stagedAttachmentById.set(image.id, existingPersisted);
+              }
+            }
+          }),
+        );
+        const serialized = Array.from(stagedAttachmentById.values());
+        if (cancelled) return;
+        syncComposerDraftPersistedAttachments(composerDraftTarget, serialized);
+      } catch {
+        const currentImageIds = new Set(composerImages.map((image) => image.id));
+        const fallbackPersistedAttachments = getPersistedAttachmentsForThread();
+        const fallbackPersistedIds = fallbackPersistedAttachments
+          .map((attachment) => attachment.id)
+          .filter((id) => currentImageIds.has(id));
+        const fallbackPersistedIdSet = new Set(fallbackPersistedIds);
+        const fallbackAttachments = fallbackPersistedAttachments.filter((attachment) =>
+          fallbackPersistedIdSet.has(attachment.id),
+        );
+        if (cancelled) return;
+        syncComposerDraftPersistedAttachments(composerDraftTarget, fallbackAttachments);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  });
+
+  return null;
 }

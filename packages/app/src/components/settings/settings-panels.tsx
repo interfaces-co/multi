@@ -7,7 +7,7 @@ import {
 } from "central-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { useDebouncer } from "@tanstack/react-pacer";
-import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, useCallback, useMemo, useRef, useState } from "react";
 import {
   type AgentWindowSendWhileStreamingBehavior,
   type AgentWindowUsageSummaryDisplay,
@@ -21,7 +21,7 @@ import { scopeThreadRef } from "@multi/client-runtime";
 import { DEFAULT_UNIFIED_SETTINGS, type UnifiedSettings } from "@multi/contracts/settings";
 import { createModelSelection } from "@multi/shared/model";
 import { Equal } from "effect";
-import { APP_VERSION } from "../../branding";
+import { APP_VERSION } from "~/app/branding";
 import {
   DEFAULT_APPEARANCE_SNAPSHOT,
   appearanceSettingsActions,
@@ -35,7 +35,7 @@ import {
 } from "../../components/desktop-update-state";
 import { ProviderModelPicker } from "../chat/picker/model-picker";
 import { TraitsPicker } from "../chat/picker/traits-picker";
-import { resolveAndPersistPreferredEditor } from "../../editor-preferences";
+import { resolveAndPersistPreferredEditor } from "../../editor/preferences";
 import { isElectron } from "../../env";
 import { useTheme } from "../../hooks/use-theme";
 import { useSettings, useUpdateSettings } from "../../hooks/use-settings";
@@ -483,12 +483,6 @@ function FontFamilyInput(props: {
     onUnmount: (debouncer) => debouncer.flush(),
   });
 
-  const onDraftValueChange = props.onDraftValueChange;
-  useEffect(() => {
-    setDraftValue(props.value);
-    onDraftValueChange?.(props.value);
-  }, [props.value, onDraftValueChange]);
-
   return (
     <Input
       size="sm"
@@ -504,6 +498,49 @@ function FontFamilyInput(props: {
         commitValue.maybeExecute(nextValue);
       }}
     />
+  );
+}
+
+function CodeFontFamilySettingsRow(props: { codeFont: string }) {
+  const [codeFontDraft, setCodeFontDraft] = useState(props.codeFont);
+  const codePreviewStyle = useMemo<CSSProperties>(
+    () => ({
+      fontFamily: codeFontDraft.trim() || "var(--multi-font-mono)",
+      fontSize: "var(--multi-code-font-size-user, 12px)",
+      lineHeight: "calc(var(--multi-code-font-size-user, 12px) * 1.45)",
+    }),
+    [codeFontDraft],
+  );
+
+  return (
+    <SettingsRow
+      title="Code Font Family"
+      description="Override the font for code editors and diffs."
+      control={
+        <FontFamilyInput
+          label="Code Font Family"
+          value={props.codeFont}
+          placeholder="System monospace"
+          onChange={appearanceSettingsActions.setCodeFontFamily}
+          onDraftValueChange={setCodeFontDraft}
+        />
+      }
+    >
+      <div className="mt-2 overflow-hidden rounded-sm" style={codePreviewStyle}>
+        <div className="flex bg-rose-500/10 text-foreground/72">
+          <span className="w-8 shrink-0 text-center text-rose-500/80">1</span>
+          <span>return a + b;</span>
+        </div>
+        <div className="flex bg-emerald-500/10 text-foreground/72">
+          <span className="w-8 shrink-0 text-center text-emerald-600/80">1</span>
+          <span>const result = a + b;</span>
+        </div>
+        <div className="flex bg-emerald-500/10 text-foreground/72">
+          <span className="w-8 shrink-0 text-center text-emerald-600/80">2</span>
+          <span>return result;</span>
+        </div>
+      </div>
+    </SettingsRow>
   );
 }
 
@@ -718,21 +755,8 @@ export function GeneralSettingsPanel() {
 export function AppearanceSettingsPanel() {
   const { theme, setTheme } = useTheme();
   const appearance = useAppearanceSettingsSnapshot();
-  const [codeFontDraft, setCodeFontDraft] = useState(appearance.codeFont);
   const settings = useSettings();
   const { updateSettings } = useUpdateSettings();
-  const codePreviewStyle = useMemo<CSSProperties>(
-    () => ({
-      fontFamily: codeFontDraft.trim() || "var(--multi-font-mono)",
-      fontSize: "var(--multi-code-font-size-user, 12px)",
-      lineHeight: "calc(var(--multi-code-font-size-user, 12px) * 1.45)",
-    }),
-    [codeFontDraft],
-  );
-
-  useEffect(() => {
-    setCodeFontDraft(appearance.codeFont);
-  }, [appearance.codeFont]);
 
   return (
     <SettingsPageContainer>
@@ -880,35 +904,7 @@ export function AppearanceSettingsPanel() {
             />
           }
         />
-        <SettingsRow
-          title="Code Font Family"
-          description="Override the font for code editors and diffs."
-          control={
-            <FontFamilyInput
-              key={appearance.codeFont}
-              label="Code Font Family"
-              value={appearance.codeFont}
-              placeholder="System monospace"
-              onChange={appearanceSettingsActions.setCodeFontFamily}
-              onDraftValueChange={setCodeFontDraft}
-            />
-          }
-        >
-          <div className="mt-2 overflow-hidden rounded-sm" style={codePreviewStyle}>
-            <div className="flex bg-rose-500/10 text-foreground/72">
-              <span className="w-8 shrink-0 text-center text-rose-500/80">1</span>
-              <span>return a + b;</span>
-            </div>
-            <div className="flex bg-emerald-500/10 text-foreground/72">
-              <span className="w-8 shrink-0 text-center text-emerald-600/80">1</span>
-              <span>const result = a + b;</span>
-            </div>
-            <div className="flex bg-emerald-500/10 text-foreground/72">
-              <span className="w-8 shrink-0 text-center text-emerald-600/80">2</span>
-              <span>return result;</span>
-            </div>
-          </div>
-        </SettingsRow>
+        <CodeFontFamilySettingsRow key={appearance.codeFont} codeFont={appearance.codeFont} />
       </SettingsSection>
 
       <SettingsSection title="Agent Window">
@@ -1290,6 +1286,10 @@ export function ModelsSettingsPanel() {
     providers: serverProviders,
     requestedSelection: settings.textGenerationModelSelection,
   });
+  const textGenerationModelStatus =
+    textGenerationModelState.status.kind === "ready"
+      ? null
+      : textGenerationModelState.status.message;
   const textGenerationModelSelection = textGenerationModelState.modelSelection;
   const textGenInstanceId = textGenerationModelSelection.instanceId;
   const textGenModel = textGenerationModelSelection.model;
@@ -1297,7 +1297,6 @@ export function ModelsSettingsPanel() {
   const modelInstanceEntries = textGenerationModelState.providerInstanceEntries;
   const textGenInstanceEntry = textGenerationModelState.selectedProviderEntry;
   const textGenProvider = textGenerationModelState.selectedProvider;
-  const gitModelOptionsByInstance = textGenerationModelState.modelOptionsByInstance;
   const resolveTextGenerationModelSelection = useCallback(
     (nextSettings: UnifiedSettings) =>
       resolveAppProviderModelState({
@@ -1503,6 +1502,7 @@ export function ModelsSettingsPanel() {
         <SettingsRow
           title="Text generation model"
           description="Configure the model used for generated commit messages, PR titles, and similar Git text."
+          status={textGenerationModelStatus}
           resetAction={
             isGitWritingModelDirty ? (
               <SettingResetButton
@@ -1522,13 +1522,15 @@ export function ModelsSettingsPanel() {
                 activeInstanceId={textGenInstanceId}
                 model={textGenModel}
                 instanceEntries={modelInstanceEntries}
-                modelOptionsByInstance={gitModelOptionsByInstance}
+                modelCatalogItems={textGenerationModelState.modelCatalogItems}
+                selectedCatalogItem={textGenerationModelState.selectedCatalogItem}
+                availabilityStatus={textGenerationModelState.status}
                 triggerVariant="outline"
                 triggerClassName="min-w-0 max-w-none shrink-0 text-foreground/90 hover:text-foreground"
-                onInstanceModelChange={(instanceId, model) => {
+                onSelectionChange={(selection) => {
                   const nextSettings = {
                     ...settings,
-                    textGenerationModelSelection: createModelSelection(instanceId, model),
+                    textGenerationModelSelection: selection,
                   };
                   updateSettings({
                     textGenerationModelSelection: resolveTextGenerationModelSelection(nextSettings),

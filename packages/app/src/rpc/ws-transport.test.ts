@@ -884,6 +884,47 @@ describe("WsTransport", () => {
     await transport.dispose();
   });
 
+  it("retries stream subscriptions after RPC stream shutdown decode errors", async () => {
+    const transport = createTransport("ws://localhost:3020");
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    let attempts = 0;
+    const doneCauseDecodeMessage =
+      'SchemaError(Expected array, got {"_id":"Cause","failures":[{"_tag":"Fail","error":{"~effect/Cause/Done":"~effect/Cause/Done","_tag":"Done"}}]}\n' +
+      '  at ["cause"])';
+
+    const unsubscribe = transport.subscribe(
+      () =>
+        Stream.suspend(() => {
+          attempts += 1;
+          return Stream.fail(new Error(doneCauseDecodeMessage));
+        }),
+      vi.fn(),
+      { retryDelay: 10 },
+    );
+
+    await waitFor(() => {
+      expect(sockets).toHaveLength(1);
+    });
+
+    getSocket().open();
+
+    await waitFor(() => {
+      expect(attempts).toBeGreaterThanOrEqual(2);
+    });
+
+    expect(warnSpy).not.toHaveBeenCalledWith(
+      "WebSocket RPC subscription failed",
+      expect.anything(),
+    );
+    expect(warnSpy).not.toHaveBeenCalledWith(
+      "WebSocket RPC subscription disconnected",
+      expect.anything(),
+    );
+
+    unsubscribe();
+    await transport.dispose();
+  });
+
   it("keeps retrying stream subscriptions after transport failures", async () => {
     const transport = createTransport("ws://localhost:3020");
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);

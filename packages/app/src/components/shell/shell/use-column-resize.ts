@@ -4,10 +4,11 @@ import {
   type PointerEvent as ReactPointerEvent,
   type RefObject,
   useCallback,
-  useEffect,
   useRef,
   useState,
 } from "react";
+
+import { useMountEffect } from "~/hooks/use-mount-effect";
 
 interface ColumnResizeLimits {
   min: number;
@@ -75,7 +76,7 @@ export function useColumnResize<TElement extends HTMLElement>(input: {
     [flushPendingWidth],
   );
 
-  useEffect(() => {
+  useMountEffect(() => {
     return () => {
       if (applyWidthFrameRef.current !== null) {
         window.cancelAnimationFrame(applyWidthFrameRef.current);
@@ -84,7 +85,7 @@ export function useColumnResize<TElement extends HTMLElement>(input: {
       document.body.style.removeProperty("cursor");
       document.body.style.removeProperty("user-select");
     };
-  }, []);
+  });
 
   const stopResize = useCallback(
     (pointerId: number) => {

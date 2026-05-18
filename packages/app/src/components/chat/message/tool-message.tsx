@@ -5,7 +5,7 @@ import {
   type WorkLogEntry,
   type WorkLogSubagent,
 } from "../../../session-logic";
-import { formatProjectRelativePath } from "../../../file-path-display";
+import { formatProjectRelativePath } from "../shared/file-path-display";
 import { ThinkingStatus, ToolCallRenderer, type ToolCallModel } from "./tool-renderer";
 
 type ToolCallStatus = "loading" | "completed" | "error";

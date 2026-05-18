@@ -149,9 +149,9 @@ Rules:
       app helper cleanup.
 - [ ] Make `@multi/shared/observability` canonical for trace record/sink/tracer
       behavior and remove server duplicates.
-- [ ] Keep `@multi/shared/model` as primitive model helpers; app resolver
+- [x] Keep `@multi/shared/model` as primitive model helpers; app resolver
       policy belongs in `packages/app/src/model`.
-- [ ] Keep `@multi/shared/project-scripts` canonical for project-script runtime
+- [x] Keep `@multi/shared/project-scripts` canonical for project-script runtime
       helpers used by app and server.
 - [ ] Reclassify one-consumer shared exports before keeping them public.
 
@@ -164,10 +164,10 @@ results.
 
 Rules:
 
-- [ ] Availability, fallback, ordering, and missing-state policy live in model
+- [x] Availability, fallback, ordering, and missing-state policy live in model
       core, not picker components.
-- [ ] Picker/settings/command-palette surfaces consume normalized model output.
-- [ ] Missing/disabled provider states are discriminated results with consistent
+- [x] Picker/settings/command-palette surfaces consume normalized model output.
+- [x] Missing/disabled provider states are discriminated results with consistent
       UI messages.
 
 Detailed rules: [model.md](./model.md).
@@ -184,7 +184,7 @@ Rules:
 
 - [x] WebSocket RPC methods are explicit in `packages/contracts/src/rpc.ts`.
 - [x] TanStack route files validate route/search shape.
-- [ ] Route files do not own model resolution, plan orchestration, or composer
+- [x] Route files do not own model resolution, plan orchestration, or composer
       state policy.
 - [ ] Expected server errors are mapped at HTTP/RPC boundaries, not in generic
       middleware or UI string parsing.
@@ -220,10 +220,10 @@ reset with keyed boundaries.
 Rules:
 
 - [x] Direct `useEffect` is not allowed for new React code.
-- [ ] Add a `useMountEffect` wrapper for mount-only external sync.
-- [ ] Classify the existing `49` production files with direct `useEffect`
-      before code changes.
-- [ ] Enforce no direct `useEffect` through the local oxlint plugin after the
+- [x] Add a `useMountEffect` wrapper for mount-only external sync.
+- [x] Classify the production files with direct `useEffect` before code
+      changes.
+- [x] Enforce no direct `useEffect` through the local oxlint plugin after the
       migration path is documented.
 
 Detailed rules: [react.md](./react.md).

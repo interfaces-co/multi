@@ -20,9 +20,9 @@ import type { ComponentType } from "react";
 import {
   forwardRef,
   useCallback,
-  useEffect,
   useImperativeHandle,
   useLayoutEffect,
+  useMemo,
   useRef,
   type ClipboardEventHandler,
   type ReactElement,
@@ -47,10 +47,15 @@ import {
   type TerminalContextDraft,
 } from "~/lib/terminal-context";
 import { cn } from "~/lib/utils";
-import { basenameOfPath, getVscodeIconUrlForEntry, inferEntryKindFromPath } from "~/vscode-icons";
+import {
+  basenameOfPath,
+  getVscodeIconUrlForEntry,
+  inferEntryKindFromPath,
+} from "../shared/vscode-entry-icons";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@multi/ui/tooltip";
 import { TerminalContextInlineChip } from "../message/terminal-context-chip";
 import { formatProviderSkillDisplayName } from "./provider-skills";
+import { useMountEffect } from "~/hooks/use-mount-effect";
 
 const SURROUND_SYMBOLS: [string, string][] = [
   ["(", ")"],
@@ -207,7 +212,9 @@ function skillMetadataByName(
   );
 }
 
-function terminalContextSignature(contexts: ReadonlyArray<TerminalContextDraft>): string {
+function terminalContextSignature(
+  contexts: ReadonlyArray<TerminalContextDraft>,
+): string {
   return contexts
     .map((context) =>
       [
@@ -329,7 +336,10 @@ function textToPosition(
   mode: "expanded" | "collapsed",
 ): number {
   const fullLength = textBetween(doc, 0, doc.content.size, mode).length;
-  const boundedTarget = Math.max(0, Math.min(fullLength, Math.floor(targetOffset)));
+  const boundedTarget = Math.max(
+    0,
+    Math.min(fullLength, Math.floor(targetOffset)),
+  );
   const maxPosition = Math.max(1, doc.content.size - 1);
   if (boundedTarget <= 0) return 1;
   if (boundedTarget >= fullLength) return maxPosition;
@@ -378,7 +388,10 @@ function promptToTiptapDoc(
   }
 
   const content: JSONContent[] = [];
-  for (const segment of splitPromptIntoComposerSegments(prompt, terminalContexts)) {
+  for (const segment of splitPromptIntoComposerSegments(
+    prompt,
+    terminalContexts,
+  )) {
     if (segment.type === "text") {
       appendTextNodes(content, segment.text);
       continue;
@@ -397,7 +410,9 @@ function promptToTiptapDoc(
       const metadata = skillMetadata.get(segment.name);
       const attrs: Record<string, unknown> = {
         skillName: segment.name,
-        skillLabel: metadata?.label ?? formatProviderSkillDisplayName({ name: segment.name }),
+        skillLabel:
+          metadata?.label ??
+          formatProviderSkillDisplayName({ name: segment.name }),
       };
       if (metadata?.description) attrs.skillDescription = metadata.description;
       if (segment.path) attrs.skillPath = segment.path;
@@ -490,7 +505,9 @@ function readSnapshotFromEditor(editor: Editor): ComposerPromptEditorSnapshot {
   const doc = editor.state.doc;
   const selection = editor.state.selection;
   const head =
-    "head" in selection && typeof selection.head === "number" ? selection.head : selection.to;
+    "head" in selection && typeof selection.head === "number"
+      ? selection.head
+      : selection.to;
   const value = promptTextFromDoc(doc);
   const cursor = textBetween(doc, 0, head, "collapsed").length;
   const expandedCursor = textBetween(doc, 0, head, "expanded").length;
@@ -511,7 +528,9 @@ function snapshotsEqual(
     left.cursor === right.cursor &&
     left.expandedCursor === right.expandedCursor &&
     left.terminalContextIds.length === right.terminalContextIds.length &&
-    left.terminalContextIds.every((id, index) => id === right.terminalContextIds[index])
+    left.terminalContextIds.every(
+      (id, index) => id === right.terminalContextIds[index],
+    )
   );
 }
 
@@ -524,7 +543,9 @@ function emitMeasuredMultiline(
   const computed = window.getComputedStyle(dom);
   const lineHeight = Number.parseFloat(computed.lineHeight);
   const fallbackLineHeight = Number.parseFloat(computed.fontSize) * 1.5;
-  const resolvedLineHeight = Number.isFinite(lineHeight) ? lineHeight : fallbackLineHeight;
+  const resolvedLineHeight = Number.isFinite(lineHeight)
+    ? lineHeight
+    : fallbackLineHeight;
   const range = document.createRange();
   range.selectNodeContents(dom);
   const contentHeight = range.getBoundingClientRect().height;
@@ -537,7 +558,11 @@ function emitMeasuredMultiline(
   );
 }
 
-function selectionContainsComposerAtom(editor: Editor, from: number, to: number): boolean {
+function selectionContainsComposerAtom(
+  editor: Editor,
+  from: number,
+  to: number,
+): boolean {
   let containsAtom = false;
   editor.state.doc.nodesBetween(from, to, (node) => {
     if (COMPOSER_ATOM_NODE_NAMES.has(node.type.name)) {
@@ -555,16 +580,25 @@ function syncEditorSelectionFromDom(editor: Editor): void {
   const anchorNode = selection.anchorNode;
   const focusNode = selection.focusNode;
   if (!anchorNode || !focusNode) return;
-  if (!editor.view.dom.contains(anchorNode) || !editor.view.dom.contains(focusNode)) return;
+  if (
+    !editor.view.dom.contains(anchorNode) ||
+    !editor.view.dom.contains(focusNode)
+  )
+    return;
 
   try {
     const anchor = editor.view.posAtDOM(anchorNode, selection.anchorOffset);
     const head = editor.view.posAtDOM(focusNode, selection.focusOffset);
-    if (anchor === editor.state.selection.anchor && head === editor.state.selection.head) {
+    if (
+      anchor === editor.state.selection.anchor &&
+      head === editor.state.selection.head
+    ) {
       return;
     }
     editor.view.dispatch(
-      editor.state.tr.setSelection(TextSelection.create(editor.state.doc, anchor, head)),
+      editor.state.tr.setSelection(
+        TextSelection.create(editor.state.doc, anchor, head),
+      ),
     );
   } catch {
     // ProseMirror may reject DOM points inside atom node views. In that case the
@@ -572,7 +606,9 @@ function syncEditorSelectionFromDom(editor: Editor): void {
   }
 }
 
-function captureSurroundSelection(editor: Editor): SurroundSelectionSnapshot | null {
+function captureSurroundSelection(
+  editor: Editor,
+): SurroundSelectionSnapshot | null {
   syncEditorSelectionFromDom(editor);
   const selection = editor.state.selection;
   if (selection.empty) return null;
@@ -582,7 +618,12 @@ function captureSurroundSelection(editor: Editor): SurroundSelectionSnapshot | n
     return null;
   }
   const value = promptTextFromDoc(editor.state.doc);
-  const expandedStart = textBetween(editor.state.doc, 0, from, "expanded").length;
+  const expandedStart = textBetween(
+    editor.state.doc,
+    0,
+    from,
+    "expanded",
+  ).length;
   const expandedEnd = textBetween(editor.state.doc, 0, to, "expanded").length;
   if (selectionTouchesMentionBoundary(value, expandedStart, expandedEnd)) {
     return null;
@@ -609,7 +650,11 @@ function applySurroundInput(
   tr.insertText(open, snapshot.from, snapshot.from);
   tr.insertText(close, snapshot.to + open.length, snapshot.to + open.length);
   tr.setSelection(
-    TextSelection.create(tr.doc, snapshot.from + open.length, snapshot.to + open.length),
+    TextSelection.create(
+      tr.doc,
+      snapshot.from + open.length,
+      snapshot.to + open.length,
+    ),
   );
   editor.view.dispatch(tr.scrollIntoView());
   return true;
@@ -617,7 +662,8 @@ function applySurroundInput(
 
 function ComposerMentionNodeView(props: NodeViewProps): ReactElement {
   const path = stringAttr(props.node.attrs.path);
-  const label = nullableStringAttr(props.node.attrs.label) ?? basenameOfPath(path);
+  const label =
+    nullableStringAttr(props.node.attrs.label) ?? basenameOfPath(path);
   const lineStart = nullableNumberAttr(props.node.attrs.lineStart);
   const lineEnd = nullableNumberAttr(props.node.attrs.lineEnd);
   const theme = resolvedThemeFromDocument();
@@ -634,7 +680,11 @@ function ComposerMentionNodeView(props: NodeViewProps): ReactElement {
         aria-hidden="true"
         className="size-3.5 shrink-0 opacity-85"
         loading="lazy"
-        src={getVscodeIconUrlForEntry(path, inferEntryKindFromPath(path), theme)}
+        src={getVscodeIconUrlForEntry(
+          path,
+          inferEntryKindFromPath(path),
+          theme,
+        )}
       />
       <span className="truncate select-none text-body">{label}</span>
       {lineStart !== null && lineEnd !== null ? (
@@ -649,7 +699,10 @@ function ComposerMentionNodeView(props: NodeViewProps): ReactElement {
     <NodeViewWrapper as="span" className="inline-flex align-middle">
       <Tooltip>
         <TooltipTrigger render={chip} />
-        <TooltipPopup side="top" className="max-w-lg whitespace-normal text-xs/4 wrap-anywhere">
+        <TooltipPopup
+          side="top"
+          className="max-w-lg whitespace-normal text-xs/4 wrap-anywhere"
+        >
           {path}
         </TooltipPopup>
       </Tooltip>
@@ -679,7 +732,10 @@ function ComposerCommandNodeView(props: NodeViewProps): ReactElement {
       {content ? (
         <Tooltip>
           <TooltipTrigger render={chip} />
-          <TooltipPopup side="top" className="max-w-lg whitespace-normal text-xs/4">
+          <TooltipPopup
+            side="top"
+            className="max-w-lg whitespace-normal text-xs/4"
+          >
             {content}
           </TooltipPopup>
         </Tooltip>
@@ -695,7 +751,9 @@ const SkillIcon = IconBuildingBlocks as ComponentType<CentralIconBaseProps>;
 function ComposerSkillNodeView(props: NodeViewProps): ReactElement {
   const label =
     nullableStringAttr(props.node.attrs.skillLabel) ??
-    formatProviderSkillDisplayName({ name: stringAttr(props.node.attrs.skillName) });
+    formatProviderSkillDisplayName({
+      name: stringAttr(props.node.attrs.skillName),
+    });
   const description = nullableStringAttr(props.node.attrs.skillDescription);
   const chip = (
     <span
@@ -716,7 +774,10 @@ function ComposerSkillNodeView(props: NodeViewProps): ReactElement {
       {description ? (
         <Tooltip>
           <TooltipTrigger render={chip} />
-          <TooltipPopup side="top" className="max-w-lg whitespace-normal text-xs/4">
+          <TooltipPopup
+            side="top"
+            className="max-w-lg whitespace-normal text-xs/4"
+          >
             {description}
           </TooltipPopup>
         </Tooltip>
@@ -749,7 +810,10 @@ function ComposerInlineTokenNodeView(props: NodeViewProps): ReactElement {
       {sourceUri ? (
         <Tooltip>
           <TooltipTrigger render={chip} />
-          <TooltipPopup side="top" className="max-w-lg whitespace-normal text-xs/4">
+          <TooltipPopup
+            side="top"
+            className="max-w-lg whitespace-normal text-xs/4"
+          >
             {sourceUri}
           </TooltipPopup>
         </Tooltip>
@@ -770,7 +834,11 @@ function ComposerTerminalContextNodeView(props: NodeViewProps): ReactElement {
 
   return (
     <NodeViewWrapper as="span" className="inline-flex align-middle">
-      <TerminalContextInlineChip label={label} tooltipText={tooltipText} expired={expired} />
+      <TerminalContextInlineChip
+        label={label}
+        tooltipText={tooltipText}
+        expired={expired}
+      />
     </NodeViewWrapper>
   );
 }
@@ -1001,7 +1069,8 @@ function createComposerExtensions(placeholderRef: { current: string }) {
       isAllowedUri: (url, context) => {
         const trimmedUrl = url.trim().toLowerCase();
         return (
-          (trimmedUrl.startsWith("http://") || trimmedUrl.startsWith("https://")) &&
+          (trimmedUrl.startsWith("http://") ||
+            trimmedUrl.startsWith("https://")) &&
           context.defaultValidate(url)
         );
       },
@@ -1044,13 +1113,22 @@ export const ComposerPromptEditor = forwardRef<
   const onMeasuredMultilineChangeRef = useRef(onMeasuredMultilineChange);
   const onPasteRef = useRef(onPaste);
   const placeholderRef = useRef(placeholder);
+  const skillMetadata = useMemo(() => skillMetadataByName(skills), [skills]);
+  onChangeRef.current = onChange;
+  onCommandKeyDownRef.current = onCommandKeyDown;
   onMeasuredMultilineChangeRef.current = onMeasuredMultilineChange;
+  onPasteRef.current = onPaste;
   placeholderRef.current = placeholder;
-  const extensionsRef = useRef<ReturnType<typeof createComposerExtensions> | null>(null);
+  const extensionsRef = useRef<ReturnType<
+    typeof createComposerExtensions
+  > | null>(null);
   extensionsRef.current ??= createComposerExtensions(placeholderRef);
-  const pendingSurroundSelectionRef = useRef<SurroundSelectionSnapshot | null>(null);
+  const pendingSurroundSelectionRef = useRef<SurroundSelectionSnapshot | null>(
+    null,
+  );
   const isApplyingControlledUpdateRef = useRef(false);
-  const skillMetadataRef = useRef(skillMetadataByName(skills));
+  const skillMetadataRef = useRef(skillMetadata);
+  skillMetadataRef.current = skillMetadata;
   const initialDocRef = useRef(
     promptToTiptapDoc(value, terminalContexts, skillMetadataRef.current),
   );
@@ -1067,24 +1145,12 @@ export const ComposerPromptEditor = forwardRef<
   const skillsSignature = skillSignature(skills);
   const skillsSignatureRef = useRef(skillsSignature);
   const emitSnapshotRef = useRef<(editor: Editor) => void>(() => {});
-  const keyDownHandlerRef = useRef<(event: KeyboardEvent) => boolean>(() => false);
-  const beforeInputHandlerRef = useRef<(event: InputEvent) => boolean>(() => false);
-
-  useEffect(() => {
-    onChangeRef.current = onChange;
-  }, [onChange]);
-
-  useEffect(() => {
-    onCommandKeyDownRef.current = onCommandKeyDown;
-  }, [onCommandKeyDown]);
-
-  useEffect(() => {
-    onPasteRef.current = onPaste;
-  }, [onPaste]);
-
-  useLayoutEffect(() => {
-    skillMetadataRef.current = skillMetadataByName(skills);
-  }, [skills]);
+  const keyDownHandlerRef = useRef<(event: KeyboardEvent) => boolean>(
+    () => false,
+  );
+  const beforeInputHandlerRef = useRef<(event: InputEvent) => boolean>(
+    () => false,
+  );
 
   const editorClassName = cn(
     "block min-h-9 max-h-[200px] w-full overflow-y-auto whitespace-pre-wrap break-words bg-transparent px-3 py-2 text-conversation text-foreground outline-hidden [&>p]:m-0 [&>p.is-editor-empty:first-child::before]:float-left [&>p.is-editor-empty:first-child::before]:h-0 [&>p.is-editor-empty:first-child::before]:max-w-full [&>p.is-editor-empty:first-child::before]:overflow-hidden [&>p.is-editor-empty:first-child::before]:text-ellipsis [&>p.is-editor-empty:first-child::before]:whitespace-nowrap [&>p.is-editor-empty:first-child::before]:text-[13px] [&>p.is-editor-empty:first-child::before]:font-normal [&>p.is-editor-empty:first-child::before]:leading-[1.5] [&>p.is-editor-empty:first-child::before]:text-multi-fg-quaternary [&>p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)]",
@@ -1107,10 +1173,13 @@ export const ComposerPromptEditor = forwardRef<
         },
         handleKeyDown: (_view, event) => keyDownHandlerRef.current(event),
         handleDOMEvents: {
-          beforeinput: (_view, event) => beforeInputHandlerRef.current(event as InputEvent),
+          beforeinput: (_view, event) =>
+            beforeInputHandlerRef.current(event as InputEvent),
           paste: (_view, event) => {
             onPasteRef.current(
-              event as unknown as Parameters<ClipboardEventHandler<HTMLElement>>[0],
+              event as unknown as Parameters<
+                ClipboardEventHandler<HTMLElement>
+              >[0],
             );
             return event.defaultPrevented;
           },
@@ -1146,8 +1215,16 @@ export const ComposerPromptEditor = forwardRef<
       return;
     }
     const cursorAdjacentToMention =
-      isCollapsedCursorAdjacentToInlineToken(nextSnapshot.value, nextSnapshot.cursor, "left") ||
-      isCollapsedCursorAdjacentToInlineToken(nextSnapshot.value, nextSnapshot.cursor, "right");
+      isCollapsedCursorAdjacentToInlineToken(
+        nextSnapshot.value,
+        nextSnapshot.cursor,
+        "left",
+      ) ||
+      isCollapsedCursorAdjacentToInlineToken(
+        nextSnapshot.value,
+        nextSnapshot.cursor,
+        "right",
+      );
     onChangeRef.current(
       nextSnapshot.value,
       nextSnapshot.cursor,
@@ -1176,7 +1253,12 @@ export const ComposerPromptEditor = forwardRef<
       }
     }
 
-    if (event.defaultPrevented || event.isComposing || event.metaKey || event.ctrlKey) {
+    if (
+      event.defaultPrevented ||
+      event.isComposing ||
+      event.metaKey ||
+      event.ctrlKey
+    ) {
       pendingSurroundSelectionRef.current = null;
       return false;
     }
@@ -1224,15 +1306,12 @@ export const ComposerPromptEditor = forwardRef<
     return true;
   };
 
-  useEffect(() => {
-    editor?.setEditable(!disabled);
-  }, [disabled, editor]);
-
   useLayoutEffect(() => {
     if (!editor) return;
     const normalizedCursor = clampCollapsedComposerCursor(value, cursor);
     const previousSnapshot = snapshotRef.current;
-    const contextsChanged = terminalContextsSignatureRef.current !== terminalContextsSignature;
+    const contextsChanged =
+      terminalContextsSignatureRef.current !== terminalContextsSignature;
     const skillsChanged = skillsSignatureRef.current !== skillsSignature;
     if (
       previousSnapshot.value === value &&
@@ -1243,7 +1322,11 @@ export const ComposerPromptEditor = forwardRef<
       return;
     }
 
-    const nextDoc = promptToTiptapDoc(value, terminalContexts, skillMetadataRef.current);
+    const nextDoc = promptToTiptapDoc(
+      value,
+      terminalContexts,
+      skillMetadataRef.current,
+    );
     snapshotRef.current = {
       value,
       cursor: normalizedCursor,
@@ -1255,7 +1338,12 @@ export const ComposerPromptEditor = forwardRef<
 
     const rootElement = editor.view.dom;
     const isFocused = document.activeElement === rootElement;
-    if (previousSnapshot.value === value && !contextsChanged && !skillsChanged && !isFocused) {
+    if (
+      previousSnapshot.value === value &&
+      !contextsChanged &&
+      !skillsChanged &&
+      !isFocused
+    ) {
       return;
     }
 
@@ -1272,7 +1360,14 @@ export const ComposerPromptEditor = forwardRef<
       isApplyingControlledUpdateRef.current = false;
       emitMeasuredMultiline(editor, onMeasuredMultilineChangeRef.current);
     });
-  }, [cursor, editor, skillsSignature, terminalContexts, terminalContextsSignature, value]);
+  }, [
+    cursor,
+    editor,
+    skillsSignature,
+    terminalContexts,
+    terminalContextsSignature,
+    value,
+  ]);
 
   useLayoutEffect(() => {
     if (!editor) return;
@@ -1292,7 +1387,10 @@ export const ComposerPromptEditor = forwardRef<
   const focusAt = useCallback(
     (nextCursor: number) => {
       if (!editor) return;
-      const boundedCursor = clampCollapsedComposerCursor(snapshotRef.current.value, nextCursor);
+      const boundedCursor = clampCollapsedComposerCursor(
+        snapshotRef.current.value,
+        nextCursor,
+      );
       editor.commands.focus();
       setSelectionAtCollapsedOffset(editor, boundedCursor);
       const nextSnapshot = readSnapshotFromEditor(editor);
@@ -1317,7 +1415,11 @@ export const ComposerPromptEditor = forwardRef<
   );
 
   const replaceRangeWithCommand = useCallback(
-    (rangeStart: number, rangeEnd: number, command: ComposerCommandData): boolean => {
+    (
+      rangeStart: number,
+      rangeEnd: number,
+      command: ComposerCommandData,
+    ): boolean => {
       if (!editor) return false;
       const from = textToPosition(editor.state.doc, rangeStart, "expanded");
       const to = textToPosition(editor.state.doc, rangeEnd, "expanded");
@@ -1343,7 +1445,11 @@ export const ComposerPromptEditor = forwardRef<
   );
 
   const replaceRangeWithSkill = useCallback(
-    (rangeStart: number, rangeEnd: number, skill: ComposerSkillData): boolean => {
+    (
+      rangeStart: number,
+      rangeEnd: number,
+      skill: ComposerSkillData,
+    ): boolean => {
       if (!editor) return false;
       const from = textToPosition(editor.state.doc, rangeStart, "expanded");
       const to = textToPosition(editor.state.doc, rangeEnd, "expanded");
@@ -1411,12 +1517,40 @@ export const ComposerPromptEditor = forwardRef<
       readSnapshot,
       editor,
     }),
-    [editor, focusAt, insertText, readSnapshot, replaceRangeWithCommand, replaceRangeWithSkill],
+    [
+      editor,
+      focusAt,
+      insertText,
+      readSnapshot,
+      replaceRangeWithCommand,
+      replaceRangeWithSkill,
+    ],
   );
 
   return (
     <div ref={hotkeyTargetRef} className="relative">
+      {editor ? (
+        <PromptEditorEditableSync
+          key={String(disabled)}
+          disabled={disabled}
+          editor={editor}
+        />
+      ) : null}
       <EditorContent editor={editor} />
     </div>
   );
 });
+
+function PromptEditorEditableSync({
+  disabled,
+  editor,
+}: {
+  disabled: boolean;
+  editor: Editor;
+}) {
+  useMountEffect(() => {
+    editor.setEditable(!disabled);
+  });
+
+  return null;
+}

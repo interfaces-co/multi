@@ -3,11 +3,13 @@
 import {
   IconCheckmark1 as CheckIcon,
   IconCodeTree as ACPRegistryIcon,
+  type CentralIconBaseProps,
   IconCopilot as GithubCopilotIcon,
   IconGemini as Gemini,
   IconRobot as PiAgentIcon,
 } from "central-icons";
 import { Radio as RadioPrimitive } from "@base-ui/react/radio";
+import type { ComponentType } from "react";
 import { useCallback, useId, useMemo, useState } from "react";
 import {
   ProviderInstanceId,
@@ -31,7 +33,7 @@ import { Badge } from "@multi/ui/badge";
 import { Input } from "@multi/ui/input";
 import { RadioGroup } from "@multi/ui/radio-group";
 import { toastManager } from "~/app/toast";
-import { DRIVER_OPTION_BY_VALUE, DRIVER_OPTIONS, type Icon } from "./provider-driver-meta";
+import { DRIVER_OPTIONS, getDriverOption } from "./provider-driver-meta";
 import { ProviderSettingsForm, deriveProviderSettingsFields } from "./provider-settings-form";
 
 const PROVIDER_ACCENT_SWATCHES = [
@@ -71,7 +73,7 @@ const EMPTY_CONFIG_DRAFT: Record<string, unknown> = {};
 interface ComingSoonDriverOption {
   readonly value: ProviderDriverKind;
   readonly label: string;
-  readonly icon: Icon;
+  readonly icon: ComponentType<CentralIconBaseProps>;
 }
 
 const COMING_SOON_DRIVER_OPTIONS: readonly ComingSoonDriverOption[] = [
@@ -155,7 +157,7 @@ function AddProviderInstanceDialogContent({
     [settings.providerInstances],
   );
 
-  const driverOption = DRIVER_OPTION_BY_VALUE[driver] ?? DEFAULT_DRIVER_OPTION;
+  const driverOption = getDriverOption(driver) ?? DEFAULT_DRIVER_OPTION;
   const driverSettingsFields = useMemo(
     () => deriveProviderSettingsFields(driverOption),
     [driverOption],

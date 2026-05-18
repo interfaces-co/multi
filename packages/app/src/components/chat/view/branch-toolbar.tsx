@@ -4,7 +4,7 @@ import { Input } from "@multi/ui/input";
 import { Popover, PopoverPopup, PopoverTrigger } from "@multi/ui/popover";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { IconChevronRightMedium } from "central-icons";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import {
   dedupeRemoteBranchesWithLocalMatches,
@@ -15,7 +15,7 @@ import {
 } from "../../../lib/branch-toolbar-logic";
 import { gitBranchSearchInfiniteQueryOptions } from "../../../lib/git-react-query";
 import { cn } from "../../../lib/utils";
-import { parsePullRequestReference } from "../../../pull-request-reference";
+import { parsePullRequestReference } from "~/git/pull-request-reference";
 
 interface BranchToolbarProps {
   environmentId: EnvironmentId;
@@ -36,7 +36,7 @@ export function BranchToolbar(props: BranchToolbarProps) {
   const [envModeOpen, setEnvModeOpen] = useState(false);
   const [branchOpen, setBranchOpen] = useState(false);
   const [branchQuery, setBranchQuery] = useState("");
-  const branchInputRef = useRef<HTMLInputElement | null>(null);
+  const branchFocusFrameRef = useRef<number | null>(null);
 
   const branchesQuery = useInfiniteQuery(
     gitBranchSearchInfiniteQueryOptions({
@@ -95,18 +95,26 @@ export function BranchToolbar(props: BranchToolbarProps) {
       })
     : false;
 
-  useEffect(() => {
-    if (!branchOpen) {
-      return;
-    }
-    const frame = window.requestAnimationFrame(() => {
-      branchInputRef.current?.focus();
-      branchInputRef.current?.select();
-    });
-    return () => {
-      window.cancelAnimationFrame(frame);
-    };
-  }, [branchOpen]);
+  const focusBranchInput = useCallback(
+    (node: HTMLInputElement | null) => {
+      if (branchFocusFrameRef.current !== null) {
+        window.cancelAnimationFrame(branchFocusFrameRef.current);
+        branchFocusFrameRef.current = null;
+      }
+      if (!node || !branchOpen) {
+        return;
+      }
+      branchFocusFrameRef.current = window.requestAnimationFrame(() => {
+        branchFocusFrameRef.current = null;
+        if (!node.isConnected) {
+          return;
+        }
+        node.focus();
+        node.select();
+      });
+    },
+    [branchOpen],
+  );
 
   const selectEnvMode = useCallback(
     (mode: EnvMode) => {
@@ -196,7 +204,7 @@ export function BranchToolbar(props: BranchToolbarProps) {
           <div data-slot="combobox-popup" className="flex max-h-96 min-h-0 flex-col">
             <div className="border-multi-stroke-tertiary border-b p-1.5">
               <Input
-                ref={branchInputRef}
+                ref={focusBranchInput}
                 placeholder="Search branches..."
                 size="sm"
                 value={branchQuery}

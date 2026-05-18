@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 
 import { applyAppearanceBoot } from "../lib/appearance-settings";
 
@@ -170,6 +170,7 @@ function getServerSnapshot() {
 function subscribe(listener: () => void): () => void {
   if (typeof window === "undefined") return () => {};
   listeners.push(listener);
+  applyTheme(readStoredTheme());
 
   const mq = window.matchMedia(MEDIA_QUERY);
   const handleChange = () => {
@@ -206,10 +207,6 @@ export function useTheme() {
     applyTheme(next, true);
     emitChange();
   }, []);
-
-  useEffect(() => {
-    applyTheme(theme);
-  }, [theme]);
 
   return { theme, setTheme, resolvedTheme } as const;
 }

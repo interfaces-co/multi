@@ -8,6 +8,7 @@ import {
   ProviderInstanceId,
   type ProjectId,
   type ProviderApprovalDecision,
+  type ResolvedKeybindingsConfig,
   type ServerProvider,
   type ScopedThreadRef,
   type ThreadId,
@@ -24,17 +25,26 @@ import {
   scopeThreadRef,
 } from "@multi/client-runtime";
 import { projectScriptCwd, projectScriptRuntimeEnv } from "@multi/shared/project-scripts";
-import { truncate } from "@multi/shared/String";
 import { Debouncer } from "@tanstack/react-pacer";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@multi/ui/alert";
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type MutableRefObject,
+  type ReactNode,
+  type SetStateAction,
+} from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useShallow } from "zustand/react/shallow";
 import { useGitStatus } from "~/lib/git-status-state";
 import { readEnvironmentApi } from "../../../environment-api";
 import { isElectron } from "../../../env";
 import { readLocalApi } from "../../../local-api";
-import { parseDiffRouteSearch, stripDiffSearchParams } from "../../../diff-route-search";
+import { parseDiffRouteSearch, stripDiffSearchParams } from "~/app/routes/chat-shell-search";
 import {
   collapseExpandedComposerCursor,
   parseStandaloneComposerSlashCommand,
@@ -61,7 +71,7 @@ import {
   setPendingUserInputCustomAnswer,
   togglePendingUserInputOptionSelection,
   type PendingUserInputDraftAnswer,
-} from "../../../pending-user-input";
+} from "~/components/chat/composer/pending-user-input";
 import {
   selectEnvironmentState,
   selectSidebarThreadsAcrossEnvironments,
@@ -72,7 +82,7 @@ import {
   createThreadSelectorByRef,
 } from "../../../stores/thread-selectors";
 import { useUiStateStore } from "../../../stores/ui-state-store";
-import { resolvePlanFollowUpSubmission } from "../../../proposed-plan";
+import { resolvePlanFollowUpSubmission } from "~/plan/proposed-plan";
 import {
   DEFAULT_INTERACTION_MODE,
   DEFAULT_RUNTIME_MODE,
@@ -98,12 +108,15 @@ import {
   projectScriptIdFromCommand,
 } from "~/lib/project-scripts";
 import { newCommandId, newDraftId, newMessageId, newThreadId } from "~/lib/utils";
-import { resolveSelectableProvider } from "../../../model/provider-models";
 import { useSettings } from "../../../hooks/use-settings";
-import { resolveAppModelSelectionForInstance } from "../../../model/selection";
+import { resolveAppProviderModelState } from "../../../model/selection";
+import { formatProviderDriverKindLabel } from "../../../model/provider-models";
 import { isTerminalFocused } from "../../../lib/terminal-focus";
-import { deriveLogicalProjectKey } from "../../../logical-project";
-import { buildDraftThreadRouteParams, buildThreadRouteParams } from "../../../thread-routes";
+import { deriveLogicalProjectKey } from "../../../stores/project-identity";
+import {
+  buildDraftThreadRouteParams,
+  buildThreadRouteParams,
+} from "~/app/routes/thread-route-targets";
 import {
   type ComposerImageAttachment,
   type DraftThreadEnvMode,
@@ -121,7 +134,11 @@ import {
   type TerminalContextDraft,
   type TerminalContextSelection,
 } from "../../../lib/terminal-context";
-import { selectThreadTerminalState, useTerminalStateStore } from "../../../terminal-state-store";
+import {
+  selectThreadTerminalState,
+  type ThreadTerminalLaunchContext,
+  useTerminalStateStore,
+} from "../../../terminal-state-store";
 import { shellPanelsActions } from "~/stores/shell-panels-store";
 import { ComposerInput, type ComposerInputHandle } from "../composer/input";
 import { ExpandedImageDialog } from "../message/expanded-image-dialog";
@@ -143,7 +160,6 @@ import {
   resolveEffectiveEnvMode,
 } from "../../../lib/branch-toolbar-logic";
 import { gitCheckoutMutationOptions } from "../../../lib/git-react-query";
-import { ProviderStatusBanner } from "../picker/status-banner";
 import { ThreadErrorBanner } from "../message/error-banner";
 import {
   buildExpiredTerminalContextToastCopy,
@@ -157,7 +173,7 @@ import {
   buildOptimisticImageAttachments,
   createQueuedComposerItem,
   readComposerImageAttachmentsForTurn,
-  resolveComposerThreadTitleSeed,
+  resolveComposerThreadTitle,
   type ComposerInputSendContext,
 } from "./chat-view-send-flow";
 import {
@@ -187,10 +203,11 @@ import {
 import { sanitizeThreadErrorMessage } from "~/rpc/transport-error";
 import { retainThreadDetailSubscription } from "../../../environments/runtime/service";
 import { useGitAgentActionHandoff } from "~/lib/git-agent-action-handoff";
-import { IconChevronRightMedium } from "central-icons";
+import { IconChevronRightMedium, IconExclamationCircle } from "central-icons";
 import { HeroActions } from "./hero-actions";
 import { useAttachmentPreviewHandoff } from "./attachment-preview-handoff";
 import { BranchToolbar } from "./branch-toolbar";
+import { useMountEffect } from "~/hooks/use-mount-effect";
 
 const EMPTY_ACTIVITIES: OrchestrationThreadActivity[] = [];
 const EMPTY_PROVIDERS: ServerProvider[] = [];
@@ -202,6 +219,41 @@ const EMPTY_TIMELINE_PROPOSED_PLANS: Thread["proposedPlans"] = [];
 const DOCKED_COMPOSER_TIMELINE_RESERVE_PX = 88;
 const SCRIPT_TERMINAL_COLS = 120;
 const SCRIPT_TERMINAL_ROWS = 30;
+
+function ProviderStatusBanner({ status }: { status: ServerProvider | null }) {
+  if (!status || status.status === "ready" || status.status === "disabled") {
+    return null;
+  }
+
+  const providerLabel = status.displayName?.trim() || formatProviderDriverKindLabel(status.driver);
+  const defaultMessage =
+    status.status === "error"
+      ? `${providerLabel} provider is unavailable.`
+      : `${providerLabel} provider has limited availability.`;
+  const title = `${providerLabel} provider status`;
+
+  return (
+    <div className="pt-3 mx-auto max-w-3xl">
+      <Alert variant={status.status === "error" ? "error" : "warning"}>
+        <IconExclamationCircle />
+        <AlertTitle>{title}</AlertTitle>
+        <AlertDescription className="line-clamp-3" title={status.message ?? defaultMessage}>
+          {status.message ?? defaultMessage}
+        </AlertDescription>
+      </Alert>
+    </div>
+  );
+}
+
+function useValueIdentityVersion<TValue>(value: TValue): number {
+  const valueRef = useRef(value);
+  const versionRef = useRef(0);
+  if (valueRef.current !== value) {
+    valueRef.current = value;
+    versionRef.current += 1;
+  }
+  return versionRef.current;
+}
 
 type ComposerSendSnapshot = {
   sendContext: ComposerInputSendContext;
@@ -279,12 +331,9 @@ function useLocalDispatchState(input: {
     ],
   );
 
-  useEffect(() => {
-    if (!serverAcknowledgedLocalDispatch) {
-      return;
-    }
-    resetLocalDispatch();
-  }, [resetLocalDispatch, serverAcknowledgedLocalDispatch]);
+  if (serverAcknowledgedLocalDispatch && localDispatch !== null) {
+    setLocalDispatch(null);
+  }
 
   return {
     beginLocalDispatch,
@@ -313,6 +362,529 @@ function assertActiveThread(
       input.draftId ? ` (${input.draftId})` : ""
     }.`,
   );
+}
+
+function MountedTerminalThreadsSync({
+  activeThreadKey,
+  existingOpenTerminalThreadKeys,
+  setMountedTerminalThreadKeys,
+  terminalOpen,
+}: {
+  activeThreadKey: string | null;
+  existingOpenTerminalThreadKeys: readonly string[];
+  setMountedTerminalThreadKeys: Dispatch<SetStateAction<string[]>>;
+  terminalOpen: boolean;
+}) {
+  useMountEffect(() => {
+    setMountedTerminalThreadKeys((currentThreadIds) => {
+      const nextThreadIds = reconcileMountedTerminalThreadIds({
+        currentThreadIds,
+        openThreadIds: existingOpenTerminalThreadKeys,
+        activeThreadId: activeThreadKey,
+        activeThreadTerminalOpen: Boolean(activeThreadKey && terminalOpen),
+        maxHiddenThreadCount: MAX_HIDDEN_MOUNTED_TERMINAL_THREADS,
+      });
+      return currentThreadIds.length === nextThreadIds.length &&
+        currentThreadIds.every((nextThreadId, index) => nextThreadId === nextThreadIds[index])
+        ? currentThreadIds
+        : nextThreadIds;
+    });
+  });
+
+  return null;
+}
+
+function RetainServerThreadDetailSync({
+  environmentId,
+  routeKind,
+  threadId,
+}: {
+  environmentId: EnvironmentId;
+  routeKind: ChatViewProps["routeKind"];
+  threadId: ThreadId;
+}) {
+  useMountEffect(() => {
+    if (routeKind !== "server") {
+      return;
+    }
+    return retainThreadDetailSubscription(environmentId, threadId);
+  });
+
+  return null;
+}
+
+function MarkSettledServerThreadVisitedSync({
+  activeThreadLastVisitedAt,
+  completedAt,
+  environmentId,
+  latestTurnSettled,
+  markThreadVisited,
+  threadId,
+}: {
+  activeThreadLastVisitedAt: string | null | undefined;
+  completedAt: string | null | undefined;
+  environmentId: EnvironmentId | undefined;
+  latestTurnSettled: boolean;
+  markThreadVisited: (threadKey: string) => void;
+  threadId: ThreadId | undefined;
+}) {
+  useMountEffect(() => {
+    if (!environmentId || !threadId) return;
+    if (!latestTurnSettled) return;
+    if (!completedAt) return;
+    const turnCompletedAt = Date.parse(completedAt);
+    if (Number.isNaN(turnCompletedAt)) return;
+    const lastVisitedAt = activeThreadLastVisitedAt ? Date.parse(activeThreadLastVisitedAt) : NaN;
+    if (!Number.isNaN(lastVisitedAt) && lastVisitedAt >= turnCompletedAt) return;
+
+    markThreadVisited(scopedThreadKey(scopeThreadRef(environmentId, threadId)));
+  });
+
+  return null;
+}
+
+function OptimisticUserMessagesUnmountCleanup({
+  optimisticUserMessagesRef,
+}: {
+  optimisticUserMessagesRef: MutableRefObject<ChatMessage[]>;
+}) {
+  useMountEffect(() => {
+    return () => {
+      for (const message of optimisticUserMessagesRef.current) {
+        revokeUserMessagePreviewUrls(message);
+      }
+    };
+  });
+
+  return null;
+}
+
+function ActiveThreadUiResetSync({
+  isAtBottomRef,
+  setPullRequestDialogState,
+  setShowScrollToBottom,
+  showScrollDebouncer,
+}: {
+  isAtBottomRef: MutableRefObject<boolean>;
+  setPullRequestDialogState: Dispatch<SetStateAction<PullRequestDialogState | null>>;
+  setShowScrollToBottom: Dispatch<SetStateAction<boolean>>;
+  showScrollDebouncer: MutableRefObject<{ cancel: () => void }>;
+}) {
+  useMountEffect(() => {
+    setPullRequestDialogState(null);
+    isAtBottomRef.current = true;
+    showScrollDebouncer.current.cancel();
+    setShowScrollToBottom(false);
+  });
+
+  return null;
+}
+
+function BooleanResetSync({
+  setValue,
+  value,
+}: {
+  setValue: Dispatch<SetStateAction<boolean>>;
+  value: boolean;
+}) {
+  useMountEffect(() => {
+    setValue(value);
+  });
+
+  return null;
+}
+
+function ActiveThreadComposerFocusSync({
+  activeThreadId,
+  focusComposer,
+  terminalOpen,
+}: {
+  activeThreadId: ThreadId | null;
+  focusComposer: () => void;
+  terminalOpen: boolean;
+}) {
+  useMountEffect(() => {
+    if (!activeThreadId || terminalOpen) return;
+    const frame = window.requestAnimationFrame(() => {
+      focusComposer();
+    });
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  });
+
+  return null;
+}
+
+function OptimisticUserMessagesServerAckSync({
+  activeThreadId,
+  handoffAttachmentPreviews,
+  optimisticUserMessages,
+  serverMessages,
+  setOptimisticUserMessages,
+}: {
+  activeThreadId: ThreadId | null;
+  handoffAttachmentPreviews: (messageId: MessageId, previewUrls: string[]) => void;
+  optimisticUserMessages: ChatMessage[];
+  serverMessages: readonly ChatMessage[] | undefined;
+  setOptimisticUserMessages: Dispatch<SetStateAction<ChatMessage[]>>;
+}) {
+  useMountEffect(() => {
+    if (!activeThreadId) return;
+    if (!serverMessages || serverMessages.length === 0) {
+      return;
+    }
+    const serverIds = new Set(serverMessages.map((message) => message.id));
+    const removedMessages = optimisticUserMessages.filter((message) => serverIds.has(message.id));
+    if (removedMessages.length === 0) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setOptimisticUserMessages((existing) =>
+        existing.filter((message) => !serverIds.has(message.id)),
+      );
+    }, 0);
+    for (const removedMessage of removedMessages) {
+      const previewUrls = collectUserMessageBlobPreviewUrls(removedMessage);
+      if (previewUrls.length > 0) {
+        handoffAttachmentPreviews(removedMessage.id, previewUrls);
+        continue;
+      }
+      revokeUserMessagePreviewUrls(removedMessage);
+    }
+    return () => {
+      window.clearTimeout(timer);
+    };
+  });
+
+  return null;
+}
+
+function ThreadDraftResetSync({
+  clearAttachmentPreviewHandoffs,
+  resetLocalDispatch,
+  setExpandedImage,
+  setOptimisticUserMessages,
+}: {
+  clearAttachmentPreviewHandoffs: () => void;
+  resetLocalDispatch: () => void;
+  setExpandedImage: Dispatch<SetStateAction<ExpandedImagePreview | null>>;
+  setOptimisticUserMessages: Dispatch<SetStateAction<ChatMessage[]>>;
+}) {
+  useMountEffect(() => {
+    setOptimisticUserMessages((existing) => {
+      for (const message of existing) {
+        revokeUserMessagePreviewUrls(message);
+      }
+      return [];
+    });
+    clearAttachmentPreviewHandoffs();
+    resetLocalDispatch();
+    setExpandedImage(null);
+  });
+
+  return null;
+}
+
+function PendingServerThreadEnvResetSync({
+  setPendingServerThreadBranch,
+  setPendingServerThreadEnvMode,
+}: {
+  setPendingServerThreadBranch: Dispatch<SetStateAction<string | null | undefined>>;
+  setPendingServerThreadEnvMode: Dispatch<SetStateAction<DraftThreadEnvMode | null>>;
+}) {
+  useMountEffect(() => {
+    setPendingServerThreadEnvMode(null);
+    setPendingServerThreadBranch(undefined);
+  });
+
+  return null;
+}
+
+function PendingServerThreadEnvCapabilitySync({
+  canOverrideServerThreadEnvMode,
+  setPendingServerThreadBranch,
+  setPendingServerThreadEnvMode,
+}: {
+  canOverrideServerThreadEnvMode: boolean;
+  setPendingServerThreadBranch: Dispatch<SetStateAction<string | null | undefined>>;
+  setPendingServerThreadEnvMode: Dispatch<SetStateAction<DraftThreadEnvMode | null>>;
+}) {
+  useMountEffect(() => {
+    if (canOverrideServerThreadEnvMode) {
+      return;
+    }
+    setPendingServerThreadEnvMode(null);
+    setPendingServerThreadBranch(undefined);
+  });
+
+  return null;
+}
+
+function TerminalLaunchActiveThreadSync({
+  activeThreadId,
+  routeThreadRef,
+  setTerminalLaunchContext,
+  storeClearTerminalLaunchContext,
+}: {
+  activeThreadId: ThreadId | null;
+  routeThreadRef: ScopedThreadRef;
+  setTerminalLaunchContext: Dispatch<SetStateAction<TerminalLaunchContext | null>>;
+  storeClearTerminalLaunchContext: (threadRef: ScopedThreadRef) => void;
+}) {
+  useMountEffect(() => {
+    if (!activeThreadId) {
+      setTerminalLaunchContext(null);
+      storeClearTerminalLaunchContext(routeThreadRef);
+      return;
+    }
+    setTerminalLaunchContext((current) => {
+      if (!current) return current;
+      if (current.threadId === activeThreadId) return current;
+      return null;
+    });
+  });
+
+  return null;
+}
+
+function TerminalLaunchLocalSettledSync({
+  activeProjectCwd,
+  activeThreadId,
+  activeThreadRef,
+  activeThreadWorktreePath,
+  setTerminalLaunchContext,
+  storeClearTerminalLaunchContext,
+}: {
+  activeProjectCwd: string | null;
+  activeThreadId: ThreadId | null;
+  activeThreadRef: ScopedThreadRef | null;
+  activeThreadWorktreePath: string | null;
+  setTerminalLaunchContext: Dispatch<SetStateAction<TerminalLaunchContext | null>>;
+  storeClearTerminalLaunchContext: (threadRef: ScopedThreadRef) => void;
+}) {
+  useMountEffect(() => {
+    if (!activeThreadId || !activeProjectCwd) {
+      return;
+    }
+    setTerminalLaunchContext((current) => {
+      if (!current || current.threadId !== activeThreadId) {
+        return current;
+      }
+      const settledCwd = projectScriptCwd({
+        project: { cwd: activeProjectCwd },
+        worktreePath: activeThreadWorktreePath,
+      });
+      if (settledCwd === current.cwd && activeThreadWorktreePath === current.worktreePath) {
+        if (activeThreadRef) {
+          storeClearTerminalLaunchContext(activeThreadRef);
+        }
+        return null;
+      }
+      return current;
+    });
+  });
+
+  return null;
+}
+
+function TerminalLaunchStoredSettledSync({
+  activeProjectCwd,
+  activeThreadId,
+  activeThreadRef,
+  activeThreadWorktreePath,
+  storeClearTerminalLaunchContext,
+  storeServerTerminalLaunchContext,
+}: {
+  activeProjectCwd: string | null;
+  activeThreadId: ThreadId | null;
+  activeThreadRef: ScopedThreadRef | null;
+  activeThreadWorktreePath: string | null;
+  storeClearTerminalLaunchContext: (threadRef: ScopedThreadRef) => void;
+  storeServerTerminalLaunchContext: ThreadTerminalLaunchContext | null;
+}) {
+  useMountEffect(() => {
+    if (!activeThreadId || !activeProjectCwd || !storeServerTerminalLaunchContext) {
+      return;
+    }
+    const settledCwd = projectScriptCwd({
+      project: { cwd: activeProjectCwd },
+      worktreePath: activeThreadWorktreePath,
+    });
+    if (
+      settledCwd === storeServerTerminalLaunchContext.cwd &&
+      activeThreadWorktreePath === storeServerTerminalLaunchContext.worktreePath
+    ) {
+      if (activeThreadRef) {
+        storeClearTerminalLaunchContext(activeThreadRef);
+      }
+    }
+  });
+
+  return null;
+}
+
+function TerminalLaunchClosedSync({
+  activeThreadId,
+  activeThreadRef,
+  setTerminalLaunchContext,
+  storeClearTerminalLaunchContext,
+  terminalOpen,
+}: {
+  activeThreadId: ThreadId | null;
+  activeThreadRef: ScopedThreadRef | null;
+  setTerminalLaunchContext: Dispatch<SetStateAction<TerminalLaunchContext | null>>;
+  storeClearTerminalLaunchContext: (threadRef: ScopedThreadRef) => void;
+  terminalOpen: boolean;
+}) {
+  useMountEffect(() => {
+    if (terminalOpen) {
+      return;
+    }
+    if (activeThreadRef) {
+      storeClearTerminalLaunchContext(activeThreadRef);
+    }
+    setTerminalLaunchContext((current) => (current?.threadId === activeThreadId ? null : current));
+  });
+
+  return null;
+}
+
+function TerminalOpenFocusSync({
+  activeThreadKey,
+  focusComposer,
+  setTerminalFocusRequestId,
+  terminalOpen,
+  terminalOpenByThreadRef,
+}: {
+  activeThreadKey: string | null;
+  focusComposer: () => void;
+  setTerminalFocusRequestId: Dispatch<SetStateAction<number>>;
+  terminalOpen: boolean;
+  terminalOpenByThreadRef: MutableRefObject<Record<string, boolean>>;
+}) {
+  useMountEffect(() => {
+    if (!activeThreadKey) return;
+    const previous = terminalOpenByThreadRef.current[activeThreadKey] ?? false;
+    const current = terminalOpen;
+
+    if (!previous && current) {
+      terminalOpenByThreadRef.current[activeThreadKey] = current;
+      setTerminalFocusRequestId((value) => value + 1);
+      return;
+    } else if (previous && !current) {
+      terminalOpenByThreadRef.current[activeThreadKey] = current;
+      const frame = window.requestAnimationFrame(() => {
+        focusComposer();
+      });
+      return () => {
+        window.cancelAnimationFrame(frame);
+      };
+    }
+
+    terminalOpenByThreadRef.current[activeThreadKey] = current;
+  });
+
+  return null;
+}
+
+function ChatViewKeyboardShortcutsSync({
+  activeProjectScripts,
+  activeThreadId,
+  closeTerminal,
+  createNewTerminal,
+  keybindings,
+  onToggleDiff,
+  runProjectScript,
+  setTerminalOpen,
+  splitTerminal,
+  terminalActiveTerminalId,
+  terminalOpen,
+  toggleTerminalVisibility,
+}: {
+  activeProjectScripts: readonly ProjectScript[] | null;
+  activeThreadId: ThreadId | null;
+  closeTerminal: (terminalId: string) => void;
+  createNewTerminal: () => void;
+  keybindings: ResolvedKeybindingsConfig;
+  onToggleDiff: () => void;
+  runProjectScript: (script: ProjectScript) => void | Promise<void>;
+  setTerminalOpen: (open: boolean) => void;
+  splitTerminal: () => void;
+  terminalActiveTerminalId: string;
+  terminalOpen: boolean;
+  toggleTerminalVisibility: () => void;
+}) {
+  useMountEffect(() => {
+    const handler = (event: globalThis.KeyboardEvent) => {
+      if (!activeThreadId || useCommandPaletteStore.getState().open || event.defaultPrevented) {
+        return;
+      }
+      const shortcutContext = {
+        terminalFocus: isTerminalFocused(),
+        terminalOpen,
+      };
+
+      const command = resolveShortcutCommand(event, keybindings, {
+        context: shortcutContext,
+      });
+      if (!command) return;
+
+      if (command === "terminal.toggle") {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleTerminalVisibility();
+        return;
+      }
+
+      if (command === "terminal.split") {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!terminalOpen) {
+          setTerminalOpen(true);
+        }
+        splitTerminal();
+        return;
+      }
+
+      if (command === "terminal.close") {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!terminalOpen) return;
+        closeTerminal(terminalActiveTerminalId);
+        return;
+      }
+
+      if (command === "terminal.new") {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!terminalOpen) {
+          setTerminalOpen(true);
+        }
+        createNewTerminal();
+        return;
+      }
+
+      if (command === "diff.toggle") {
+        event.preventDefault();
+        event.stopPropagation();
+        onToggleDiff();
+        return;
+      }
+
+      const scriptId = projectScriptIdFromCommand(command);
+      if (!scriptId || !activeProjectScripts) return;
+      const script = activeProjectScripts.find((entry) => entry.id === scriptId);
+      if (!script) return;
+      event.preventDefault();
+      event.stopPropagation();
+      void runProjectScript(script);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  });
+
+  return null;
 }
 
 export default function ChatView(props: ChatViewProps) {
@@ -547,21 +1119,6 @@ export default function ChatView(props: ChatViewProps) {
     return openTerminalThreadKeys.filter((nextThreadKey) => existingThreadKeys.has(nextThreadKey));
   }, [draftThreadKeys, openTerminalThreadKeys, serverThreadKeys]);
   const activeLatestTurn = activeThread?.latestTurn ?? null;
-  useEffect(() => {
-    setMountedTerminalThreadKeys((currentThreadIds) => {
-      const nextThreadIds = reconcileMountedTerminalThreadIds({
-        currentThreadIds,
-        openThreadIds: existingOpenTerminalThreadKeys,
-        activeThreadId: activeThreadKey,
-        activeThreadTerminalOpen: Boolean(activeThreadKey && terminalState.terminalOpen),
-        maxHiddenThreadCount: MAX_HIDDEN_MOUNTED_TERMINAL_THREADS,
-      });
-      return currentThreadIds.length === nextThreadIds.length &&
-        currentThreadIds.every((nextThreadId, index) => nextThreadId === nextThreadIds[index])
-        ? currentThreadIds
-        : nextThreadIds;
-    });
-  }, [activeThreadKey, existingOpenTerminalThreadKeys, terminalState.terminalOpen]);
   const latestTurnSettled = isLatestTurnSettled(activeLatestTurn, activeThread?.session ?? null);
   const activeProjectRef = activeThread
     ? activeThread.projectId === null
@@ -574,13 +1131,6 @@ export default function ChatView(props: ChatViewProps) {
   const openAppearanceSettings = useCallback(() => {
     void navigate({ to: "/settings/appearance" });
   }, [navigate]);
-
-  useEffect(() => {
-    if (routeKind !== "server") {
-      return;
-    }
-    return retainThreadDetailSubscription(environmentId, threadId);
-  }, [environmentId, routeKind, threadId]);
 
   const closePullRequestDialog = useCallback(() => {
     setPullRequestDialogState(null);
@@ -670,25 +1220,6 @@ export default function ChatView(props: ChatViewProps) {
     [openOrReuseProjectDraftThread],
   );
 
-  useEffect(() => {
-    if (!serverThread?.id) return;
-    if (!latestTurnSettled) return;
-    if (!activeLatestTurn?.completedAt) return;
-    const turnCompletedAt = Date.parse(activeLatestTurn.completedAt);
-    if (Number.isNaN(turnCompletedAt)) return;
-    const lastVisitedAt = activeThreadLastVisitedAt ? Date.parse(activeThreadLastVisitedAt) : NaN;
-    if (!Number.isNaN(lastVisitedAt) && lastVisitedAt >= turnCompletedAt) return;
-
-    markThreadVisited(scopedThreadKey(scopeThreadRef(serverThread.environmentId, serverThread.id)));
-  }, [
-    activeLatestTurn?.completedAt,
-    activeThreadLastVisitedAt,
-    latestTurnSettled,
-    markThreadVisited,
-    serverThread?.environmentId,
-    serverThread?.id,
-  ]);
-
   const selectedProviderByThreadId = composerActiveProvider ?? null;
   const threadProvider =
     activeThread?.modelSelection.instanceId ??
@@ -696,10 +1227,8 @@ export default function ChatView(props: ChatViewProps) {
     null;
   const primaryServerConfig = useServerConfig();
   const providerStatuses = primaryServerConfig?.providers ?? EMPTY_PROVIDERS;
-  const selectedProvider = resolveSelectableProvider(
-    providerStatuses,
-    selectedProviderByThreadId ?? threadProvider ?? ProviderInstanceId.make("codex"),
-  );
+  const selectedProviderInstanceId =
+    selectedProviderByThreadId ?? threadProvider ?? ProviderInstanceId.make("codex");
   const phase = derivePhase(activeThread?.session ?? null);
   const threadActivities = activeThread?.activities ?? EMPTY_ACTIVITIES;
   const activeRunningTurnId =
@@ -819,17 +1348,11 @@ export default function ChatView(props: ChatViewProps) {
   );
   const serverMessages = activeThread?.messages;
   const {
+    attachmentPreviewHandoffSync,
     applyAttachmentPreviewHandoff,
     clearAttachmentPreviewHandoffs,
     handoffAttachmentPreviews,
   } = useAttachmentPreviewHandoff({ serverMessages });
-  useEffect(() => {
-    return () => {
-      for (const message of optimisticUserMessagesRef.current) {
-        revokeUserMessagePreviewUrls(message);
-      }
-    };
-  }, []);
   const timelineMessages = useMemo(() => {
     const serverMessagesWithPreviewHandoff = applyAttachmentPreviewHandoff(serverMessages ?? []);
 
@@ -977,8 +1500,13 @@ export default function ChatView(props: ChatViewProps) {
   const keybindings = useServerKeybindings();
   const availableEditors = useServerAvailableEditors();
   const activeProviderStatus = useMemo(
-    () => providerStatuses.find((status) => status.driver === selectedProvider) ?? null,
-    [selectedProvider, providerStatuses],
+    () =>
+      resolveAppProviderModelState({
+        settings,
+        providers: providerStatuses,
+        requestedInstanceId: selectedProviderInstanceId,
+      }).selectedProviderEntry?.snapshot ?? null,
+    [providerStatuses, selectedProviderInstanceId, settings],
   );
   const activeProjectCwd = activeProject?.cwd ?? null;
   const activeThreadWorktreePath = activeThread?.worktreePath ?? null;
@@ -1520,67 +2048,6 @@ export default function ChatView(props: ChatViewProps) {
     }
   }, []);
 
-  useEffect(() => {
-    setPullRequestDialogState(null);
-    isAtBottomRef.current = true;
-    showScrollDebouncer.current.cancel();
-    setShowScrollToBottom(false);
-  }, [activeThread?.id]);
-
-  useEffect(() => {
-    setIsRevertingCheckpoint(false);
-  }, [activeThread?.id]);
-
-  useEffect(() => {
-    if (!activeThread?.id || terminalState.terminalOpen) return;
-    const frame = window.requestAnimationFrame(() => {
-      focusComposer();
-    });
-    return () => {
-      window.cancelAnimationFrame(frame);
-    };
-  }, [activeThread?.id, focusComposer, terminalState.terminalOpen]);
-
-  useEffect(() => {
-    if (!activeThread?.id) return;
-    if (activeThread.messages.length === 0) {
-      return;
-    }
-    const serverIds = new Set(activeThread.messages.map((message) => message.id));
-    const removedMessages = optimisticUserMessages.filter((message) => serverIds.has(message.id));
-    if (removedMessages.length === 0) {
-      return;
-    }
-    const timer = window.setTimeout(() => {
-      setOptimisticUserMessages((existing) =>
-        existing.filter((message) => !serverIds.has(message.id)),
-      );
-    }, 0);
-    for (const removedMessage of removedMessages) {
-      const previewUrls = collectUserMessageBlobPreviewUrls(removedMessage);
-      if (previewUrls.length > 0) {
-        handoffAttachmentPreviews(removedMessage.id, previewUrls);
-        continue;
-      }
-      revokeUserMessagePreviewUrls(removedMessage);
-    }
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [activeThread?.id, activeThread?.messages, handoffAttachmentPreviews, optimisticUserMessages]);
-
-  useEffect(() => {
-    setOptimisticUserMessages((existing) => {
-      for (const message of existing) {
-        revokeUserMessagePreviewUrls(message);
-      }
-      return [];
-    });
-    clearAttachmentPreviewHandoffs();
-    resetLocalDispatch();
-    setExpandedImage(null);
-  }, [clearAttachmentPreviewHandoffs, draftId, resetLocalDispatch, threadId]);
-
   const closeExpandedImage = useCallback(() => {
     setExpandedImage(null);
   }, []);
@@ -1610,32 +2077,6 @@ export default function ChatView(props: ChatViewProps) {
     requestedEnvMode: envMode,
     isGitRepo,
   });
-
-  useEffect(() => {
-    setPendingServerThreadEnvMode(null);
-    setPendingServerThreadBranch(undefined);
-  }, [activeThread?.id]);
-
-  useEffect(() => {
-    if (canOverrideServerThreadEnvMode) {
-      return;
-    }
-    setPendingServerThreadEnvMode(null);
-    setPendingServerThreadBranch(undefined);
-  }, [canOverrideServerThreadEnvMode]);
-
-  useEffect(() => {
-    if (!activeThreadId) {
-      setTerminalLaunchContext(null);
-      storeClearTerminalLaunchContext(routeThreadRef);
-      return;
-    }
-    setTerminalLaunchContext((current) => {
-      if (!current) return current;
-      if (current.threadId === activeThreadId) return current;
-      return null;
-    });
-  }, [activeThreadId, routeThreadRef, storeClearTerminalLaunchContext]);
 
   const handleBranchEnvModeChange = useCallback(
     (mode: DraftThreadEnvMode, branch: string | null) => {
@@ -1725,181 +2166,6 @@ export default function ChatView(props: ChatViewProps) {
       key: Date.now(),
     });
   }, []);
-
-  useEffect(() => {
-    if (!activeThreadId || !activeProjectCwd) {
-      return;
-    }
-    setTerminalLaunchContext((current) => {
-      if (!current || current.threadId !== activeThreadId) {
-        return current;
-      }
-      const settledCwd = projectScriptCwd({
-        project: { cwd: activeProjectCwd },
-        worktreePath: activeThreadWorktreePath,
-      });
-      if (
-        settledCwd === current.cwd &&
-        (activeThreadWorktreePath ?? null) === current.worktreePath
-      ) {
-        if (activeThreadRef) {
-          storeClearTerminalLaunchContext(activeThreadRef);
-        }
-        return null;
-      }
-      return current;
-    });
-  }, [
-    activeProjectCwd,
-    activeThreadId,
-    activeThreadRef,
-    activeThreadWorktreePath,
-    storeClearTerminalLaunchContext,
-  ]);
-
-  useEffect(() => {
-    if (!activeThreadId || !activeProjectCwd || !storeServerTerminalLaunchContext) {
-      return;
-    }
-    const settledCwd = projectScriptCwd({
-      project: { cwd: activeProjectCwd },
-      worktreePath: activeThreadWorktreePath,
-    });
-    if (
-      settledCwd === storeServerTerminalLaunchContext.cwd &&
-      (activeThreadWorktreePath ?? null) === storeServerTerminalLaunchContext.worktreePath
-    ) {
-      if (activeThreadRef) {
-        storeClearTerminalLaunchContext(activeThreadRef);
-      }
-    }
-  }, [
-    activeProjectCwd,
-    activeThreadId,
-    activeThreadRef,
-    activeThreadWorktreePath,
-    storeClearTerminalLaunchContext,
-    storeServerTerminalLaunchContext,
-  ]);
-
-  useEffect(() => {
-    if (terminalState.terminalOpen) {
-      return;
-    }
-    if (activeThreadRef) {
-      storeClearTerminalLaunchContext(activeThreadRef);
-    }
-    setTerminalLaunchContext((current) => (current?.threadId === activeThreadId ? null : current));
-  }, [
-    activeThreadId,
-    activeThreadRef,
-    storeClearTerminalLaunchContext,
-    terminalState.terminalOpen,
-  ]);
-
-  useEffect(() => {
-    if (!activeThreadKey) return;
-    const previous = terminalOpenByThreadRef.current[activeThreadKey] ?? false;
-    const current = Boolean(terminalState.terminalOpen);
-
-    if (!previous && current) {
-      terminalOpenByThreadRef.current[activeThreadKey] = current;
-      setTerminalFocusRequestId((value) => value + 1);
-      return;
-    } else if (previous && !current) {
-      terminalOpenByThreadRef.current[activeThreadKey] = current;
-      const frame = window.requestAnimationFrame(() => {
-        focusComposer();
-      });
-      return () => {
-        window.cancelAnimationFrame(frame);
-      };
-    }
-
-    terminalOpenByThreadRef.current[activeThreadKey] = current;
-  }, [activeThreadKey, focusComposer, terminalState.terminalOpen]);
-
-  useEffect(() => {
-    const handler = (event: globalThis.KeyboardEvent) => {
-      if (!activeThreadId || useCommandPaletteStore.getState().open || event.defaultPrevented) {
-        return;
-      }
-      const shortcutContext = {
-        terminalFocus: isTerminalFocused(),
-        terminalOpen: Boolean(terminalState.terminalOpen),
-      };
-
-      const command = resolveShortcutCommand(event, keybindings, {
-        context: shortcutContext,
-      });
-      if (!command) return;
-
-      if (command === "terminal.toggle") {
-        event.preventDefault();
-        event.stopPropagation();
-        toggleTerminalVisibility();
-        return;
-      }
-
-      if (command === "terminal.split") {
-        event.preventDefault();
-        event.stopPropagation();
-        if (!terminalState.terminalOpen) {
-          setTerminalOpen(true);
-        }
-        splitTerminal();
-        return;
-      }
-
-      if (command === "terminal.close") {
-        event.preventDefault();
-        event.stopPropagation();
-        if (!terminalState.terminalOpen) return;
-        closeTerminal(terminalState.activeTerminalId);
-        return;
-      }
-
-      if (command === "terminal.new") {
-        event.preventDefault();
-        event.stopPropagation();
-        if (!terminalState.terminalOpen) {
-          setTerminalOpen(true);
-        }
-        createNewTerminal();
-        return;
-      }
-
-      if (command === "diff.toggle") {
-        event.preventDefault();
-        event.stopPropagation();
-        onToggleDiff();
-        return;
-      }
-
-      const scriptId = projectScriptIdFromCommand(command);
-      if (!scriptId || !activeProject) return;
-      const script = activeProject.scripts.find((entry) => entry.id === scriptId);
-      if (!script) return;
-      event.preventDefault();
-      event.stopPropagation();
-      void runProjectScript(script);
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [
-    activeProject,
-    terminalState.terminalOpen,
-    terminalState.activeTerminalId,
-    activeThreadId,
-    closeTerminal,
-    createNewTerminal,
-    setTerminalOpen,
-    runProjectScript,
-    splitTerminal,
-    keybindings,
-    onToggleDiff,
-    toggleTerminalVisibility,
-  ]);
 
   const revertThreadToTurnCountSilent = useCallback(
     async (turnCount: number): Promise<boolean> => {
@@ -2279,12 +2545,11 @@ export default function ChatView(props: ChatViewProps) {
 
     let turnStartSucceeded = false;
     await (async () => {
-      const titleSeed = resolveComposerThreadTitleSeed({
+      const title = resolveComposerThreadTitle({
         trimmedPrompt: trimmed,
         composerImages: composerImagesSnapshot,
         terminalContexts: composerTerminalContextsSnapshot,
       });
-      const title = truncate(titleSeed);
       const threadCreateModelSelection = ctxSelectedModelSelection;
 
       // Auto-title from first message
@@ -3037,24 +3302,10 @@ export default function ChatView(props: ChatViewProps) {
   );
 
   const onProviderModelSelect = useCallback(
-    (instanceId: ProviderInstanceId, model: string) => {
+    (selection: ModelSelection) => {
       if (!activeThread && routeKind !== "draft") return;
-      const resolvedModel = resolveAppModelSelectionForInstance(
-        instanceId,
-        settings,
-        providerStatuses,
-        model,
-      );
-      if (resolvedModel === null) {
-        scheduleComposerFocus();
-        return;
-      }
-      const nextModelSelection: ModelSelection = {
-        instanceId,
-        model: resolvedModel,
-      };
-      setComposerDraftModelSelection(composerDraftTarget, nextModelSelection);
-      setStickyComposerModelSelection(nextModelSelection);
+      setComposerDraftModelSelection(composerDraftTarget, selection);
+      setStickyComposerModelSelection(selection);
       scheduleComposerFocus();
     },
     [
@@ -3063,8 +3314,6 @@ export default function ChatView(props: ChatViewProps) {
       scheduleComposerFocus,
       setComposerDraftModelSelection,
       setStickyComposerModelSelection,
-      providerStatuses,
-      settings,
       activeThread,
     ],
   );
@@ -3169,11 +3418,226 @@ export default function ChatView(props: ChatViewProps) {
   const isHeroComposer = activeThread
     ? isLocalDraftThread && !threadHasStarted(activeThread)
     : false;
+  const existingOpenTerminalThreadKeysKey = existingOpenTerminalThreadKeys.join("\0");
+  const markThreadVisitedVersion = useValueIdentityVersion(markThreadVisited);
+  const focusComposerVersion = useValueIdentityVersion(focusComposer);
+  const serverMessagesVersion = useValueIdentityVersion(activeThread?.messages);
+  const handoffAttachmentPreviewsVersion = useValueIdentityVersion(handoffAttachmentPreviews);
+  const clearAttachmentPreviewHandoffsVersion = useValueIdentityVersion(
+    clearAttachmentPreviewHandoffs,
+  );
+  const resetLocalDispatchVersion = useValueIdentityVersion(resetLocalDispatch);
+  const routeThreadRefVersion = useValueIdentityVersion(routeThreadRef);
+  const storeClearTerminalLaunchContextVersion = useValueIdentityVersion(
+    storeClearTerminalLaunchContext,
+  );
+  const activeThreadRefVersion = useValueIdentityVersion(activeThreadRef);
+  const storeServerTerminalLaunchContextVersion = useValueIdentityVersion(
+    storeServerTerminalLaunchContext,
+  );
+  const closeTerminalVersion = useValueIdentityVersion(closeTerminal);
+  const createNewTerminalVersion = useValueIdentityVersion(createNewTerminal);
+  const setTerminalOpenVersion = useValueIdentityVersion(setTerminalOpen);
+  const runProjectScriptVersion = useValueIdentityVersion(runProjectScript);
+  const splitTerminalVersion = useValueIdentityVersion(splitTerminal);
+  const keybindingsVersion = useValueIdentityVersion(keybindings);
+  const onToggleDiffVersion = useValueIdentityVersion(onToggleDiff);
+  const toggleTerminalVisibilityVersion = useValueIdentityVersion(toggleTerminalVisibility);
+  const activeProjectScriptsVersion = useValueIdentityVersion(activeProject?.scripts ?? null);
+  const chatViewLifecycleSync = (
+    <>
+      <MountedTerminalThreadsSync
+        key={[
+          activeThreadKey ?? "",
+          existingOpenTerminalThreadKeysKey,
+          terminalState.terminalOpen,
+        ].join("\0")}
+        activeThreadKey={activeThreadKey}
+        existingOpenTerminalThreadKeys={existingOpenTerminalThreadKeys}
+        setMountedTerminalThreadKeys={setMountedTerminalThreadKeys}
+        terminalOpen={Boolean(terminalState.terminalOpen)}
+      />
+      <RetainServerThreadDetailSync
+        key={[environmentId, routeKind, threadId].join("\0")}
+        environmentId={environmentId}
+        routeKind={routeKind}
+        threadId={threadId}
+      />
+      <MarkSettledServerThreadVisitedSync
+        key={[
+          activeLatestTurn?.completedAt ?? "",
+          activeThreadLastVisitedAt ?? "",
+          latestTurnSettled,
+          markThreadVisitedVersion,
+          serverThread?.environmentId ?? "",
+          serverThread?.id ?? "",
+        ].join("\0")}
+        activeThreadLastVisitedAt={activeThreadLastVisitedAt}
+        completedAt={activeLatestTurn?.completedAt}
+        environmentId={serverThread?.environmentId}
+        latestTurnSettled={latestTurnSettled}
+        markThreadVisited={markThreadVisited}
+        threadId={serverThread?.id}
+      />
+      <OptimisticUserMessagesUnmountCleanup
+        optimisticUserMessagesRef={optimisticUserMessagesRef}
+      />
+      <ActiveThreadUiResetSync
+        key={activeThread?.id ?? ""}
+        isAtBottomRef={isAtBottomRef}
+        setPullRequestDialogState={setPullRequestDialogState}
+        setShowScrollToBottom={setShowScrollToBottom}
+        showScrollDebouncer={showScrollDebouncer}
+      />
+      <BooleanResetSync
+        key={`revert:${activeThread?.id ?? ""}`}
+        setValue={setIsRevertingCheckpoint}
+        value={false}
+      />
+      <ActiveThreadComposerFocusSync
+        key={[activeThread?.id ?? "", focusComposerVersion, terminalState.terminalOpen].join(
+          "\0",
+        )}
+        activeThreadId={activeThread?.id ?? null}
+        focusComposer={focusComposer}
+        terminalOpen={Boolean(terminalState.terminalOpen)}
+      />
+      <OptimisticUserMessagesServerAckSync
+        key={[
+          activeThread?.id ?? "",
+          handoffAttachmentPreviewsVersion,
+          optimisticUserMessages.length,
+          serverMessagesVersion,
+        ].join("\0")}
+        activeThreadId={activeThread?.id ?? null}
+        handoffAttachmentPreviews={handoffAttachmentPreviews}
+        optimisticUserMessages={optimisticUserMessages}
+        serverMessages={activeThread?.messages}
+        setOptimisticUserMessages={setOptimisticUserMessages}
+      />
+      <ThreadDraftResetSync
+        key={[
+          clearAttachmentPreviewHandoffsVersion,
+          draftId ?? "",
+          resetLocalDispatchVersion,
+          threadId,
+        ].join("\0")}
+        clearAttachmentPreviewHandoffs={clearAttachmentPreviewHandoffs}
+        resetLocalDispatch={resetLocalDispatch}
+        setExpandedImage={setExpandedImage}
+        setOptimisticUserMessages={setOptimisticUserMessages}
+      />
+      <PendingServerThreadEnvResetSync
+        key={`pending-env:${activeThread?.id ?? ""}`}
+        setPendingServerThreadBranch={setPendingServerThreadBranch}
+        setPendingServerThreadEnvMode={setPendingServerThreadEnvMode}
+      />
+      <PendingServerThreadEnvCapabilitySync
+        key={`pending-env-capability:${canOverrideServerThreadEnvMode}`}
+        canOverrideServerThreadEnvMode={canOverrideServerThreadEnvMode}
+        setPendingServerThreadBranch={setPendingServerThreadBranch}
+        setPendingServerThreadEnvMode={setPendingServerThreadEnvMode}
+      />
+      <TerminalLaunchActiveThreadSync
+        key={[
+          activeThreadId ?? "",
+          routeThreadRefVersion,
+          storeClearTerminalLaunchContextVersion,
+        ].join("\0")}
+        activeThreadId={activeThreadId}
+        routeThreadRef={routeThreadRef}
+        setTerminalLaunchContext={setTerminalLaunchContext}
+        storeClearTerminalLaunchContext={storeClearTerminalLaunchContext}
+      />
+      <TerminalLaunchLocalSettledSync
+        key={[
+          activeProjectCwd ?? "",
+          activeThreadId ?? "",
+          activeThreadRefVersion,
+          activeThreadWorktreePath ?? "",
+          storeClearTerminalLaunchContextVersion,
+        ].join("\0")}
+        activeProjectCwd={activeProjectCwd}
+        activeThreadId={activeThreadId}
+        activeThreadRef={activeThreadRef}
+        activeThreadWorktreePath={activeThreadWorktreePath}
+        setTerminalLaunchContext={setTerminalLaunchContext}
+        storeClearTerminalLaunchContext={storeClearTerminalLaunchContext}
+      />
+      <TerminalLaunchStoredSettledSync
+        key={[
+          activeProjectCwd ?? "",
+          activeThreadId ?? "",
+          activeThreadRefVersion,
+          activeThreadWorktreePath ?? "",
+          storeClearTerminalLaunchContextVersion,
+          storeServerTerminalLaunchContextVersion,
+        ].join("\0")}
+        activeProjectCwd={activeProjectCwd}
+        activeThreadId={activeThreadId}
+        activeThreadRef={activeThreadRef}
+        activeThreadWorktreePath={activeThreadWorktreePath}
+        storeClearTerminalLaunchContext={storeClearTerminalLaunchContext}
+        storeServerTerminalLaunchContext={storeServerTerminalLaunchContext}
+      />
+      <TerminalLaunchClosedSync
+        key={[
+          activeThreadId ?? "",
+          activeThreadRefVersion,
+          storeClearTerminalLaunchContextVersion,
+          terminalState.terminalOpen,
+        ].join("\0")}
+        activeThreadId={activeThreadId}
+        activeThreadRef={activeThreadRef}
+        setTerminalLaunchContext={setTerminalLaunchContext}
+        storeClearTerminalLaunchContext={storeClearTerminalLaunchContext}
+        terminalOpen={Boolean(terminalState.terminalOpen)}
+      />
+      <TerminalOpenFocusSync
+        key={[activeThreadKey ?? "", focusComposerVersion, terminalState.terminalOpen].join("\0")}
+        activeThreadKey={activeThreadKey}
+        focusComposer={focusComposer}
+        setTerminalFocusRequestId={setTerminalFocusRequestId}
+        terminalOpen={Boolean(terminalState.terminalOpen)}
+        terminalOpenByThreadRef={terminalOpenByThreadRef}
+      />
+      <ChatViewKeyboardShortcutsSync
+        key={[
+          activeProjectScriptsVersion,
+          activeThreadId ?? "",
+          closeTerminalVersion,
+          createNewTerminalVersion,
+          keybindingsVersion,
+          onToggleDiffVersion,
+          runProjectScriptVersion,
+          setTerminalOpenVersion,
+          splitTerminalVersion,
+          terminalState.activeTerminalId,
+          terminalState.terminalOpen,
+          toggleTerminalVisibilityVersion,
+        ].join("\0")}
+        activeProjectScripts={activeProject?.scripts ?? null}
+        activeThreadId={activeThreadId}
+        closeTerminal={closeTerminal}
+        createNewTerminal={createNewTerminal}
+        keybindings={keybindings}
+        onToggleDiff={onToggleDiff}
+        runProjectScript={runProjectScript}
+        setTerminalOpen={setTerminalOpen}
+        splitTerminal={splitTerminal}
+        terminalActiveTerminalId={terminalState.activeTerminalId}
+        terminalOpen={Boolean(terminalState.terminalOpen)}
+        toggleTerminalVisibility={toggleTerminalVisibility}
+      />
+    </>
+  );
 
   assertActiveThread(activeThread, { routeKind, environmentId, threadId, draftId });
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden bg-background">
+      {chatViewLifecycleSync}
+      {attachmentPreviewHandoffSync}
       {/* Top bar */}
       <header
         className={cn(

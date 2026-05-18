@@ -1,8 +1,9 @@
 import { Outlet } from "@tanstack/react-router";
-import { useEffect, useEffectEvent } from "react";
+import { useEffectEvent } from "react";
 
 import { useCommandPaletteStore } from "~/stores/ui/command-palette-store";
 import { useHandleNewThread } from "~/hooks/use-handle-new-thread";
+import { useMountEffect } from "~/hooks/use-mount-effect";
 import { ShellHost } from "~/components/shell-host";
 import {
   startNewLocalThreadFromContext,
@@ -35,6 +36,7 @@ function ChatRouteGlobalShortcuts() {
       context: {
         terminalFocus: isTerminalFocused(),
         terminalOpen,
+        threadSelectionActive: selectedThreadKeysSize > 0,
       },
     });
 
@@ -42,7 +44,7 @@ function ChatRouteGlobalShortcuts() {
       return;
     }
 
-    if (event.key === "Escape" && selectedThreadKeysSize > 0) {
+    if (command === "threadSelection.clear" && selectedThreadKeysSize > 0) {
       event.preventDefault();
       clearSelection();
       return;
@@ -78,7 +80,7 @@ function ChatRouteGlobalShortcuts() {
     }
   });
 
-  useEffect(() => {
+  useMountEffect(() => {
     const onWindowKeyDown = (event: KeyboardEvent) => {
       handleWindowKeyDown(event);
     };
@@ -87,7 +89,7 @@ function ChatRouteGlobalShortcuts() {
     return () => {
       window.removeEventListener("keydown", onWindowKeyDown);
     };
-  }, []);
+  });
 
   return null;
 }
