@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
 
 import { ProviderModelPicker } from "./model-picker";
-import { getCustomModelOptionsByInstance } from "../../../model/selection";
+import { resolveAppProviderModelState } from "../../../model/selection";
 import {
   deriveProviderInstanceEntries,
   sortProviderInstanceEntries,
@@ -269,12 +269,12 @@ async function mountPicker(props: {
   const providers = props.providers ?? TEST_PROVIDERS;
   const instanceEntries = sortProviderInstanceEntries(deriveProviderInstanceEntries(providers));
   const activeInstanceId = props.activeInstanceId ?? CODEX_INSTANCE_ID;
-  const modelOptionsByInstance = getCustomModelOptionsByInstance(
-    props.settings ?? DEFAULT_UNIFIED_SETTINGS,
+  const modelOptionsByInstance = resolveAppProviderModelState({
+    settings: props.settings ?? DEFAULT_UNIFIED_SETTINGS,
     providers,
-    activeInstanceId,
-    props.model,
-  );
+    requestedInstanceId: activeInstanceId,
+    requestedModel: props.model,
+  }).modelOptionsByInstance;
   const screen = await render(
     <ProviderModelPicker
       activeInstanceId={activeInstanceId}

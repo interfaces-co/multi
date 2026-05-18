@@ -91,13 +91,16 @@ export interface ComposerInputProps {
   activePendingApproval?: PendingApproval | null | undefined;
   pendingApprovals?: PendingApproval[] | undefined;
   pendingUserInputs?: PendingUserInput[] | undefined;
-  activePendingProgress?: {
-    questionIndex: number;
-    isLastQuestion: boolean;
-    canAdvance: boolean;
-    customAnswer: string;
-    activeQuestion: { id: string } | null;
-  } | null | undefined;
+  activePendingProgress?:
+    | {
+        questionIndex: number;
+        isLastQuestion: boolean;
+        canAdvance: boolean;
+        customAnswer: string;
+        activeQuestion: { id: string } | null;
+      }
+    | null
+    | undefined;
   activePendingResolvedAnswers?: Record<string, unknown> | null | undefined;
   activePendingIsResponding?: boolean | undefined;
   activePendingDraftAnswers?: Record<string, PendingUserInputDraftAnswer> | undefined;
@@ -130,26 +133,25 @@ export interface ComposerInputProps {
   onInterrupt: () => void;
   footerSecondaryAction?: ReactNode | undefined;
 
-  onRespondToApproval?: ((
-    requestId: ApprovalRequestId,
-    decision: ProviderApprovalDecision,
-  ) => Promise<void>) | undefined;
-  onSelectActivePendingUserInputOption?: ((
-    questionId: string,
-    optionLabel: string,
-    advanceAfterSelect?: boolean,
-  ) => void) | undefined;
-  onAdvanceActivePendingUserInput?: ((
-    draftAnswersOverride?: Record<string, PendingUserInputDraftAnswer>,
-  ) => void) | undefined;
+  onRespondToApproval?:
+    | ((requestId: ApprovalRequestId, decision: ProviderApprovalDecision) => Promise<void>)
+    | undefined;
+  onSelectActivePendingUserInputOption?:
+    | ((questionId: string, optionLabel: string, advanceAfterSelect?: boolean) => void)
+    | undefined;
+  onAdvanceActivePendingUserInput?:
+    | ((draftAnswersOverride?: Record<string, PendingUserInputDraftAnswer>) => void)
+    | undefined;
   onPreviousActivePendingUserInputQuestion?: (() => void) | undefined;
-  onChangeActivePendingUserInputCustomAnswer?: ((
-    questionId: string,
-    value: string,
-    nextCursor: number,
-    expandedCursor: number,
-    cursorAdjacentToMention: boolean,
-  ) => void) | undefined;
+  onChangeActivePendingUserInputCustomAnswer?:
+    | ((
+        questionId: string,
+        value: string,
+        nextCursor: number,
+        expandedCursor: number,
+        cursorAdjacentToMention: boolean,
+      ) => void)
+    | undefined;
 
   onProviderModelSelect: (instanceId: ProviderInstanceId, model: string) => void;
   onBeginEditQueuedComposerItem?: ((itemId: QueuedComposerItemId) => void) | undefined;

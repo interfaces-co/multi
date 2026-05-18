@@ -54,11 +54,11 @@ Rules:
 - [x] Export service/domain error unions from service boundaries.
 - [x] Include expected error unions in Effect method signatures.
 - [x] Use `yield* new DomainError(...)` or `Effect.fail(new DomainError(...))`
-  for direct expected failures.
+      for direct expected failures.
 - [ ] Do not `throw` expected provider, git, orchestration, project, terminal,
-  auth, settings, or persistence failures inside Effect services.
+      auth, settings, or persistence failures inside Effect services.
 - [ ] Do not use `Effect.die(...)` for validation, unavailable resource, busy
-  session, missing worktree, provider process, auth, or command failure.
+      session, missing worktree, provider process, auth, or command failure.
 
 ## Transport Boundary Shape
 
@@ -71,13 +71,13 @@ errors declared in `packages/contracts`.
 Rules:
 
 - [x] Public RPC error classes belong in `packages/contracts` when clients must
-  decode them.
+      decode them.
 - [ ] Keep one-off translations inline at the handler when only one endpoint
-  needs them.
+      needs them.
 - [ ] Extract tiny route-group helpers only when a translation repeats.
 - [ ] Do not build one universal `unknown -> status/message` registry.
 - [ ] Preserve current public wire bodies unless a breaking contract change is
-  explicit.
+      explicit.
 
 ## Renderer Error Shape
 
@@ -87,27 +87,38 @@ triggered.
 Rules:
 
 - [x] Branch checkout catches failed `git.checkout` mutations and shows a toast
-  with the command error message.
+      with the command error message.
 - [ ] UI action handlers must not leave unhandled rejected promises for user
-  actions.
+      actions.
 - [ ] Toasts and banners should use the structured error message first, then a
-  generic fallback.
+      generic fallback.
 - [ ] Long command details should remain copyable when practical.
 - [ ] Console-only failures are acceptable only for developer diagnostics, not
-  user-triggered workflows.
+      user-triggered workflows.
+
+Toast renderer inventory: [app-toast-files.md](./app-toast-files.md).
+
+Rules:
+
+- [x] Toast error descriptions currently have a copy button by default.
+- [ ] Error normalization should happen at action/API boundaries before
+      `toastManager.add(...)` is called.
+- [ ] Add shared app error formatting only when at least two action handlers
+      need the same structured extraction.
+- [ ] Do not add a universal `unknown -> toast` registry.
 
 ## Migration Order
 
 Use vertical slices:
 
 - [ ] Pick one domain boundary: provider, git, orchestration, project, terminal,
-  auth, settings, or persistence.
+      auth, settings, or persistence.
 - [ ] Inventory expected `throw new Error`, `Effect.die`, and plain `Data.TaggedError`
-  call sites in that boundary.
+      call sites in that boundary.
 - [ ] Convert expected failures to `Schema.TaggedErrorClass` where they cross a
-  service or transport boundary.
+      service or transport boundary.
 - [ ] Map the expected errors at HTTP/WebSocket handlers if the wire shape
-  changes.
+      changes.
 - [ ] Render the public error in the app action surface that triggered it.
 - [ ] Run `pnpm run typecheck`.
 

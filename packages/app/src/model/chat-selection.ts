@@ -7,15 +7,15 @@ import {
   type ServerProviderModel,
 } from "@multi/contracts";
 import type { UnifiedSettings } from "@multi/contracts/settings";
-import { createModelSelection, normalizeModelSlug } from "@multi/shared/model";
+import { normalizeModelSlug } from "@multi/shared/model";
 
 import {
-  getAppModelOptionsForInstance,
+  resolveAppProviderModelState,
   resolveAppModelSelection,
   resolveAppModelSelectionForInstance,
   type AppModelOption,
+  type AppModelResolverStatus,
 } from "./selection";
-import { getComposerProviderState } from "./provider-state";
 import {
   deriveProviderInstanceEntriesForSettings,
   resolveProviderDriverKindForInstanceSelection,
@@ -29,13 +29,13 @@ interface ChatModelDraft {
   readonly modelSelectionByProvider: Partial<Record<ProviderInstanceId, ModelSelection>>;
 }
 
-type ProviderOptionSelectionsByProvider = Partial<
+type ProviderOptionSelectionsByInstance = Partial<
   Record<string, ReadonlyArray<ProviderOptionSelection>>
 >;
 
 interface EffectiveChatModelState {
   selectedModel: string;
-  modelOptions: ProviderOptionSelectionsByProvider | null;
+  modelOptionSelectionsByInstance: ProviderOptionSelectionsByInstance | null;
 }
 
 interface ChatModelSelectionInput {
@@ -55,13 +55,14 @@ interface ChatModelSelectionResolution {
   selectedProviderEntry: ProviderInstanceEntry | undefined;
   selectedProviderModels: ReadonlyArray<ServerProviderModel>;
   modelOptionsByInstance: ReadonlyMap<ProviderInstanceId, ReadonlyArray<AppModelOption>>;
-  modelOptionsByProvider: EffectiveChatModelState["modelOptions"];
+  modelOptionSelectionsByInstance: EffectiveChatModelState["modelOptionSelectionsByInstance"];
   modelSelection: ModelSelection;
+  modelStatus: AppModelResolverStatus;
 }
 
 function providerSelectionsFromModelSelection(
   modelSelection: ModelSelection | null | undefined,
-): ProviderOptionSelectionsByProvider | null {
+): ProviderOptionSelectionsByInstance | null {
   if (!modelSelection) {
     return null;
   }
@@ -72,11 +73,11 @@ function providerSelectionsFromModelSelection(
   return { [modelSelection.instanceId]: options };
 }
 
-function modelSelectionByProviderToOptions(
+function modelSelectionByProviderToInstanceOptions(
   map: Partial<Record<string, ModelSelection>> | null | undefined,
-): ProviderOptionSelectionsByProvider | null {
+): ProviderOptionSelectionsByInstance | null {
   if (!map) return null;
-  const result: ProviderOptionSelectionsByProvider = {};
+  const result: ProviderOptionSelectionsByInstance = {};
   for (const [provider, selection] of Object.entries(map)) {
     if (selection?.options && selection.options.length > 0) {
       result[provider] = selection.options;
@@ -134,8 +135,8 @@ function deriveEffectiveChatModelState(input: {
         activeSelection.model,
       ))
     : baseModel;
-  const modelOptions =
-    modelSelectionByProviderToOptions(input.draft?.modelSelectionByProvider) ??
+  const modelOptionSelectionsByInstance =
+    modelSelectionByProviderToInstanceOptions(input.draft?.modelSelectionByProvider) ??
     providerSelectionsFromModelSelection(input.threadModelSelection) ??
     providerSelectionsFromModelSelection(input.defaultModelSelection) ??
     providerSelectionsFromModelSelection(input.projectModelSelection) ??
@@ -143,7 +144,7 @@ function deriveEffectiveChatModelState(input: {
 
   return {
     selectedModel,
-    modelOptions,
+    modelOptionSelectionsByInstance,
   };
 }
 
@@ -231,46 +232,24 @@ export function resolveChatModelSelection(
     projectModelSelection: input.projectModelSelection,
     settings: input.settings,
   });
-  const modelOptionsByInstance = new Map<ProviderInstanceId, ReadonlyArray<AppModelOption>>();
-  for (const entry of providerInstanceEntries) {
-    modelOptionsByInstance.set(
-      entry.instanceId,
-      getAppModelOptionsForInstance(input.settings, entry),
-    );
-  }
-  const currentOptions = modelOptionsByInstance.get(selectedInstanceId) ?? [];
-  const optionSlugs = new Set(currentOptions.map((option) => option.slug));
-  const normalizedModel = normalizeModelSlug(effectiveModelState.selectedModel, selectedProvider);
-  const selectedModel = optionSlugs.has(effectiveModelState.selectedModel)
-    ? effectiveModelState.selectedModel
-    : normalizedModel && optionSlugs.has(normalizedModel)
-      ? normalizedModel
-      : (currentOptions[0]?.slug ?? effectiveModelState.selectedModel);
-  const selectedProviderEntry = providerInstanceEntries.find(
-    (entry) => entry.instanceId === selectedInstanceId,
-  );
-  const selectedProviderModels = selectedProviderEntry?.models ?? [];
-  const composerProviderState = getComposerProviderState({
-    provider: selectedProvider,
-    model: selectedModel,
-    models: selectedProviderModels,
-    prompt: "",
-    modelOptions: effectiveModelState.modelOptions?.[selectedProvider],
+  const resolvedModelState = resolveAppProviderModelState({
+    settings: input.settings,
+    providers: input.providers,
+    requestedInstanceId: selectedInstanceId,
+    requestedModel: effectiveModelState.selectedModel,
+    requestedOptions: effectiveModelState.modelOptionSelectionsByInstance?.[selectedInstanceId],
   });
 
   return {
-    providerInstanceEntries,
-    selectedProvider,
-    selectedInstanceId,
-    selectedModel,
-    selectedProviderEntry,
-    selectedProviderModels,
-    modelOptionsByInstance,
-    modelOptionsByProvider: effectiveModelState.modelOptions,
-    modelSelection: createModelSelection(
-      selectedInstanceId,
-      selectedModel,
-      composerProviderState.modelOptionsForDispatch,
-    ),
+    providerInstanceEntries: resolvedModelState.providerInstanceEntries,
+    selectedProvider: resolvedModelState.selectedProvider,
+    selectedInstanceId: resolvedModelState.selectedInstanceId,
+    selectedModel: resolvedModelState.selectedModel,
+    selectedProviderEntry: resolvedModelState.selectedProviderEntry,
+    selectedProviderModels: resolvedModelState.selectedProviderModels,
+    modelOptionsByInstance: resolvedModelState.modelOptionsByInstance,
+    modelOptionSelectionsByInstance: effectiveModelState.modelOptionSelectionsByInstance,
+    modelSelection: resolvedModelState.modelSelection,
+    modelStatus: resolvedModelState.status,
   };
 }

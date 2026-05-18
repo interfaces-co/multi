@@ -1,7 +1,4 @@
-export {
-  getEnvironmentHttpBaseUrl,
-  resolveEnvironmentHttpUrl,
-} from "./catalog";
+export { getEnvironmentHttpBaseUrl, resolveEnvironmentHttpUrl } from "./catalog";
 
 export {
   ensureEnvironmentConnectionBootstrapped,

@@ -1,4 +1,4 @@
-import { ThreadId, TurnId } from "@multi/contracts";
+import { EnvironmentId, ThreadId, TurnId } from "@multi/contracts";
 import "../../../index.css";
 
 import { page } from "vitest/browser";
@@ -48,6 +48,7 @@ describe("PlanWorkbenchPanel", () => {
       <PlanWorkbenchPanel
         activePlan={activePlan()}
         activeProposedPlan={proposedPlan()}
+        environmentId={EnvironmentId.make("local")}
         label="Plan"
         markdownCwd="/tmp/project"
         timestampFormat="24-hour"

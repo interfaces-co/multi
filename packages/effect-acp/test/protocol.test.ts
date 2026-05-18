@@ -87,16 +87,13 @@ it.layer(NodeServices.layer)("effect-acp protocol", (it) => {
 
         yield* transport.notify("session/cancel", { sessionId: "session-1" });
         const outbound = yield* Queue.take(output);
-        assert.deepEqual(
-          yield* decodeSessionCancelNotification(outbound),
-          {
-            jsonrpc: "2.0",
-            method: "session/cancel",
-            params: {
-              sessionId: "session-1",
-            },
+        assert.deepEqual(yield* decodeSessionCancelNotification(outbound), {
+          jsonrpc: "2.0",
+          method: "session/cancel",
+          params: {
+            sessionId: "session-1",
           },
-        );
+        });
 
         yield* Queue.offer(
           input,
@@ -296,19 +293,16 @@ it.layer(NodeServices.layer)("effect-acp protocol", (it) => {
       });
 
       const outbound = yield* Queue.take(output);
-      assert.deepEqual(
-        yield* decodeRequestPermissionResponse(outbound),
-        {
-          jsonrpc: "2.0",
-          id: 0,
-          result: {
-            outcome: {
-              outcome: "selected",
-              optionId: "allow",
-            },
+      assert.deepEqual(yield* decodeRequestPermissionResponse(outbound), {
+        jsonrpc: "2.0",
+        id: 0,
+        result: {
+          outcome: {
+            outcome: "selected",
+            optionId: "allow",
           },
         },
-      );
+      });
     }),
   );
 

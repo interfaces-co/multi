@@ -28,33 +28,33 @@ through GitHub raw/content lookup while the local checkout is used for reading.
 - [x] Register and update the `earendil-pi` codebase-cli checkout.
 - [x] Register and update the opencode codebase-cli checkout.
 - [x] Locate the requested opencode effect specs and record the exact local and
-  pinned-source paths.
+      pinned-source paths.
 - [x] Record the app-wide `packages/app/src` size and complexity inventory.
 - [x] Record the first-pass strip ledger by cleanup wave.
 - [x] Confirm the cleanup is for unreleased code and should be canonical, with
-  no compatibility patch layer.
+      no compatibility patch layer.
 - [x] Confirm remote/saved environment product support is not part of the target
-  product.
+      product.
 - [x] Confirm browser-function/debug product support is not part of the target
-  product.
+      product.
 - [x] Create `docs/multi-app-foundation-spec.md` as the foundation spec for
-  runtime, models, routes, errors, schema, UI, tests, Effect boundaries, and
-  deletion discipline.
+      runtime, models, routes, errors, schema, UI, tests, Effect boundaries, and
+      deletion discipline.
 - [x] Create a root `specs/effect` tree modeled after opencode's spec family so
-  future agents have boundary-specific rules for errors, schemas, routes,
-  runtime shape, and the cleanup queue.
+      future agents have boundary-specific rules for errors, schemas, routes,
+      runtime shape, and the cleanup queue.
 - [x] Remove remote/saved environment app runtime, route, settings, persistence,
-  IPC, desktop, and contract surfaces.
+      IPC, desktop, and contract surfaces.
 - [x] Reduce the environment runtime to one primary environment connection path.
 - [x] Remove browser/debug tracing product surface from the app.
 - [ ] Consolidate provider/model resolution around one core resolver.
 - [x] Retain a native plan mode side panel, implemented with plain React and a
-  primary Implement action.
+      primary Implement action.
 - [x] Rewrite the composer shell as one canonical component file with inline
-  Tailwind layout and minimal shared CSS tokens.
+      Tailwind layout and minimal shared CSS tokens.
 - [ ] Collapse deleted or behavior-free route wrappers.
 - [ ] Add only the verification coverage that remains valuable after the code is
-  deleted or rewired.
+      deleted or rewired.
 - [x] Run `pnpm run typecheck` after code changes and record the result.
 - [x] Move provider/model root files into `packages/app/src/model/*`.
 - [x] Move provider-state derivation out of composer UI ownership.
@@ -123,13 +123,13 @@ exist because features were generalized beyond the current product.
 
 First-pass strip ledger:
 
-| Wave | Lines in measured target files | Function-like nodes | Exported declarations/statements | Nature of reduction |
-| --- | ---: | ---: | ---: | --- |
-| Remote/saved environments | 4,389 | 360 | 75 | Mostly delete, with primary connection retained |
-| Provider/model selector | 2,520 | 213 | 54 | Collapse duplicate resolver/UI paths into one core |
-| Plan side-panel dedicated files | 398 | 14 | 4 | Keep native side panel, reduce to plain React current behavior |
-| Browser tracing/debug | 749 | 54 | 17 | Mostly delete app browser debug; server HTTP file is partial |
-| Route split | 1,040 | 89 | 24 | Delete removed routes and collapse thin wrappers |
+| Wave                            | Lines in measured target files | Function-like nodes | Exported declarations/statements | Nature of reduction                                            |
+| ------------------------------- | -----------------------------: | ------------------: | -------------------------------: | -------------------------------------------------------------- |
+| Remote/saved environments       |                          4,389 |                 360 |                               75 | Mostly delete, with primary connection retained                |
+| Provider/model selector         |                          2,520 |                 213 |                               54 | Collapse duplicate resolver/UI paths into one core             |
+| Plan side-panel dedicated files |                            398 |                  14 |                                4 | Keep native side panel, reduce to plain React current behavior |
+| Browser tracing/debug           |                            749 |                  54 |                               17 | Mostly delete app browser debug; server HTTP file is partial   |
+| Route split                     |                          1,040 |                  89 |                               24 | Delete removed routes and collapse thin wrappers               |
 
 This covers 9,096 measured lines and 730 function-like nodes before counting
 the provider/model slice embedded in the draft store, the plan slice
@@ -278,17 +278,17 @@ Keep boundaries:
 Collapse candidates:
 
 - [x] `components/chat/composer/pending-terminal-contexts.tsx`: one chip
-  wrapper used by `prompt-editor.tsx`.
+      wrapper used by `prompt-editor.tsx`.
 - [x] `terminal-activity.ts`: one switch helper used by
-  `terminal-state-store.ts`.
+      `terminal-state-store.ts`.
 - [x] `lib/terminal-state-cleanup.ts`: one retention helper used by
-  `environments/runtime/service.ts`.
+      `environments/runtime/service.ts`.
 - [x] `components/chat/view/project-script-terminal-actions.ts`: only
-  `chat-view.tsx` calls it; inline only if the project-script terminal flow
-  remains readable.
+      `chat-view.tsx` calls it; inline only if the project-script terminal flow
+      remains readable.
 - [x] `components/chat/shared/user-message-terminal-contexts.ts`: one
-  production caller in `human-message.tsx`; keep only if message rendering
-  needs a named parser boundary.
+      production caller in `human-message.tsx`; keep only if message rendering
+      needs a named parser boundary.
 
 Keep even if single-caller:
 
@@ -352,20 +352,20 @@ Deliverable:
 
 Initial measured inventory:
 
-| Area | File | Lines | Function-like nodes | Exported declarations/statements | Initial action |
-| --- | --- | ---: | ---: | ---: | --- |
-| App remote HTTP auth | `packages/app/src/environments/remote/api.ts` | 144 | 8 | 5 | Delete if remote pairing goes |
-| App remote target parsing | `packages/app/src/environments/remote/target.ts` | 87 | 4 | 2 | Delete if remote pairing goes |
-| App saved environment catalog | `packages/app/src/environments/runtime/catalog.ts` | 342 | 42 | 19 | Split primary-only catalog, then delete saved registry/runtime state |
-| App environment service | `packages/app/src/environments/runtime/service.ts` | 1,312 | 113 | 17 | Keep primary connection, delete saved connection branch |
-| Connections settings UI | `packages/app/src/components/settings/connections-settings.tsx` | 1,458 | 94 | 1 | Delete saved backend/pairing sections or replace with local-only diagnostics |
-| Pairing route surface | `packages/app/src/components/pairing/pairing-route-surface.tsx` | 206 | 15 | 2 | Delete if `/pair` route goes |
-| Pair route definition | `packages/app/src/routes/pair.tsx` | 18 | 1 | 1 | Delete route |
-| Pair route view wrapper | `packages/app/src/app/routes/pair-route.tsx` | 32 | 3 | 2 | Delete route wrapper |
-| Browser persistence | `packages/app/src/client-persistence-storage.ts` | 195 | 19 | 9 | Remove saved environment storage helpers |
-| Local app API | `packages/app/src/local-api.ts` | 155 | 16 | 4 | Remove saved environment persistence surface |
-| Desktop saved env service | `packages/desktop/src/settings/DesktopSavedEnvironments.ts` | 363 | 39 | 8 | Delete if desktop no longer stores remote backends |
-| Desktop saved env IPC | `packages/desktop/src/ipc/methods/savedEnvironments.ts` | 77 | 6 | 5 | Delete IPC methods/channels/preload bridge |
+| Area                          | File                                                            | Lines | Function-like nodes | Exported declarations/statements | Initial action                                                               |
+| ----------------------------- | --------------------------------------------------------------- | ----: | ------------------: | -------------------------------: | ---------------------------------------------------------------------------- |
+| App remote HTTP auth          | `packages/app/src/environments/remote/api.ts`                   |   144 |                   8 |                                5 | Delete if remote pairing goes                                                |
+| App remote target parsing     | `packages/app/src/environments/remote/target.ts`                |    87 |                   4 |                                2 | Delete if remote pairing goes                                                |
+| App saved environment catalog | `packages/app/src/environments/runtime/catalog.ts`              |   342 |                  42 |                               19 | Split primary-only catalog, then delete saved registry/runtime state         |
+| App environment service       | `packages/app/src/environments/runtime/service.ts`              | 1,312 |                 113 |                               17 | Keep primary connection, delete saved connection branch                      |
+| Connections settings UI       | `packages/app/src/components/settings/connections-settings.tsx` | 1,458 |                  94 |                                1 | Delete saved backend/pairing sections or replace with local-only diagnostics |
+| Pairing route surface         | `packages/app/src/components/pairing/pairing-route-surface.tsx` |   206 |                  15 |                                2 | Delete if `/pair` route goes                                                 |
+| Pair route definition         | `packages/app/src/routes/pair.tsx`                              |    18 |                   1 |                                1 | Delete route                                                                 |
+| Pair route view wrapper       | `packages/app/src/app/routes/pair-route.tsx`                    |    32 |                   3 |                                2 | Delete route wrapper                                                         |
+| Browser persistence           | `packages/app/src/client-persistence-storage.ts`                |   195 |                  19 |                                9 | Remove saved environment storage helpers                                     |
+| Local app API                 | `packages/app/src/local-api.ts`                                 |   155 |                  16 |                                4 | Remove saved environment persistence surface                                 |
+| Desktop saved env service     | `packages/desktop/src/settings/DesktopSavedEnvironments.ts`     |   363 |                  39 |                                8 | Delete if desktop no longer stores remote backends                           |
+| Desktop saved env IPC         | `packages/desktop/src/ipc/methods/savedEnvironments.ts`         |    77 |                   6 |                                5 | Delete IPC methods/channels/preload bridge                                   |
 
 Subtotal before server auth cleanup:
 
@@ -452,9 +452,9 @@ Confirmed canonical decisions:
 - [x] Remove `/pair` from the app route tree.
 - [x] Remove saved-environment persistence from app, desktop, and contracts.
 - [ ] Decide whether any server auth code remains after the app and desktop
-  remote/pairing UI is gone.
+      remote/pairing UI is gone.
 - [ ] Decide whether network exposure settings remain as a local-only diagnostic
-  or are deleted with pairing.
+      or are deleted with pairing.
 
 Implementation checklist:
 
@@ -463,32 +463,32 @@ Implementation checklist:
   - [x] Delete `packages/app/src/environments/remote/target.ts`.
   - [x] Delete `packages/app/src/environments/remote/api.test.ts`.
   - [x] Remove these imports from
-    `packages/app/src/environments/runtime/service.ts`:
-    `bootstrapRemoteBearerSession`, `fetchRemoteEnvironmentDescriptor`,
-    `fetchRemoteSessionState`, `resolveRemoteWebSocketConnectionUrl`, and
-    `resolveRemotePairingTarget`.
+        `packages/app/src/environments/runtime/service.ts`:
+        `bootstrapRemoteBearerSession`, `fetchRemoteEnvironmentDescriptor`,
+        `fetchRemoteSessionState`, `resolveRemoteWebSocketConnectionUrl`, and
+        `resolveRemotePairingTarget`.
   - [x] Remove saved-environment connection creation, metadata refresh,
-    reconnect, disconnect, add, and remove flows from `service.ts`.
+        reconnect, disconnect, add, and remove flows from `service.ts`.
   - [x] Keep the primary connection path:
-    `createPrimaryEnvironmentConnection`, `getPrimaryEnvironmentConnection`,
-    `readEnvironmentConnection`, `requireEnvironmentConnection`,
-    `startEnvironmentConnectionService`, and thread-detail subscriptions.
+        `createPrimaryEnvironmentConnection`, `getPrimaryEnvironmentConnection`,
+        `readEnvironmentConnection`, `requireEnvironmentConnection`,
+        `startEnvironmentConnectionService`, and thread-detail subscriptions.
 
 - [x] App catalog/persistence surface
   - [x] Reduce `packages/app/src/environments/runtime/catalog.ts` to primary
-    environment HTTP URL helpers only, or delete it if primary helpers move to
-    `primary/target.ts`.
+        environment HTTP URL helpers only, or delete it if primary helpers move to
+        `primary/target.ts`.
   - [x] Remove `SavedEnvironmentRecord`, `useSavedEnvironmentRegistryStore`,
-    `useSavedEnvironmentRuntimeStore`, hydration, bearer-token helpers, and
-    saved environment test reset helpers.
+        `useSavedEnvironmentRuntimeStore`, hydration, bearer-token helpers, and
+        saved environment test reset helpers.
   - [x] Remove saved-environment persistence from `LocalApi` in
-    `packages/app/src/local-api.ts`.
+        `packages/app/src/local-api.ts`.
   - [x] Remove saved-environment storage helpers from
-    `packages/app/src/client-persistence-storage.ts`.
+        `packages/app/src/client-persistence-storage.ts`.
   - [x] Delete or rewrite `client-persistence-storage.test.ts`,
-    `environments/runtime/catalog.test.ts`,
-    `environments/runtime/service.addSavedEnvironment.test.ts`, and the
-    saved-environment mocks in `service.threadSubscriptions.test.ts`.
+        `environments/runtime/catalog.test.ts`,
+        `environments/runtime/service.addSavedEnvironment.test.ts`, and the
+        saved-environment mocks in `service.threadSubscriptions.test.ts`.
 
 - [x] App route/settings UI
   - [x] Delete `packages/app/src/routes/pair.tsx`.
@@ -496,63 +496,63 @@ Implementation checklist:
   - [x] Delete `packages/app/src/components/pairing/pairing-route-surface.tsx`.
   - [x] Regenerate or update `packages/app/src/routeTree.gen.ts`.
   - [x] Remove saved backend and pairing sections from
-    `packages/app/src/components/settings/connections-settings.tsx`.
+        `packages/app/src/components/settings/connections-settings.tsx`.
   - [x] Update `settings-panels.browser.tsx` to cover only the kept local
-    connection/diagnostics UI, or remove that browser spec if the settings
-    surface is deleted.
+        connection/diagnostics UI, or remove that browser spec if the settings
+        surface is deleted.
 
 - [x] Desktop IPC and persistence
   - [x] Delete `packages/desktop/src/ipc/methods/savedEnvironments.ts`.
   - [x] Remove saved-environment IPC handler imports and installs from
-    `packages/desktop/src/ipc/DesktopIpcHandlers.ts`.
+        `packages/desktop/src/ipc/DesktopIpcHandlers.ts`.
   - [x] Remove saved-environment channel constants from
-    `packages/desktop/src/ipc/channels.ts`.
+        `packages/desktop/src/ipc/channels.ts`.
   - [x] Remove saved-environment bridge methods and duplicated channel constants
-    from `packages/desktop/src/preload.ts`.
+        from `packages/desktop/src/preload.ts`.
   - [x] Delete `packages/desktop/src/settings/DesktopSavedEnvironments.ts`.
   - [x] Remove `DesktopSavedEnvironments.layer` from
-    `packages/desktop/src/main.ts`.
+        `packages/desktop/src/main.ts`.
   - [x] Remove `savedEnvironmentRegistryPath` from
-    `packages/desktop/src/app/DesktopEnvironment.ts`.
+        `packages/desktop/src/app/DesktopEnvironment.ts`.
   - [x] Confirm whether `packages/desktop/src/client-persistence.ts` is dead
-    after this. If it is unreferenced, delete it too.
+        after this. If it is unreferenced, delete it too.
 
 - [x] Contracts
   - [x] Remove `PersistedSavedEnvironmentRecord` and
-    `PersistedSavedEnvironmentRecordSchema` from
-    `packages/contracts/src/ipc.ts`.
+        `PersistedSavedEnvironmentRecordSchema` from
+        `packages/contracts/src/ipc.ts`.
   - [x] Remove saved-environment methods from `DesktopBridge` and `LocalApi` in
-    the same file.
+        the same file.
   - [x] Keep `EnvironmentApi` and primary environment contracts.
 
 - [x] Grep gates
   - [x] `rg "SavedEnvironment|savedEnvironment|saved environment|saved-environment" packages/app/src packages/desktop/src packages/contracts/src`
-    returns no app/desktop/contract hits except any intentionally kept migration
-    notes.
+        returns no app/desktop/contract hits except any intentionally kept migration
+        notes.
   - [x] `rg "bootstrapRemoteBearerSession|fetchRemoteEnvironmentDescriptor|fetchRemoteSessionState|resolveRemoteWebSocketConnectionUrl|resolveRemotePairingTarget" packages/app/src`
-    returns no hits.
+        returns no hits.
   - [x] `rg "GET_SAVED_ENVIRONMENT|SET_SAVED_ENVIRONMENT|REMOVE_SAVED_ENVIRONMENT|DesktopSavedEnvironments" packages/desktop/src packages/contracts/src`
-    returns no hits.
+        returns no hits.
   - [x] `rg "createFileRoute\\(\"/pair\"|PairingRouteSurface|PairRoute" packages/app/src`
-    returns no hits.
+        returns no hits.
 
 Verification checklist:
 
 - [x] `rg` for saved/remote pairing symbols only finds intentionally kept
-  server code.
+      server code.
 - [x] `pnpm run typecheck` passes.
 - [x] `pnpm run typecheck` passed after the opencode-style spec tree,
-  slash-menu skill integration, prompt JSON removal, inline edit alignment, plan
-  side-panel label update, and checkout error surfacing.
+      slash-menu skill integration, prompt JSON removal, inline edit alignment, plan
+      side-panel label update, and checkout error surfacing.
 
 Wave 1 evidence:
 
 - [x] `rg "SavedEnvironment|savedEnvironment|saved environment|saved-environment|readBrowserSaved|writeBrowserSaved|getSavedEnvironment|setSavedEnvironment|removeSavedEnvironment|useSavedEnvironment|Remote environments|ConnectionsSettings|settings/connections|PairingRouteSurface|createFileRoute\\(\"/pair\"|resolveRemotePairingTarget|bootstrapRemoteBearerSession" packages/app/src packages/desktop/src packages/contracts/src`
-  returned no hits.
+      returned no hits.
 - [x] `rg "GET_SAVED_ENVIRONMENT|SET_SAVED_ENVIRONMENT|REMOVE_SAVED_ENVIRONMENT|DesktopSavedEnvironments|savedEnvironmentRegistryPath|saved-environments" packages/desktop/src packages/contracts/src`
-  returned no hits.
+      returned no hits.
 - [x] `rg "kind: \"primary\"|kind: \"saved\"|readonly kind: \"primary\"|connection\\.kind" packages/app/src/environments/runtime packages/app/src/lib/git-status-state.test.ts packages/app/src/local-api.test.ts packages/app/src/components/chat/picker/provider-model-picker.browser.tsx`
-  returned no hits.
+      returned no hits.
 - [x] `pnpm run typecheck` completed with 10 successful tasks.
 
 ### Wave 2: Provider/Model Core Consolidation
@@ -565,16 +565,16 @@ Deliverable:
 
 Initial measured inventory:
 
-| Area | File | Lines | Function-like nodes | Exported declarations/statements | Initial action |
-| --- | --- | ---: | ---: | ---: | --- |
-| App model resolver | `packages/app/src/model-selection.ts` | 300 | 25 | 9 | Keep as core candidate, reduce imports from UI-specific provider registry |
-| Provider instances | `packages/app/src/provider-instances.ts` | 200 | 23 | 10 | Merge into core resolver if still needed |
-| Provider model helpers | `packages/app/src/provider-models.ts` | 100 | 17 | 9 | Merge into core resolver |
-| Runtime model helpers | `packages/app/src/lib/runtime-models.ts` | 465 | 52 | 21 | Deleted; only unused shell picker consumed it |
-| Chat model picker root | `packages/app/src/components/chat/picker/model-picker.tsx` | 233 | 12 | 1 | Keep UI shell, consume core result |
-| Chat model picker content | `packages/app/src/components/chat/picker/model-content.tsx` | 550 | 53 | 1 | Simplify after core result is stable |
-| Chat model picker sidebar | `packages/app/src/components/chat/picker/model-sidebar.tsx` | 268 | 10 | 1 | Simplify or inline if provider rail remains small |
-| Shell model picker | `packages/app/src/components/shell/pickers/model.tsx` | 404 | 21 | 2 | Deleted with browser-only spec |
+| Area                      | File                                                        | Lines | Function-like nodes | Exported declarations/statements | Initial action                                                            |
+| ------------------------- | ----------------------------------------------------------- | ----: | ------------------: | -------------------------------: | ------------------------------------------------------------------------- |
+| App model resolver        | `packages/app/src/model-selection.ts`                       |   300 |                  25 |                                9 | Keep as core candidate, reduce imports from UI-specific provider registry |
+| Provider instances        | `packages/app/src/provider-instances.ts`                    |   200 |                  23 |                               10 | Merge into core resolver if still needed                                  |
+| Provider model helpers    | `packages/app/src/provider-models.ts`                       |   100 |                  17 |                                9 | Merge into core resolver                                                  |
+| Runtime model helpers     | `packages/app/src/lib/runtime-models.ts`                    |   465 |                  52 |                               21 | Deleted; only unused shell picker consumed it                             |
+| Chat model picker root    | `packages/app/src/components/chat/picker/model-picker.tsx`  |   233 |                  12 |                                1 | Keep UI shell, consume core result                                        |
+| Chat model picker content | `packages/app/src/components/chat/picker/model-content.tsx` |   550 |                  53 |                                1 | Simplify after core result is stable                                      |
+| Chat model picker sidebar | `packages/app/src/components/chat/picker/model-sidebar.tsx` |   268 |                  10 |                                1 | Simplify or inline if provider rail remains small                         |
+| Shell model picker        | `packages/app/src/components/shell/pickers/model.tsx`       |   404 |                  21 |                                2 | Deleted with browser-only spec                                            |
 
 Subtotal before draft-store cleanup:
 
@@ -601,7 +601,7 @@ that knows how to resolve every provider/model capability.
 Verification:
 
 - [x] `rg` finds no `runtime-models`, shell picker, `RuntimeModelItem`, or
-  `model-picker-variants` references in app source.
+      `model-picker-variants` references in app source.
 - [x] `stores/chat-drafts.ts` no longer exports model-resolution helpers.
 - [x] `pnpm run typecheck` passed across all 10 workspace typecheck tasks.
 - [ ] existing provider/model browser spec still covers open/filter/select
@@ -612,28 +612,28 @@ Deliverable:
 
 - [x] Retain Plan as a first-class integrated side panel.
 - [x] Collapse plan catalog/workbench indirection that is not needed by that side
-  panel
+      panel
 - [x] Keep plan mode in composer controls, without an "Open Plan" control.
 - [x] Move the primary Implement action to the side panel.
 - [x] Remove or demote chat plan card primary behavior.
 
 Initial measured inventory:
 
-| Area | File | Lines | Function-like nodes | Exported declarations/statements | Initial action |
-| --- | --- | ---: | ---: | ---: | --- |
-| Plan side panel | `packages/app/src/components/shell/plan/plan-workbench-panel.tsx` | 275 | 9 | 2 | Keep as native side panel; reduce to plain React current behavior |
-| Thread plan catalog hook | `packages/app/src/lib/thread-plan-catalog.ts` | 123 | 5 | 2 | Deleted; side panel resolves current/source threads through the existing thread selector |
-| Shell assembly | `packages/app/src/components/shell-host.tsx` | 1,290 | 67 | 1 | Keep Plan as a shell side-panel tab; move excess orchestration into a focused plan module if needed |
-| Shell panel store | `packages/app/src/stores/shell-panels-store.ts` | 519 | 68 | 16 | Keep `plan` tab state because Plan is a real side panel |
-| Composer controls | `packages/app/src/components/chat/composer/*` | variable | variable | variable | Keep plan mode; remove "Open Plan" control |
-| Chat view plan card | `packages/app/src/components/chat/view/chat-view.tsx` | variable | variable | variable | Do not make chat cards the primary plan action surface |
+| Area                     | File                                                              |    Lines | Function-like nodes | Exported declarations/statements | Initial action                                                                                      |
+| ------------------------ | ----------------------------------------------------------------- | -------: | ------------------: | -------------------------------: | --------------------------------------------------------------------------------------------------- |
+| Plan side panel          | `packages/app/src/components/shell/plan/plan-workbench-panel.tsx` |      275 |                   9 |                                2 | Keep as native side panel; reduce to plain React current behavior                                   |
+| Thread plan catalog hook | `packages/app/src/lib/thread-plan-catalog.ts`                     |      123 |                   5 |                                2 | Deleted; side panel resolves current/source threads through the existing thread selector            |
+| Shell assembly           | `packages/app/src/components/shell-host.tsx`                      |    1,290 |                  67 |                                1 | Keep Plan as a shell side-panel tab; move excess orchestration into a focused plan module if needed |
+| Shell panel store        | `packages/app/src/stores/shell-panels-store.ts`                   |      519 |                  68 |                               16 | Keep `plan` tab state because Plan is a real side panel                                             |
+| Composer controls        | `packages/app/src/components/chat/composer/*`                     | variable |            variable |                         variable | Keep plan mode; remove "Open Plan" control                                                          |
+| Chat view plan card      | `packages/app/src/components/chat/view/chat-view.tsx`             | variable |            variable |                         variable | Do not make chat cards the primary plan action surface                                              |
 
 Directly deletable/collapsible subtotal:
 
 - [x] Deleted the chat timeline `ProposedPlanCard` surface.
 - [x] Removed composer "Open Plan" controls and props.
 - [x] Removed the composer plan implementation split-button; implementation is
-  side-panel-owned.
+      side-panel-owned.
 - [x] Deleted `packages/app/src/lib/thread-plan-catalog.ts`.
 - [x] Removed plan copy/download/save export actions from the side panel.
 - [x] Removed the secondary "Implement in a new thread" side-panel action.
@@ -656,36 +656,36 @@ Related callers and tests:
 Verification:
 
 - [x] `pnpm run typecheck` passed across all 10 workspace typecheck tasks after
-  the native Plan side-panel slice.
+      the native Plan side-panel slice.
 - [ ] Rendered verification for plan side-panel visibility only if this wave is
-  asked to add or change verification coverage
+      asked to add or change verification coverage
 
 ### 4. Composer Canonical Rewrite
 
 Deliverable:
 
 - [x] Rewrite the composer shell from first principles around one canonical
-  component module.
+      component module.
 - [x] Delete shell-only composer wrapper files once their behavior is inlined.
 - [x] Keep hard-boundary modules: rich text editor, command menu, model picker,
-  provider traits, image attachments, and pending request panels.
+      provider traits, image attachments, and pending request panels.
 - [x] Move layout styling onto elements with Tailwind utilities.
 - [x] Delete `styles/composer.css`; placeholder/editor styling is expressed on
-  the editor element.
+      the editor element.
 
 Data research completed before rewrite:
 
 - [x] Cursor bundle uses `data-variant` and `data-expanded` to switch compact
-  row layout versus expanded stacked layout.
+      row layout versus expanded stacked layout.
 - [x] Cursor compact layout keeps plus/editor/model/menu/send in one row; the
-  toolbar wrappers become layout-transparent while compact.
+      toolbar wrappers become layout-transparent while compact.
 - [x] Cursor expanded layout restores a bottom toolbar row with
-  `justify-content: space-between`.
+      `justify-content: space-between`.
 - [x] Cursor model picker wrappers are bounded with `max-width`, `min-width: 0`,
-  and `overflow: hidden`.
+      and `overflow: hidden`.
 - [x] Multi already measures single-line versus multiline editor state in
-  `ComposerPromptEditor`; the rewrite should reuse that signal instead of
-  creating a second detector.
+      `ComposerPromptEditor`; the rewrite should reuse that signal instead of
+      creating a second detector.
 
 Files to inline or delete:
 
@@ -714,50 +714,50 @@ Implementation order:
 
 - [x] Inline prompt root/container/toolbar state into `input.tsx`.
 - [x] Inline compact overflow menu, mode/access controls, and primary action
-  rendering into `input.tsx`.
+      rendering into `input.tsx`.
 - [x] Delete the shell-only files and update imports/tests that referenced
-  exported helper functions.
+      exported helper functions.
 - [x] Replace compact row CSS with Tailwind classes on the row, editor wrapper,
-  model trigger wrapper, overflow menu button, and submit action.
+      model trigger wrapper, overflow menu button, and submit action.
 - [x] Replace expanded composer CSS with Tailwind classes on the surface,
-  editor wrapper, and bottom toolbar.
+      editor wrapper, and bottom toolbar.
 - [x] Delete `styles/composer.css` and remove the `agent-panel-followup-input`
-  wrapper classes from `ChatView`.
+      wrapper classes from `ChatView`.
 - [x] Trace inline edit mode: clicking a user message swaps that message row to
-  an inline composer, and sticky user rows remain the single edited row.
+      an inline composer, and sticky user rows remain the single edited row.
 - [x] Remove inline edit no-op pending callbacks and empty pending arrays by
-  narrowing `ComposerInput` optional capability props.
+      narrowing `ComposerInput` optional capability props.
 - [x] Remove parent focus props from `ComposerInput`; focus scheduling should
-  use the editor ref already owned by the composer.
+      use the editor ref already owned by the composer.
 - [x] Move edit Cancel into the composer inset or into a first-class edit
-  action slot, not a second card row outside the input.
+      action slot, not a second card row outside the input.
 - [x] Delete unused terminal context list wrapper; keep the terminal context chip
-  primitive used by the editor atom node.
+      primitive used by the editor atom node.
 - [x] Replace handwritten attach-plus glyphs with the matching `central-icons`
-  icon.
+      icon.
 - [x] Rename leftover composer-specific layout tokens that are really chat or
-  workbench tokens.
+      workbench tokens.
 - [x] Remove arbitrary Tailwind width utilities (`w-[...]`, `min-w-[...]`,
-  `max-w-[...]`) from `packages/app/src`; use named scale utilities or
-  parent-bounded `max-w-full` instead.
+      `max-w-[...]`) from `packages/app/src`; use named scale utilities or
+      parent-bounded `max-w-full` instead.
 - [x] Move root composer draft and queue state out of `packages/app/src`.
-  Draft state belongs in `stores/chat-drafts.ts`; queued sends belong in
-  `stores/chat-send-queue.ts` plus the queue dispatcher colocated with store
-  orchestration.
+      Draft state belongs in `stores/chat-drafts.ts`; queued sends belong in
+      `stores/chat-send-queue.ts` plus the queue dispatcher colocated with store
+      orchestration.
 - [x] Move composer prompt text internals beside the canonical composer shell:
-  prompt document parsing, prompt segment parsing, trigger/cursor logic, and
-  handle context belong under `components/chat/composer` with names that
-  describe the behavior instead of root `composer-*` modules.
+      prompt document parsing, prompt segment parsing, trigger/cursor logic, and
+      handle context belong under `components/chat/composer` with names that
+      describe the behavior instead of root `composer-*` modules.
 - [x] Rename `hooks/use-composer-pretext-one-line.ts`; it is a generic
-  Pretext-backed one-line measurement hook.
+      Pretext-backed one-line measurement hook.
 - [x] Delete `scripts/cursor-composer-untint-overrides.css` and
-  `scripts/apply-cursor-composer-untint.sh`; the Cursor data research is now
-  documented and should not remain as patch artifacts.
+      `scripts/apply-cursor-composer-untint.sh`; the Cursor data research is now
+      documented and should not remain as patch artifacts.
 
 Verification:
 
 - [x] `rg "agent-window .*composer|PromptInputRoot|ComposerFooterShell|CompactComposerControlsMenu|ComposerFooterModeControls|ComposerPrimaryActions" packages/app/src`
-  returns no production composer-shell hits after deletion.
+      returns no production composer-shell hits after deletion.
 - [x] `pnpm run typecheck` passes.
 
 ### Wave 5: Shell Behavior Coverage
@@ -801,13 +801,13 @@ Deliverable:
 
 Initial measured inventory:
 
-| Area | File | Lines | Function-like nodes | Exported declarations/statements | Initial action |
-| --- | --- | ---: | ---: | ---: | --- |
-| Browser debug event buffer | `packages/app/src/observability/browserDebug.ts` | 184 | 16 | 2 | Delete if browser debug trace collector goes |
-| Client OTLP bridge | `packages/app/src/observability/clientTracing.ts` | 145 | 10 | 4 | Delete app-side client tracing if server tracing stays server-only |
-| App entry dev overlay/tracing | `packages/app/src/main.tsx` | 41 | 0 | 0 | Remove `Agentation` and browser trace install if not used |
-| Server browser collector service | `packages/server/src/observability/BrowserTraceCollector.service.ts` | 14 | 0 | 2 | Delete if no app posts browser debug events |
-| Server HTTP route host | `packages/server/src/http.ts` | 365 | 28 | 9 | Remove only browser debug/OTLP proxy routes, not the whole file |
+| Area                             | File                                                                 | Lines | Function-like nodes | Exported declarations/statements | Initial action                                                     |
+| -------------------------------- | -------------------------------------------------------------------- | ----: | ------------------: | -------------------------------: | ------------------------------------------------------------------ |
+| Browser debug event buffer       | `packages/app/src/observability/browserDebug.ts`                     |   184 |                  16 |                                2 | Delete if browser debug trace collector goes                       |
+| Client OTLP bridge               | `packages/app/src/observability/clientTracing.ts`                    |   145 |                  10 |                                4 | Delete app-side client tracing if server tracing stays server-only |
+| App entry dev overlay/tracing    | `packages/app/src/main.tsx`                                          |    41 |                   0 |                                0 | Remove `Agentation` and browser trace install if not used          |
+| Server browser collector service | `packages/server/src/observability/BrowserTraceCollector.service.ts` |    14 |                   0 |                                2 | Delete if no app posts browser debug events                        |
+| Server HTTP route host           | `packages/server/src/http.ts`                                        |   365 |                  28 |                                9 | Remove only browser debug/OTLP proxy routes, not the whole file    |
 
 Candidate app/server subtotal:
 
@@ -843,9 +843,9 @@ Preserved product/runtime surface:
 - [x] Browser/web `createBrowserHistory` renderer hosting.
 - [x] `staticAndDevRouteLayer` for server-hosted web/dev assets.
 - [x] `websocketRpcRouteLayer` and `WsTransport` for core app/server
-  communication.
+      communication.
 - [x] auth bootstrap, environment descriptor, attachment, orchestration, and
-  favicon routes.
+      favicon routes.
 - [x] server OTLP tracing/metrics in `ObservabilityLive`.
 
 Removed implementation:
@@ -855,7 +855,7 @@ Removed implementation:
 - [x] browser debug install and render trace calls in `main.tsx`.
 - [x] `Agentation` dev overlay and package dependency.
 - [x] app `traceBrowserEvent` calls across route, composer, terminal, runtime,
-  and WebSocket files.
+      and WebSocket files.
 - [x] server `/api/debug/browser-events` route.
 - [x] server `/api/observability/v1/traces` browser proxy route.
 - [x] server `BrowserTraceCollector` service and layer provider.
@@ -865,11 +865,11 @@ Removed implementation:
 Verification:
 
 - [x] `rg` finds no app `traceBrowserEvent`, `installBrowserDebugTracing`, or
-  `configureClientTracing` references after removal.
+      `configureClientTracing` references after removal.
 - [x] `rg` finds no source/package references to `Agentation`, `agentation`,
-  `/api/debug/browser-events`, `/api/observability/v1/traces`,
-  `BrowserTraceCollector`, `decodeOtlpTraceRecords`, `otlp-span`, `b3`, or
-  `traceparent`.
+      `/api/debug/browser-events`, `/api/observability/v1/traces`,
+      `BrowserTraceCollector`, `decodeOtlpTraceRecords`, `otlp-span`, `b3`, or
+      `traceparent`.
 - [x] `pnpm run typecheck` passed across all 10 workspace typecheck tasks.
 
 ### Wave 7: Route Split Collapse
@@ -882,16 +882,16 @@ Deliverable:
 
 Measured route files:
 
-| File | Lines | Initial action |
-| --- | ---: | --- |
-| `packages/app/src/app/routes/chat-draft-route.tsx` | 105 | Keep if behavior remains route-specific |
-| `packages/app/src/app/routes/chat-index-route.tsx` | 76 | Keep or inline into route file |
-| `packages/app/src/app/routes/chat-route.tsx` | 102 | Keep if shell composition remains route-specific |
-| `packages/app/src/app/routes/chat-thread-route.tsx` | 120 | Keep if behavior remains route-specific |
-| `packages/app/src/app/routes/pair-route.tsx` | 31 | Delete with `/pair` |
-| `packages/app/src/app/routes/root-route.tsx` | 387 | Split bootstraps from route rendering or collapse bootstraps into app root |
-| `packages/app/src/app/routes/settings-route.tsx` | 45 | Keep or inline |
-| `packages/app/src/routes/*` | 253 total | Keep generated route definitions, delete deleted routes |
+| File                                                |     Lines | Initial action                                                             |
+| --------------------------------------------------- | --------: | -------------------------------------------------------------------------- |
+| `packages/app/src/app/routes/chat-draft-route.tsx`  |       105 | Keep if behavior remains route-specific                                    |
+| `packages/app/src/app/routes/chat-index-route.tsx`  |        76 | Keep or inline into route file                                             |
+| `packages/app/src/app/routes/chat-route.tsx`        |       102 | Keep if shell composition remains route-specific                           |
+| `packages/app/src/app/routes/chat-thread-route.tsx` |       120 | Keep if behavior remains route-specific                                    |
+| `packages/app/src/app/routes/pair-route.tsx`        |        31 | Delete with `/pair`                                                        |
+| `packages/app/src/app/routes/root-route.tsx`        |       387 | Split bootstraps from route rendering or collapse bootstraps into app root |
+| `packages/app/src/app/routes/settings-route.tsx`    |        45 | Keep or inline                                                             |
+| `packages/app/src/routes/*`                         | 253 total | Keep generated route definitions, delete deleted routes                    |
 
 Route subtotal:
 
@@ -911,18 +911,18 @@ These dependencies appear in one or two source/config files and should be
 reviewed after the waves above. Low reference count does not mean unused; it
 means the package is easy to verify.
 
-| Dependency | Reference count in app source/config/package | Initial action |
-| --- | ---: | --- |
-| `agentation` | 2 | Deleted in Wave 5 |
-| `@tanstack/react-query-devtools` | 2 | Delete if router/devtools panel does not expose it |
-| `@tanstack/react-router-devtools` | 2 | Delete if router devtools are removed |
-| `@tanstack/react-devtools` | 2 | Delete if `RouterDevtoolsPanel` no longer needs it |
-| `@tanstack/devtools-vite` | 1 | Delete with TanStack devtools |
-| `@effect/language-service` | 1 | Keep only if local tooling uses it |
-| `@rolldown/plugin-babel` | 2 | Keep only if Vite config still needs it |
-| `babel-plugin-react-compiler` | 1 | Keep only if compiler remains enabled |
-| `@tanstack/react-hotkeys` | 2 | Keep if composer mode hotkeys remain on it |
-| `@tanstack/react-pacer` | currently used in runtime service | Delete if remote/saved connection throttling goes and no other throttling remains |
+| Dependency                        | Reference count in app source/config/package | Initial action                                                                    |
+| --------------------------------- | -------------------------------------------: | --------------------------------------------------------------------------------- |
+| `agentation`                      |                                            2 | Deleted in Wave 5                                                                 |
+| `@tanstack/react-query-devtools`  |                                            2 | Delete if router/devtools panel does not expose it                                |
+| `@tanstack/react-router-devtools` |                                            2 | Delete if router devtools are removed                                             |
+| `@tanstack/react-devtools`        |                                            2 | Delete if `RouterDevtoolsPanel` no longer needs it                                |
+| `@tanstack/devtools-vite`         |                                            1 | Delete with TanStack devtools                                                     |
+| `@effect/language-service`        |                                            1 | Keep only if local tooling uses it                                                |
+| `@rolldown/plugin-babel`          |                                            2 | Keep only if Vite config still needs it                                           |
+| `babel-plugin-react-compiler`     |                                            1 | Keep only if compiler remains enabled                                             |
+| `@tanstack/react-hotkeys`         |                                            2 | Keep if composer mode hotkeys remain on it                                        |
+| `@tanstack/react-pacer`           |            currently used in runtime service | Delete if remote/saved connection throttling goes and no other throttling remains |
 
 ## Strict Knip Gate
 
@@ -939,27 +939,27 @@ Goal:
 Rules:
 
 - [x] `pnpm run knip` reports every Knip issue family, not only files,
-  dependencies, catalog, and unresolved imports.
+      dependencies, catalog, and unresolved imports.
 - [x] `pnpm run knip` avoids Knip's `--strict` flag because that mode excludes
-  other workspaces from direct dependency accounting and creates false positives
-  for live `workspace:*` imports. Strictness comes from all issue families,
-  entry-export checks, config-hint failures, and no broad source ignores.
+      other workspaces from direct dependency accounting and creates false positives
+      for live `workspace:*` imports. Strictness comes from all issue families,
+      entry-export checks, config-hint failures, and no broad source ignores.
 - [x] Entry-file exports are included; public package entry files are not
-  exempt from unused export reporting.
+      exempt from unused export reporting.
 - [x] Config hints are treated as failures.
 - [x] Test and browser files are modeled as entries where they are legitimate
-  executable specs, not globally ignored.
+      executable specs, not globally ignored.
 - [x] `pnpm run knip:production` exists for production-source reachability.
 - [x] Generated Effect schema output has a narrow export/type exclusion so the
-  strict report focuses on handwritten code and package boundaries.
+      strict report focuses on handwritten code and package boundaries.
 
 Verification:
 
 - [ ] `pnpm run knip` runs with the strict config and reports only real cleanup
-  work, not config/schema errors.
+      work, not config/schema errors.
 - [ ] `pnpm run knip:production` runs and identifies production-only dead code.
 - [ ] Current Knip findings are either deleted, rewired, or documented with a
-  narrow intentional exclusion.
+      narrow intentional exclusion.
 
 ## Done Criteria
 
@@ -970,40 +970,40 @@ This cleanup is done only when:
 - [ ] no route, IPC, or contract type remains solely for deleted app UI
 - [ ] model/provider selection has one core resolver path
 - [ ] shell/sidebar verification exercises user-visible behavior, not only
-  helper functions
+      helper functions
 - [ ] strict Knip gates are configured and outstanding findings have a cleanup
-  ledger
+      ledger
 - [ ] `pnpm run typecheck` passes
 
 ## Prompt To Artifact Checklist
 
 - [x] Use codebase-cli for `earendil-works/pi`: registered path recorded as
-  `/Users/workgyver/.agents/codebases/earendil-pi`; Pi lessons summarized.
+      `/Users/workgyver/.agents/codebases/earendil-pi`; Pi lessons summarized.
 - [x] Use opencode effect migration specs: registered opencode path recorded;
-  requested effect spec tree and files listed; opencode cleanup rules
-  summarized.
+      requested effect spec tree and files listed; opencode cleanup rules
+      summarized.
 - [x] Identify extra function/effect/react/router code: app-wide
-  file/line/function/export counts and wave-specific ledgers are documented.
+      file/line/function/export counts and wave-specific ledgers are documented.
 - [x] Determine how many functions can be stripped from `multi-app`:
-  first-pass ledger identifies 730 function-like nodes in measured target files.
+      first-pass ledger identifies 730 function-like nodes in measured target files.
 - [x] Create a foundation doc like opencode's spec family:
-  `docs/multi-app-foundation-spec.md` defines Multi tracks for `ENV`, `MODEL`,
-  `ROUTE`, `PLAN`, `ERROR`, `SCHEMA`, `UI`, `TEST`, `EFFECT`, `OBS`, and
-  `DELETE`.
+      `docs/multi-app-foundation-spec.md` defines Multi tracks for `ENV`, `MODEL`,
+      `ROUTE`, `PLAN`, `ERROR`, `SCHEMA`, `UI`, `TEST`, `EFFECT`, `OBS`, and
+      `DELETE`.
 - [x] Record that remote connection is not needed: Wave 1 targets remote/saved
-  environments and is confirmed for canonical deletion.
+      environments and is confirmed for canonical deletion.
 - [x] Record that browser function is not needed: Wave 5 targets browser
-  tracing/debug and dev overlay for deletion.
+      tracing/debug and dev overlay for deletion.
 - [ ] Make codebase reliable/understandable: cleanup waves are documented, but
-  code deletion and rewiring still need to land.
+      code deletion and rewiring still need to land.
 - [x] Task/plan panel can be plain React: Wave 3 now retains Plan as the native
-  side panel and targets only unnecessary catalog/workbench indirection.
+      side panel and targets only unnecessary catalog/workbench indirection.
 - [x] Composer can be canonical and composable: Wave 4 defines a one-file shell
-  rewrite with inline Tailwind and minimal CSS tokens.
+      rewrite with inline Tailwind and minimal CSS tokens.
 - [ ] Improve usability verification for sidebar multiple screen sizes: Wave 5
-  defines rendered AppShell viewport requirements.
+      defines rendered AppShell viewport requirements.
 - [ ] Provider/model selector is too complicated: Wave 2 deleted duplicate
-  runtime/shell picker paths and moved effective composer resolution out of the
-  draft store; core resolver consolidation remains open.
+      runtime/shell picker paths and moved effective composer resolution out of the
+      draft store; core resolver consolidation remains open.
 - [ ] Build good core like `pi`: Pi model resolver lesson and Wave 2 core
-  resolver target are documented; implementation is partially landed.
+      resolver target are documented; implementation is partially landed.

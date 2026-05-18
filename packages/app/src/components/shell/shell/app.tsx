@@ -292,7 +292,7 @@ function RightAsidePanels(props: { activeTab: WorkbenchTab; right: RightWorkbenc
   return (
     <div className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
       {props.right.tabs.map((tab) => {
-        const panel = props.right.panels[tab.id] ?? null;
+        const panel = tab.id === props.activeTab ? (props.right.panels[tab.id] ?? null) : null;
         return (
           <TabsPanel
             key={tab.id}

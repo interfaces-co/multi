@@ -142,10 +142,7 @@ function isUnknownPendingUserInputRequestError(cause: Cause.Cause<ProviderServic
 
 function isMissingProviderSessionError(cause: Cause.Cause<ProviderServiceError>): boolean {
   const error = Cause.squash(cause);
-  return (
-    isProviderAdapterSessionNotFoundError(error) ||
-    isProviderAdapterSessionClosedError(error)
-  );
+  return isProviderAdapterSessionNotFoundError(error) || isProviderAdapterSessionClosedError(error);
 }
 
 function stalePendingRequestDetail(

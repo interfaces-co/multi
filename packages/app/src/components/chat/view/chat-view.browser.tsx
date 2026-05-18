@@ -20,6 +20,7 @@ import {
 } from "../../../lib/terminal-context";
 import { useTerminalStateStore } from "../../../terminal-state-store";
 import { useUiStateStore } from "../../../stores/ui-state-store";
+import { DEFAULT_INTERACTION_MODE, DEFAULT_RUNTIME_MODE } from "../../../types";
 
 import {
   COMPACT_FOOTER_VIEWPORT,
@@ -130,6 +131,21 @@ function findSidebarThreadTitle(title = THREAD_TITLE): HTMLElement | null {
     Array.from(document.querySelectorAll<HTMLElement>("[data-agent-sidebar-title]")).find(
       (element) => element.textContent?.trim() === title,
     ) ?? null
+  );
+}
+
+async function openPlanWorkbenchPanel(): Promise<void> {
+  const planTab = await waitForElement(
+    () => document.querySelector<HTMLButtonElement>('button[aria-label="Plan"]'),
+    "Unable to find Plan workbench tab.",
+  );
+  planTab.click();
+  await waitForElement(
+    () =>
+      document.querySelector<HTMLElement>(
+        '[data-workbench-panel="plan"][data-workbench-panel-active="true"]',
+      ),
+    "Unable to activate Plan workbench panel.",
   );
 }
 
@@ -1213,6 +1229,9 @@ describe("ChatView timeline estimator parity (full app)", () => {
     });
 
     try {
+      useComposerDraftStore.getState().setPrompt(THREAD_REF, "hotkey target\nkeeps controls open");
+      await waitForLayout();
+
       const initialModeButton = await waitForInteractionModeButton("Build");
       expect(initialModeButton.title).toContain("enter plan mode");
 
@@ -2249,15 +2268,10 @@ describe("ChatView timeline estimator parity (full app)", () => {
       );
       const newDraftId = draftIdFromPath(newThreadPath);
 
-      expect(composerDraftFor(newDraftId)).toMatchObject({
-        activeProvider: null,
-        images: [],
-        interactionMode: null,
-        modelSelectionByProvider: {},
-        persistedAttachments: [],
-        prompt: "",
-        runtimeMode: null,
-        terminalContexts: [],
+      expect(composerDraftFor(newDraftId)).toBeUndefined();
+      expect(useComposerDraftStore.getState().getDraftSession(newDraftId)).toMatchObject({
+        interactionMode: DEFAULT_INTERACTION_MODE,
+        runtimeMode: DEFAULT_RUNTIME_MODE,
       });
     } finally {
       await mounted.cleanup();
@@ -3111,35 +3125,19 @@ describe("ChatView timeline estimator parity (full app)", () => {
     }
   });
 
-  it("keeps long proposed plans lightweight until the user expands them", async () => {
+  it("renders long proposed plans in the native plan workbench", async () => {
     const mounted = await mountChatView({
       viewport: DEFAULT_VIEWPORT,
       snapshot: createSnapshotWithLongProposedPlan(),
     });
 
     try {
-      await waitForElement(
-        () =>
-          Array.from(document.querySelectorAll("button")).find(
-            (button) => button.textContent?.trim() === "Expand plan",
-          ) as HTMLButtonElement | null,
-        "Unable to find Expand plan button.",
-      );
-
-      expect(document.body.textContent).not.toContain("deep hidden detail only after expand");
-
-      const expandButton = await waitForElement(
-        () =>
-          Array.from(document.querySelectorAll("button")).find(
-            (button) => button.textContent?.trim() === "Expand plan",
-          ) as HTMLButtonElement | null,
-        "Unable to find Expand plan button.",
-      );
-      expandButton.click();
-
+      await openPlanWorkbenchPanel();
       await vi.waitFor(
         () => {
           expect(document.body.textContent).toContain("deep hidden detail only after expand");
+          expect(document.querySelector('button[aria-label="Plan actions"]')).toBeTruthy();
+          expect(document.querySelector('button[title="Build plan"]')).toBeTruthy();
         },
         { timeout: 8_000, interval: 16 },
       );
@@ -3169,6 +3167,8 @@ describe("ChatView timeline estimator parity (full app)", () => {
     });
 
     try {
+      await openPlanWorkbenchPanel();
+
       const planActionsButton = await waitForElement(
         () => document.querySelector<HTMLButtonElement>('button[aria-label="Plan actions"]'),
         "Unable to find proposed plan actions button.",
@@ -3207,8 +3207,11 @@ describe("ChatView timeline estimator parity (full app)", () => {
       const firstOption = await waitForButtonContainingText("Tight");
       firstOption.click();
 
-      await waitForButtonByText("Previous");
-      await waitForButtonByText("Submit answers");
+      await waitForElement(
+        () => document.querySelector<HTMLButtonElement>('button[aria-label="Previous question"]'),
+        "Unable to find previous-question button.",
+      );
+      await waitForButtonByText("Submit");
 
       await mounted.setContainerSize(COMPACT_FOOTER_VIEWPORT);
       await expectComposerActionsContained();

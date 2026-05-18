@@ -46,7 +46,7 @@ export function useComposerModelState(input: {
   const providerInstanceEntries = chatModelSelection.providerInstanceEntries;
   const selectedProvider = chatModelSelection.selectedProvider;
   const selectedInstanceId = chatModelSelection.selectedInstanceId;
-  const modelOptionsByProvider = chatModelSelection.modelOptionsByProvider;
+  const modelOptionSelectionsByInstance = chatModelSelection.modelOptionSelectionsByInstance;
   const modelOptionsByInstance = chatModelSelection.modelOptionsByInstance;
   const instanceCoherentSelectedModel = chatModelSelection.selectedModel;
   const selectedProviderStatus = chatModelSelection.selectedProviderEntry?.snapshot ?? null;
@@ -59,13 +59,14 @@ export function useComposerModelState(input: {
         model: instanceCoherentSelectedModel,
         models: selectedProviderModels,
         prompt: input.prompt,
-        modelOptions: modelOptionsByProvider?.[selectedProvider],
+        modelOptions: modelOptionSelectionsByInstance?.[selectedInstanceId],
       }),
     [
-      modelOptionsByProvider,
+      modelOptionSelectionsByInstance,
       instanceCoherentSelectedModel,
       input.prompt,
       selectedProvider,
+      selectedInstanceId,
       selectedProviderModels,
     ],
   );
@@ -100,7 +101,7 @@ export function useComposerModelState(input: {
     providerInstanceEntries,
     selectedProvider,
     selectedInstanceId,
-    modelOptionsByProvider,
+    modelOptionSelectionsByInstance,
     modelOptionsByInstance,
     instanceCoherentSelectedModel,
     selectedProviderStatus,

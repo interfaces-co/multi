@@ -22,7 +22,10 @@ import { __resetLocalApiForTests } from "../../../local-api";
 import { AppAtomRegistryProvider } from "../../../rpc/atom-registry";
 import { getServerConfig } from "../../../rpc/server-state";
 import { getRouter } from "../../../router";
-import { selectBootstrapCompleteForActiveEnvironment, useStore } from "../../../stores/thread-store";
+import {
+  selectBootstrapCompleteForActiveEnvironment,
+  useStore,
+} from "../../../stores/thread-store";
 import { useTerminalStateStore } from "../../../terminal-state-store";
 import { useUiStateStore } from "../../../stores/ui-state-store";
 import { createAuthenticatedSessionHandlers } from "../../../../test/authHttpHandlers";

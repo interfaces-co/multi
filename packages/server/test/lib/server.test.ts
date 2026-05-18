@@ -25,22 +25,8 @@ import {
 } from "@multi/contracts";
 import { assert, it } from "@effect/vitest";
 import { assertFailure, assertInclude, assertTrue } from "@effect/vitest/utils";
-import {
-  Deferred,
-  Duration,
-  Effect,
-  FileSystem,
-  Layer,
-  Option,
-  Path,
-  Stream,
-} from "effect";
-import {
-  FetchHttpClient,
-  HttpClient,
-  HttpRouter,
-  HttpServer,
-} from "effect/unstable/http";
+import { Deferred, Duration, Effect, FileSystem, Layer, Option, Path, Stream } from "effect";
+import { FetchHttpClient, HttpClient, HttpRouter, HttpServer } from "effect/unstable/http";
 import { RpcClient, RpcSerialization } from "effect/unstable/rpc";
 import * as Socket from "effect/unstable/socket/Socket";
 import { vi } from "vitest";

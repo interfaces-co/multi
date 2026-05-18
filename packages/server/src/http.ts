@@ -1,10 +1,6 @@
 import Mime from "@effect/platform-node/Mime";
 import { Effect, FileSystem, Option, Path } from "effect";
-import {
-  HttpRouter,
-  HttpServerResponse,
-  HttpServerRequest,
-} from "effect/unstable/http";
+import { HttpRouter, HttpServerResponse, HttpServerRequest } from "effect/unstable/http";
 
 import {
   ATTACHMENTS_ROUTE_PREFIX,

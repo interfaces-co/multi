@@ -1,7 +1,4 @@
-import {
-  splitPromptIntoComposerSegments,
-  type ComposerPromptSegment,
-} from "./prompt-segments";
+import { splitPromptIntoComposerSegments, type ComposerPromptSegment } from "./prompt-segments";
 import { INLINE_TERMINAL_CONTEXT_PLACEHOLDER } from "../../../lib/terminal-context";
 
 export type ComposerTriggerKind = "path" | "slash-command" | "slash-model";

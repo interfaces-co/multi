@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildPlanImplementationPrompt,
+  buildProposedPlanMarkdownFilename,
+  normalizePlanMarkdownForExport,
   proposedPlanTitle,
   resolvePlanFollowUpSubmission,
   stripDisplayedPlanMarkdown,
@@ -22,6 +24,26 @@ describe("buildPlanImplementationPrompt", () => {
     expect(buildPlanImplementationPrompt("## Ship it\n\n- step 1\n")).toBe(
       "PLEASE IMPLEMENT THIS PLAN:\n## Ship it\n\n- step 1",
     );
+  });
+});
+
+describe("normalizePlanMarkdownForExport", () => {
+  it("trims surrounding whitespace and keeps a trailing newline", () => {
+    expect(normalizePlanMarkdownForExport("  # Ship it\n\n- step 1\n\n")).toBe(
+      "# Ship it\n\n- step 1\n",
+    );
+  });
+});
+
+describe("buildProposedPlanMarkdownFilename", () => {
+  it("uses the markdown title as a stable filename", () => {
+    expect(buildProposedPlanMarkdownFilename("# Ship It: Phase 2!\n\n- step")).toBe(
+      "ship-it-phase-2.md",
+    );
+  });
+
+  it("falls back when the plan has no title", () => {
+    expect(buildProposedPlanMarkdownFilename("- step")).toBe("proposed-plan.md");
   });
 });
 

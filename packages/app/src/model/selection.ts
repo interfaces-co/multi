@@ -5,6 +5,7 @@ import {
   type ModelSelection,
   ProviderDriverKind,
   ProviderInstanceId,
+  type ProviderOptionSelection,
   type ServerProvider,
 } from "@multi/contracts";
 import {
@@ -17,8 +18,8 @@ import { UnifiedSettings } from "@multi/contracts/settings";
 import { sortModelsForProviderInstance } from "./ordering";
 import {
   type ProviderInstanceEntry,
-  deriveProviderInstanceEntries,
   deriveProviderInstanceEntriesForSettings,
+  sortProviderInstanceEntries,
 } from "./provider-instances";
 import {
   getDefaultServerModel,
@@ -29,7 +30,7 @@ import { getComposerProviderState } from "./provider-state";
 
 const MAX_CUSTOM_MODEL_COUNT = 32;
 export const MAX_CUSTOM_MODEL_LENGTH = 256;
-const DEFAULT_TEXT_GENERATION_INSTANCE_ID = ProviderInstanceId.make("codex");
+const DEFAULT_TEXT_GENERATION_DRIVER_KIND = ProviderDriverKind.make("codex");
 
 function readInstanceCustomModels(
   settings: UnifiedSettings,
@@ -62,6 +63,47 @@ export interface AppModelOption {
   subProvider?: string;
   selectable?: boolean;
   isCustom: boolean;
+}
+
+export type AppModelResolverStatus =
+  | { readonly kind: "ready"; readonly message: null }
+  | { readonly kind: "loading"; readonly message: string }
+  | {
+      readonly kind: "missing-provider";
+      readonly message: string;
+      readonly requestedInstanceId: ProviderInstanceId;
+    }
+  | {
+      readonly kind: "disabled-provider";
+      readonly message: string;
+      readonly requestedInstanceId: ProviderInstanceId;
+    }
+  | {
+      readonly kind: "empty-catalog";
+      readonly message: string;
+      readonly selectedInstanceId: ProviderInstanceId;
+    }
+  | {
+      readonly kind: "missing-model";
+      readonly message: string;
+      readonly requestedModel: string;
+      readonly selectedInstanceId: ProviderInstanceId;
+    };
+
+export interface AppProviderModelState {
+  readonly status: AppModelResolverStatus;
+  readonly providerInstanceEntries: ReadonlyArray<ProviderInstanceEntry>;
+  readonly modelOptionsByInstance: ReadonlyMap<ProviderInstanceId, ReadonlyArray<AppModelOption>>;
+  readonly requestedInstanceId: ProviderInstanceId | null;
+  readonly requestedModel: string | null;
+  readonly selectedProviderEntry: ProviderInstanceEntry | undefined;
+  readonly selectedProvider: ProviderDriverKind;
+  readonly selectedInstanceId: ProviderInstanceId;
+  readonly selectedModel: string;
+  readonly selectedModelOptions: ReadonlyArray<AppModelOption>;
+  readonly selectableModelOptions: ReadonlyArray<AppModelOption>;
+  readonly selectedProviderModels: ProviderInstanceEntry["models"];
+  readonly modelSelection: ModelSelection;
 }
 
 function toAppModelOption(model: ServerProvider["models"][number]): AppModelOption {
@@ -106,7 +148,7 @@ function applyInstanceModelPreferences(
   );
 }
 
-export function normalizeCustomModelSlugs(
+function normalizeCustomModelSlugs(
   models: Iterable<string | null | undefined>,
   builtInModelSlugs: ReadonlySet<string>,
   provider: ProviderDriverKind = ProviderDriverKind.make("codex"),
@@ -196,6 +238,183 @@ export function getAppModelOptionsForInstance(
   );
 }
 
+function buildModelOptionsByInstance(
+  settings: UnifiedSettings,
+  entries: ReadonlyArray<ProviderInstanceEntry>,
+): ReadonlyMap<ProviderInstanceId, ReadonlyArray<AppModelOption>> {
+  const out = new Map<ProviderInstanceId, ReadonlyArray<AppModelOption>>();
+  for (const entry of entries) {
+    out.set(entry.instanceId, getAppModelOptionsForInstance(settings, entry));
+  }
+  return out;
+}
+
+function selectableProviderEntry(entry: ProviderInstanceEntry): boolean {
+  return entry.enabled && entry.isAvailable;
+}
+
+function getRequestedProviderStatus(input: {
+  readonly entries: ReadonlyArray<ProviderInstanceEntry>;
+  readonly requestedInstanceId: ProviderInstanceId | null;
+  readonly selectedEntry: ProviderInstanceEntry | undefined;
+}): AppModelResolverStatus {
+  if (input.entries.length === 0) {
+    return {
+      kind: "loading",
+      message: "Provider catalog is still loading.",
+    };
+  }
+
+  if (!input.requestedInstanceId) {
+    return { kind: "ready", message: null };
+  }
+
+  const requestedEntry = input.entries.find(
+    (entry) => entry.instanceId === input.requestedInstanceId,
+  );
+  if (!requestedEntry) {
+    return {
+      kind: "missing-provider",
+      requestedInstanceId: input.requestedInstanceId,
+      message: "Selected provider is no longer available.",
+    };
+  }
+
+  if (!selectableProviderEntry(requestedEntry)) {
+    return {
+      kind: "disabled-provider",
+      requestedInstanceId: input.requestedInstanceId,
+      message: "Selected provider is disabled.",
+    };
+  }
+
+  if (!input.selectedEntry || !selectableProviderEntry(input.selectedEntry)) {
+    return {
+      kind: "disabled-provider",
+      requestedInstanceId: input.requestedInstanceId,
+      message: "Selected provider is disabled.",
+    };
+  }
+
+  return { kind: "ready", message: null };
+}
+
+function getModelStatus(input: {
+  readonly providerStatus: AppModelResolverStatus;
+  readonly requestedModel: string | null;
+  readonly selectedInstanceId: ProviderInstanceId;
+  readonly selectableModelOptions: ReadonlyArray<AppModelOption>;
+  readonly resolvedRequestedModel: string | null;
+}): AppModelResolverStatus {
+  if (input.providerStatus.kind !== "ready") {
+    return input.providerStatus;
+  }
+
+  if (input.selectableModelOptions.length === 0) {
+    return {
+      kind: "empty-catalog",
+      selectedInstanceId: input.selectedInstanceId,
+      message: "Selected provider has no selectable models.",
+    };
+  }
+
+  if (input.requestedModel && !input.resolvedRequestedModel) {
+    return {
+      kind: "missing-model",
+      requestedModel: input.requestedModel,
+      selectedInstanceId: input.selectedInstanceId,
+      message: "Selected model is no longer available.",
+    };
+  }
+
+  return input.providerStatus;
+}
+
+export function resolveAppProviderModelState(input: {
+  readonly settings: UnifiedSettings;
+  readonly providers: ReadonlyArray<ServerProvider>;
+  readonly requestedSelection?: ModelSelection | null | undefined;
+  readonly requestedInstanceId?: ProviderInstanceId | null | undefined;
+  readonly requestedModel?: string | null | undefined;
+  readonly requestedOptions?: ReadonlyArray<ProviderOptionSelection> | null | undefined;
+}): AppProviderModelState {
+  const providerInstanceEntries = sortProviderInstanceEntries(
+    deriveProviderInstanceEntriesForSettings(input.settings, input.providers),
+  );
+  const modelOptionsByInstance = buildModelOptionsByInstance(
+    input.settings,
+    providerInstanceEntries,
+  );
+  const requestedInstanceId =
+    input.requestedSelection?.instanceId ?? input.requestedInstanceId ?? null;
+  const requestedModel = input.requestedSelection?.model ?? input.requestedModel ?? null;
+  const requestedOptions = input.requestedSelection?.options ?? input.requestedOptions;
+  const requestedEntry = requestedInstanceId
+    ? providerInstanceEntries.find((entry) => entry.instanceId === requestedInstanceId)
+    : undefined;
+  const selectedProviderEntry =
+    requestedEntry && selectableProviderEntry(requestedEntry)
+      ? requestedEntry
+      : (providerInstanceEntries.find(selectableProviderEntry) ??
+        requestedEntry ??
+        providerInstanceEntries[0]);
+  const selectedProvider = selectedProviderEntry?.driverKind ?? DEFAULT_TEXT_GENERATION_DRIVER_KIND;
+  const selectedInstanceId =
+    selectedProviderEntry?.instanceId ?? defaultInstanceIdForDriver(selectedProvider);
+  const selectedProviderModels = selectedProviderEntry?.models ?? [];
+  const selectedModelOptions = modelOptionsByInstance.get(selectedInstanceId) ?? [];
+  const selectableModelOptions = selectedModelOptions.filter(isAppModelOptionSelectable);
+  const resolvedRequestedModel = resolveSelectableModel(
+    selectedProvider,
+    requestedModel,
+    selectableModelOptions,
+  );
+  const selectedModel =
+    resolvedRequestedModel ??
+    selectableModelOptions[0]?.slug ??
+    DEFAULT_GIT_TEXT_GENERATION_MODEL_BY_PROVIDER[selectedProvider] ??
+    DEFAULT_GIT_TEXT_GENERATION_MODEL;
+  const providerStatus = getRequestedProviderStatus({
+    entries: providerInstanceEntries,
+    requestedInstanceId,
+    selectedEntry: selectedProviderEntry,
+  });
+  const status = getModelStatus({
+    providerStatus,
+    requestedModel,
+    selectedInstanceId,
+    selectableModelOptions,
+    resolvedRequestedModel,
+  });
+  const { modelOptionsForDispatch } = getComposerProviderState({
+    provider: selectedProvider,
+    model: selectedModel,
+    models: selectedProviderModels,
+    prompt: "",
+    modelOptions: requestedOptions,
+  });
+
+  return {
+    status,
+    providerInstanceEntries,
+    modelOptionsByInstance,
+    requestedInstanceId,
+    requestedModel,
+    selectedProviderEntry,
+    selectedProvider,
+    selectedInstanceId,
+    selectedModel,
+    selectedModelOptions,
+    selectableModelOptions,
+    selectedProviderModels,
+    modelSelection: createModelSelection(
+      selectedInstanceId,
+      selectedModel,
+      modelOptionsForDispatch,
+    ),
+  };
+}
+
 export function resolveAppModelSelection(
   provider: ProviderDriverKind,
   settings: UnifiedSettings,
@@ -217,82 +436,20 @@ export function resolveAppModelSelectionForInstance(
   providers: ReadonlyArray<ServerProvider>,
   selectedModel: string | null | undefined,
 ): string | null {
-  const entry = deriveProviderInstanceEntries(providers).find(
-    (candidate) => candidate.instanceId === instanceId,
-  );
-  if (!entry) return null;
-  const options = getAppModelOptionsForInstance(settings, entry);
-  const selectableOptions = options.filter(isAppModelOptionSelectable);
-  return (
-    resolveSelectableModel(entry.driverKind, selectedModel, selectableOptions) ??
-    selectableOptions[0]?.slug ??
-    null
-  );
-}
-
-export function getCustomModelOptionsByInstance(
-  settings: UnifiedSettings,
-  providers: ReadonlyArray<ServerProvider>,
-  _selectedInstanceId?: ProviderInstanceId | null,
-  _selectedModel?: string | null,
-): ReadonlyMap<ProviderInstanceId, ReadonlyArray<AppModelOption>> {
-  const out = new Map<ProviderInstanceId, ReadonlyArray<AppModelOption>>();
-  for (const entry of deriveProviderInstanceEntriesForSettings(settings, providers)) {
-    out.set(entry.instanceId, getAppModelOptionsForInstance(settings, entry));
-  }
-  return out;
-}
-
-function isProviderInstanceSelectable(settings: UnifiedSettings, entry: ProviderInstanceEntry) {
-  return entry.enabled && entry.isAvailable;
-}
-
-export function resolveAppModelSelectionState(
-  settings: UnifiedSettings,
-  providers: ReadonlyArray<ServerProvider>,
-): ModelSelection {
-  const selection = settings.textGenerationModelSelection ?? {
-    instanceId: DEFAULT_TEXT_GENERATION_INSTANCE_ID,
-    model: DEFAULT_GIT_TEXT_GENERATION_MODEL,
-  };
-  const entries = deriveProviderInstanceEntriesForSettings(settings, providers);
-  const selectedEntry = entries.find(
-    (entry) =>
-      entry.instanceId === selection.instanceId && isProviderInstanceSelectable(settings, entry),
-  );
-  const entry =
-    selectedEntry ?? entries.find((candidate) => isProviderInstanceSelectable(settings, candidate));
-  if (entry) {
-    const selectedModel = selectedEntry ? selection.model : null;
-    const selectableEntryModel = entry.models.find((entryModel) => entryModel.selectable !== false);
-    const model =
-      resolveAppModelSelectionForInstance(entry.instanceId, settings, providers, selectedModel) ??
-      selectableEntryModel?.slug ??
-      DEFAULT_GIT_TEXT_GENERATION_MODEL_BY_PROVIDER[entry.driverKind];
-    if (!model) {
-      return createModelSelection(entry.instanceId, "", []);
-    }
-    const provider = entry.driverKind;
-    const { modelOptionsForDispatch } = getComposerProviderState({
-      provider,
-      model,
-      models: entry.models,
-      prompt: "",
-      modelOptions: selectedEntry ? selection.options : undefined,
-    });
-
-    return createModelSelection(entry.instanceId, model, modelOptionsForDispatch);
-  }
-
-  const provider = resolveSelectableProvider(providers, null);
-  const model = resolveAppModelSelection(provider, settings, providers, null);
-  const { modelOptionsForDispatch } = getComposerProviderState({
-    provider,
-    model,
-    models: getProviderModels(providers, provider),
-    prompt: "",
-    modelOptions: undefined,
+  const state = resolveAppProviderModelState({
+    settings,
+    providers,
+    requestedInstanceId: instanceId,
+    requestedModel: selectedModel,
   });
-
-  return createModelSelection(defaultInstanceIdForDriver(provider), model, modelOptionsForDispatch);
+  if (
+    state.status.kind === "loading" ||
+    state.status.kind === "missing-provider" ||
+    state.status.kind === "disabled-provider" ||
+    state.status.kind === "empty-catalog" ||
+    state.selectedProviderEntry?.instanceId !== instanceId
+  ) {
+    return null;
+  }
+  return state.selectedModel;
 }

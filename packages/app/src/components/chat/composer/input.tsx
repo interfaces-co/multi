@@ -48,10 +48,7 @@ import {
   replaceTextRange,
 } from "./prompt-triggers";
 import { deriveComposerSendState } from "./send";
-import {
-  useComposerDraftStore,
-  useComposerThreadDraft,
-} from "../../../stores/chat-drafts";
+import { useComposerDraftStore, useComposerThreadDraft } from "../../../stores/chat-drafts";
 import {
   type TerminalContextDraft,
   type TerminalContextSelection,
@@ -114,8 +111,7 @@ const missingPendingHandlers = {
   respondToApproval: () => missingPendingCapability("onRespondToApproval"),
   selectActivePendingUserInputOption: () =>
     missingPendingCapability("onSelectActivePendingUserInputOption"),
-  advanceActivePendingUserInput: () =>
-    missingPendingCapability("onAdvanceActivePendingUserInput"),
+  advanceActivePendingUserInput: () => missingPendingCapability("onAdvanceActivePendingUserInput"),
   previousActivePendingUserInputQuestion: () =>
     missingPendingCapability("onPreviousActivePendingUserInputQuestion"),
   changeActivePendingUserInputCustomAnswer: () =>
@@ -230,14 +226,6 @@ const OverflowControls = memo(function OverflowControls(props: {
 }) {
   const [optimisticInteractionMode, setOptimisticInteractionMode] = useState(props.interactionMode);
   const [optimisticRuntimeMode, setOptimisticRuntimeMode] = useState(props.runtimeMode);
-
-  useEffect(() => {
-    setOptimisticInteractionMode(props.interactionMode);
-  }, [props.interactionMode]);
-
-  useEffect(() => {
-    setOptimisticRuntimeMode(props.runtimeMode);
-  }, [props.runtimeMode]);
 
   return (
     <Menu>
@@ -603,7 +591,9 @@ const ComposerFooter = memo(function ComposerFooter(props: {
 }) {
   const dockSingleRow = props.composerVariant === "compact" && !props.isDockComposerExpanded;
   const primaryActionsCompact =
-    dockSingleRow || props.primaryActionState.showPlanFollowUpPrompt || props.primaryActionState.pendingAction !== null;
+    dockSingleRow ||
+    props.primaryActionState.showPlanFollowUpPrompt ||
+    props.primaryActionState.pendingAction !== null;
 
   return (
     <div
@@ -779,9 +769,7 @@ export const ComposerInput = memo(
       missingPendingHandlers.selectActivePendingUserInputOption;
     const handleAdvanceActivePendingUserInput: NonNullable<
       ComposerInputProps["onAdvanceActivePendingUserInput"]
-    > =
-      onAdvanceActivePendingUserInput ??
-      missingPendingHandlers.advanceActivePendingUserInput;
+    > = onAdvanceActivePendingUserInput ?? missingPendingHandlers.advanceActivePendingUserInput;
     const handlePreviousActivePendingUserInputQuestion: NonNullable<
       ComposerInputProps["onPreviousActivePendingUserInputQuestion"]
     > =
@@ -824,7 +812,7 @@ export const ComposerInput = memo(
       providerInstanceEntries,
       selectedProvider,
       selectedInstanceId,
-      modelOptionsByProvider,
+      modelOptionSelectionsByInstance,
       modelOptionsByInstance,
       instanceCoherentSelectedModel,
       selectedProviderStatus,
@@ -1002,9 +990,7 @@ export const ComposerInput = memo(
     const hasQueuedComposerItems = queuedComposerItems.length > 0;
     const isEditingQueuedComposerItem = editingQueuedComposerItemId !== null;
     const canSubmitQueuedComposerItem = hasQueuedComposerItems && !isEditingQueuedComposerItem;
-    const hasComposerHeader =
-      isComposerApprovalState ||
-      pendingUserInputs.length > 0;
+    const hasComposerHeader = isComposerApprovalState || pendingUserInputs.length > 0;
 
     const isDockComposerExpanded =
       composerVariant === "compact" &&
@@ -1048,7 +1034,7 @@ export const ComposerInput = memo(
       ...(routeKind === "draft" && draftId ? { draftId } : {}),
       model: instanceCoherentSelectedModel,
       models: selectedProviderModels,
-      modelOptions: modelOptionsByProvider?.[selectedProvider],
+      modelOptions: modelOptionSelectionsByInstance?.[selectedInstanceId],
       prompt,
       onPromptChange: setPromptFromTraits,
     };
@@ -1067,7 +1053,7 @@ export const ComposerInput = memo(
       ...(routeKind === "draft" && draftId ? { draftId } : {}),
       model: instanceCoherentSelectedModel,
       models: selectedProviderModels,
-      modelOptions: modelOptionsByProvider?.[selectedProvider],
+      modelOptions: modelOptionSelectionsByInstance?.[selectedInstanceId],
       prompt,
       onPromptChange: setPromptFromTraits,
     });
@@ -1713,6 +1699,7 @@ export const ComposerInput = memo(
     );
     const compactControlsMenu = (
       <OverflowControls
+        key={`${interactionMode}:${runtimeMode}`}
         interactionMode={interactionMode}
         runtimeMode={runtimeMode}
         showInteractionModeToggle={composerProviderControls.showInteractionModeToggle}
@@ -1794,8 +1781,8 @@ export const ComposerInput = memo(
                 isInlineEditComposer
                   ? "flex flex-col"
                   : isDockComposerSingleLine
-                  ? "flex min-h-11 items-center gap-1 px-2.5 py-2"
-                  : "flex flex-col",
+                    ? "flex min-h-11 items-center gap-1 px-2.5 py-2"
+                    : "flex flex-col",
                 variant === "hero" ? "min-h-44" : "",
                 composerProviderState.ultrathinkActive &&
                   "shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]",
@@ -1823,158 +1810,158 @@ export const ComposerInput = memo(
                   </button>
                 </>
               ) : null}
-            {showQueuedComposerItems ? (
-              <QueuedComposerItemsPanel
-                items={queuedComposerItems}
-                editingItemId={editingQueuedComposerItemId}
-                isBusy={isConnecting || isSendBusy}
-                onBeginEdit={handleBeginEditQueuedComposerItem}
-                onCancelEdit={handleCancelEditingQueuedComposerItem}
-                onRemove={handleRemoveQueuedComposerItem}
-                onSendNow={handleSendQueuedComposerItemNow}
-              />
-            ) : null}
-            <div
-              className={cn(
-                "relative min-w-0 select-text",
-                isInlineEditComposer
-                  ? "min-h-5"
-                  : isDockComposerSingleLine
-                  ? "flex min-h-0 flex-1 items-center"
-                  : "min-h-9",
-                variant === "hero" && !isDockComposerSingleLine ? "flex flex-1 flex-col" : "",
-              )}
-              data-expanded={isDockComposerExpanded ? "" : undefined}
-              data-variant={composerVariant}
-            >
-              {!isComposerApprovalState &&
-                pendingUserInputs.length === 0 &&
-                composerImages.length > 0 && (
-                  <ComposerImageAttachmentStrip
-                    images={composerImages}
-                    nonPersistedImageIds={nonPersistedComposerImageIdSet}
-                    onExpandImage={onExpandImage}
-                    onRemoveImage={removeComposerImage}
-                  />
-                )}
-
-              <ComposerPromptEditor
-                ref={composerEditorRef}
-                value={
-                  isComposerApprovalState
-                    ? ""
-                    : activePendingProgress
-                      ? activePendingProgress.customAnswer
-                      : prompt
-                }
-                cursor={composerCursor}
-                terminalContexts={
-                  !isComposerApprovalState && pendingUserInputs.length === 0
-                    ? composerTerminalContexts
-                    : []
-                }
-                skills={selectedProviderStatus?.skills ?? []}
-                onRemoveTerminalContext={removeComposerTerminalContextFromDraft}
-                onMeasuredMultilineChange={setIsComposerEditorMultiline}
-                onChange={onPromptChange}
-                onCommandKeyDown={onComposerCommandKey}
-                hotkeyTargetRef={composerEditorHotkeyRef}
-                onPaste={onComposerPaste}
-                className={cn(
-                  isInlineEditComposer && "!min-h-5 !max-h-60 !px-3 !py-2",
-                  isDockComposerSingleLine &&
-                    "!min-h-5 !max-h-5 !overflow-hidden !p-0 !pl-1",
-                )}
-                placeholder={
-                  isComposerApprovalState
-                    ? (activePendingApproval?.detail ?? "Resolve this approval request to continue")
-                    : activePendingProgress
-                      ? "Type your own answer, or leave this blank to use the selected option"
-                      : showPlanFollowUpPrompt && activeProposedPlan
-                        ? "Add feedback to refine the plan, or leave this blank to implement it"
-                        : isEditingQueuedComposerItem
-                          ? "Editing queued message..."
-                          : isInlineEditComposer
-                            ? "Edit message"
-                          : phase === "disconnected"
-                            ? "Ask for follow-up changes or attach images"
-                            : composerVariant === "compact"
-                              ? "Send follow-up"
-                              : "Ask anything, @tag files/folders, or use / to show available commands"
-                }
-                disabled={isConnecting || isComposerApprovalState}
-              />
-            </div>
-            {composerMenuOpen && !isComposerApprovalState && (
+              {showQueuedComposerItems ? (
+                <QueuedComposerItemsPanel
+                  items={queuedComposerItems}
+                  editingItemId={editingQueuedComposerItemId}
+                  isBusy={isConnecting || isSendBusy}
+                  onBeginEdit={handleBeginEditQueuedComposerItem}
+                  onCancelEdit={handleCancelEditingQueuedComposerItem}
+                  onRemove={handleRemoveQueuedComposerItem}
+                  onSendNow={handleSendQueuedComposerItemNow}
+                />
+              ) : null}
               <div
                 className={cn(
-                  "absolute bottom-[calc(100%+8px)] left-0 z-[60]",
-                  composerMenuKind === "mentions" ? "w-64 max-w-full" : "w-80 max-w-full",
+                  "relative min-w-0 select-text",
+                  isInlineEditComposer
+                    ? "min-h-5"
+                    : isDockComposerSingleLine
+                      ? "flex min-h-0 flex-1 items-center"
+                      : "min-h-9",
+                  variant === "hero" && !isDockComposerSingleLine ? "flex flex-1 flex-col" : "",
                 )}
-                data-menu-kind={composerMenuKind}
+                data-expanded={isDockComposerExpanded ? "" : undefined}
+                data-variant={composerVariant}
               >
-                <ComposerCommandMenu
-                  items={composerMenuItems}
-                  resolvedTheme={resolvedTheme}
-                  isLoading={isComposerMenuLoading}
-                  ariaLabel={composerMenuAriaLabel}
-                  menuKind={composerMenuKind}
-                  triggerKind={composerTriggerKind}
-                  groupSlashCommandSections={composerTrigger?.kind === "slash-command"}
-                  emptyStateText={composerMenuEmptyState}
-                  activeItemId={activeComposerMenuItem?.id ?? null}
-                  onHighlightedItemChange={onComposerMenuItemHighlighted}
-                  onSelect={onSelectComposerItem}
+                {!isComposerApprovalState &&
+                  pendingUserInputs.length === 0 &&
+                  composerImages.length > 0 && (
+                    <ComposerImageAttachmentStrip
+                      images={composerImages}
+                      nonPersistedImageIds={nonPersistedComposerImageIdSet}
+                      onExpandImage={onExpandImage}
+                      onRemoveImage={removeComposerImage}
+                    />
+                  )}
+
+                <ComposerPromptEditor
+                  ref={composerEditorRef}
+                  value={
+                    isComposerApprovalState
+                      ? ""
+                      : activePendingProgress
+                        ? activePendingProgress.customAnswer
+                        : prompt
+                  }
+                  cursor={composerCursor}
+                  terminalContexts={
+                    !isComposerApprovalState && pendingUserInputs.length === 0
+                      ? composerTerminalContexts
+                      : []
+                  }
+                  skills={selectedProviderStatus?.skills ?? []}
+                  onRemoveTerminalContext={removeComposerTerminalContextFromDraft}
+                  onMeasuredMultilineChange={setIsComposerEditorMultiline}
+                  onChange={onPromptChange}
+                  onCommandKeyDown={onComposerCommandKey}
+                  hotkeyTargetRef={composerEditorHotkeyRef}
+                  onPaste={onComposerPaste}
+                  className={cn(
+                    isInlineEditComposer && "!min-h-5 !max-h-60 !px-3 !py-2",
+                    isDockComposerSingleLine && "!min-h-5 !max-h-5 !overflow-hidden !p-0 !pl-1",
+                  )}
+                  placeholder={
+                    isComposerApprovalState
+                      ? (activePendingApproval?.detail ??
+                        "Resolve this approval request to continue")
+                      : activePendingProgress
+                        ? "Type your own answer, or leave this blank to use the selected option"
+                        : showPlanFollowUpPrompt && activeProposedPlan
+                          ? "Add feedback to refine the plan, or leave this blank to implement it"
+                          : isEditingQueuedComposerItem
+                            ? "Editing queued message..."
+                            : isInlineEditComposer
+                              ? "Edit message"
+                              : phase === "disconnected"
+                                ? "Ask for follow-up changes or attach images"
+                                : composerVariant === "compact"
+                                  ? "Send follow-up"
+                                  : "Ask anything, @tag files/folders, or use / to show available commands"
+                  }
+                  disabled={isConnecting || isComposerApprovalState}
                 />
               </div>
-            )}
-            {/* Bottom toolbar */}
-            {activePendingApproval ? (
-              <div className="flex items-center justify-end gap-2 px-2.5 pb-2.5 sm:px-3 sm:pb-3">
-                <ComposerPendingApprovalActions
-                  requestId={activePendingApproval.requestId}
-                  isResponding={respondingRequestIds.includes(activePendingApproval.requestId)}
-                  onRespondToApproval={handleRespondToApproval}
+              {composerMenuOpen && !isComposerApprovalState && (
+                <div
+                  className={cn(
+                    "absolute bottom-[calc(100%+8px)] left-0 z-[60]",
+                    composerMenuKind === "mentions" ? "w-64 max-w-full" : "w-80 max-w-full",
+                  )}
+                  data-menu-kind={composerMenuKind}
+                >
+                  <ComposerCommandMenu
+                    items={composerMenuItems}
+                    resolvedTheme={resolvedTheme}
+                    isLoading={isComposerMenuLoading}
+                    ariaLabel={composerMenuAriaLabel}
+                    menuKind={composerMenuKind}
+                    triggerKind={composerTriggerKind}
+                    groupSlashCommandSections={composerTrigger?.kind === "slash-command"}
+                    emptyStateText={composerMenuEmptyState}
+                    activeItemId={activeComposerMenuItem?.id ?? null}
+                    onHighlightedItemChange={onComposerMenuItemHighlighted}
+                    onSelect={onSelectComposerItem}
+                  />
+                </div>
+              )}
+              {/* Bottom toolbar */}
+              {activePendingApproval ? (
+                <div className="flex items-center justify-end gap-2 px-2.5 pb-2.5 sm:px-3 sm:pb-3">
+                  <ComposerPendingApprovalActions
+                    requestId={activePendingApproval.requestId}
+                    isResponding={respondingRequestIds.includes(activePendingApproval.requestId)}
+                    onRespondToApproval={handleRespondToApproval}
+                  />
+                </div>
+              ) : (
+                <ComposerFooter
+                  composerVariant={composerVariant}
+                  inlineEdit={isInlineEditComposer}
+                  isDockComposerExpanded={isDockComposerExpanded}
+                  providerModelPicker={providerModelPicker}
+                  compactControlsMenu={compactControlsMenu}
+                  providerTraitsPicker={providerTraitsPicker}
+                  secondaryAction={footerSecondaryAction}
+                  showInteractionModeToggle={composerProviderControls.showInteractionModeToggle}
+                  interactionMode={interactionMode}
+                  runtimeMode={runtimeMode}
+                  primaryActionState={{
+                    activeContextWindow: visibleContextWindow,
+                    pendingAction: pendingPrimaryAction,
+                    isRunning: phase === "running",
+                    showPlanFollowUpPrompt:
+                      pendingUserInputs.length === 0 &&
+                      showPlanFollowUpPrompt &&
+                      prompt.trim().length > 0,
+                    isSendBusy,
+                    isConnecting,
+                    isPreparingWorktree,
+                    submitDisabled,
+                    hasSendableContent:
+                      composerSendState.hasSendableContent || canSubmitQueuedComposerItem,
+                    sendWhileStreamingBehavior: settings.agentWindowSendWhileStreamingBehavior,
+                    submitActionLabel: isEditingQueuedComposerItem
+                      ? "Save queued message"
+                      : undefined,
+                  }}
+                  onToggleInteractionMode={toggleInteractionMode}
+                  onRuntimeModeChange={handleRuntimeModeChange}
+                  onAdvancePendingQuestion={handleAdvanceActivePendingUserInput}
+                  onPreviousPendingQuestion={handlePreviousActivePendingUserInputQuestion}
+                  onInterrupt={handleInterruptPrimaryAction}
                 />
-              </div>
-            ) : (
-              <ComposerFooter
-                composerVariant={composerVariant}
-                inlineEdit={isInlineEditComposer}
-                isDockComposerExpanded={isDockComposerExpanded}
-                providerModelPicker={providerModelPicker}
-                compactControlsMenu={compactControlsMenu}
-                providerTraitsPicker={providerTraitsPicker}
-                secondaryAction={footerSecondaryAction}
-                showInteractionModeToggle={composerProviderControls.showInteractionModeToggle}
-                interactionMode={interactionMode}
-                runtimeMode={runtimeMode}
-                primaryActionState={{
-                  activeContextWindow: visibleContextWindow,
-                  pendingAction: pendingPrimaryAction,
-                  isRunning: phase === "running",
-                  showPlanFollowUpPrompt:
-                    pendingUserInputs.length === 0 &&
-                    showPlanFollowUpPrompt &&
-                    prompt.trim().length > 0,
-                  isSendBusy,
-                  isConnecting,
-                  isPreparingWorktree,
-                  submitDisabled,
-                  hasSendableContent:
-                    composerSendState.hasSendableContent || canSubmitQueuedComposerItem,
-                  sendWhileStreamingBehavior: settings.agentWindowSendWhileStreamingBehavior,
-                  submitActionLabel: isEditingQueuedComposerItem
-                    ? "Save queued message"
-                    : undefined,
-                }}
-                onToggleInteractionMode={toggleInteractionMode}
-                onRuntimeModeChange={handleRuntimeModeChange}
-                onAdvancePendingQuestion={handleAdvanceActivePendingUserInput}
-                onPreviousPendingQuestion={handlePreviousActivePendingUserInputQuestion}
-                onInterrupt={handleInterruptPrimaryAction}
-              />
-            )}
+              )}
             </div>
           </div>
         </div>

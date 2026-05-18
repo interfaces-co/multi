@@ -6,7 +6,10 @@ import { memo, useCallback, useMemo, useState } from "react";
 import { useComposerDraftStore } from "../../../stores/chat-drafts";
 import { readEnvironmentApi } from "../../../environment-api";
 import type { TerminalContextSelection } from "../../../lib/terminal-context";
-import { createProjectSelectorByRef, createThreadSelectorByRef } from "../../../stores/thread-selectors";
+import {
+  createProjectSelectorByRef,
+  createThreadSelectorByRef,
+} from "../../../stores/thread-selectors";
 import { selectThreadTerminalState, useTerminalStateStore } from "../../../terminal-state-store";
 import { useStore } from "../../../stores/thread-store";
 import { randomUUID } from "~/lib/utils";

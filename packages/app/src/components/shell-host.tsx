@@ -538,7 +538,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
         model: resolved.selectedModel,
         models: resolved.selectedProviderModels,
         prompt: implementationPrompt,
-        modelOptions: resolved.modelOptionsByProvider?.[resolved.selectedProvider],
+        modelOptions: resolved.modelOptionSelectionsByInstance?.[resolved.selectedInstanceId],
       });
       return {
         modelSelection: resolved.modelSelection,
@@ -553,104 +553,101 @@ function ChatShellHost(props: { children?: ReactNode }) {
     },
     [activeProject?.defaultModelSelection, activeThread, routeTarget, settings],
   );
-  const startPlanImplementation = useCallback(
-    async () => {
+  const startPlanImplementation = useCallback(async () => {
+    if (
+      !activeThread ||
+      !activeProposedPlan ||
+      !activeProposedPlanSourceThreadId ||
+      !canImplementPlan ||
+      isImplementingPlan
+    ) {
+      return;
+    }
+
+    const api = readEnvironmentApi(activeThread.environmentId);
+    if (!api) {
+      toast.error("Environment API unavailable.");
+      return;
+    }
+
+    const createdAt = new Date().toISOString();
+    const planMarkdown = activeProposedPlan.planMarkdown;
+    const implementationPrompt = buildPlanImplementationPrompt(planMarkdown);
+    const { modelSelection, messageText } =
+      resolvePlanImplementationModelSelection(implementationPrompt);
+    const sourceProposedPlan = {
+      threadId: activeProposedPlanSourceThreadId,
+      planId: activeProposedPlan.id,
+    };
+
+    setIsImplementingPlan(true);
+    try {
       if (
-        !activeThread ||
-        !activeProposedPlan ||
-        !activeProposedPlanSourceThreadId ||
-        !canImplementPlan ||
-        isImplementingPlan
+        modelSelection.model !== activeThread.modelSelection.model ||
+        modelSelection.instanceId !== activeThread.modelSelection.instanceId ||
+        JSON.stringify(modelSelection.options ?? null) !==
+          JSON.stringify(activeThread.modelSelection.options ?? null)
       ) {
-        return;
-      }
-
-      const api = readEnvironmentApi(activeThread.environmentId);
-      if (!api) {
-        toast.error("Environment API unavailable.");
-        return;
-      }
-
-      const createdAt = new Date().toISOString();
-      const planMarkdown = activeProposedPlan.planMarkdown;
-      const implementationPrompt = buildPlanImplementationPrompt(planMarkdown);
-      const { modelSelection, messageText } =
-        resolvePlanImplementationModelSelection(implementationPrompt);
-      const sourceProposedPlan = {
-        threadId: activeProposedPlanSourceThreadId,
-        planId: activeProposedPlan.id,
-      };
-
-      setIsImplementingPlan(true);
-      try {
-        if (
-          modelSelection.model !== activeThread.modelSelection.model ||
-          modelSelection.instanceId !== activeThread.modelSelection.instanceId ||
-          JSON.stringify(modelSelection.options ?? null) !==
-            JSON.stringify(activeThread.modelSelection.options ?? null)
-        ) {
-          await api.orchestration.dispatchCommand({
-            type: "thread.meta.update",
-            commandId: newCommandId(),
-            threadId: activeThread.id,
-            modelSelection,
-          });
-        }
-        if (runtimeMode !== activeThread.runtimeMode) {
-          await api.orchestration.dispatchCommand({
-            type: "thread.runtime-mode.set",
-            commandId: newCommandId(),
-            threadId: activeThread.id,
-            runtimeMode,
-            createdAt,
-          });
-        }
-        if (activeThread.interactionMode !== "default") {
-          await api.orchestration.dispatchCommand({
-            type: "thread.interaction-mode.set",
-            commandId: newCommandId(),
-            threadId: activeThread.id,
-            interactionMode: "default",
-            createdAt,
-          });
-        }
-
         await api.orchestration.dispatchCommand({
-          type: "thread.turn.start",
+          type: "thread.meta.update",
           commandId: newCommandId(),
           threadId: activeThread.id,
-          message: {
-            messageId: newMessageId(),
-            role: "user",
-            text: messageText,
-            attachments: [],
-          },
           modelSelection,
-          titleSeed: activeThread.title,
+        });
+      }
+      if (runtimeMode !== activeThread.runtimeMode) {
+        await api.orchestration.dispatchCommand({
+          type: "thread.runtime-mode.set",
+          commandId: newCommandId(),
+          threadId: activeThread.id,
           runtimeMode,
-          interactionMode: "default",
-          sourceProposedPlan,
           createdAt,
         });
-        shellPanelsActions.activatePlanTab();
-      } catch (error) {
-        toast.error("Could not implement plan.", {
-          description: error instanceof Error ? error.message : "An error occurred.",
-        });
-      } finally {
-        setIsImplementingPlan(false);
       }
-    },
-    [
-      activeProposedPlan,
-      activeProposedPlanSourceThreadId,
-      activeThread,
-      canImplementPlan,
-      isImplementingPlan,
-      resolvePlanImplementationModelSelection,
-      runtimeMode,
-    ],
-  );
+      if (activeThread.interactionMode !== "default") {
+        await api.orchestration.dispatchCommand({
+          type: "thread.interaction-mode.set",
+          commandId: newCommandId(),
+          threadId: activeThread.id,
+          interactionMode: "default",
+          createdAt,
+        });
+      }
+
+      await api.orchestration.dispatchCommand({
+        type: "thread.turn.start",
+        commandId: newCommandId(),
+        threadId: activeThread.id,
+        message: {
+          messageId: newMessageId(),
+          role: "user",
+          text: messageText,
+          attachments: [],
+        },
+        modelSelection,
+        titleSeed: activeThread.title,
+        runtimeMode,
+        interactionMode: "default",
+        sourceProposedPlan,
+        createdAt,
+      });
+      shellPanelsActions.activatePlanTab();
+    } catch (error) {
+      toast.error("Could not implement plan.", {
+        description: error instanceof Error ? error.message : "An error occurred.",
+      });
+    } finally {
+      setIsImplementingPlan(false);
+    }
+  }, [
+    activeProposedPlan,
+    activeProposedPlanSourceThreadId,
+    activeThread,
+    canImplementPlan,
+    isImplementingPlan,
+    resolvePlanImplementationModelSelection,
+    runtimeMode,
+  ]);
   const implementPlanInCurrentThread = useCallback(() => {
     void startPlanImplementation();
   }, [startPlanImplementation]);
@@ -670,12 +667,6 @@ function ChatShellHost(props: { children?: ReactNode }) {
     isImplementingPlan,
     onImplementPlan: showPlanImplementationActions ? implementPlanInCurrentThread : undefined,
   };
-  useEffect(() => {
-    if (!planAvailable) {
-      return;
-    }
-    shellPanelsActions.activatePlanTab();
-  }, [activePlan?.turnId, activeProposedPlan?.id, interactionMode, planAvailable]);
   const sections = useMemo(
     () =>
       buildProjectChatSections(
@@ -1195,6 +1186,7 @@ function ChatWorkbenchShellHost(props: {
           <PlanWorkbenchPanel
             activePlan={props.plan.activePlan}
             activeProposedPlan={props.plan.activeProposedPlan}
+            environmentId={props.plan.environmentId}
             label={props.plan.label}
             markdownCwd={props.plan.markdownCwd}
             timestampFormat={props.plan.timestampFormat}

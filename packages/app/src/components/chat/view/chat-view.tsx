@@ -67,11 +67,12 @@ import {
   selectSidebarThreadsAcrossEnvironments,
   useStore,
 } from "../../../stores/thread-store";
-import { createProjectSelectorByRef, createThreadSelectorByRef } from "../../../stores/thread-selectors";
-import { useUiStateStore } from "../../../stores/ui-state-store";
 import {
-  resolvePlanFollowUpSubmission,
-} from "../../../proposed-plan";
+  createProjectSelectorByRef,
+  createThreadSelectorByRef,
+} from "../../../stores/thread-selectors";
+import { useUiStateStore } from "../../../stores/ui-state-store";
+import { resolvePlanFollowUpSubmission } from "../../../proposed-plan";
 import {
   DEFAULT_INTERACTION_MODE,
   DEFAULT_RUNTIME_MODE,
@@ -122,10 +123,7 @@ import {
 } from "../../../lib/terminal-context";
 import { selectThreadTerminalState, useTerminalStateStore } from "../../../terminal-state-store";
 import { shellPanelsActions } from "~/stores/shell-panels-store";
-import {
-  ComposerInput,
-  type ComposerInputHandle,
-} from "../composer/input";
+import { ComposerInput, type ComposerInputHandle } from "../composer/input";
 import { ExpandedImageDialog } from "../message/expanded-image-dialog";
 import { PullRequestThreadDialog } from "../../pull-request-thread-dialog";
 import { MessagesTimeline, type MessagesTimelineController } from "../timeline/messages-timeline";
@@ -870,8 +868,7 @@ export default function ChatView(props: ChatViewProps) {
       ? editingUserMessageId
       : null;
   const timelineEntries = useMemo(
-    () =>
-      deriveTimelineEntries(timelineMessages, EMPTY_TIMELINE_PROPOSED_PLANS, workLogEntries),
+    () => deriveTimelineEntries(timelineMessages, EMPTY_TIMELINE_PROPOSED_PLANS, workLogEntries),
     [timelineMessages, workLogEntries],
   );
   const { turnDiffSummaries, inferredCheckpointTurnCountByTurnId } =

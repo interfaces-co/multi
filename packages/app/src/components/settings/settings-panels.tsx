@@ -44,10 +44,7 @@ import {
   setDesktopUpdateStateQueryData,
   useDesktopUpdateState,
 } from "../../lib/desktop-update-react-query";
-import {
-  getCustomModelOptionsByInstance,
-  resolveAppModelSelectionState,
-} from "../../model/selection";
+import { resolveAppProviderModelState } from "../../model/selection";
 import { ensureLocalApi, readLocalApi } from "../../local-api";
 import { useShallow } from "zustand/react/shallow";
 import {
@@ -63,10 +60,6 @@ import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "@mu
 import { Switch } from "@multi/ui/switch";
 import { Text, textVariants } from "@multi/ui/text";
 import { toastManager } from "~/app/toast";
-import {
-  deriveProviderInstanceEntriesForSettings,
-  sortProviderInstanceEntries,
-} from "../../model/provider-instances";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@multi/ui/tooltip";
 import {
   SettingResetButton,
@@ -1282,8 +1275,6 @@ function withoutProviderInstanceFavorites(
   return favorites.filter((favorite) => favorite.provider !== instanceId);
 }
 
-const DEFAULT_DRIVER_KIND = ProviderDriverKind.make("codex");
-
 export function ModelsSettingsPanel() {
   const settings = useSettings();
   const { updateSettings } = useUpdateSettings();
@@ -1294,23 +1285,27 @@ export function ModelsSettingsPanel() {
   const refreshingRef = useRef<Promise<void> | null>(null);
 
   const visibleProviderSettings = PROVIDER_SETTINGS;
-  const textGenerationModelSelection = resolveAppModelSelectionState(settings, serverProviders);
+  const textGenerationModelState = resolveAppProviderModelState({
+    settings,
+    providers: serverProviders,
+    requestedSelection: settings.textGenerationModelSelection,
+  });
+  const textGenerationModelSelection = textGenerationModelState.modelSelection;
   const textGenInstanceId = textGenerationModelSelection.instanceId;
   const textGenModel = textGenerationModelSelection.model;
   const textGenModelOptions = textGenerationModelSelection.options;
-  const modelInstanceEntries = sortProviderInstanceEntries(
-    deriveProviderInstanceEntriesForSettings(settings, serverProviders),
-  );
-  const textGenInstanceEntry = modelInstanceEntries.find(
-    (entry) => entry.instanceId === textGenInstanceId,
-  );
-  const textGenProvider: ProviderDriverKind =
-    textGenInstanceEntry?.driverKind ?? DEFAULT_DRIVER_KIND;
-  const gitModelOptionsByInstance = getCustomModelOptionsByInstance(
-    settings,
-    serverProviders,
-    textGenInstanceId,
-    textGenModel,
+  const modelInstanceEntries = textGenerationModelState.providerInstanceEntries;
+  const textGenInstanceEntry = textGenerationModelState.selectedProviderEntry;
+  const textGenProvider = textGenerationModelState.selectedProvider;
+  const gitModelOptionsByInstance = textGenerationModelState.modelOptionsByInstance;
+  const resolveTextGenerationModelSelection = useCallback(
+    (nextSettings: UnifiedSettings) =>
+      resolveAppProviderModelState({
+        settings: nextSettings,
+        providers: serverProviders,
+        requestedSelection: nextSettings.textGenerationModelSelection,
+      }).modelSelection,
+    [serverProviders],
   );
   const isGitWritingModelDirty = !Equal.equals(
     settings.textGenerationModelSelection ?? null,
@@ -1531,14 +1526,12 @@ export function ModelsSettingsPanel() {
                 triggerVariant="outline"
                 triggerClassName="min-w-0 max-w-none shrink-0 text-foreground/90 hover:text-foreground"
                 onInstanceModelChange={(instanceId, model) => {
+                  const nextSettings = {
+                    ...settings,
+                    textGenerationModelSelection: createModelSelection(instanceId, model),
+                  };
                   updateSettings({
-                    textGenerationModelSelection: resolveAppModelSelectionState(
-                      {
-                        ...settings,
-                        textGenerationModelSelection: createModelSelection(instanceId, model),
-                      },
-                      serverProviders,
-                    ),
+                    textGenerationModelSelection: resolveTextGenerationModelSelection(nextSettings),
                   });
                 }}
               />
@@ -1553,18 +1546,16 @@ export function ModelsSettingsPanel() {
                 triggerVariant="outline"
                 triggerClassName="min-w-0 max-w-none shrink-0 text-foreground/90 hover:text-foreground"
                 onModelOptionsChange={(nextOptions) => {
-                  updateSettings({
-                    textGenerationModelSelection: resolveAppModelSelectionState(
-                      {
-                        ...settings,
-                        textGenerationModelSelection: createModelSelection(
-                          textGenInstanceId,
-                          textGenModel,
-                          nextOptions,
-                        ),
-                      },
-                      serverProviders,
+                  const nextSettings = {
+                    ...settings,
+                    textGenerationModelSelection: createModelSelection(
+                      textGenInstanceId,
+                      textGenModel,
+                      nextOptions,
                     ),
+                  };
+                  updateSettings({
+                    textGenerationModelSelection: resolveTextGenerationModelSelection(nextSettings),
                   });
                 }}
               />
@@ -1661,17 +1652,15 @@ export function ModelsSettingsPanel() {
                     instanceId: row.instanceId,
                     instance: next,
                   });
+                  const nextSettings = {
+                    ...settings,
+                    ...patch,
+                    textGenerationModelSelection:
+                      settings.textGenerationModelSelection ?? textGenerationModelSelection,
+                  };
                   void updateSettings({
                     ...patch,
-                    textGenerationModelSelection: resolveAppModelSelectionState(
-                      {
-                        ...settings,
-                        ...patch,
-                        textGenerationModelSelection:
-                          settings.textGenerationModelSelection ?? textGenerationModelSelection,
-                      },
-                      serverProviders,
-                    ),
+                    textGenerationModelSelection: resolveTextGenerationModelSelection(nextSettings),
                   }).catch((error: unknown) => {
                     console.warn("Failed to update provider settings", error);
                   });

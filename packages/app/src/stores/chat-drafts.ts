@@ -2297,11 +2297,11 @@ const composerDraftStore = create<ComposerDraftStoreState>()(
             return {
               draftsByThreadKey: {
                 ...state.draftsByThreadKey,
-	                [threadKey]: {
-	                  ...existing,
-	                  prompt: nextPrompt,
-	                  terminalContexts: [...existing.terminalContexts, ...acceptedContexts],
-	                },
+                [threadKey]: {
+                  ...existing,
+                  prompt: nextPrompt,
+                  terminalContexts: [...existing.terminalContexts, ...acceptedContexts],
+                },
               },
             };
           });

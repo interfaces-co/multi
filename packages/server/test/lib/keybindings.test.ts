@@ -20,8 +20,9 @@ const KeybindingsConfigJson = Schema.fromJsonString(KeybindingsConfig);
 const encodeKeybindingsConfigJson = Schema.encodeEffect(KeybindingsConfigJson);
 const decodeUnknownKeybindingsConfigJson = Schema.decodeUnknownEffect(KeybindingsConfigJson);
 const encodeResolvedKeybindingFromConfig = Schema.encodeEffect(ResolvedKeybindingFromConfig);
-const decodeUnknownResolvedKeybindingFromConfigExit =
-  Schema.decodeUnknownExit(ResolvedKeybindingFromConfig);
+const decodeUnknownResolvedKeybindingFromConfigExit = Schema.decodeUnknownExit(
+  ResolvedKeybindingFromConfig,
+);
 
 const makeKeybindingsLayer = () => {
   return KeybindingsLive.pipe(

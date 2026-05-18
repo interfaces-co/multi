@@ -19,6 +19,20 @@ export function stripDisplayedPlanMarkdown(planMarkdown: string): string {
   return sourceLines.join("\n");
 }
 
+export function normalizePlanMarkdownForExport(planMarkdown: string): string {
+  return `${planMarkdown.trim()}\n`;
+}
+
+export function buildProposedPlanMarkdownFilename(planMarkdown: string): string {
+  const title = proposedPlanTitle(planMarkdown) ?? "proposed-plan";
+  const slug = title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64);
+  return `${slug || "proposed-plan"}.md`;
+}
+
 export function buildPlanImplementationPrompt(planMarkdown: string): string {
   return `PLEASE IMPLEMENT THIS PLAN:\n${planMarkdown.trim()}`;
 }

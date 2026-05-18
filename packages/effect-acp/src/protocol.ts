@@ -523,9 +523,7 @@ function isProtocolError(
 }
 
 function normalizeToRequestError(error: AcpError.AcpError): AcpError.AcpRequestError {
-  return isAcpRequestError(error)
-    ? error
-    : AcpError.AcpRequestError.internalError(error.message);
+  return isAcpRequestError(error) ? error : AcpError.AcpRequestError.internalError(error.message);
 }
 
 function toRpcClientError(error: AcpError.AcpError): RpcClientError.RpcClientError {

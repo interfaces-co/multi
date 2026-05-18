@@ -1,13 +1,4 @@
-import {
-  Cause,
-  Duration,
-  Effect,
-  Exit,
-  ManagedRuntime,
-  Option,
-  Scope,
-  Stream,
-} from "effect";
+import { Cause, Duration, Effect, Exit, ManagedRuntime, Option, Scope, Stream } from "effect";
 import { RpcClient } from "effect/unstable/rpc";
 
 import { clearAllTrackedRpcRequests } from "./request-latency-state";

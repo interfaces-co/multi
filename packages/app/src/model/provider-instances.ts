@@ -90,7 +90,7 @@ export function deriveProviderInstanceEntries(
   });
 }
 
-export function resolveProviderInstanceEnabled(
+function resolveProviderInstanceEnabled(
   settings: UnifiedSettings,
   entry: Pick<ProviderInstanceEntry, "instanceId" | "driverKind" | "enabled" | "isDefault">,
 ): boolean {
@@ -160,34 +160,6 @@ export function sortProviderInstanceEntries(
     sorted.push(...defaults, ...customs);
   }
   return sorted;
-}
-
-export function getProviderInstanceEntry(
-  providers: ReadonlyArray<ServerProvider>,
-  instanceId: ProviderInstanceId,
-): ProviderInstanceEntry | undefined {
-  return deriveProviderInstanceEntries(providers).find((entry) => entry.instanceId === instanceId);
-}
-
-export function getProviderInstanceModels(
-  providers: ReadonlyArray<ServerProvider>,
-  instanceId: ProviderInstanceId,
-): ReadonlyArray<ServerProviderModel> {
-  return getProviderInstanceEntry(providers, instanceId)?.models ?? [];
-}
-
-export function resolveSelectableProviderInstance(
-  providers: ReadonlyArray<ServerProvider>,
-  instanceId: ProviderInstanceId | undefined,
-): ProviderInstanceId | undefined {
-  const entries = deriveProviderInstanceEntries(providers);
-  if (instanceId !== undefined) {
-    const requested = entries.find((entry) => entry.instanceId === instanceId);
-    if (requested && requested.enabled && requested.isAvailable) {
-      return instanceId;
-    }
-  }
-  return entries.find((entry) => entry.enabled && entry.isAvailable)?.instanceId;
 }
 
 export function resolveProviderDriverKindForInstanceSelection(

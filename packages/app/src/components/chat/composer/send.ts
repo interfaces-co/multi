@@ -1,9 +1,6 @@
 import { type ProviderDriverKind, type ServerProvider } from "@multi/contracts";
 import { applyClaudePromptEffortPrefix } from "@multi/shared/model";
-import {
-  type ComposerImageAttachment,
-  type DraftThreadEnvMode,
-} from "../../../stores/chat-drafts";
+import { type ComposerImageAttachment, type DraftThreadEnvMode } from "../../../stores/chat-drafts";
 import {
   filterTerminalContextsWithText,
   stripInlineTerminalContextPlaceholders,

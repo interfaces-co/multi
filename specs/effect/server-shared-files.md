@@ -1,0 +1,224 @@
+# Server And Shared File Inventory
+
+This inventory covers non-ignored files in `packages/server` and
+`packages/shared`. It exists to separate canonical runtime boundaries from
+shared-package drift before deletion or movement.
+
+Inventory command:
+
+```bash
+git ls-files --cached --others --exclude-standard packages/server packages/shared
+```
+
+Current count:
+
+- [x] `packages/server/src`: `231` files.
+- [x] `packages/server/test`: `89` files.
+- [x] `packages/shared/src`: `23` files.
+- [x] `packages/shared/test`: `11` files.
+
+Source grouping:
+
+- [x] `packages/server/src` root files: `24`.
+- [x] `packages/server/src/auth`: `14`.
+- [x] `packages/server/src/checkpointing`: `10`.
+- [x] `packages/server/src/environment`: `3`.
+- [x] `packages/server/src/git`: `18`.
+- [x] `packages/server/src/observability`: `7`.
+- [x] `packages/server/src/orchestration`: `27`.
+- [x] `packages/server/src/persistence`: `60`.
+- [x] `packages/server/src/project`: `13`.
+- [x] `packages/server/src/provider`: `47`.
+- [x] `packages/server/src/telemetry`: `3`.
+- [x] `packages/server/src/terminal`: `5`.
+- [x] `packages/shared/src` root files: `19`.
+- [x] `packages/shared/src/observability`: `4`.
+
+## Server Boundaries To Keep
+
+These groups are canonical runtime boundaries. Do not delete them as helper
+cleanup.
+
+- [x] `packages/server/src/orchestration/*`: proposed-plan, projection,
+      ingestion, command, reactor, and timeline derivation boundary.
+- [x] `packages/server/src/persistence/*`: durable SQLite repositories,
+      migrations, command receipts, projections, auth sessions, and provider
+      runtime state.
+- [x] `packages/server/src/provider/*`: provider registry, provider service,
+      adapter contracts, provider-specific adapters, ACP runtime, provider status,
+      and managed server providers.
+- [x] `packages/server/src/auth/*`: control plane, bootstrap credentials,
+      policy, secret store, session credentials, and auth HTTP routes.
+- [x] `packages/server/src/project/*`: project paths, files, entries, favicon,
+      setup scripts, and repository identity.
+- [x] `packages/server/src/git/*`: Git core, manager, status broadcaster,
+      GitHub CLI, remote refs, and provider-specific Git text generation.
+- [x] `packages/server/src/checkpointing/*`: checkpoint store, lifecycle,
+      retention, diff query, and diff helpers.
+- [x] `packages/server/src/terminal/*`: PTY and terminal manager services.
+- [x] `packages/server/src/environment/*`: server environment and labels.
+- [x] `packages/server/src/telemetry/*`: analytics and identity boundary.
+- [x] `packages/server/src/server-runtime.ts`, `server.ts`, `ws.ts`,
+      `http.ts`, `config.ts`, `bootstrap.ts`, `bin.ts`, and `cli.ts`: process,
+      HTTP/WebSocket, startup, and CLI boundaries.
+
+## Proposed Plan Chain
+
+The proposed-plan implementation is a server/app chain, not an app-only UI
+helper.
+
+- [x] Provider event ingestion starts in
+      `packages/server/src/orchestration/ProviderRuntimeIngestion.ts`.
+- [x] Provider adapters emit plan-related events:
+      `CodexAdapter`, `CursorAdapter`, and ACP `AcpRuntimeModel`.
+- [x] Orchestration command/event handling flows through `decider.ts`,
+      `projector.ts`, `ProjectionPipeline.ts`, and `ThreadProjection.ts`.
+- [x] Proposed plans persist through
+      `ProjectionThreadProposedPlans.ts`, `ProjectionTurns.ts`, and
+      `ProjectionThreads.ts`.
+- [x] Proposed-plan migrations are `013`, `014`, `015`, `023`, and `024`.
+- [x] App rendering derives from the projected thread state and native plan
+      workbench; it should not invent a second plan source.
+
+Do not delete proposed-plan server files while the native workbench feature is
+active.
+
+## Shared Package Rules
+
+`@multi/shared` is a cross-package utility package. A file belongs here only
+when at least two runtime packages need the same pure/runtime-neutral behavior,
+or when keeping it here prevents duplicated adapter code.
+
+Rules:
+
+- [ ] Shared files expose reusable primitives, not app policy.
+- [ ] App-specific projection helpers do not live in shared only because the
+      app has multiple components.
+- [ ] Server-only helpers move back to server unless a second package is about
+      to consume them.
+- [ ] Shared package exports are curated in `packages/shared/package.json`; no
+      wildcard public surface.
+- [ ] If a shared file has one production consumer, classify it before keeping
+      it public.
+
+## Shared File Classification
+
+Keep as shared boundaries:
+
+- [x] `DrainableWorker.ts`: used by orchestration reactors and runtime
+      ingestion.
+- [x] `Net.ts`: used by desktop, server CLI/startup, opencode runtime, and dev
+      runner.
+- [x] `Struct.ts`: shared deep merge for settings in app and server.
+- [x] `cli-args.ts`: shared CLI parsing for server adapter and release script.
+- [x] `git.ts`: shared Git normalization, branch, and status helpers used by
+      app, server Git, orchestration, and project identity.
+- [x] `logging.ts`: rotating file sink used by server observability/provider
+      logging.
+- [x] `model.ts`: shared model primitives used by app resolver/picker/store and
+      server provider/Git text-generation code.
+- [x] `path.ts`: shared path classification for app project paths and server
+      project entries.
+- [x] `project-scripts.ts`: canonical project-script runtime helper shared by
+      app terminal surfaces and server setup-script runner.
+- [x] `schema-json.ts`: shared lenient JSON/schema decode helpers used by
+      desktop settings and server providers/config/Git.
+- [x] `search-ranking.ts`: shared ranking used by app slash/model search and
+      server project entries.
+- [x] `server-settings.ts`: pure server-settings patch/parse helper used by
+      desktop and server; server service remains in `packages/server`.
+- [x] `shell.ts`: shared login-shell/PATH probing used by desktop sync and
+      server terminal/jank code.
+
+Classify before keeping public:
+
+- [x] `KeyedCoalescingWorker.ts`: currently one production consumer in
+      `packages/server/src/terminal/Manager.ts`; keep only if the worker remains a
+      reusable Effect primitive.
+- [x] `String.ts`: currently one production consumer in chat view; inline or
+      move unless another package needs the exact string helper.
+- [x] `subagents.ts`: currently app session/worklog-only; move decision needs
+      session/worklog ownership design first.
+- [x] `thread-segments.ts`: used by server attachment storage and app command
+      palette; keep until thread/path ownership is decided.
+- [x] `tool-activity.ts`: currently server ACP runtime-only; move to server
+      unless app consumption is planned.
+
+## Observability Duplication
+
+There are duplicate observability implementations in server and shared.
+
+Duplicated files:
+
+- [x] `packages/server/src/observability/Attributes.ts`
+- [x] `packages/server/src/observability/TraceRecord.ts`
+- [x] `packages/server/src/observability/TraceSink.ts`
+- [x] `packages/server/src/observability/LocalFileTracer.ts`
+- [x] `packages/shared/src/observability/Attributes.ts`
+- [x] `packages/shared/src/observability/TraceRecord.ts`
+- [x] `packages/shared/src/observability/TraceSink.ts`
+- [x] `packages/shared/src/observability/LocalFileTracer.ts`
+
+Target:
+
+- [ ] `@multi/shared/observability` owns trace record formatting, trace sink,
+      local file tracer, and attribute compaction.
+- [ ] `packages/server/src/observability/Metrics.ts` keeps server-only metrics.
+- [ ] `packages/server/src/observability/Observability.ts` keeps server runtime
+      assembly.
+- [ ] `packages/server/src/observability/RpcInstrumentation.ts` keeps server
+      RPC instrumentation.
+- [ ] Move server-only `normalizeModelMetricLabel` into server metrics unless a
+      second package needs it.
+- [ ] Remove server duplicate trace files only after imports and tests point at
+      shared.
+
+## One-Off Server Helper Candidates
+
+These files are not deletion decisions. They need caller inventory before code
+changes.
+
+- [ ] `packages/server/src/atomic-write.ts`
+- [ ] `packages/server/src/attachment-paths.ts`
+- [ ] `packages/server/src/attachment-store.ts`
+- [ ] `packages/server/src/cli-auth-format.ts`
+- [ ] `packages/server/src/image-mime.ts`
+- [ ] `packages/server/src/path-expansion.ts`
+- [ ] `packages/server/src/startup-access.ts`
+- [ ] `packages/server/src/server-lifecycle-events.ts`
+- [ ] `packages/server/scripts/acp-mock-agent.ts`
+- [ ] `packages/server/scripts/cli.ts`
+
+Rules:
+
+- [ ] Keep helpers that protect filesystem, auth, attachment, or startup
+      semantics.
+- [ ] Move narrow helpers next to the owning route, CLI, or runtime surface.
+- [ ] Delete script entrypoints only after package command inventory proves
+      they are not used.
+
+## First Server/Shared Cleanup Candidates
+
+- [ ] Make shared observability canonical and remove server duplicate
+      trace/sink/tracer files.
+- [ ] Reclassify `KeyedCoalescingWorker.ts` as shared primitive or terminal
+      private helper.
+- [ ] Reclassify `String.ts` as app-local helper or inline usage.
+- [ ] Reclassify `tool-activity.ts` as server ACP helper unless app use is
+      planned.
+- [ ] Document `shared/model.ts` as primitive-only and keep app model resolver
+      policy in `packages/app/src/model`.
+- [ ] Keep `shared/project-scripts.ts` canonical and move app project-script
+      tests to the behavior owner.
+
+## Done Means
+
+- [ ] Each moved/deleted server/shared file has caller inventory captured with
+      `rg`, `git ls-files`, or `knip`.
+- [ ] Public `@multi/shared` exports remain intentional in
+      `packages/shared/package.json`.
+- [ ] Server runtime boundaries still expose typed Effect errors where
+      expected failures are possible.
+- [ ] Proposed-plan chain still runs provider event to projection to native
+      workbench.
+- [ ] `pnpm run typecheck` passes for code changes.

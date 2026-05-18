@@ -15,10 +15,7 @@ import {
   type NodeViewProps,
 } from "@tiptap/react";
 import { type ServerProviderSkill } from "@multi/contracts";
-import {
-  IconBuildingBlocks,
-  type CentralIconBaseProps,
-} from "central-icons";
+import { IconBuildingBlocks, type CentralIconBaseProps } from "central-icons";
 import type { ComponentType } from "react";
 import {
   forwardRef,
@@ -652,10 +649,7 @@ function ComposerMentionNodeView(props: NodeViewProps): ReactElement {
     <NodeViewWrapper as="span" className="inline-flex align-middle">
       <Tooltip>
         <TooltipTrigger render={chip} />
-        <TooltipPopup
-          side="top"
-          className="max-w-lg whitespace-normal text-xs/4 wrap-anywhere"
-        >
+        <TooltipPopup side="top" className="max-w-lg whitespace-normal text-xs/4 wrap-anywhere">
           {path}
         </TooltipPopup>
       </Tooltip>
@@ -674,11 +668,7 @@ function ComposerCommandNodeView(props: NodeViewProps): ReactElement {
       data-type="commandNode"
       spellCheck={false}
     >
-      <button
-        type="button"
-        tabIndex={-1}
-        className="truncate text-left"
-      >
+      <button type="button" tabIndex={-1} className="truncate text-left">
         {label}
       </button>
     </span>
@@ -818,11 +808,11 @@ const ComposerMentionExtension = Mention.extend({
 }).configure({
   renderText: ({ node }) => mentionText(node.attrs),
   renderHTML: ({ node }) => [
-      "span",
-      {
-        "data-type": "mentionNode",
-        "data-read-only-mention": "",
-      },
+    "span",
+    {
+      "data-type": "mentionNode",
+      "data-read-only-mention": "",
+    },
     mentionText(node.attrs),
   ],
   suggestion: {
@@ -1265,17 +1255,13 @@ export const ComposerPromptEditor = forwardRef<
 
     const rootElement = editor.view.dom;
     const isFocused = document.activeElement === rootElement;
-    if (
-      previousSnapshot.value === value &&
-      !contextsChanged &&
-      !skillsChanged &&
-      !isFocused
-    ) {
+    if (previousSnapshot.value === value && !contextsChanged && !skillsChanged && !isFocused) {
       return;
     }
 
     isApplyingControlledUpdateRef.current = true;
-    const shouldRewriteEditorState = previousSnapshot.value !== value || contextsChanged || skillsChanged;
+    const shouldRewriteEditorState =
+      previousSnapshot.value !== value || contextsChanged || skillsChanged;
     if (shouldRewriteEditorState) {
       editor.commands.setContent(nextDoc as JSONContent, { emitUpdate: false });
     }
@@ -1286,14 +1272,7 @@ export const ComposerPromptEditor = forwardRef<
       isApplyingControlledUpdateRef.current = false;
       emitMeasuredMultiline(editor, onMeasuredMultilineChangeRef.current);
     });
-  }, [
-    cursor,
-    editor,
-    skillsSignature,
-    terminalContexts,
-    terminalContextsSignature,
-    value,
-  ]);
+  }, [cursor, editor, skillsSignature, terminalContexts, terminalContextsSignature, value]);
 
   useLayoutEffect(() => {
     if (!editor) return;

@@ -1061,5 +1061,4 @@ describe("WsTransport", () => {
 
     expect(callOrder).toEqual(["close:start", "close:done", "runtime:dispose"]);
   });
-
 });

@@ -306,9 +306,9 @@ export function compileResolvedKeybindingsConfig(
 ): ResolvedKeybindingsConfig {
   const compiled: Mutable<ResolvedKeybindingsConfig> = [];
   for (const rule of config) {
-    const result = decodeResolvedKeybindingFromConfigExit(rule);
-    if (result._tag === "Success") {
-      compiled.push(result.value);
+    const resolved = compileResolvedKeybindingRule(rule);
+    if (resolved) {
+      compiled.push(resolved);
     }
   }
   return compiled;

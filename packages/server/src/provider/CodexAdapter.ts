@@ -56,9 +56,7 @@ import {
 import { type EventNdjsonLogger, makeEventNdjsonLogger } from "./EventNdjsonLogger.ts";
 
 const PROVIDER = ProviderDriverKind.make("codex");
-const isCodexAppServerProcessExitedError = Schema.is(
-  CodexErrors.CodexAppServerProcessExitedError,
-);
+const isCodexAppServerProcessExitedError = Schema.is(CodexErrors.CodexAppServerProcessExitedError);
 const isCodexAppServerTransportError = Schema.is(CodexErrors.CodexAppServerTransportError);
 const isCodexSessionRuntimeThreadIdMissingError = Schema.is(
   CodexSessionRuntimeThreadIdMissingError,
@@ -90,10 +88,7 @@ function mapCodexRuntimeError(
   method: string,
   error: CodexSessionRuntimeError,
 ): ProviderAdapterError {
-  if (
-    isCodexAppServerProcessExitedError(error) ||
-    isCodexAppServerTransportError(error)
-  ) {
+  if (isCodexAppServerProcessExitedError(error) || isCodexAppServerTransportError(error)) {
     return new ProviderAdapterSessionClosedError({
       provider: PROVIDER,
       threadId,
@@ -1400,9 +1395,7 @@ const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
           cwd: input.cwd ?? serverConfig.cwd,
           binaryPath: codexSettings.binaryPath,
           ...(codexSettings.homePath ? { homePath: codexSettings.homePath } : {}),
-          ...(isCodexResumeCursor(input.resumeCursor)
-            ? { resumeCursor: input.resumeCursor }
-            : {}),
+          ...(isCodexResumeCursor(input.resumeCursor) ? { resumeCursor: input.resumeCursor } : {}),
           runtimeMode: input.runtimeMode,
           ...(input.modelSelection ? { model: input.modelSelection.model } : {}),
           ...(startServiceTier === "fast" || startServiceTier === "flex"

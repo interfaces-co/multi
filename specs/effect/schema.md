@@ -42,14 +42,14 @@ Rules:
 - [x] Contract schemas export both schema values and TypeScript types.
 - [x] Orchestration command/event payloads live in contracts.
 - [x] `packages/server/src/orchestration/Schemas.ts` aliases contract payloads
-  rather than duplicating them.
+      rather than duplicating them.
 - [x] Generated protocol schemas are refreshed with their package generators
-  before typecheck when protocol schema output is in scope.
+      before typecheck when protocol schema output is in scope.
 - [x] Effect Schema decoder/encoder compilers are hoisted outside function
-  bodies; `multi/no-inline-schema-compile` enforces this through oxlint.
+      bodies; `multi/no-inline-schema-compile` enforces this through oxlint.
 - [x] Strict oxlint runs with warnings denied after schema compiler hoisting.
 - [ ] New app store persisted shapes should be schema-backed when they cross
-  localStorage/desktop persistence or runtime boundaries.
+      localStorage/desktop persistence or runtime boundaries.
 - [ ] Avoid ad hoc string parsing for contract-shaped data when a schema exists.
 - [ ] Avoid generic schema bridges. Use boundary-specific helpers.
 
@@ -68,7 +68,7 @@ Rules:
 - [ ] Do not fork public DTO types in app query hooks.
 - [ ] Do not define server-only aliases unless they point back to contracts.
 - [ ] Do not add model/provider option types inside composer or picker
-  components.
+      components.
 - [ ] Keep derived UI view models private to the rendering boundary.
 
 ## Migration Order
@@ -78,7 +78,7 @@ Rules:
 - [ ] Move expected domain errors with the error slice.
 - [ ] Replace duplicate app/server local types with imports from the owner.
 - [ ] Remove now-unused helper validators and tests that only mirrored the old
-  duplicate type.
+      duplicate type.
 
 ## PR Checklist
 

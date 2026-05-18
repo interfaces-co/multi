@@ -20,12 +20,12 @@ Rules:
 - [x] WebSocket RPC methods are named in `packages/contracts/src/rpc.ts`.
 - [x] App clients call the environment API rather than server internals.
 - [ ] Server route handlers yield stable services at handler construction or
-  runtime startup boundaries.
+      runtime startup boundaries.
 - [ ] Expected domain errors are translated to declared public contract errors.
 - [ ] Generic server middleware must not accumulate domain-specific error name
-  checks.
+      checks.
 - [ ] Raw HTTP routes are kept only for static/dev hosting, auth bootstrap,
-  attachment transfer, health/meta endpoints, and WebSocket upgrade paths.
+      attachment transfer, health/meta endpoints, and WebSocket upgrade paths.
 
 ## Renderer Routes
 
@@ -44,12 +44,14 @@ Rules:
 
 - [x] Route files may validate search and route params.
 - [x] Route files may retain search params across thread navigation when the
-  search params are a real cross-route UI state.
+      search params are a real cross-route UI state.
 - [ ] Route files may not own settings workflows, provider/model selection,
-  composer policy, git orchestration, or plan implementation.
+      composer policy, git orchestration, or plan implementation.
 - [ ] Shared route-search helpers are kept only when multiple route/component
-  boundaries need the same search contract.
+      boundaries need the same search contract.
 - [ ] Thin route wrappers are deleted when they only forward props.
+
+Detailed inventory: [app-route-files.md](./app-route-files.md).
 
 ## Diff Route Search
 
@@ -66,10 +68,16 @@ shape:
 Rules:
 
 - [ ] If those callers still share the same route search shape, move the file
-  beside route ownership and name it for chat route search.
+      beside route ownership and name it for chat route search.
 - [ ] If the shape becomes panel-local, inline it into the panel boundary and
-  delete the shared file.
+      delete the shared file.
 - [ ] Do not keep a root helper merely because it is used by tests.
+
+Current decision:
+
+- [x] Keep the contract for now because chat routes, diff panel, chat view, and
+      Git panel still share the same search shape.
+- [ ] Move it out of root app files into route ownership.
 
 ## PR Checklist
 
