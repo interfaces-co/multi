@@ -114,16 +114,35 @@ Current renderer action audit:
 Rules:
 
 - [x] Branch checkout catches failed `git.checkout` mutations and shows a toast
-      with the command error message.
+      with the command error message and structured command/project/operation
+      details when the RPC error provides them.
 - [x] UI action handlers must not leave unhandled rejected promises for user
       actions.
-- [ ] Toasts and banners should use the structured error message first, then a
+- [x] Git action toasts use the structured error detail/message first, then a
       generic fallback.
-- [ ] Long command details should remain copyable when practical.
+- [x] Git command details remain copyable in error toast descriptions when
+      practical.
+- [x] Project file read/list/write toasts and banners use the structured error
+      message first, then a generic fallback.
+- [x] Project file read/list/write details remain visible and copyable when
+      practical.
+- [x] Terminal open/write system messages use the structured error message
+      first, then a generic fallback.
+- [x] Terminal open/write details remain visible and copyable in terminal
+      output when practical.
+- [x] Provider settings and refresh toasts use the structured error message
+      first, then a generic fallback.
+- [x] Provider settings and refresh details remain copyable when practical.
+- [x] Provider settings writes reject refresh-after-write failures so the
+      settings action surface shows the structured provider toast instead of
+      leaving the failure as a hook-level `console.warn`.
+- [x] Schema-backed transport toasts and banners should use the structured
+      error message first, then a generic fallback.
+- [x] Schema-backed long command details should remain copyable when practical.
+- [x] Diff panel file-open failures render at the action surface instead of
+      logging a console-only editor error.
 - [ ] Console-only failures are acceptable only for developer diagnostics, not
       user-triggered workflows.
-
-Toast renderer inventory: [app-toast-files.md](./app-toast-files.md).
 
 Rules:
 
@@ -132,15 +151,23 @@ Rules:
       `toastManager.add(...)` is called.
 - [x] Add shared app error formatting only when at least two action handlers
       need the same structured extraction.
-- [ ] Do not add a universal `unknown -> toast` registry.
+- [x] Do not add a universal `unknown -> toast` registry.
 
 Current decision:
 
-- [x] Do not add a shared toast formatter yet. Current toast callsites mostly
-      use local `error instanceof Error ? error.message : fallback` handling,
-      and the repeated structured transport case is already isolated in
-      `packages/app/src/rpc/transport-error.ts`. A new helper would be a
-      generic unknown-error registry rather than shared structured extraction.
+- [x] The Git slice has a Git-specific structured formatter because discard,
+      init/action, and branch-checkout surfaces need the same contract-error
+      extraction. There is still no universal unknown-to-toast registry.
+- [x] The project file slice has a project-specific structured formatter because
+      read, list, and write surfaces need the same contract-error extraction.
+- [x] The terminal slice has a terminal-specific structured formatter because
+      open and write surfaces need the same contract-error extraction.
+- [x] The provider settings slice has a provider-specific structured formatter
+      because provider settings and refresh surfaces need the same
+      contract-error extraction.
+- [x] Generic schema-backed transport surfaces use
+      `formatSchemaBackedTransportErrorDescription` to preserve tagged error
+      fields without adding a toast registry.
 
 ## Migration Order
 

@@ -7,6 +7,7 @@ import {
   CURSOR_PARAMETERIZED_MODEL_PICKER_CAPABILITIES,
   resolveCursorAcpBaseModelId,
   resolveCursorAcpConfigUpdates,
+  resolveCursorAgentCliModelId,
 } from "../CursorProvider.ts";
 import {
   AcpSessionRuntime,
@@ -23,6 +24,8 @@ export interface CursorAcpRuntimeInput extends Omit<
 > {
   readonly childProcessSpawner: ChildProcessSpawner.ChildProcessSpawner["Service"];
   readonly cursorSettings: CursorAcpRuntimeCursorSettings | null | undefined;
+  readonly spawnModel?: string | null | undefined;
+  readonly spawnSelections?: ReadonlyArray<ProviderOptionSelection> | null | undefined;
 }
 
 export type CursorAcpModelSelectionErrorContext =
@@ -41,15 +44,30 @@ export type CursorAcpModelSelectionErrorContext =
 export function buildCursorAcpSpawnInput(
   cursorSettings: CursorAcpRuntimeCursorSettings | null | undefined,
   cwd: string,
+  spawn?: {
+    readonly model?: string | null | undefined;
+    readonly selections?: ReadonlyArray<ProviderOptionSelection> | null | undefined;
+  },
 ): AcpSpawnInput {
+  const cliModel = spawn
+    ? resolveCursorAgentCliModelId(spawn.model ?? null, spawn.selections)
+    : undefined;
   return {
     command: cursorSettings?.binaryPath || "agent",
     args: [
       ...(cursorSettings?.apiEndpoint ? (["-e", cursorSettings.apiEndpoint] as const) : []),
+      ...(cliModel ? (["--model", cliModel] as const) : []),
       "acp",
     ],
     cwd,
   };
+}
+
+export function resolveCursorAcpSpawnCliModelId(input: {
+  readonly model?: string | null | undefined;
+  readonly selections?: ReadonlyArray<ProviderOptionSelection> | null | undefined;
+}): string | undefined {
+  return resolveCursorAgentCliModelId(input.model ?? null, input.selections);
 }
 
 export const makeCursorAcpRuntime = (
@@ -59,7 +77,10 @@ export const makeCursorAcpRuntime = (
     const acpContext = yield* Layer.build(
       AcpSessionRuntime.layer({
         ...input,
-        spawn: buildCursorAcpSpawnInput(input.cursorSettings, input.cwd),
+        spawn: buildCursorAcpSpawnInput(input.cursorSettings, input.cwd, {
+          model: input.spawnModel ?? null,
+          selections: input.spawnSelections,
+        }),
         authMethodId: "cursor_login",
         clientCapabilities: CURSOR_PARAMETERIZED_MODEL_PICKER_CAPABILITIES,
       }).pipe(

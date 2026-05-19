@@ -61,13 +61,13 @@ interface SidebarChatItemBase {
 export type SidebarChatItem =
   | (SidebarChatItemBase & {
       id: ThreadId;
-    kind: "thread";
-    state: SidebarThreadState;
-    unread: boolean;
-    pinned: boolean;
-    latestReadableAt: string | null;
-    threadRef: ScopedThreadRef;
-  })
+      kind: "thread";
+      state: SidebarThreadState;
+      unread: boolean;
+      pinned: boolean;
+      latestReadableAt: string | null;
+      threadRef: ScopedThreadRef;
+    })
   | (SidebarChatItemBase & {
       id: string;
       kind: "draft";
@@ -75,11 +75,15 @@ export type SidebarChatItem =
       unread: false;
     });
 
+type SidebarThreadChatItem = Extract<SidebarChatItem, { kind: "thread" }>;
+
 export interface SidebarSectionModel {
   id: string;
   label: string;
   cwd: string;
   active: boolean;
+  canCreateAgent?: boolean;
+  canOpenInEditor?: boolean;
   environmentId?: EnvironmentId;
   projectId?: ProjectId;
   projectCwd?: string;
@@ -185,6 +189,17 @@ function buildDraftChat(draft: SidebarDraftSummary) {
   } satisfies SidebarChatItem;
 }
 
+function compareUpdatedAtDesc(
+  left: Pick<SidebarChatItem, "updatedAt">,
+  right: Pick<SidebarChatItem, "updatedAt">,
+) {
+  return left.updatedAt < right.updatedAt ? 1 : left.updatedAt > right.updatedAt ? -1 : 0;
+}
+
+function isPinnedThreadItem(item: SidebarChatItem): item is SidebarThreadChatItem {
+  return item.kind === "thread" && item.pinned;
+}
+
 export function buildProjectChatSections(
   threadSummaries: readonly SidebarThreadSummary[],
   drafts: readonly SidebarDraftSummary[],
@@ -194,14 +209,17 @@ export function buildProjectChatSections(
   projectCwds: readonly string[] = [],
   pinnedThreadKeys?: ReadonlySet<string>,
 ): SidebarSectionModel[] {
-  const list = [
+  const list: SidebarChatItem[] = [
     ...threadSummaries.map((sum) => buildThreadChat(sum, unreadIds, pinnedThreadKeys)),
     ...drafts.map(buildDraftChat),
   ];
   if (list.length === 0) return [];
 
+  const pinnedItems = list.filter(isPinnedThreadItem).toSorted(compareUpdatedAtDesc);
+  const projectItems = list.filter((item) => !isPinnedThreadItem(item));
+
   const by = new Map<string, SidebarChatItem[]>();
-  for (const item of list) {
+  for (const item of projectItems) {
     const key = item.cwd || "/";
     const cur = by.get(key);
     if (cur) cur.push(item);
@@ -217,14 +235,7 @@ export function buildProjectChatSections(
   }
 
   const groups = [...by.entries()].map(([dir, items], index) => {
-    const sorted = items.toSorted((left, right) => {
-      const leftPinned = left.kind === "thread" && left.pinned;
-      const rightPinned = right.kind === "thread" && right.pinned;
-      if (leftPinned !== rightPinned) {
-        return leftPinned ? -1 : 1;
-      }
-      return left.updatedAt < right.updatedAt ? 1 : left.updatedAt > right.updatedAt ? -1 : 0;
-    });
+    const sorted = items.toSorted(compareUpdatedAtDesc);
     return { dir, label: shortProjectPathLabel(dir, home), sorted, index };
   });
 
@@ -243,13 +254,17 @@ export function buildProjectChatSections(
     if (sum.projectId === null) {
       continue;
     }
+    const threadRef = scopeThreadRef(sum.environmentId, sum.id);
+    if (pinnedThreadKeys?.has(scopedThreadKey(threadRef))) {
+      continue;
+    }
     const key = scopedProjectKey(scopeProjectRef(sum.environmentId, sum.projectId));
     const refs = threadRefsByProjectKey.get(key) ?? [];
-    refs.push(scopeThreadRef(sum.environmentId, sum.id));
+    refs.push(threadRef);
     threadRefsByProjectKey.set(key, refs);
   }
 
-  return groups.map((group) => {
+  const sections = groups.map((group) => {
     const sectionThreadRefs = group.sorted.flatMap((item) =>
       item.kind === "thread" ? [item.threadRef] : [],
     );
@@ -300,4 +315,24 @@ export function buildProjectChatSections(
       projectCwd: rootProject.projectCwd,
     } satisfies Pick<SidebarSectionModel, "environmentId" | "projectId" | "projectCwd">);
   });
+
+  if (pinnedItems.length === 0) {
+    return sections;
+  }
+
+  const pinnedThreadRefs = pinnedItems.map((item) => item.threadRef);
+  return [
+    {
+      id: "pinned",
+      label: "Pinned",
+      cwd: pinnedItems[0]?.cwd ?? cwd ?? "/",
+      active: false,
+      canCreateAgent: false,
+      canOpenInEditor: false,
+      sectionThreadRefs: pinnedThreadRefs,
+      threadRefs: pinnedThreadRefs,
+      items: pinnedItems,
+    } satisfies SidebarSectionModel,
+    ...sections,
+  ];
 }

@@ -14,9 +14,11 @@ import { useShallow } from "zustand/react/shallow";
 import { IconBranch, IconConsole, IconFileText, IconSquareChecklist } from "central-icons";
 
 import { readLastChatRouteTarget } from "~/app/routes/chat-route-persistence";
+import { toastManager } from "~/app/toast";
 import { prefetchDraftNavigation, prefetchThreadNavigation } from "~/app/thread-prefetch";
 import { useCommandPaletteStore } from "~/stores/ui/command-palette-store";
 import { isElectron } from "~/env";
+import { formatGitActionErrorDescription } from "~/git/action-error-description";
 import { useEnvironmentGitPanel } from "~/hooks/use-environment-git";
 import { useHandleNewThread } from "~/hooks/use-handle-new-thread";
 import { useRouteThreadId } from "~/hooks/use-route-thread-id";
@@ -1048,7 +1050,11 @@ function ChatShellHost(props: { children?: ReactNode }) {
     mutationFn: startGitAgentAction,
     onError: (error) => {
       setGitAgentOrchestrationHandoff(null);
-      toast.error(error instanceof Error ? error.message : "Failed to start Git action.");
+      toastManager.add({
+        type: "error",
+        title: "Failed to start Git action",
+        description: formatGitActionErrorDescription(error, "Failed to start Git action."),
+      });
     },
   });
   const activeGitAgentHandoff = useMemo(
@@ -1093,7 +1099,11 @@ function ChatShellHost(props: { children?: ReactNode }) {
       });
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to stop Git action.");
+      toastManager.add({
+        type: "error",
+        title: "Failed to stop Git action",
+        description: formatGitActionErrorDescription(error, "Failed to stop Git action."),
+      });
     },
     onSettled: () => {
       setGitAgentOrchestrationHandoff(null);

@@ -309,6 +309,7 @@ export const AgentRow = memo(
                   props.selected ? "text-multi-fg-secondary" : "text-multi-fg-tertiary",
                 )}
                 data-agent-sidebar-subtitle=""
+                data-agent-sidebar-trailing-content=""
               >
                 {props.item.ago}
               </span>

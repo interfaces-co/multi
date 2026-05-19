@@ -141,6 +141,43 @@ describe("buildCursorAcpSpawnInput", () => {
       cwd: "/tmp/project",
     });
   });
+
+  it("passes --model before acp when a concrete model is selected", () => {
+    expect(
+      buildCursorAcpSpawnInput(undefined, "/tmp/project", {
+        model: "composer-2.5",
+      }),
+    ).toEqual({
+      command: "agent",
+      args: ["--model", "composer-2.5", "acp"],
+      cwd: "/tmp/project",
+    });
+  });
+
+  it("uses composer-2.5-fast when fastMode is enabled", () => {
+    expect(
+      buildCursorAcpSpawnInput(undefined, "/tmp/project", {
+        model: "composer-2.5",
+        selections: [{ id: "fastMode", value: true }],
+      }),
+    ).toEqual({
+      command: "agent",
+      args: ["--model", "composer-2.5-fast", "acp"],
+      cwd: "/tmp/project",
+    });
+  });
+
+  it("omits --model for default/auto selection", () => {
+    expect(
+      buildCursorAcpSpawnInput(undefined, "/tmp/project", {
+        model: "default",
+      }),
+    ).toEqual({
+      command: "agent",
+      args: ["acp"],
+      cwd: "/tmp/project",
+    });
+  });
 });
 
 describe("applyCursorAcpModelSelection", () => {

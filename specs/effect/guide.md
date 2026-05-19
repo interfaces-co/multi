@@ -96,8 +96,6 @@ Rules:
 
 Detailed rules: [errors.md](./errors.md).
 
-Toast renderer inventory: [app-toast-files.md](./app-toast-files.md).
-
 ## Schemas
 
 Use Effect Schema as the source of truth for domain contracts.
@@ -133,8 +131,6 @@ Rules:
 Detailed rules: [app-simplification.md](./app-simplification.md).
 
 State inventory: [app-state-files.md](./app-state-files.md).
-
-Toast inventory: [app-toast-files.md](./app-toast-files.md).
 
 CSS inventory: [app-css-files.md](./app-css-files.md).
 

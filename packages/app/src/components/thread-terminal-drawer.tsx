@@ -50,6 +50,7 @@ import {
 } from "../types";
 import { readEnvironmentApi } from "~/environment-api";
 import { readLocalApi } from "~/local-api";
+import { formatTerminalErrorDescription } from "~/lib/terminal-error-description";
 import { clampTerminalDimensions, waitForTerminalLayoutFrame } from "~/lib/terminal-dimensions";
 import { useMountEffect } from "~/hooks/use-mount-effect";
 import {
@@ -411,7 +412,7 @@ export function TerminalViewport({
       try {
         await api.terminal.write({ threadId, terminalId, data });
       } catch (error) {
-        writeSystemMessage(writer, error instanceof Error ? error.message : fallbackError);
+        writeSystemMessage(writer, formatTerminalErrorDescription(error, fallbackError));
       }
     };
 
@@ -505,7 +506,10 @@ export function TerminalViewport({
       void api.terminal
         .write({ threadId, terminalId, data })
         .catch((err) =>
-          writeSystemMessage(writer, err instanceof Error ? err.message : "Terminal write failed"),
+          writeSystemMessage(
+            writer,
+            formatTerminalErrorDescription(err, "Terminal write failed"),
+          ),
         );
     });
 
@@ -760,7 +764,10 @@ export function TerminalViewport({
         }
       } catch (err) {
         if (disposed) return;
-        writeSystemMessage(writer, err instanceof Error ? err.message : "Failed to open terminal");
+        writeSystemMessage(
+          writer,
+          formatTerminalErrorDescription(err, "Failed to open terminal"),
+        );
       }
     };
 

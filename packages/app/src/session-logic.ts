@@ -222,22 +222,23 @@ export type TimelineEntry =
     };
 
 export function formatDuration(durationMs: number): string {
-  if (!Number.isFinite(durationMs) || durationMs <= 0) return "0ms";
-  const totalMs = Math.round(durationMs);
-  const hours = Math.floor(totalMs / 3_600_000);
-  const minutes = Math.floor((totalMs % 3_600_000) / 60_000);
-  const seconds = Math.floor((totalMs % 60_000) / 1_000);
-  const milliseconds = totalMs % 1_000;
+  if (!Number.isFinite(durationMs) || durationMs < 1_000) {
+    return "less than 1 second";
+  }
+
+  const totalSeconds = Math.max(1, Math.round(durationMs / 1_000));
+  const hours = Math.floor(totalSeconds / 3_600);
+  const minutes = Math.floor((totalSeconds % 3_600) / 60);
+  const seconds = totalSeconds % 60;
   return durationFormatter.format({
     ...(hours > 0 ? { hours } : {}),
     ...(minutes > 0 ? { minutes } : {}),
     ...(seconds > 0 ? { seconds } : {}),
-    ...(hours === 0 && minutes === 0 && seconds < 10 && milliseconds > 0 ? { milliseconds } : {}),
   });
 }
 
 const durationFormatter = new Intl.DurationFormat("en", {
-  style: "narrow",
+  style: "long",
 });
 
 type LatestTurnTiming = Pick<

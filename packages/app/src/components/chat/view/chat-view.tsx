@@ -154,6 +154,7 @@ import {
 } from "./inline-message-edit-composer";
 import { type ExpandedImagePreview } from "../message/expanded-image-preview";
 import { gitCheckoutMutationOptions } from "../../../lib/git-react-query";
+import { formatGitActionErrorDescription } from "~/git/action-error-description";
 import { ThreadErrorBanner } from "../message/error-banner";
 import {
   buildExpiredTerminalContextToastCopy,
@@ -2006,7 +2007,7 @@ export default function ChatView(props: ChatViewProps) {
         toastManager.add({
           type: "error",
           title: `Could not checkout ${branch.name}`,
-          description: error instanceof Error ? error.message : "Git checkout failed.",
+          description: formatGitActionErrorDescription(error, "Git checkout failed."),
         });
         return;
       }

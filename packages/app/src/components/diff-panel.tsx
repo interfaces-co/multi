@@ -48,6 +48,7 @@ import {
 } from "~/app/routes/thread-route-targets";
 import { useSettings } from "../hooks/use-settings";
 import { formatShortTimestamp } from "../lib/timestamp-format";
+import { toastManager } from "~/app/toast";
 import {
   DiffPanelLoadingState,
   DiffPanelShell,
@@ -345,12 +346,22 @@ export default function DiffPanel({ mode = "inline" }: DiffPanelProps) {
   const openDiffFileInEditor = useCallback(
     (filePath: string) => {
       const api = readLocalApi();
-      if (!api) return;
+      if (!api) {
+        toastManager.add({
+          type: "error",
+          title: "Open in editor is unavailable",
+        });
+        return;
+      }
       const targetPath = activeCwd
         ? resolvePathLinkTarget(filePath, activeCwd)
         : filePath;
       void openInPreferredEditor(api, targetPath).catch((error) => {
-        console.warn("Failed to open diff file in editor.", error);
+        toastManager.add({
+          type: "error",
+          title: "Unable to open file",
+          description: error instanceof Error ? error.message : "An error occurred.",
+        });
       });
     },
     [activeCwd],

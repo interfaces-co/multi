@@ -34,20 +34,28 @@
       </li>
       <li>
         Pin state is local UI state, persisted with the other sidebar UI state. Pinned
-        threads sort above unpinned threads inside their current project section, while
-        preserving the existing timestamp order within each group.
+        threads now render in a separate <code>Pinned</code> group and are removed from
+        their original project group while pinned. The pinned group keeps timestamp
+        ordering, newest first.
+      </li>
+      <li>
+        The pinned group is treated as a synthetic sidebar section. It keeps bulk
+        thread actions such as mark-read and archive, but does not show project-only
+        affordances like creating a new agent in that group or opening the group in an
+        editor window.
       </li>
     </ul>
     <h2>Chrome Spacing</h2>
     <ul>
       <li>
         Cursor's no-titlebar chrome uses a 34px top strip. Multi's workbench top strip
-        now uses 34px, with a slimmer 30px titlebar control calculation.
+        now uses 34px, and the titlebar control row also uses the same 34px calculation
+        so the left and right sidebar toggles share Cursor's centered 22px control rhythm.
       </li>
       <li>
         The Electron traffic-light sidebar padding default is reduced from 28px to
-        22px so the left sidebar content sits closer to the titlebar controls and right
-        workbench icon row.
+        26px. With the sidebar header's own 8px top padding, the first sidebar control
+        starts at the same 34px top-chrome boundary Cursor uses for no-titlebar chrome.
       </li>
     </ul>
     <h2>Icon Choices</h2>
@@ -63,7 +71,7 @@
         thread metadata.
       </li>
       <li>
-        Confirm whether the 22px Electron traffic padding should be tuned further after
+        Confirm whether the 26px Electron traffic padding should be tuned further after
         visual inspection on the target display scale.
       </li>
     </ul>

@@ -12,6 +12,7 @@ import {
 import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 
+import { formatProjectErrorDescription } from "~/lib/project-error-description";
 import { projectReadFileQueryOptions } from "~/lib/project-react-query";
 import { resolveDiffThemeName, WORKBENCH_CODE_UNSAFE_CSS } from "~/lib/diff-rendering";
 import { useTheme } from "~/hooks/use-theme";
@@ -154,13 +155,15 @@ function SourcePreview(props: {
   }
 
   if (fileQuery.isError || !fileQuery.data) {
+    const errorDescription = formatProjectErrorDescription(
+      fileQuery.error,
+      "The file could not be read.",
+    );
     return (
       <div className="flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-1 px-4 py-8 text-center">
         <div className="text-body font-medium text-destructive/85">Unable to preview file</div>
-        <div className="max-w-72 text-detail text-muted-foreground/55">
-          {fileQuery.error instanceof Error
-            ? fileQuery.error.message
-            : "The file could not be read."}
+        <div className="max-w-72 whitespace-pre-wrap text-detail text-muted-foreground/55">
+          {errorDescription}
         </div>
       </div>
     );

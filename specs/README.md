@@ -24,8 +24,6 @@ Current entry points:
   thread sync/state, sidebar projections, and state helper cleanup rules.
 - [effect/app-route-files.md](./effect/app-route-files.md): TanStack route
   files, route views, search helpers, and route cleanup rules.
-- [effect/app-toast-files.md](./effect/app-toast-files.md): toast renderer,
-  remaining `.logic.ts` classification, and error rendering cleanup rules.
 - [effect/app-css-files.md](./effect/app-css-files.md): app CSS ownership,
   shell selector classification, and styling cleanup rules.
 - [effect/server-shared-files.md](./effect/server-shared-files.md): server and

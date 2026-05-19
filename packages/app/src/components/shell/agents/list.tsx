@@ -126,6 +126,8 @@ function Section(props: {
   const showMore =
     section.items.length > Math.min(section.items.length, initialMaxVisible) &&
     visible < section.items.length;
+  const canCreateAgent = section.canCreateAgent ?? true;
+  const canOpenInEditor = section.canOpenInEditor ?? true;
   const canRemoveProject =
     section.environmentId !== undefined &&
     section.projectId !== undefined &&
@@ -242,6 +244,7 @@ function Section(props: {
       />
       <SidebarSectionContextMenu
         hasThreads={section.threadRefs.length > 0}
+        canOpenInEditor={canOpenInEditor}
         canRemoveProject={canRemoveProject}
         onOpenInEditor={openSectionInEditor}
         onMarkAllRead={markSectionRead}
@@ -268,7 +271,7 @@ function Section(props: {
               aria-hidden
             />
           </button>
-          {props.onNewAgent ? (
+          {props.onNewAgent && canCreateAgent ? (
             <button
               type="button"
               onClick={() => props.onNewAgent?.(section.cwd)}

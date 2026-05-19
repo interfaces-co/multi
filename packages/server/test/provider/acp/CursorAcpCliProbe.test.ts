@@ -90,46 +90,19 @@ describe.runIf(process.env.T3_CURSOR_ACP_PROBE === "1")("Cursor ACP CLI probe", 
     ),
   );
 
-  it.effect("session/set_config_option switches the model in-session", () =>
+  it.effect("agent --model binds the billed model at session/new", () =>
     Effect.gen(function* () {
       const runtime = yield* AcpSessionRuntime;
       const started = yield* runtime.start();
-      const newResult = started.sessionSetupResult;
-
-      const configOptions = newResult.configOptions;
-      let modelConfigId = "model";
-      if (Array.isArray(configOptions)) {
-        const modelConfig = configOptions.find((opt) => opt.category === "model");
-        if (typeof modelConfig?.id === "string") {
-          modelConfigId = modelConfig.id;
-        }
-      }
-
-      const setResult: EffectAcpSchema.SetSessionConfigOptionResponse =
-        yield* runtime.setConfigOption(modelConfigId, "gpt-5.4");
-
-      console.log("session/set_config_option result:", JSON.stringify(setResult, null, 2));
-
-      if (Array.isArray(setResult.configOptions)) {
-        const modelConfig = setResult.configOptions.find((opt) => opt.category === "model");
-        const parameterizedOptions = setResult.configOptions.filter(
-          (opt) =>
-            opt.category === "thought_level" ||
-            opt.category === "model_option" ||
-            opt.category === "model_config",
-        );
-        if (modelConfig?.type === "select") {
-          expect(modelConfig.currentValue).toBe("gpt-5.4");
-        }
-        expect(parameterizedOptions.length).toBeGreaterThan(0);
-      }
+      const models = started.sessionSetupResult.models;
+      expect(models?.currentModelId).toBe("composer-2.5");
     }).pipe(
       Effect.provide(
         AcpSessionRuntime.layer({
           authMethodId: "cursor_login",
           spawn: {
             command: "agent",
-            args: ["acp"],
+            args: ["--model", "composer-2.5", "acp"],
             cwd: process.cwd(),
           },
           cwd: process.cwd(),
@@ -144,5 +117,63 @@ describe.runIf(process.env.T3_CURSOR_ACP_PROBE === "1")("Cursor ACP CLI probe", 
       Effect.scoped,
       Effect.provide(NodeServices.layer),
     ),
+  );
+
+  it.effect(
+    "session/set_config_option alone may not switch the billed model (known Cursor CLI limitation)",
+    () =>
+      Effect.gen(function* () {
+        const runtime = yield* AcpSessionRuntime;
+        const started = yield* runtime.start();
+        const newResult = started.sessionSetupResult;
+
+        const configOptions = newResult.configOptions;
+        let modelConfigId = "model";
+        if (Array.isArray(configOptions)) {
+          const modelConfig = configOptions.find((opt) => opt.category === "model");
+          if (typeof modelConfig?.id === "string") {
+            modelConfigId = modelConfig.id;
+          }
+        }
+
+        const setResult: EffectAcpSchema.SetSessionConfigOptionResponse =
+          yield* runtime.setConfigOption(modelConfigId, "gpt-5.4");
+
+        console.log("session/set_config_option result:", JSON.stringify(setResult, null, 2));
+
+        if (Array.isArray(setResult.configOptions)) {
+          const modelConfig = setResult.configOptions.find((opt) => opt.category === "model");
+          const parameterizedOptions = setResult.configOptions.filter(
+            (opt) =>
+              opt.category === "thought_level" ||
+              opt.category === "model_option" ||
+              opt.category === "model_config",
+          );
+          expect(parameterizedOptions.length).toBeGreaterThan(0);
+          if (modelConfig?.type === "select") {
+            expect(typeof modelConfig.currentValue).toBe("string");
+          }
+        }
+      }).pipe(
+        Effect.provide(
+          AcpSessionRuntime.layer({
+            authMethodId: "cursor_login",
+            spawn: {
+              command: "agent",
+              args: ["acp"],
+              cwd: process.cwd(),
+            },
+            cwd: process.cwd(),
+            clientCapabilities: {
+              _meta: {
+                parameterizedModelPicker: true,
+              },
+            },
+            clientInfo: { name: "t3-probe", version: "0.0.0" },
+          }),
+        ),
+        Effect.scoped,
+        Effect.provide(NodeServices.layer),
+      ),
   );
 });

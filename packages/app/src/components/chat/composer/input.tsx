@@ -403,7 +403,7 @@ const runtimeModeConfig: Record<
   },
   "auto-accept-edits": {
     label: "Auto-accept edits",
-    description: "Auto-approve edits, ask before other actions.",
+    description: "Allow reads and search, ask before edits and commands.",
     icon: IconPencilLine,
   },
   "full-access": {

@@ -34,6 +34,7 @@ import {
   getOrphanedWorktreePathForThread,
 } from "../git/worktree-cleanup";
 import { toastManager } from "~/app/toast";
+import { formatSchemaBackedTransportErrorDescription } from "~/rpc/transport-error";
 import { useSettings } from "./use-settings";
 import type { Thread } from "../types";
 
@@ -220,7 +221,7 @@ export function useThreadActions() {
           toastManager.add({
             type: "error",
             title: "Failed to restore archived agent",
-            description: error instanceof Error ? error.message : "An error occurred.",
+            description: formatSchemaBackedTransportErrorDescription(error, "An error occurred."),
           });
         });
       }
@@ -539,7 +540,10 @@ export function useThreadActions() {
           environmentId: threadRef.environmentId,
         });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error removing worktree.";
+        const message = formatSchemaBackedTransportErrorDescription(
+          error,
+          "Unknown error removing worktree.",
+        );
         console.error("Failed to remove orphaned worktree after thread deletion", {
           threadId: threadRef.threadId,
           projectCwd: threadProject.cwd,

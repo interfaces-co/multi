@@ -555,8 +555,33 @@ const makeAcpSessionRuntime = (
       setConfigOption,
       setModel: (model) =>
         getStartedState.pipe(
-          Effect.flatMap((started) => setConfigOption(started.modelConfigId ?? "model", model)),
-          Effect.asVoid,
+          Effect.flatMap((started) => {
+            const modelConfigId = started.modelConfigId ?? "model";
+            const useParameterizedPicker =
+              initializeClientCapabilities._meta?.parameterizedModelPicker === true;
+            if (!useParameterizedPicker) {
+              return setConfigOption(modelConfigId, model).pipe(Effect.asVoid);
+            }
+            const requestPayload = {
+              sessionId: started.sessionId,
+              modelId: model,
+            } satisfies EffectAcpSchema.SetSessionModelRequest;
+            return runLoggedRequest(
+              "session/set_model",
+              requestPayload,
+              acp.agent.setSessionModel(requestPayload),
+            ).pipe(
+              Effect.tap(() =>
+                Ref.update(configOptionsRef, (current) =>
+                  configOptionsWithCurrentValue(current, modelConfigId, model),
+                ),
+              ),
+              Effect.catchIf(isMethodNotFound, () =>
+                setConfigOption(modelConfigId, model).pipe(Effect.asVoid),
+              ),
+              Effect.asVoid,
+            );
+          }),
         ),
       request: (method, payload) =>
         runLoggedRequest(method, payload, acp.raw.request(method, payload)),

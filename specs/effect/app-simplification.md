@@ -36,7 +36,7 @@ Detailed inventories:
 - [x] Root app files: [app-root-files.md](./app-root-files.md).
 - [x] App state files: [app-state-files.md](./app-state-files.md).
 - [x] App route files: [app-route-files.md](./app-route-files.md).
-- [x] App toast files: [app-toast-files.md](./app-toast-files.md).
+- [x] App toast file inventory completed and deleted.
 - [x] App CSS files: [app-css-files.md](./app-css-files.md).
 
 ## Target Shape
@@ -205,7 +205,7 @@ Detailed state inventory: [app-state-files.md](./app-state-files.md).
 ### Wave B2: Chat Turn Chrome
 
 - [x] Draft the cleanup scope for redundant chat turn Git chrome before
-      implementation. See [chat-turn-chrome.md](./chat-turn-chrome.md).
+      implementation.
 - [x] Remove inline assistant changed-file cards from chat after confirming the
       exact surface to delete.
 - [x] Delete the one-caller changed-files tree component and helper-only test if
@@ -214,11 +214,16 @@ Detailed state inventory: [app-state-files.md](./app-state-files.md).
       production surface reads it.
 - [x] Delete the old split-row `worked-header` wrapper model from chat tool
       rows.
-- [x] Replace it with the canonical Cursor-style work-group row documented in
-      [chat-turn-chrome.md](./chat-turn-chrome.md).
+- [x] Replace it with the canonical Cursor-style work-group row: full
+      `max-w-agent-chat` lane, local non-persisted expansion, compact summary
+      line, compact child tool rows, and no reintroduced chat-local changed-file
+      state.
 - [x] Align compact command/tool rows to Cursor's row model: full lane
       available for truncation, intrinsic visible text/chevron cluster, and no
       far-right chevron column.
+- [x] Keep compact command/tool row truncation CSS-owned; do not use
+      `PretextOneLine`, `justify-between`, `ml-auto`, or a flex spacer that
+      pushes chevrons away from the visible text.
 - [x] Keep checkpoint diff data for the Git workbench/diff panel.
 - [x] Keep work-log command rows on a stable width and run project actions in
       the shell workbench terminal for the target cwd.
@@ -275,4 +280,4 @@ Detailed rules: [react.md](./react.md).
 Remaining `.logic.ts` classification:
 
 - [x] `packages/app/src/app/toast.logic.ts` was inlined into `toast.tsx` and
-      deleted. See [app-toast-files.md](./app-toast-files.md).
+      deleted.

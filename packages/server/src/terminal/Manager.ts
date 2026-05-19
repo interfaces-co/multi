@@ -1673,13 +1673,17 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
           }
 
           const liveSession = existing.value;
-          const nextRuntimeEnv = normalizedRuntimeEnv(input.env);
           const currentRuntimeEnv = liveSession.runtimeEnv;
+          const cwdChanged = liveSession.cwd !== cwd;
+          const nextRuntimeEnv =
+            input.env === undefined && !cwdChanged
+              ? currentRuntimeEnv
+              : normalizedRuntimeEnv(input.env);
           const targetCols = input.cols ?? liveSession.cols;
           const targetRows = input.rows ?? liveSession.rows;
           const runtimeEnvChanged = !Equal.equals(currentRuntimeEnv, nextRuntimeEnv);
 
-          if (liveSession.cwd !== cwd || runtimeEnvChanged) {
+          if (cwdChanged || runtimeEnvChanged) {
             yield* stopProcess(liveSession);
             liveSession.cwd = cwd;
             liveSession.worktreePath = input.worktreePath ?? null;

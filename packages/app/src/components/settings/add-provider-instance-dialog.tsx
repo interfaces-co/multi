@@ -30,6 +30,7 @@ import { Badge } from "@multi/ui/badge";
 import { Input } from "@multi/ui/input";
 import { RadioGroup } from "@multi/ui/radio-group";
 import { toastManager } from "~/app/toast";
+import { formatProviderErrorDescription } from "~/lib/provider-error-description";
 import { DRIVER_OPTIONS, getDriverOption } from "./provider-driver-meta";
 import { ProviderSettingsForm, deriveProviderSettingsFields } from "./provider-settings-form";
 
@@ -167,7 +168,7 @@ function AddProviderInstanceDialogContent({
     [driver],
   );
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     setHasAttemptedSubmit(true);
     if (instanceIdError !== null) return;
 
@@ -192,7 +193,7 @@ function AddProviderInstanceDialogContent({
       [brandedId]: nextInstance,
     };
     try {
-      updateSettings({ providerInstances: nextMap });
+      await updateSettings({ providerInstances: nextMap });
       toastManager.add({
         type: "success",
         title: "Provider instance added",
@@ -203,7 +204,7 @@ function AddProviderInstanceDialogContent({
       toastManager.add({
         type: "error",
         title: "Could not add provider instance",
-        description: error instanceof Error ? error.message : "Update failed.",
+        description: formatProviderErrorDescription(error, "Update failed."),
       });
     }
   }, [

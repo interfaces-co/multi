@@ -85,6 +85,11 @@ import {
 } from "./Errors.ts";
 import { ClaudeAdapter, type ClaudeAdapterShape } from "./ClaudeAdapter.service.ts";
 import { type EventNdjsonLogger, makeEventNdjsonLogger } from "./EventNdjsonLogger.ts";
+import {
+  actionFromCanonicalRequestType,
+  isEnvFileReference,
+  shouldPromptForAction,
+} from "./runtime-permission-policy.ts";
 
 const PROVIDER = ProviderDriverKind.make("claudeAgent");
 const PROVIDER_INSTANCE_ID = defaultInstanceIdForDriver(PROVIDER);
@@ -2739,8 +2744,19 @@ const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
           } satisfies PermissionResult;
         }
 
-        const requestId = ApprovalRequestId.make(yield* Random.nextUUIDv4);
         const requestType = classifyRequestType(toolName);
+        const action =
+          requestType === "file_read_approval" && isEnvFileReference(toolInput)
+            ? "env_read"
+            : actionFromCanonicalRequestType(requestType);
+        if (!shouldPromptForAction(runtimeMode, action)) {
+          return {
+            behavior: "allow",
+            updatedInput: toolInput,
+          } satisfies PermissionResult;
+        }
+
+        const requestId = ApprovalRequestId.make(yield* Random.nextUUIDv4);
         const detail = summarizeToolRequest(toolName, toolInput);
         const decisionDeferred = yield* Deferred.make<ProviderApprovalDecision>();
         const pendingApproval: PendingApproval = {

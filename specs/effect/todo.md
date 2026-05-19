@@ -156,8 +156,7 @@ P6  EFFECT
       the canonical diff surface, delete the old split-row `worked-header`
       model, replace it with the Cursor-style work-group row, and keep compact
       tool chevrons adjacent to the visible text cluster. Focused browser
-      coverage now verifies the compact work-row lane and chevron geometry; see
-      [chat-turn-chrome.md](./chat-turn-chrome.md).
+      coverage now verifies the compact work-row lane and chevron geometry.
 
 ## P4: Delete
 
@@ -167,7 +166,8 @@ P6  EFFECT
 - [x] Delete root composer file names after moving real boundaries.
 - [x] Inventory project-script, pending-user-input, and terminal helper files
       before deletion.
-- [~] Continue `knip` strict cleanup for exported-but-unused files.
+- [x] Complete the current `knip` strict cleanup pass for exported-but-unused
+      source files.
   - [x] Re-ran `pnpm run knip:production`; repo-wide output still fails on
         package entry/dependency noise, but filtering the same run to
         `packages/app/src` reported no app source unused exports after the
@@ -196,6 +196,13 @@ P6  EFFECT
         export reports, but filtering output to
         `packages/(app|server)/(src|test|scripts)` produced no source-path
         deletion candidates.
+  - [x] Re-ran `pnpm run knip:production` during the current pass; the
+        repo-wide run still fails on package dependency and public export
+        reports. Filtering to `packages/(app|server|shared)/(src|test|scripts)`
+        produced only shared public exports already validated by production
+        caller inventory, including `@multi/shared/Net`, logging,
+        DrainableWorker, cli args, path helpers, search ranking, schema JSON,
+        project scripts, and thread segments.
 - [x] Re-evaluate `packages/app/src/diff-route-search.ts` after route-search
       ownership is decided; keep the shared search contract at
       `packages/app/src/app/routes/chat-shell-search.ts`.
@@ -240,8 +247,10 @@ P6  EFFECT
 - [x] Delete root `packages/app/src/ws-rpc-client.ts` after moving
       environment-scoped RPC client lookup to `environments/runtime` and keeping
       raw RPC client construction/types under `rpc/ws-rpc-client.ts`.
-- [ ] Delete helper tests only after moving retained behavior to a behavior
-      suite.
+- [x] Delete helper tests only after moving retained behavior to a behavior
+      suite. Current missing-sibling test inventory found no stale deleted-helper
+      mirrors; remaining matches are behavior/contract suites, `.tsx` component
+      tests, or index-boundary tests.
 
 ## P5: Usability Tests
 
