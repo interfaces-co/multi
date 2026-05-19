@@ -29,7 +29,7 @@ Durable decisions: [implementation-notes.md](../implementation-notes.md).
 Layout contracts: [messages-timeline.browser.tsx](../packages/app/src/components/chat/timeline/messages-timeline.browser.tsx).
 
 Cursor bundle class names (`ui-step-group-preview`, `ui-collapsible`, etc.) are
-dissection labels only — do not port into Multi. Use Tailwind/`cva`, tokens in
+dissection labels only. Use Tailwind/`cva`, tokens in
 [conversation.css](../packages/app/src/styles/conversation.css), and `data-*`
 hooks (`data-assistant-work-group`, `data-work-group-preview`,
 `data-work-preview-scrollable`, `data-tool-call-line-*`).
@@ -42,9 +42,9 @@ summary come from pure derivation (`deriveMessagesTimelineRows`,
 ### Open
 
 - [ ] Collapsed header copy: optional narrative description when the server
-      provides a turn summary. Document activity payload dependency if needed.
+  provides a turn summary. Document activity payload dependency if needed.
 - [ ] (Optional) Turn-chapter collapse hiding intermediate assistant content.
-      Large scope; defer unless product requires.
+  Large scope; defer unless product requires.
 
 ## Verification
 

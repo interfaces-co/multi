@@ -37,8 +37,8 @@ function ToolIconButton(props: { tab: WorkbenchTabMeta }) {
       aria-label={`${props.tab.label}${badgeText}`}
       title={`${props.tab.label}${badgeText}`}
     >
-      <span className="ui-tab-system-tab__content flex min-w-0 flex-none items-center justify-center">
-        <Icon className="ui-tab-system-tab__icon size-3.5" aria-hidden />
+      <span className="ui-tab-system-tab__content flex size-full min-w-0 flex-none items-center justify-center">
+        <Icon className="ui-tab-system-tab__icon size-3.5 shrink-0" aria-hidden />
       </span>
     </TabsTab>
   );
@@ -47,7 +47,7 @@ function ToolIconButton(props: { tab: WorkbenchTabMeta }) {
 function WorkbenchTabList(props: { activeTab: WorkbenchTab; tabs: readonly WorkbenchTabMeta[] }) {
   const activeMeta = props.tabs.find((tab) => tab.id === props.activeTab) ?? props.tabs[0] ?? null;
   return (
-    <TabsList className="no-drag flex shrink-0 select-none items-center gap-(--multi-workbench-chrome-action-gap)">
+    <TabsList className="no-drag flex h-(--multi-workbench-action-size) shrink-0 select-none items-center gap-(--multi-workbench-chrome-action-gap) self-center">
       {props.tabs.map((tab) => (
         <ToolIconButton key={tab.id} tab={tab} />
       ))}
@@ -175,7 +175,10 @@ export function RightWorkbenchHeader(props: RightWorkbenchHeaderProps) {
           </>
         ) : null}
 
-        <div className="editor-panel-tab-bar-spacer min-w-0 flex-1" />
+        <div
+          className="editor-panel-tab-bar-spacer drag-region pointer-events-auto min-h-(--multi-workbench-action-size) min-w-0 flex-1 self-center"
+          aria-hidden
+        />
       </>
     </RightWorkbenchToolIsland>
   );

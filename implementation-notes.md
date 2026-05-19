@@ -189,8 +189,12 @@ Codex/OpenAI, Claude, OpenCode, Cursor, and Pi pending only.
   around parsed `FileDiff` rows, so large per-edit patches avoid mounting every
   file diff at once while preserving the raw-patch fallback.
 
-## Timeline (open gaps)
+## Timeline notes
 
+- Optional collapsed-header narrative depends on a dedicated ingested turn-level
+  summary payload. `tool.summary` exists in the provider runtime contract, but
+  `ProviderRuntimeIngestion` does not map it into thread activity and it is not a
+  turn summary.
 - `expandedWorkGroupIds`: `id in set` = explicitly expanded; default
   collapsed. Ephemeral only.
 - `WorkGroupPreview` is colocated in `messages-timeline.tsx` (single call site).

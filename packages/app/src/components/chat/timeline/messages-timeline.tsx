@@ -737,7 +737,7 @@ const WorkGroupSection = memo(function WorkGroupSection({
   const headerLabel = isThinkingGroup
     ? [summary.action, summary.details].filter(Boolean).join(" ")
     : isRunning
-      ? "Working"
+      ? summary.action
       : `Worked for ${formatDuration(row.durationMs)}`;
   const handleToggle = useCallback(() => {
     onToggleExpanded(row.id);
@@ -745,7 +745,7 @@ const WorkGroupSection = memo(function WorkGroupSection({
 
   return (
     <div
-      className="flex min-w-0 max-w-agent-chat flex-1 flex-col gap-(--chat-timeline-collapsible-header-gap) py-0.5 text-conversation"
+      className="flex min-h-0 min-w-0 max-w-agent-chat flex-1 flex-col gap-(--chat-timeline-collapsible-header-gap) py-0.5 text-conversation"
       data-assistant-work-group=""
       data-work-group-expanded={expanded ? "true" : "false"}
       data-work-group-running={isRunning ? "true" : "false"}
@@ -778,15 +778,17 @@ const WorkGroupSection = memo(function WorkGroupSection({
           )}
         />
       </button>
-      {!expanded && isRunning ? (
-        <WorkGroupPreview
-          key={`work-preview:${row.id}`}
-          row={row}
-          onExpand={handleToggle}
-          projectRoot={projectRoot}
-        />
-      ) : null}
-      {expanded ? (
+      {isRunning ? (
+        <>
+          {expanded ? <WorkGroupSummaryLine summary={summary} /> : null}
+          <WorkGroupPreview
+            key={`work-preview:${row.id}`}
+            row={row}
+            onExpand={handleToggle}
+            projectRoot={projectRoot}
+          />
+        </>
+      ) : expanded ? (
         <div className="flex min-w-0 max-w-full flex-col gap-(--chat-timeline-step-gap)">
           <WorkGroupSummaryLine summary={summary} />
           {row.groupedEntries.map((workEntry) => (
@@ -880,12 +882,11 @@ const WorkGroupPreview = memo(function WorkGroupPreview({
       onKeyDown={onPreviewKeyDown}
       data-work-group-preview=""
       data-work-preview-scrollable="false"
-      className={cn(
-        "flex w-full min-w-0 max-w-full cursor-pointer flex-col",
-        "gap-(--chat-timeline-step-gap) overflow-y-auto overflow-x-hidden",
-        "max-h-(--chat-timeline-work-preview-max-height)",
-        "scrollbar-thin [overflow-anchor:none]",
-      )}
+      className="flex w-full min-h-0 max-w-full shrink-0 cursor-pointer flex-col gap-(--chat-timeline-step-gap) overflow-x-hidden overflow-y-auto scrollbar-thin [overflow-anchor:none]"
+      style={{
+        height: WORK_GROUP_PREVIEW_PX,
+        maxHeight: WORK_GROUP_PREVIEW_PX,
+      }}
     >
       {entries.map((workEntry) => (
         <ToolCallMessage

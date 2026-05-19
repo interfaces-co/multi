@@ -41,7 +41,7 @@ export const ChatHeader = memo(function ChatHeader({
   onDeleteProjectScript,
 }: ChatHeaderProps) {
   return (
-    <div className="@container/header-actions flex min-w-0 flex-1 select-none items-center gap-2 text-body">
+    <div className="@container/header-actions pointer-events-auto flex min-w-0 flex-1 translate-y-[var(--multi-titlebar-content-nudge-y)] select-none items-center gap-2 text-body">
       <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
         <Button
           type="button"
@@ -64,6 +64,10 @@ export const ChatHeader = memo(function ChatHeader({
           </button>
         </div>
       </div>
+      <div
+        className="drag-region pointer-events-auto min-h-(--multi-titlebar-control-height) min-w-8 flex-1 self-center"
+        aria-hidden
+      />
       {activeProjectScripts ? (
         <div className="no-drag flex shrink-0 items-center">
           <ProjectScriptsControl

@@ -302,7 +302,7 @@ function SettingsShellHost(props: { children?: ReactNode }) {
   const settingsLeft = (
     <div className="thread-rail-pad relative flex min-h-0 flex-1 flex-col px-0">
       <div
-        className="drag-region pointer-events-none absolute inset-x-0 top-0 h-(--multi-shell-sidebar-content-top-offset,var(--multi-electron-traffic-padding-top))"
+        className="pointer-events-none absolute inset-x-0 top-0 h-(--multi-shell-sidebar-content-top-offset,var(--multi-electron-traffic-padding-top))"
         aria-hidden="true"
       />
       <SettingsNavRail />
@@ -311,13 +311,15 @@ function SettingsShellHost(props: { children?: ReactNode }) {
   );
 
   return (
-    <AppShell
-      cwd={firstProjectCwd}
-      onBack={backToChat}
-      left={settingsLeft}
-      center={props.children ?? <Outlet />}
-      right={null}
-    />
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">
+      <AppShell
+        cwd={firstProjectCwd}
+        onBack={backToChat}
+        left={settingsLeft}
+        center={props.children ?? <Outlet />}
+        right={null}
+      />
+    </div>
   );
 }
 
@@ -1128,7 +1130,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
   const chatLeft = (
     <div className="thread-rail-pad relative flex min-h-0 flex-1 flex-col px-0">
       <div
-        className="drag-region pointer-events-none absolute inset-x-0 top-0 h-(--multi-shell-sidebar-content-top-offset,var(--multi-electron-traffic-padding-top))"
+        className="pointer-events-none absolute inset-x-0 top-0 h-(--multi-shell-sidebar-content-top-offset,var(--multi-electron-traffic-padding-top))"
         aria-hidden="true"
       />
       <div className={cn("shrink-0", isElectron && "no-drag")}>
@@ -1301,7 +1303,7 @@ function ChatWorkbenchShellHost(props: {
   ]);
 
   return (
-    <>
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">
       {git.lifecycleSync}
       <AppShell
         cwd={props.cwd}
@@ -1311,6 +1313,6 @@ function ChatWorkbenchShellHost(props: {
         center={props.center}
         right={right}
       />
-    </>
+    </div>
   );
 }

@@ -253,6 +253,7 @@ type ComposerSendSnapshot = {
   interactionMode: ProviderInteractionMode;
   planFollowUp: { planMarkdown: string } | null;
   clearComposerOnSubmit: boolean;
+  interruptBeforeSubmit?: () => Promise<void>;
   messageId?: MessageId;
   createdAt?: string;
 };
@@ -2275,6 +2276,7 @@ export default function ChatView(props: ChatViewProps) {
       interactionMode: interactionModeForSend,
       planFollowUp,
       clearComposerOnSubmit,
+      interruptBeforeSubmit,
     } = snapshot;
     const {
       prompt: promptForSend,
@@ -2357,6 +2359,19 @@ export default function ChatView(props: ChatViewProps) {
 
     sendInFlightRef.current = true;
     beginLocalDispatch({ preparingWorktree: Boolean(baseBranchForWorktree) });
+    if (interruptBeforeSubmit) {
+      try {
+        await interruptBeforeSubmit();
+      } catch (err) {
+        sendInFlightRef.current = false;
+        resetLocalDispatch();
+        setThreadError(
+          threadIdForSend,
+          err instanceof Error ? err.message : "Failed to interrupt current turn.",
+        );
+        return;
+      }
+    }
 
     const composerImagesSnapshot = [...composerImages];
     const composerTerminalContextsSnapshot = [...sendableComposerTerminalContexts];
@@ -2682,19 +2697,24 @@ export default function ChatView(props: ChatViewProps) {
       interactionMode,
       planFollowUp,
       clearComposerOnSubmit: true,
+      ...(phase === "running" && sendWhileStreamingBehavior === "send"
+        ? { interruptBeforeSubmit: onInterrupt }
+        : {}),
     });
   };
 
   const onInterrupt = useCallback(async () => {
     const api = readEnvironmentApi(environmentId);
     if (!api || !activeThread) return;
+    const turnId = activeRunningTurnId ?? undefined;
     await api.orchestration.dispatchCommand({
       type: "thread.turn.interrupt",
       commandId: newCommandId(),
       threadId: activeThread.id,
+      ...(turnId ? { turnId } : {}),
       createdAt: new Date().toISOString(),
     });
-  }, [activeThread, environmentId]);
+  }, [activeRunningTurnId, activeThread, environmentId]);
 
   const loadQueuedComposerItemIntoComposer = (item: QueuedComposerItem) => {
     const imagesForEdit = item.sendContext.images.map(cloneComposerImageForRetry);
@@ -3392,7 +3412,7 @@ export default function ChatView(props: ChatViewProps) {
       {/* Top bar */}
       <header
         className={cn(
-          "agent-window-chat-header drag-region box-border flex h-(--multi-workbench-chrome-row-height) select-none items-start px-3 pt-(--multi-titlebar-control-row-top)",
+          "agent-window-chat-header pointer-events-none box-border flex h-(--multi-workbench-chrome-row-height) select-none items-center px-3",
           isElectron &&
             cn(
               reserveTitleBarControlInset && "pr-(--multi-shell-right-workbench-header-end-space)",
@@ -3490,7 +3510,7 @@ export default function ChatView(props: ChatViewProps) {
                 ? "[&_[data-chat-input-footer=true]_*]:opacity-60 **:data-[testid=composer-editor]:cursor-default **:data-[testid=composer-editor]:opacity-60"
                 : undefined,
               !isHeroComposer
-                ? "absolute bottom-0 left-0 right-0 isolate z-30 pointer-events-auto before:pointer-events-none before:absolute before:bottom-[-12px] before:left-1/2 before:top-1/2 before:z-0 before:ml-[-50vw] before:w-screen before:bg-multi-editor after:pointer-events-none after:absolute after:bottom-1/2 after:left-1/2 after:z-0 after:ml-[-50vw] after:h-6 after:w-screen after:bg-[linear-gradient(to_top,var(--multi-color-editor),transparent)] *:relative *:z-1"
+                ? "absolute bottom-0 left-0 right-0 isolate z-30 pointer-events-auto before:pointer-events-none before:absolute before:bottom-[-12px] before:left-1/2 before:top-1/2 before:z-0 before:-ml-[50vw] before:w-screen before:bg-multi-editor after:pointer-events-none after:absolute after:bottom-1/2 after:left-1/2 after:z-0 after:-ml-[50vw] after:h-6 after:w-screen after:bg-[linear-gradient(to_top,var(--multi-color-editor),transparent)] [&>*]:relative [&>*]:z-1"
                 : undefined,
             )}
             data-layout={isHeroComposer ? "wide" : undefined}

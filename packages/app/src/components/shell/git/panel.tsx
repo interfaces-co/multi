@@ -633,7 +633,9 @@ function LocalBranchBar(props: {
         </div>
       }
     >
-      <span className="no-drag shrink-0 text-body font-medium text-multi-fg-secondary">Local</span>
+      <span className="no-drag inline-flex h-(--multi-workbench-action-size) shrink-0 items-center text-body font-medium text-multi-fg-secondary">
+        Local
+      </span>
       <button
         type="button"
         onClick={copyBranch}

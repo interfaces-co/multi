@@ -185,6 +185,7 @@ const publishCmd = Command.make(
     appVersion: Flag.string("app-version").pipe(Flag.optional),
     provenance: Flag.boolean("provenance").pipe(Flag.withDefault(false)),
     dryRun: Flag.boolean("dry-run").pipe(Flag.withDefault(false)),
+    otp: Flag.string("otp").pipe(Flag.optional),
     verbose: Flag.boolean("verbose").pipe(Flag.withDefault(false)),
   },
   (config) =>
@@ -249,6 +250,7 @@ const publishCmd = Command.make(
             const args = ["publish", "--access", config.access, "--tag", config.tag];
             if (config.provenance) args.push("--provenance");
             if (config.dryRun) args.push("--dry-run");
+            if (Option.isSome(config.otp)) args.push("--otp", config.otp.value);
 
             yield* Effect.log(`[cli] Running: npm ${args.join(" ")}`);
             yield* runCommand(

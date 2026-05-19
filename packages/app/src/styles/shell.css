@@ -9,6 +9,13 @@
   --multi-titlebar-control-row-top: calc(
     (var(--multi-header-height) - var(--multi-titlebar-control-height)) / 2
   );
+  --multi-titlebar-row-center-top: calc(
+    (var(--multi-header-height) - var(--multi-titlebar-control-height)) / 2
+  );
+  /* Nudge centered chrome (chat title) down to match traffic-light-aligned controls on macOS. */
+  --multi-titlebar-content-nudge-y: calc(
+    var(--multi-titlebar-control-row-top) - var(--multi-titlebar-row-center-top)
+  );
   --multi-electron-traffic-inset: 80px;
   --multi-electron-traffic-padding-top: var(--multi-electron-traffic-padding-top-user, 0px);
   --multi-sidebar-label-size: var(
@@ -24,7 +31,8 @@
   --multi-workbench-toggle-right: var(--multi-workbench-toggle-right-user, 12px);
   --multi-workbench-changes-toggle-w: var(--multi-workbench-changes-toggle-w-user, 7rem);
   --multi-workbench-chrome-row-height: 34px;
-  --multi-workbench-panel-title-row-height: 29px;
+  --multi-workbench-panel-title-row-height: 32px;
+  --multi-workbench-panel-title-padding-block: 4px;
   --multi-workbench-chrome-padding-inline: 8px;
   --multi-workbench-sub-chrome-padding-inline: 6px;
   --multi-workbench-chrome-action-gap: 2px;
@@ -40,6 +48,16 @@
     var(--multi-electron-traffic-inset)
   );
   --multi-electron-traffic-padding-top: var(--multi-electron-traffic-padding-top-user, 26px);
+}
+
+:root {
+  --multi-composer-menu-collision-padding-top: 8px;
+}
+
+[data-shell-platform="electron"] {
+  --multi-composer-menu-collision-padding-top: calc(
+    var(--multi-electron-traffic-padding-top, 0px) + var(--multi-header-height, 34px) + 8px
+  );
 }
 
 /* Glass panels: backdrop-filter + isolation */
@@ -88,6 +106,8 @@ body {
   );
   background: var(--multi-color-surface);
   container-type: inline-size;
+  overflow-x: clip;
+  max-width: 100%;
   font-family: var(--multi-font-ui);
   font-size: var(--multi-ui-font-size-user, 13px);
   font-synthesis: none;
@@ -152,23 +172,31 @@ body {
 .multi-shell-titlebar-right-toggle {
   right: var(--multi-shell-titlebar-gutter);
   top: var(--multi-shell-titlebar-control-y);
+  z-index: 40;
 }
 
 .multi-workbench-titlebar-end-space {
   width: var(--multi-shell-right-workbench-header-end-space);
   height: var(--multi-shell-titlebar-control-size);
+  pointer-events: none;
+}
+
+.multi-shell-titlebar-controls {
+  z-index: 50;
 }
 
 /* Composite pane title band — full-width under the 35px tool island. */
 .agent-window .multi-workbench-panel-title-row {
   display: flex;
   align-items: center;
+  box-sizing: border-box;
   flex-shrink: 0;
   min-width: 0;
-  height: var(--multi-workbench-panel-title-row-height, 29px);
-  min-height: var(--multi-workbench-panel-title-row-height, 29px);
-  max-height: var(--multi-workbench-panel-title-row-height, 29px);
+  height: var(--multi-workbench-panel-title-row-height, 32px);
+  min-height: var(--multi-workbench-panel-title-row-height, 32px);
+  max-height: var(--multi-workbench-panel-title-row-height, 32px);
   flex-wrap: nowrap;
+  padding-block: var(--multi-workbench-panel-title-padding-block, 4px);
   padding-inline: var(--multi-workbench-sub-chrome-padding-inline);
   border-bottom: 1px solid var(--multi-workbench-panel-border-faint);
   background-color: var(--multi-workbench-panel-title-background);
@@ -305,10 +333,10 @@ body {
   color: var(--multi-fg-secondary);
 }
 
-.agent-window[data-shell-left-intent="collapsed"] .agent-window-chat-header {
+[data-electron] .agent-window[data-shell-left-intent="collapsed"] .agent-window-chat-header {
+  margin-left: var(--multi-electron-traffic-inset);
   padding-left: calc(
-    var(--multi-electron-traffic-inset) + var(--multi-shell-titlebar-control-size) +
-      var(--multi-shell-titlebar-gutter)
+    var(--multi-shell-titlebar-control-size) + var(--multi-shell-titlebar-gutter)
   );
 }
 

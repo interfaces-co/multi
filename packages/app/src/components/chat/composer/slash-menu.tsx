@@ -21,7 +21,10 @@ import {
   IconSquareChecklist,
   type CentralIconBaseProps,
 } from "central-icons";
-import { memo, useCallback, useMemo, type ComponentType } from "react";
+import { memo, useCallback, useMemo, type ComponentProps, type ComponentType, type RefObject } from "react";
+
+import { Popover, PopoverPopup } from "@multi/ui/popover";
+import { cn } from "~/lib/utils";
 
 import {
   type ComposerSlashCommand,
@@ -84,6 +87,22 @@ type ComposerCommandGroup = {
   items: ComposerCommandItem[];
 };
 type ComposerCommandMenuKind = "slash" | "mentions";
+
+function readComposerMenuCollisionPaddingTop(): number {
+  if (typeof document === "undefined") {
+    return 8;
+  }
+  const raw = getComputedStyle(document.documentElement)
+    .getPropertyValue("--multi-composer-menu-collision-padding-top")
+    .trim();
+  const parsed = Number.parseFloat(raw);
+  return Number.isFinite(parsed) ? parsed : 8;
+}
+
+function composerMenuCollisionPadding() {
+  const top = readComposerMenuCollisionPaddingTop();
+  return { top, bottom: 8, left: 8, right: 8 } as const;
+}
 
 function titleCaseWords(value: string): string {
   return value
@@ -372,14 +391,33 @@ export function useComposerCommandMenu(input: {
   const composerMenuItems = useMemo<ComposerCommandItem[]>(() => {
     if (!input.composerTrigger) return [];
     if (input.composerTrigger.kind === "path") {
-      return projectEntries.map((entry) => ({
-        id: `path:${entry.kind}:${entry.path}`,
-        type: "path",
-        path: entry.path,
-        pathKind: entry.kind,
-        label: basenameOfPath(entry.path),
-        description: entry.parentPath ?? "",
-      }));
+      const seenPaths = new Set<string>();
+      const uniqueEntries = projectEntries.filter((entry) => {
+        if (seenPaths.has(entry.path)) {
+          return false;
+        }
+        seenPaths.add(entry.path);
+        return true;
+      });
+      const basenameCounts = new Map<string, number>();
+      for (const entry of uniqueEntries) {
+        const basename = basenameOfPath(entry.path).toLowerCase();
+        basenameCounts.set(basename, (basenameCounts.get(basename) ?? 0) + 1);
+      }
+      return uniqueEntries.map((entry) => {
+        const basename = basenameOfPath(entry.path);
+        const parentPath = entry.parentPath ?? "";
+        const description =
+          (basenameCounts.get(basename.toLowerCase()) ?? 0) > 1 ? entry.path : parentPath;
+        return {
+          id: `path:${entry.kind}:${entry.path}`,
+          type: "path" as const,
+          path: entry.path,
+          pathKind: entry.kind,
+          label: basename,
+          description,
+        };
+      });
     }
     if (input.composerTrigger.kind !== "slash-command") {
       return [];
@@ -562,7 +600,7 @@ export const ComposerCommandMenu = memo(function ComposerCommandMenu(props: {
         data-menu-kind={props.menuKind}
         data-variant="glass"
       >
-        <CommandList className="max-h-[342px]">
+        <CommandList className="max-h-[min(20rem,var(--available-height))] overflow-y-auto">
           {groups.map((group, groupIndex) => (
             <div key={group.id}>
               {groupIndex > 0 ? <CommandSeparator className="my-px" /> : null}
@@ -678,5 +716,43 @@ const ComposerCommandMenuItem = memo(function ComposerCommandMenuItem(props: {
         </span>
       ) : null}
     </CommandItem>
+  );
+});
+
+type ComposerCommandMenuPositionedProps = ComponentProps<typeof ComposerCommandMenu> & {
+  open: boolean;
+  anchorRef: RefObject<HTMLElement | null>;
+};
+
+export const ComposerCommandMenuPositioned = memo(function ComposerCommandMenuPositioned(
+  props: ComposerCommandMenuPositionedProps,
+) {
+  const { open, anchorRef, menuKind, ...menuProps } = props;
+  const collisionPadding = useMemo(
+    () => (open ? composerMenuCollisionPadding() : { top: 8, bottom: 8, left: 8, right: 8 }),
+    [open],
+  );
+
+  return (
+    <Popover open={open}>
+      <PopoverPopup
+        anchor={anchorRef}
+        align="start"
+        collisionBoundary="viewport"
+        collisionPadding={collisionPadding}
+        initialFocus={false}
+        instant
+        side="top"
+        sideOffset={8}
+        className={cn(
+          "z-[70] border-0 bg-transparent p-0 opacity-100 shadow-none before:hidden data-starting-style:scale-100 data-starting-style:opacity-100 [--viewport-inline-padding:0] *:data-[slot=popover-viewport]:overflow-visible *:data-[slot=popover-viewport]:p-0",
+          menuKind === "mentions" ? "w-64 max-w-[min(16rem,var(--available-width))]" : "w-80 max-w-[min(20rem,var(--available-width))]",
+        )}
+        data-composer-command-menu-root=""
+        data-menu-kind={menuKind}
+      >
+        <ComposerCommandMenu menuKind={menuKind} {...menuProps} />
+      </PopoverPopup>
+    </Popover>
   );
 });

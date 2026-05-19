@@ -420,10 +420,16 @@ function makeCursorAdapter(options?: CursorAdapterLiveOptions) {
       Stream.runDrain(
         Stream.mapEffect(acp.getEvents(), (event) =>
           Effect.gen(function* () {
+            const activeTurnId = ctx.activeTurnId;
+            const shouldSuppressActiveTurnEvent =
+              activeTurnId === undefined || ctx.interruptedTurnIds.has(activeTurnId);
             switch (event._tag) {
               case "ModeChanged":
                 return;
               case "AssistantItemStarted":
+                if (shouldSuppressActiveTurnEvent) {
+                  return;
+                }
                 yield* offerRuntimeEvent(
                   makeAcpAssistantItemEvent({
                     stamp: yield* makeEventStamp(),
@@ -436,6 +442,9 @@ function makeCursorAdapter(options?: CursorAdapterLiveOptions) {
                 );
                 return;
               case "AssistantItemCompleted":
+                if (shouldSuppressActiveTurnEvent) {
+                  return;
+                }
                 yield* offerRuntimeEvent(
                   makeAcpAssistantItemEvent({
                     stamp: yield* makeEventStamp(),
@@ -459,6 +468,9 @@ function makeCursorAdapter(options?: CursorAdapterLiveOptions) {
                 return;
               case "ToolCallUpdated":
                 yield* logNative(ctx.threadId, "session/update", event.rawPayload, "acp.jsonrpc");
+                if (shouldSuppressActiveTurnEvent) {
+                  return;
+                }
                 yield* offerRuntimeEvent(
                   makeAcpToolCallEvent({
                     stamp: yield* makeEventStamp(),
@@ -472,6 +484,9 @@ function makeCursorAdapter(options?: CursorAdapterLiveOptions) {
                 return;
               case "ContentDelta":
                 yield* logNative(ctx.threadId, "session/update", event.rawPayload, "acp.jsonrpc");
+                if (shouldSuppressActiveTurnEvent) {
+                  return;
+                }
                 yield* offerRuntimeEvent(
                   makeAcpContentDeltaEvent({
                     stamp: yield* makeEventStamp(),
@@ -1178,6 +1193,11 @@ function makeCursorAdapter(options?: CursorAdapterLiveOptions) {
         if (activeTurnId !== undefined) {
           ctx.interruptedTurnIds.add(activeTurnId);
         }
+        yield* ctx.acp.cancel.pipe(
+          Effect.mapError((error) =>
+            mapAcpToAdapterError(PROVIDER, threadId, "session/cancel", error),
+          ),
+        );
         ctx.activeTurnId = undefined;
         ctx.session = {
           ...ctx.session,
@@ -1194,7 +1214,6 @@ function makeCursorAdapter(options?: CursorAdapterLiveOptions) {
             payload: { reason: "Interrupted by user." },
           });
         }
-        yield* stopSessionInternal(ctx);
       });
 
     const respondToRequest: CursorAdapterShape["respondToRequest"] = (

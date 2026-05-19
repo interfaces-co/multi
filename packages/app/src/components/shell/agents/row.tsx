@@ -264,10 +264,38 @@ export const AgentRow = memo(
             </span>
           </div>
         ) : (
-          <div className="group/agent-row-shell relative min-w-0" data-agent-sidebar-row-shell="">
+          <div
+            className="group/agent-row-shell flex min-w-0 items-center"
+            data-agent-sidebar-row-shell=""
+          >
+            <span
+              className={cn(
+                "flex w-5 shrink-0 items-center justify-center",
+                threadItem.pinned
+                  ? ""
+                  : "max-w-0 overflow-hidden opacity-0 transition-[max-width,opacity] duration-100 ease-out group-hover/agent-row-shell:max-w-5 group-hover/agent-row-shell:opacity-100 group-focus-within/agent-row-shell:max-w-5 group-focus-within/agent-row-shell:opacity-100 motion-reduce:transition-none",
+              )}
+              data-agent-sidebar-pin-slot=""
+            >
+              <button
+                type="button"
+                aria-label={threadItem.pinned ? "Unpin" : "Pin"}
+                title={threadItem.pinned ? "Unpin" : "Pin"}
+                onClick={togglePinnedThread}
+                onMouseDown={stopActionPointerDown}
+                className={hoverActionButtonClass}
+                data-agent-sidebar-pin-action=""
+              >
+                {threadItem.pinned ? (
+                  <IconUnpin className="size-3.5" aria-hidden />
+                ) : (
+                  <IconPin className="size-3.5" aria-hidden />
+                )}
+              </button>
+            </span>
             <RowButton
               variant="agent"
-              className="pr-1.5 transition-[background-color,color,padding-right] group-hover/agent-row-shell:pr-[6.75rem] group-focus-within/agent-row-shell:pr-[6.75rem]"
+              className="min-w-0 flex-1 gap-1.5 pr-1"
               data-selected={props.selected}
               data-chat-item=""
               data-agent-sidebar-cell=""
@@ -287,10 +315,21 @@ export const AgentRow = memo(
                   </span>
                 </span>
               </span>
+              <span
+                className={cn(
+                  "max-w-14 min-w-8 shrink-0 overflow-hidden text-ellipsis whitespace-nowrap text-right text-(length:--multi-text-detail) leading-(--multi-leading-detail) tabular-nums",
+                  props.selected ? "text-multi-fg-secondary" : "text-multi-fg-tertiary",
+                )}
+                data-agent-sidebar-subtitle=""
+                data-agent-sidebar-trailing-content=""
+              >
+                {props.item.ago}
+              </span>
             </RowButton>
             <span
-              className="pointer-events-none absolute top-1/2 right-1 flex max-w-0 -translate-y-1/2 items-center gap-0.5 overflow-hidden opacity-0 transition-[max-width,opacity] duration-100 ease-out group-hover/agent-row-shell:pointer-events-auto group-hover/agent-row-shell:max-w-[6.75rem] group-hover/agent-row-shell:opacity-100 group-focus-within/agent-row-shell:pointer-events-auto group-focus-within/agent-row-shell:max-w-[6.75rem] group-focus-within/agent-row-shell:opacity-100 motion-reduce:transition-none"
+              className="flex max-w-0 shrink-0 overflow-hidden opacity-0 transition-[max-width,opacity] duration-100 ease-out group-hover/agent-row-shell:max-w-5 group-hover/agent-row-shell:opacity-100 group-focus-within/agent-row-shell:max-w-5 group-focus-within/agent-row-shell:opacity-100 motion-reduce:transition-none"
               data-agent-sidebar-actions=""
+              data-agent-sidebar-archive-slot=""
             >
               <button
                 type="button"
@@ -302,31 +341,6 @@ export const AgentRow = memo(
                 data-agent-sidebar-archive-action=""
               >
                 <IconArchive1 className="size-3.5" aria-hidden />
-              </button>
-              <span
-                className={cn(
-                  "max-w-8 min-w-7 shrink-0 overflow-hidden text-ellipsis whitespace-nowrap text-center text-(length:--multi-text-detail) leading-(--multi-leading-detail) tabular-nums",
-                  props.selected ? "text-multi-fg-secondary" : "text-multi-fg-tertiary",
-                )}
-                data-agent-sidebar-subtitle=""
-                data-agent-sidebar-trailing-content=""
-              >
-                {props.item.ago}
-              </span>
-              <button
-                type="button"
-                aria-label={threadItem.pinned ? "Unpin" : "Pin"}
-                title={threadItem.pinned ? "Unpin" : "Pin"}
-                onClick={togglePinnedThread}
-                onMouseDown={stopActionPointerDown}
-                className={hoverActionButtonClass}
-                data-agent-sidebar-pin-action=""
-              >
-                {threadItem.pinned ? (
-                  <IconUnpin className="size-3.5" aria-hidden />
-                ) : (
-                  <IconPin className="size-3.5" aria-hidden />
-                )}
               </button>
             </span>
           </div>

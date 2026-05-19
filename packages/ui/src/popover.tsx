@@ -32,6 +32,8 @@ function PopoverPopup({
   tooltipStyle = false,
   anchor,
   collisionAvoidance,
+  collisionBoundary,
+  collisionPadding,
   positionMethod,
   sticky,
   ...props
@@ -47,6 +49,8 @@ function PopoverPopup({
   tooltipStyle?: boolean;
   anchor?: PopoverPrimitive.Positioner.Props["anchor"];
   collisionAvoidance?: PopoverPrimitive.Positioner.Props["collisionAvoidance"];
+  collisionBoundary?: PopoverPrimitive.Positioner.Props["collisionBoundary"];
+  collisionPadding?: PopoverPrimitive.Positioner.Props["collisionPadding"];
   positionMethod?: PopoverPrimitive.Positioner.Props["positionMethod"];
   sticky?: PopoverPrimitive.Positioner.Props["sticky"];
 }) {
@@ -57,6 +61,8 @@ function PopoverPopup({
         alignOffset={alignOffset}
         anchor={anchor}
         collisionAvoidance={collisionAvoidance}
+        collisionBoundary={collisionBoundary}
+        collisionPadding={collisionPadding}
         positionMethod={positionMethod}
         sticky={sticky}
         className={cn(

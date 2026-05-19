@@ -526,16 +526,17 @@ function emitMeasuredMultiline(
 ): void {
   if (!callback) return;
   const dom = editor.view.dom;
-  const computed = window.getComputedStyle(dom);
-  const lineHeight = Number.parseFloat(computed.lineHeight);
-  const fallbackLineHeight = Number.parseFloat(computed.fontSize) * 1.5;
-  const resolvedLineHeight = Number.isFinite(lineHeight) ? lineHeight : fallbackLineHeight;
-  const range = document.createRange();
-  range.selectNodeContents(dom);
-  const contentHeight = range.getBoundingClientRect().height;
-  range.detach();
   const value = promptTextFromDoc(editor.state.doc);
-  callback(value.includes("\n") || contentHeight > resolvedLineHeight * 1.5);
+  if (value.includes("\n")) {
+    callback(true);
+    return;
+  }
+  if (value.trim().length === 0) {
+    callback(false);
+    return;
+  }
+
+  callback(dom.scrollHeight > dom.clientHeight + 1);
 }
 
 function usePromptEditorControlledStateSync({

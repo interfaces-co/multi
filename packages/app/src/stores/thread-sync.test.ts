@@ -4,6 +4,7 @@ import {
   EventId,
   MessageId,
   ThreadId,
+  TurnId,
   ProjectId,
   type OrchestrationEvent,
   type OrchestrationShellSnapshot,
@@ -122,6 +123,89 @@ describe("thread sync", () => {
     expect(environmentState?.messageIdsByThreadId[threadId]).toEqual([messageId]);
     expect(environmentState?.messageByThreadId[threadId]?.[messageId]?.text).toBe("hello");
     expect(environmentState?.sidebarThreadSummaryById[threadId]?.title).toBe("Thread");
+  });
+
+  it("interrupts the active running turn when the interrupt event omits a turn id", () => {
+    const turnId = TurnId.make("turn-active");
+    const assistantMessageId = MessageId.make("assistant-active");
+    const bootstrapped = syncServerThreadDetail(
+      syncServerShellSnapshot(initialState, shellSnapshot(), environmentId),
+      {
+        id: threadId,
+        projectId,
+        title: "Thread",
+        modelSelection,
+        runtimeMode: DEFAULT_RUNTIME_MODE,
+        interactionMode: DEFAULT_INTERACTION_MODE,
+        branch: null,
+        worktreePath: null,
+        latestTurn: {
+          turnId,
+          state: "running",
+          requestedAt: "2026-01-01T00:00:01.000Z",
+          startedAt: "2026-01-01T00:00:02.000Z",
+          completedAt: null,
+          assistantMessageId,
+        },
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:02.000Z",
+        archivedAt: null,
+        deletedAt: null,
+        messages: [
+          {
+            id: assistantMessageId,
+            role: "assistant",
+            text: "still streaming",
+            turnId,
+            streaming: true,
+            createdAt: "2026-01-01T00:00:02.000Z",
+            updatedAt: "2026-01-01T00:00:03.000Z",
+          },
+        ],
+        proposedPlans: [],
+        activities: [],
+        checkpoints: [],
+        session: {
+          threadId,
+          status: "running",
+          providerName: "codex",
+          runtimeMode: DEFAULT_RUNTIME_MODE,
+          activeTurnId: turnId,
+          lastError: null,
+          updatedAt: "2026-01-01T00:00:02.000Z",
+        },
+      },
+      environmentId,
+    );
+
+    const interrupted = applyOrchestrationEvent(
+      bootstrapped,
+      {
+        sequence: 2,
+        eventId: EventId.make("event-turn-interrupt-requested"),
+        aggregateKind: "thread",
+        aggregateId: threadId,
+        occurredAt: "2026-01-01T00:00:04.000Z",
+        commandId: CommandId.make("command-turn-interrupt"),
+        causationEventId: null,
+        correlationId: CommandId.make("command-turn-interrupt"),
+        metadata: {},
+        type: "thread.turn-interrupt-requested",
+        payload: {
+          threadId,
+          createdAt: "2026-01-01T00:00:04.000Z",
+        },
+      } satisfies OrchestrationEvent,
+      environmentId,
+    );
+
+    const environmentState = interrupted.environmentStateById[environmentId];
+    const latestTurn = environmentState?.threadTurnStateById[threadId]?.latestTurn;
+    const message = environmentState?.messageByThreadId[threadId]?.[assistantMessageId];
+    expect(latestTurn?.state).toBe("interrupted");
+    expect(latestTurn?.completedAt).toBe("2026-01-01T00:00:04.000Z");
+    expect(message?.streaming).toBe(false);
+    expect(message?.completedAt).toBe("2026-01-01T00:00:04.000Z");
   });
 
   it("removes thread scoped records on shell thread removal", () => {

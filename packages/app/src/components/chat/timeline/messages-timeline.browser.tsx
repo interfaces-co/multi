@@ -82,6 +82,26 @@ function buildConversationEntries(pairCount: number, startIndex = 0): TimelineEn
   return entries;
 }
 
+function buildRunningWorkEntries(count: number): TimelineEntry[] {
+  return Array.from({ length: count }, (_, index) => {
+    const createdAt = new Date(Date.UTC(2026, 3, 13, 12, 0, index)).toISOString();
+    return {
+      id: `work-running-group-${index}`,
+      kind: "work",
+      createdAt,
+      entry: {
+        id: `work-running-${index}`,
+        createdAt,
+        label: "reading",
+        detail: `src/file-${index}.ts`,
+        tone: "tool",
+        status: "running",
+        requestKind: "file-read",
+      },
+    };
+  });
+}
+
 function getScrollElement() {
   const scrollElement = document.querySelector<HTMLDivElement>("[data-chat-timeline-scroll]");
   if (!scrollElement) {
@@ -248,6 +268,24 @@ describe("messages-timeline", () => {
     }
   });
 
+  it("caps the running work preview height and auto-scrolls the tool tail", async () => {
+    const props = buildProps();
+    const screen = await renderTimeline(props, buildRunningWorkEntries(12));
+
+    try {
+      await vi.waitFor(() => {
+        expect(document.querySelector("[data-work-group-preview]")).not.toBeNull();
+      });
+
+      const preview = requireElement<HTMLElement>("[data-work-group-preview]");
+      expect(preview.clientHeight).toBeLessThanOrEqual(145);
+      expect(preview.scrollHeight).toBeGreaterThan(preview.clientHeight);
+      expect(preview.getAttribute("data-work-preview-scrollable")).toBe("true");
+    } finally {
+      await screen.unmount();
+    }
+  });
+
   it("renders a live preview pane when a running work group is collapsed", async () => {
     const props = buildProps();
     const screen = await renderTimeline(props, [
@@ -284,7 +322,8 @@ describe("messages-timeline", () => {
       preview.click();
       await vi.waitFor(() => {
         expect(group.getAttribute("data-work-group-expanded")).toBe("true");
-        expect(document.querySelector("[data-work-group-preview]")).toBeNull();
+        expect(document.querySelector("[data-work-group-preview]")).not.toBeNull();
+        expect(document.querySelector("[data-work-group-summary]")).not.toBeNull();
       });
     } finally {
       await screen.unmount();

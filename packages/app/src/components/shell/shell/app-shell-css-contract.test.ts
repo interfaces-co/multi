@@ -88,10 +88,18 @@ describe("AppShell CSS root contract", () => {
     expect(appShellHostSource).toContain("thread-rail-pad relative");
     expect(appShellHostSource).toContain("h-(--multi-shell-sidebar-content-top-offset");
     expect(appShellHostSource).toContain("pointer-events-none");
-    expect(appShellHostSource).toContain("drag-region");
+    expect(appShellHostSource).not.toContain(
+      "drag-region pointer-events-none absolute inset-x-0 top-0",
+    );
     expect(indexCssSource).toContain("-webkit-app-region: drag");
     expect(shellCssSource).toContain("width: var(--multi-shell-right-workbench-header-end-space)");
-    expect(workbenchChromeRowSource).toContain("drag-region ui-tab-system");
+    expect(shellCssSource).toContain("pointer-events: none");
+    expect(shellCssSource).toContain("multi-shell-titlebar-controls");
+    expect(workbenchChromeRowSource).toContain("pointer-events-none ui-tab-system");
+    expect(workbenchChromeRowSource).toContain("editor-panel-tab-bar-tab-cluster pointer-events-auto");
+    expect(appShellSource).toContain("multi-shell-titlebar-controls");
+    expect(rightWorkbenchHeaderSource).toContain("editor-panel-tab-bar-spacer drag-region");
+    expect(chatHeaderSource).toContain("drag-region pointer-events-auto");
     expect(indexCssSource).toContain('.drag-region [role="tab"]');
     expect(indexCssSource).toContain('.drag-region [data-slot="tabs-list"]');
     expect(rightWorkbenchHeaderSource).toContain('<TabsList className="no-drag');

@@ -91,9 +91,11 @@ function ChatRouteGlobalShortcuts() {
 
 export function ChatRouteLayout() {
   return (
-    <ShellHost mode="chat">
-      <ChatRouteGlobalShortcuts />
-      <Outlet />
-    </ShellHost>
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
+      <ShellHost mode="chat">
+        <ChatRouteGlobalShortcuts />
+        <Outlet />
+      </ShellHost>
+    </div>
   );
 }

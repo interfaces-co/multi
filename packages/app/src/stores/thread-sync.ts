@@ -1190,25 +1190,54 @@ export function applyThreadDetailEvent(
       }));
 
     case "thread.turn-interrupt-requested": {
-      if (event.payload.turnId === undefined) {
-        return state;
-      }
       return updateThreadState(state, event.payload.threadId, (thread) => {
-        const latestTurn = thread.latestTurn;
-        if (latestTurn === null || latestTurn.turnId !== event.payload.turnId) {
+        const interruptTurnId =
+          event.payload.turnId ??
+          (thread.session?.orchestrationStatus === "running"
+            ? thread.session.activeTurnId
+            : undefined) ??
+          (thread.latestTurn?.state === "running" ? thread.latestTurn.turnId : undefined);
+        if (interruptTurnId === undefined) {
           return thread;
         }
+
+        const latestTurn = thread.latestTurn;
+        const messages = thread.messages.map((message) =>
+          message.role === "assistant" && message.turnId === interruptTurnId && message.streaming
+            ? {
+                ...message,
+                streaming: false,
+                completedAt: message.completedAt ?? event.payload.createdAt,
+              }
+            : message,
+        );
+        const messagesChanged = messages.some(
+          (message, index) => message !== thread.messages[index],
+        );
+        if (latestTurn === null || latestTurn.turnId !== interruptTurnId) {
+          if (!messagesChanged) {
+            return thread;
+          }
+          return {
+            ...thread,
+            messages,
+            updatedAt: event.occurredAt,
+          };
+        }
+        const completedAt = latestTurn.completedAt ?? event.payload.createdAt;
+        const nextLatestTurn = buildLatestTurn({
+          previous: latestTurn,
+          turnId: interruptTurnId,
+          state: "interrupted",
+          requestedAt: latestTurn.requestedAt,
+          startedAt: latestTurn.startedAt ?? event.payload.createdAt,
+          completedAt,
+          assistantMessageId: latestTurn.assistantMessageId,
+        });
         return {
           ...thread,
-          latestTurn: buildLatestTurn({
-            previous: latestTurn,
-            turnId: event.payload.turnId,
-            state: "interrupted",
-            requestedAt: latestTurn.requestedAt,
-            startedAt: latestTurn.startedAt ?? event.payload.createdAt,
-            completedAt: latestTurn.completedAt ?? event.payload.createdAt,
-            assistantMessageId: latestTurn.assistantMessageId,
-          }),
+          messages,
+          latestTurn: nextLatestTurn,
           updatedAt: event.occurredAt,
         };
       });

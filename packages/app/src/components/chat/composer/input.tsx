@@ -75,7 +75,7 @@ import { type ComposerPromptEditorHandle, ComposerPromptEditor } from "./prompt-
 import { ProviderModelPicker } from "../picker/model-picker";
 import {
   type ComposerCommandItem,
-  ComposerCommandMenu,
+  ComposerCommandMenuPositioned,
   useComposerCommandMenu,
 } from "./slash-menu";
 import { ComposerPendingApprovalActions } from "./pending-approval-actions";
@@ -544,6 +544,13 @@ function ComposerDraftResetSync({
   return null;
 }
 
+function isComposerCommandMenuPointerTarget(target: Node): boolean {
+  if (!(target instanceof Element)) {
+    return false;
+  }
+  return target.closest("[data-composer-command-menu-root]") !== null;
+}
+
 function ComposerCommandMenuPointerDismissSync({
   composerFormRef,
   dismissComposerCommandMenu,
@@ -555,7 +562,11 @@ function ComposerCommandMenuPointerDismissSync({
     const onPointerDown = (event: PointerEvent) => {
       const form = composerFormRef.current;
       if (!form) return;
-      if (event.target instanceof Node && form.contains(event.target)) return;
+      const target = event.target;
+      if (target instanceof Node) {
+        if (form.contains(target)) return;
+        if (isComposerCommandMenuPointerTarget(target)) return;
+      }
       dismissComposerCommandMenu();
     };
 
@@ -1242,6 +1253,7 @@ export const ComposerInput = memo(
     const composerEditorRef = useRef<ComposerPromptEditorHandle>(null);
     const composerEditorHotkeyRef = useRef<HTMLDivElement>(null);
     const composerFormRef = useRef<HTMLFormElement>(null);
+    const composerMenuAnchorRef = useRef<HTMLDivElement>(null);
     const composerSelectLockRef = useRef(false);
     const composerMenuOpenRef = useRef(false);
     const composerMenuItemsRef = useRef<ComposerCommandItem[]>([]);
@@ -1378,6 +1390,7 @@ export const ComposerInput = memo(
     const canSubmitQueuedComposerItem = hasQueuedComposerItems && !isEditingQueuedComposerItem;
     const hasComposerHeader = isComposerApprovalState || pendingUserInputs.length > 0;
 
+    const promptHasExplicitLineBreak = prompt.includes("\n");
     const isDockComposerExpanded =
       composerVariant === "compact" &&
       (isInlineEditComposer ||
@@ -1385,6 +1398,7 @@ export const ComposerInput = memo(
         hasQueuedComposerItems ||
         composerImages.length > 0 ||
         activePendingProgress !== null ||
+        promptHasExplicitLineBreak ||
         isComposerEditorMultiline);
 
     const isDockComposerSingleLine = composerVariant === "compact" && !isDockComposerExpanded;
@@ -2124,7 +2138,6 @@ export const ComposerInput = memo(
                     : composerVariant === "compact"
                       ? "rounded-2xl"
                       : "rounded-xl"),
-              composerMenuOpen && "overflow-visible!",
               isDragOverComposer ? "border-primary bg-accent/30 ring-2 ring-primary/60" : "",
               composerProviderState.ultrathinkActive &&
                 "animate-[ultrathink-rainbow_10s_linear_infinite] bg-[linear-gradient(120deg,oklch(0.712_0.181_22.839)_0%,oklch(0.769_0.165_70.08)_18%,oklch(0.723_0.192_149.579)_36%,oklch(0.704_0.123_182.503)_54%,oklch(0.623_0.188_259.815)_72%,oklch(0.656_0.212_354.308)_90%,oklch(0.712_0.181_22.839)_100%)] bg-[length:220%_220%]",
@@ -2190,6 +2203,7 @@ export const ComposerInput = memo(
                 />
               ) : null}
               <div
+                ref={composerMenuAnchorRef}
                 className={cn(
                   "relative min-w-0 select-text",
                   isInlineEditComposer
@@ -2199,6 +2213,7 @@ export const ComposerInput = memo(
                       : "min-h-9",
                   variant === "hero" && !isDockComposerSingleLine ? "flex flex-1 flex-col" : "",
                 )}
+                data-composer-menu-anchor=""
                 data-expanded={isDockComposerExpanded ? "" : undefined}
                 data-variant={composerVariant}
               >
@@ -2260,29 +2275,6 @@ export const ComposerInput = memo(
                   disabled={isConnecting || isComposerApprovalState}
                 />
               </div>
-              {composerMenuOpen && !isComposerApprovalState && (
-                <div
-                  className={cn(
-                    "absolute bottom-[calc(100%+8px)] left-0 z-[60]",
-                    composerMenuKind === "mentions" ? "w-64 max-w-full" : "w-80 max-w-full",
-                  )}
-                  data-menu-kind={composerMenuKind}
-                >
-                  <ComposerCommandMenu
-                    items={composerMenuItems}
-                    resolvedTheme={resolvedTheme}
-                    isLoading={isComposerMenuLoading}
-                    ariaLabel={composerMenuAriaLabel}
-                    menuKind={composerMenuKind}
-                    triggerKind={composerTriggerKind}
-                    groupSlashCommandSections={composerTrigger?.kind === "slash-command"}
-                    emptyStateText={composerMenuEmptyState}
-                    activeItemId={activeComposerMenuItem?.id ?? null}
-                    onHighlightedItemChange={onComposerMenuItemHighlighted}
-                    onSelect={onSelectComposerItem}
-                  />
-                </div>
-              )}
               {/* Bottom toolbar */}
               {activePendingApproval ? (
                 <div className="flex items-center justify-end gap-2 px-2.5 pb-2.5 sm:px-3 sm:pb-3">
@@ -2333,6 +2325,21 @@ export const ComposerInput = memo(
             </div>
           </div>
         </div>
+        <ComposerCommandMenuPositioned
+          open={composerMenuOpen && !isComposerApprovalState}
+          anchorRef={composerMenuAnchorRef}
+          items={composerMenuItems}
+          resolvedTheme={resolvedTheme}
+          isLoading={isComposerMenuLoading}
+          ariaLabel={composerMenuAriaLabel}
+          menuKind={composerMenuKind}
+          triggerKind={composerTriggerKind}
+          groupSlashCommandSections={composerTrigger?.kind === "slash-command"}
+          emptyStateText={composerMenuEmptyState}
+          activeItemId={activeComposerMenuItem?.id ?? null}
+          onHighlightedItemChange={onComposerMenuItemHighlighted}
+          onSelect={onSelectComposerItem}
+        />
       </form>
     );
   }),

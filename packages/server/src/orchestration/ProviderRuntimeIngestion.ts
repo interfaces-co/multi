@@ -987,6 +987,12 @@ const make = Effect.fn("make")(function* () {
       eventTurnId !== undefined &&
       !sameId(lifecycleActiveTurnId, eventTurnId);
     const missingTurnForActiveTurn = lifecycleActiveTurnId !== null && eventTurnId === undefined;
+    const eventTargetsInactiveLatestTurn =
+      eventTurnId !== undefined &&
+      thread.latestTurn?.turnId === eventTurnId &&
+      (activeTurnId === null ||
+        thread.latestTurn.completedAt !== null ||
+        isTerminalTurnState(thread.latestTurn.state));
 
     const shouldApplyThreadLifecycle = (() => {
       if (!STRICT_PROVIDER_LIFECYCLE_GUARD) {
@@ -1110,6 +1116,13 @@ const make = Effect.fn("make")(function* () {
       event.type === "turn.proposed.delta" ? event.payload.delta : undefined;
 
     if (assistantDelta && assistantDelta.length > 0) {
+      const shouldApplyAssistantDelta =
+        !STRICT_PROVIDER_LIFECYCLE_GUARD ||
+        (!conflictsWithActiveTurn && !eventTargetsInactiveLatestTurn);
+      if (!shouldApplyAssistantDelta) {
+        return;
+      }
+
       const assistantMessageId = MessageId.make(
         `assistant:${event.itemId ?? event.turnId ?? event.eventId}`,
       );

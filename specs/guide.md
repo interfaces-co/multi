@@ -1,7 +1,7 @@
 # Engineering Guide
 
 Durable rules for Multi. Cleanup history and wave inventories live in
-[docs/](../docs/). Open work: [todo.md](./todo.md).
+[docs/](../docs/).
 
 ## Packages
 
@@ -33,12 +33,6 @@ Expected failures use `Schema.TaggedErrorClass` on the Effect error channel.
 Reserve `throw`, plain `Error`, and `Effect.die` for impossible states, wiring
 bugs, and test stubs—not validation, missing resources, or user-triggered
 failures.
-
-Remaining production `Effect.die` (convert when touching these files):
-
-- `packages/server/src/persistence/NodeSqliteClient.ts`
-- `packages/server/src/provider/ProviderService.ts`
-- `packages/server/src/orchestration/ProviderCommandReactor.ts` (two paths)
 
 Transport rules:
 

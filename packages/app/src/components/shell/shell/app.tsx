@@ -106,7 +106,7 @@ function LeftAside(props: { children: ReactNode }) {
   return (
     <aside
       className={cn(
-        "agent-window__sidebar multi-shell-sidebar relative flex shrink-0 select-none flex-col overflow-hidden border-r border-multi-stroke-quaternary",
+        "agent-window__sidebar multi-shell-sidebar relative flex h-full shrink-0 select-none flex-col overflow-hidden border-r border-multi-stroke-quaternary",
         resize.dragging
           ? "transition-none"
           : "transition-[width] duration-150 ease-out motion-reduce:transition-none",
@@ -345,8 +345,8 @@ function ShellHeaderControls(props: {
   const rightPanelLabel = rightOpen ? "Hide project panel" : SHOW_RIGHT_WORKBENCH_LABEL;
 
   return (
-    <div className="pointer-events-none absolute top-0 right-0 left-0 box-border flex h-(--multi-header-height) min-w-0 items-start">
-      <div className="multi-shell-titlebar-left-controls pointer-events-auto no-drag absolute flex shrink-0 items-center gap-0.5 self-start">
+    <div className="multi-shell-titlebar-controls pointer-events-none absolute top-0 right-0 left-0 z-50 box-border flex h-(--multi-header-height) min-w-0 items-start">
+      <div className="multi-shell-titlebar-left-controls pointer-events-auto no-drag absolute flex h-(--multi-titlebar-control-height) shrink-0 items-center gap-0.5">
         {props.onBack ? (
           <button
             type="button"
@@ -371,7 +371,7 @@ function ShellHeaderControls(props: {
         </button>
       </div>
       {props.showRight ? (
-        <div className="multi-shell-titlebar-right-toggle pointer-events-auto no-drag absolute z-40 flex shrink-0 items-center self-start">
+        <div className="multi-shell-titlebar-right-toggle pointer-events-auto no-drag absolute z-40 flex h-(--multi-titlebar-control-height) shrink-0 items-center">
           <button
             type="button"
             onClick={() => setRightPanelOpen(!rightOpen)}
@@ -452,7 +452,7 @@ export function AppShell(props: {
 
   return (
     <div
-      className="agent-window relative flex h-full min-w-0 flex-1 flex-row bg-transparent"
+      className="agent-window relative flex h-full min-h-0 w-full min-w-0 flex-1 flex-row overflow-x-clip bg-transparent"
       data-component="root"
       data-agent-window=""
       data-shell-left-intent={leftOpen ? "expanded" : "collapsed"}
@@ -468,8 +468,8 @@ export function AppShell(props: {
     >
       <LeftAside>{props.left}</LeftAside>
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <div className="relative flex min-h-0 flex-1 flex-row">
+      <div className="flex h-full min-h-0 min-w-0 w-full flex-1 flex-col">
+        <div className="relative flex h-full min-h-0 min-w-0 flex-1 flex-row">
           <main
             className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-multi-chat outline-hidden"
             data-component="chat-panel"

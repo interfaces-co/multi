@@ -46,7 +46,6 @@ Multi's matching spec tree:
 
 - [x] `specs/guide.md`: service, runtime, error, schema, route, and
       verification rules.
-- [x] `specs/todo.md`: open cleanup work.
 - [x] `specs/runtime-permissions.md`: runtime mode action matrix.
 
 ## Multi Foundation Tracks

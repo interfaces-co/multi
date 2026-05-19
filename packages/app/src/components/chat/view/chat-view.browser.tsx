@@ -3318,16 +3318,27 @@ describe("ChatView timeline estimator parity (full app)", () => {
 
       await vi.waitFor(
         () => {
-          const menuRect = menuItem.getBoundingClientRect();
+          const menuRoot = document.querySelector<HTMLElement>("[data-composer-command-menu-root]");
+          const menuRect = (menuRoot ?? menuItem).getBoundingClientRect();
           const composerRect = composerForm.getBoundingClientRect();
+          const anchor = document.querySelector<HTMLElement>("[data-composer-menu-anchor]");
+          const anchorRect = anchor?.getBoundingClientRect();
           const hitTarget = document.elementFromPoint(
             menuRect.left + menuRect.width / 2,
             menuRect.top + menuRect.height / 2,
           );
+          const viewportPaddingTop = 8;
 
+          expect(menuRoot, "expected portaled composer command menu root").not.toBeNull();
           expect(menuRect.width).toBeGreaterThan(0);
           expect(menuRect.height).toBeGreaterThan(0);
-          expect(menuRect.bottom).toBeLessThanOrEqual(composerRect.bottom);
+          expect(menuRect.top).toBeGreaterThanOrEqual(viewportPaddingTop);
+          expect(menuRect.height).toBeLessThanOrEqual(window.innerHeight - viewportPaddingTop * 2);
+          if (anchorRect) {
+            expect(menuRect.bottom).toBeLessThanOrEqual(anchorRect.top + 1);
+          } else {
+            expect(menuRect.bottom).toBeLessThanOrEqual(composerRect.bottom);
+          }
           expect(hitTarget instanceof Element && menuItem.contains(hitTarget)).toBe(true);
         },
         { timeout: 8_000, interval: 16 },

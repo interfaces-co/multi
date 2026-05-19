@@ -117,6 +117,25 @@ const mapCursorAcpModelSelectionTestError = (
   });
 };
 
+type CursorAcpModelSelectionCall =
+  | { readonly type: "model"; readonly value: string }
+  | { readonly type: "config"; readonly configId: string; readonly value: string | boolean };
+
+const makeCursorAcpModelSelectionRuntime = (
+  configOptions: ReadonlyArray<EffectAcpSchema.SessionConfigOption>,
+  calls: Array<CursorAcpModelSelectionCall>,
+) => ({
+  getConfigOptions: Effect.succeed(configOptions),
+  setModel: (value: string) =>
+    Effect.sync(() => {
+      calls.push({ type: "model", value });
+    }),
+  setConfigOption: (configId: string, value: string | boolean) =>
+    Effect.sync(() => {
+      calls.push({ type: "config", configId, value });
+    }),
+});
+
 describe("buildCursorAcpSpawnInput", () => {
   it("builds the default Cursor ACP command", () => {
     expect(buildCursorAcpSpawnInput(undefined, "/tmp/project")).toEqual({
@@ -181,23 +200,9 @@ describe("buildCursorAcpSpawnInput", () => {
 });
 
 describe("applyCursorAcpModelSelection", () => {
-  it("sets the base model before applying separate config options", async () => {
-    const calls: Array<
-      | { readonly type: "model"; readonly value: string }
-      | { readonly type: "config"; readonly configId: string; readonly value: string | boolean }
-    > = [];
-
-    const runtime = {
-      getConfigOptions: Effect.succeed(parameterizedGpt54ConfigOptions),
-      setModel: (value: string) =>
-        Effect.sync(() => {
-          calls.push({ type: "model", value });
-        }),
-      setConfigOption: (configId: string, value: string | boolean) =>
-        Effect.sync(() => {
-          calls.push({ type: "config", configId, value });
-        }),
-    };
+  it("applies separate config options when the base model already matches", async () => {
+    const calls: Array<CursorAcpModelSelectionCall> = [];
+    const runtime = makeCursorAcpModelSelectionRuntime(parameterizedGpt54ConfigOptions, calls);
 
     await Effect.runPromise(
       applyCursorAcpModelSelection({
@@ -213,7 +218,6 @@ describe("applyCursorAcpModelSelection", () => {
     );
 
     expect(calls).toEqual([
-      { type: "model", value: "gpt-5.4-medium-fast" },
       { type: "config", configId: "reasoning", value: "extra-high" },
       { type: "config", configId: "context", value: "1m" },
       { type: "config", configId: "fast", value: "true" },
@@ -221,22 +225,8 @@ describe("applyCursorAcpModelSelection", () => {
   });
 
   it("does not send stale option selections when Cursor exposes no matching config option", async () => {
-    const calls: Array<
-      | { readonly type: "model"; readonly value: string }
-      | { readonly type: "config"; readonly configId: string; readonly value: string | boolean }
-    > = [];
-
-    const runtime = {
-      getConfigOptions: Effect.succeed(modelOnlyConfigOptions),
-      setModel: (value: string) =>
-        Effect.sync(() => {
-          calls.push({ type: "model", value });
-        }),
-      setConfigOption: (configId: string, value: string | boolean) =>
-        Effect.sync(() => {
-          calls.push({ type: "config", configId, value });
-        }),
-    };
+    const calls: Array<CursorAcpModelSelectionCall> = [];
+    const runtime = makeCursorAcpModelSelectionRuntime(modelOnlyConfigOptions, calls);
 
     await Effect.runPromise(
       applyCursorAcpModelSelection({
@@ -251,6 +241,58 @@ describe("applyCursorAcpModelSelection", () => {
       }),
     );
 
-    expect(calls).toEqual([{ type: "model", value: "kimi-k2.5" }]);
+    expect(calls).toEqual([]);
+  });
+
+  it("sets the base model when the session reports a different current model", async () => {
+    const calls: Array<CursorAcpModelSelectionCall> = [];
+    const runtime = makeCursorAcpModelSelectionRuntime(modelOnlyConfigOptions, calls);
+
+    await Effect.runPromise(
+      applyCursorAcpModelSelection({
+        runtime,
+        model: "composer-2.5",
+        selections: [],
+        mapError: mapCursorAcpModelSelectionTestError,
+      }),
+    );
+
+    expect(calls).toEqual([{ type: "model", value: "composer-2.5" }]);
+  });
+
+  it("skips setModel when the session already reports the requested base model", async () => {
+    const calls: Array<CursorAcpModelSelectionCall> = [];
+    const runtime = makeCursorAcpModelSelectionRuntime(modelOnlyConfigOptions, calls);
+
+    await Effect.runPromise(
+      applyCursorAcpModelSelection({
+        runtime,
+        model: "kimi-k2.5",
+        selections: [],
+        mapError: mapCursorAcpModelSelectionTestError,
+      }),
+    );
+
+    expect(calls).toEqual([]);
+  });
+
+  it("skips config option writes that already match the session state", async () => {
+    const calls: Array<CursorAcpModelSelectionCall> = [];
+    const runtime = makeCursorAcpModelSelectionRuntime(parameterizedGpt54ConfigOptions, calls);
+
+    await Effect.runPromise(
+      applyCursorAcpModelSelection({
+        runtime,
+        model: "gpt-5.4-medium-fast",
+        selections: [
+          { id: "reasoning", value: "medium" },
+          { id: "contextWindow", value: "272k" },
+          { id: "fastMode", value: false },
+        ],
+        mapError: mapCursorAcpModelSelectionTestError,
+      }),
+    );
+
+    expect(calls).toEqual([]);
   });
 });

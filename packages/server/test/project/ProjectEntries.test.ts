@@ -107,6 +107,24 @@ it.layer(TestLayer)("ProjectEntriesLive", (it) => {
       }),
     );
 
+    it.effect("excludes nested build artifact directories from search", () =>
+      Effect.gen(function* () {
+        const cwd = yield* makeTempDir();
+        yield* writeTextFile(cwd, "src/index.ts");
+        yield* writeTextFile(
+          cwd,
+          "packages/desktop/.electron-runtime/Multi (Dev).app/Contents/Info.plist",
+        );
+
+        const result = yield* searchProjectEntries({ cwd, query: "info", limit: 20 });
+        const paths = result.entries.map((entry) => entry.path);
+
+        expect(paths).not.toContain(
+          "packages/desktop/.electron-runtime/Multi (Dev).app/Contents/Info.plist",
+        );
+      }),
+    );
+
     it.effect("filters and ranks entries by query", () =>
       Effect.gen(function* () {
         const cwd = yield* makeTempDir({ prefix: "multi-project-query-" });

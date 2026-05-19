@@ -36,6 +36,8 @@ const IGNORED_DIRECTORY_NAMES = new Set([
   "build",
   "out",
   ".cache",
+  ".electron-runtime",
+  "dist-electron",
 ]);
 
 interface ProjectIndex {
@@ -131,9 +133,9 @@ function scoreEntry(entry: SearchableProjectEntry, query: string): number | null
 }
 
 function isPathInIgnoredDirectory(relativePath: string): boolean {
-  const firstSegment = relativePath.split("/")[0];
-  if (!firstSegment) return false;
-  return IGNORED_DIRECTORY_NAMES.has(firstSegment);
+  return relativePath
+    .split("/")
+    .some((segment) => segment.length > 0 && IGNORED_DIRECTORY_NAMES.has(segment));
 }
 
 function directoryAncestorsOf(relativePath: string): string[] {

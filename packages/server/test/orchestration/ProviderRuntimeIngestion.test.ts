@@ -379,6 +379,69 @@ describe("ProviderRuntimeIngestion", () => {
     expect(thread.session?.activeTurnId).toBeNull();
   });
 
+  it("ignores assistant deltas for an already aborted turn", async () => {
+    const harness = await createHarness();
+    const startedAt = "2026-01-01T00:00:01.000Z";
+    const abortedAt = "2026-01-01T00:00:02.000Z";
+
+    harness.emit({
+      type: "turn.started",
+      eventId: asEventId("evt-turn-started-late-delta"),
+      provider: "cursor",
+      providerInstanceId: "cursor",
+      threadId: asThreadId("thread-1"),
+      createdAt: startedAt,
+      turnId: asTurnId("turn-late-delta"),
+    });
+    await waitForThread(
+      harness.engine,
+      (thread) =>
+        thread.session?.status === "running" && thread.session.activeTurnId === "turn-late-delta",
+    );
+
+    harness.emit({
+      type: "turn.aborted",
+      eventId: asEventId("evt-turn-aborted-late-delta"),
+      provider: "cursor",
+      providerInstanceId: "cursor",
+      threadId: asThreadId("thread-1"),
+      createdAt: abortedAt,
+      turnId: asTurnId("turn-late-delta"),
+      payload: {
+        reason: "Interrupted by user.",
+      },
+    });
+    await waitForThread(
+      harness.engine,
+      (thread) =>
+        thread.session?.status === "ready" && thread.session.activeTurnId === null,
+    );
+
+    harness.emit({
+      type: "content.delta",
+      eventId: asEventId("evt-content-delta-after-abort"),
+      provider: "cursor",
+      providerInstanceId: "cursor",
+      threadId: asThreadId("thread-1"),
+      createdAt: "2026-01-01T00:00:03.000Z",
+      turnId: asTurnId("turn-late-delta"),
+      itemId: asItemId("item-late-delta"),
+      payload: {
+        streamKind: "assistant_text",
+        delta: "late text",
+      },
+    });
+    await harness.drain();
+
+    const readModel = await Effect.runPromise(harness.engine.getReadModel());
+    const thread = readModel.threads.find((entry) => entry.id === asThreadId("thread-1"));
+    expect(
+      thread?.messages.some(
+        (message: ProviderRuntimeTestMessage) => message.id === "assistant:item-late-delta",
+      ),
+    ).toBe(false);
+  });
+
   it("applies provider session.state.changed transitions directly", async () => {
     const harness = await createHarness();
     const waitingAt = new Date().toISOString();
