@@ -1,8 +1,9 @@
 import { Outlet } from "@tanstack/react-router";
-import { useEffect, useEffectEvent } from "react";
+import { useEffectEvent } from "react";
 
 import { useCommandPaletteStore } from "~/stores/ui/command-palette-store";
 import { useHandleNewThread } from "~/hooks/use-handle-new-thread";
+import { useMountEffect } from "~/hooks/use-mount-effect";
 import { ShellHost } from "~/components/shell-host";
 import {
   startNewLocalThreadFromContext,
@@ -12,7 +13,6 @@ import { isTerminalFocused } from "~/lib/terminal-focus";
 import { resolveShortcutCommand } from "~/keybindings";
 import { selectThreadTerminalState, useTerminalStateStore } from "~/terminal-state-store";
 import { useThreadSelectionStore } from "~/stores/thread-selection-store";
-import { resolveSidebarNewThreadEnvMode } from "~/lib/thread-sidebar";
 import { useSettings } from "~/hooks/use-settings";
 import { useServerKeybindings } from "~/rpc/server-state";
 
@@ -35,6 +35,7 @@ function ChatRouteGlobalShortcuts() {
       context: {
         terminalFocus: isTerminalFocused(),
         terminalOpen,
+        threadSelectionActive: selectedThreadKeysSize > 0,
       },
     });
 
@@ -42,7 +43,7 @@ function ChatRouteGlobalShortcuts() {
       return;
     }
 
-    if (event.key === "Escape" && selectedThreadKeysSize > 0) {
+    if (command === "threadSelection.clear" && selectedThreadKeysSize > 0) {
       event.preventDefault();
       clearSelection();
       return;
@@ -55,9 +56,7 @@ function ChatRouteGlobalShortcuts() {
         activeDraftThread,
         activeThread,
         defaultProjectRef,
-        defaultThreadEnvMode: resolveSidebarNewThreadEnvMode({
-          defaultEnvMode: defaultThreadEnvMode,
-        }),
+        defaultThreadEnvMode,
         handleNewThread,
       });
       return;
@@ -70,15 +69,13 @@ function ChatRouteGlobalShortcuts() {
         activeDraftThread,
         activeThread,
         defaultProjectRef,
-        defaultThreadEnvMode: resolveSidebarNewThreadEnvMode({
-          defaultEnvMode: defaultThreadEnvMode,
-        }),
+        defaultThreadEnvMode,
         handleNewThread,
       });
     }
   });
 
-  useEffect(() => {
+  useMountEffect(() => {
     const onWindowKeyDown = (event: KeyboardEvent) => {
       handleWindowKeyDown(event);
     };
@@ -87,7 +84,7 @@ function ChatRouteGlobalShortcuts() {
     return () => {
       window.removeEventListener("keydown", onWindowKeyDown);
     };
-  }, []);
+  });
 
   return null;
 }

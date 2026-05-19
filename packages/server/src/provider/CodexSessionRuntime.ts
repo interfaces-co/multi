@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 
 import {
   ApprovalRequestId,
-  DEFAULT_MODEL_BY_PROVIDER,
   EventId,
   defaultInstanceIdForDriver,
   ProviderDriverKind,
@@ -37,6 +36,7 @@ import { expandHomePath } from "../path-expansion.ts";
 
 const PROVIDER = ProviderDriverKind.make("codex");
 const PROVIDER_INSTANCE_ID = defaultInstanceIdForDriver(PROVIDER);
+const CODEX_FALLBACK_MODEL = "gpt-5.5";
 
 const ANSI_ESCAPE_CHAR = String.fromCharCode(27);
 const ANSI_ESCAPE_REGEX = new RegExp(`${ANSI_ESCAPE_CHAR}\\[[0-9;]*m`, "g");
@@ -67,6 +67,14 @@ const CodexTurnStartParamsWithCollaborationMode = EffectCodexSchema.V2TurnStartP
   Schema.fieldsAssign({
     collaborationMode: Schema.optionalKey(EffectCodexSchema.V2TurnStartParams__CollaborationMode),
   }),
+);
+const isCodexResumeCursor = Schema.is(CodexResumeCursorSchema);
+const decodeCodexTurnStartParamsWithCollaborationMode = Schema.decodeUnknownEffect(
+  CodexTurnStartParamsWithCollaborationMode,
+);
+const isCodexUserInputAnswerObject = Schema.is(CodexUserInputAnswerObject);
+const decodeCodexV2TurnStartResponse = Schema.decodeUnknownEffect(
+  EffectCodexSchema.V2TurnStartResponse,
 );
 
 export type CodexTurnStartParamsWithCollaborationMode =
@@ -236,13 +244,16 @@ function normalizeCodexModelSlug(
 function readResumeCursorThreadId(
   resumeCursor: ProviderSession["resumeCursor"],
 ): string | undefined {
-  return Schema.is(CodexResumeCursorSchema)(resumeCursor) ? resumeCursor.threadId : undefined;
+  return isCodexResumeCursor(resumeCursor) ? resumeCursor.threadId : undefined;
 }
 
 function runtimeModeToThreadConfig(input: RuntimeMode): {
   readonly approvalPolicy: EffectCodexSchema.V2ThreadStartParams__AskForApproval;
   readonly sandbox: EffectCodexSchema.V2ThreadStartParams__SandboxMode;
 } {
+  // Codex owns read gating through its thread approval policy. Multi only registers explicit
+  // approval handlers for command execution and file changes so allowed reads do not get a
+  // second Multi approval prompt.
   switch (input) {
     case "approval-required":
       return {
@@ -309,8 +320,7 @@ function buildCodexCollaborationMode(input: {
   if (input.interactionMode === undefined) {
     return undefined;
   }
-  const model =
-    normalizeCodexModelSlug(input.model) ?? DEFAULT_MODEL_BY_PROVIDER[PROVIDER] ?? "gpt-5-codex";
+  const model = normalizeCodexModelSlug(input.model) ?? CODEX_FALLBACK_MODEL;
   return {
     mode: input.interactionMode,
     settings: {
@@ -355,7 +365,7 @@ export function buildTurnStartParams(input: {
     ...(input.effort ? { effort: input.effort } : {}),
   });
 
-  return Schema.decodeUnknownEffect(CodexTurnStartParamsWithCollaborationMode)({
+  return decodeCodexTurnStartParamsWithCollaborationMode({
     threadId: input.threadId,
     input: turnInput,
     approvalPolicy: config.approvalPolicy,
@@ -613,7 +623,7 @@ function toCodexUserInputAnswer(
     const answers = value.filter((entry): entry is string => typeof entry === "string");
     return Effect.succeed({ answers });
   }
-  if (Schema.is(CodexUserInputAnswerObject)(value)) {
+  if (isCodexUserInputAnswerObject(value)) {
     return Effect.succeed({ answers: value.answers });
   }
   return Effect.fail(new CodexSessionRuntimeInvalidUserInputAnswersError({ questionId }));
@@ -1226,9 +1236,7 @@ export const makeCodexSessionRuntime = (
             ...(input.interactionMode ? { interactionMode: input.interactionMode } : {}),
           });
           const rawResponse = yield* client.raw.request("turn/start", params);
-          const response = yield* Schema.decodeUnknownEffect(EffectCodexSchema.V2TurnStartResponse)(
-            rawResponse,
-          ).pipe(
+          const response = yield* decodeCodexV2TurnStartResponse(rawResponse).pipe(
             Effect.mapError((error) =>
               toProtocolParseError("Invalid turn/start response payload", error),
             ),

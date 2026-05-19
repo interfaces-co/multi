@@ -18,7 +18,6 @@ import {
 import {
   useCallback,
   useDeferredValue,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -30,6 +29,7 @@ import { useCommandPaletteStore } from "../stores/ui/command-palette-store";
 import { readEnvironmentApi } from "../environment-api";
 import { usePrimaryEnvironmentId } from "../environments/primary";
 import { useHandleNewThread } from "../hooks/use-handle-new-thread";
+import { useMountEffect } from "../hooks/use-mount-effect";
 import { useSettings } from "../hooks/use-settings";
 import { readLocalApi } from "../local-api";
 import {
@@ -45,9 +45,12 @@ import {
   selectProjectsAcrossEnvironments,
   selectSidebarThreadsAcrossEnvironments,
   useStore,
-} from "../store";
+} from "../stores/thread-store";
 import { selectThreadTerminalState, useTerminalStateStore } from "../terminal-state-store";
-import { buildThreadRouteParams, resolveThreadRouteTarget } from "../thread-routes";
+import {
+  buildThreadRouteParams,
+  resolveThreadRouteTarget,
+} from "~/app/routes/thread-route-targets";
 import {
   buildProjectActionItems,
   buildRootGroups,
@@ -62,6 +65,7 @@ import {
   RECENT_THREAD_LIMIT,
 } from "./command-palette-model";
 import { ProjectFavicon } from "./project-favicon";
+import { formatSchemaBackedTransportErrorDescription } from "~/rpc/transport-error";
 import {
   useServerAvailableEditors,
   useServerKeybindings,
@@ -84,9 +88,9 @@ import {
 } from "@multi/ui/command";
 import { Kbd, KbdGroup } from "@multi/ui/kbd";
 import { toastManager } from "~/app/toast";
-import { ComposerHandleContext, useComposerHandleContext } from "../composer-handle-context";
-import { resolveAndPersistPreferredEditor } from "../editor-preferences";
-import type { ComposerInputHandle } from "./chat/composer/composer-input";
+import { ComposerHandleContext, useComposerHandleContext } from "./chat/composer/handle-context";
+import { resolveAndPersistPreferredEditor } from "../editor/preferences";
+import type { ComposerInputHandle } from "./chat/composer/input";
 
 function joinFileSystemPath(basePath: string, ...segments: string[]): string {
   const separator = basePath.includes("\\") && !basePath.includes("/") ? "\\" : "/";
@@ -101,6 +105,13 @@ interface CommandPaletteResultsProps {
   readonly isActionsOnly: boolean;
   readonly keybindings: ResolvedKeybindingsConfig;
   readonly onExecuteItem: (item: CommandPaletteActionItem | CommandPaletteSubmenuItem) => void;
+}
+
+interface CommandPaletteSessionState {
+  readonly sessionId: number;
+  readonly viewStack: CommandPaletteView[];
+  readonly query: string;
+  readonly highlightedItemValue: string | null;
 }
 
 function CommandPaletteResults(props: CommandPaletteResultsProps) {
@@ -192,6 +203,9 @@ export function CommandPalette({ children }: { children: ReactNode }) {
   const toggleOpen = useCommandPaletteStore((store) => store.toggleOpen);
   const keybindings = useServerKeybindings();
   const composerHandleRef = useRef<ComposerInputHandle | null>(null);
+  const keybindingsRef = useRef(keybindings);
+  const terminalOpenRef = useRef(false);
+  const toggleOpenRef = useRef(toggleOpen);
   const routeTarget = useParams({
     strict: false,
     select: (params) => resolveThreadRouteTarget(params),
@@ -202,14 +216,17 @@ export function CommandPalette({ children }: { children: ReactNode }) {
       ? selectThreadTerminalState(state.terminalStateByThreadKey, routeThreadRef).terminalOpen
       : false,
   );
+  keybindingsRef.current = keybindings;
+  terminalOpenRef.current = terminalOpen;
+  toggleOpenRef.current = toggleOpen;
 
-  useEffect(() => {
+  useMountEffect(() => {
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.defaultPrevented) return;
-      const command = resolveShortcutCommand(event, keybindings, {
+      const command = resolveShortcutCommand(event, keybindingsRef.current, {
         context: {
           terminalFocus: isTerminalFocused(),
-          terminalOpen,
+          terminalOpen: terminalOpenRef.current,
         },
       });
       if (command !== "commandPalette.toggle") {
@@ -217,11 +234,11 @@ export function CommandPalette({ children }: { children: ReactNode }) {
       }
       event.preventDefault();
       event.stopPropagation();
-      toggleOpen();
+      toggleOpenRef.current();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [keybindings, terminalOpen, toggleOpen]);
+  });
 
   return (
     <ComposerHandleContext.Provider value={composerHandleRef}>
@@ -234,18 +251,9 @@ export function CommandPalette({ children }: { children: ReactNode }) {
 }
 
 function CommandPaletteDialog() {
-  const open = useCommandPaletteStore((store) => store.open);
   const setOpen = useCommandPaletteStore((store) => store.setOpen);
 
-  useEffect(() => {
-    return () => {
-      setOpen(false);
-    };
-  }, [setOpen]);
-
-  if (!open) {
-    return null;
-  }
+  useMountEffect(() => () => setOpen(false));
 
   return <OpenCommandPaletteDialog />;
 }
@@ -256,14 +264,12 @@ function OpenCommandPaletteDialog() {
     strict: false,
     select: (params) => resolveThreadRouteTarget(params),
   });
+  const open = useCommandPaletteStore((store) => store.open);
+  const openSessionId = useCommandPaletteStore((store) => store.openSessionId);
   const setOpen = useCommandPaletteStore((store) => store.setOpen);
   const openIntent = useCommandPaletteStore((store) => store.openIntent);
-  const clearOpenIntent = useCommandPaletteStore((store) => store.clearOpenIntent);
   const composerHandleRef = useComposerHandleContext();
-  const [query, setQuery] = useState("");
-  const deferredQuery = useDeferredValue(query);
-  const isActionsOnly = deferredQuery.startsWith(">");
-  const [highlightedItemValue, setHighlightedItemValue] = useState<string | null>(null);
+  const openAddProjectFlowRef = useRef<() => void>(() => undefined);
   const settings = useSettings();
   const { activeDraftThread, activeThread, defaultProjectRef, handleNewThread } =
     useHandleNewThread();
@@ -272,10 +278,7 @@ function OpenCommandPaletteDialog() {
   const keybindings = useServerKeybindings();
   const availableEditors = useServerAvailableEditors();
   const observability = useServerObservability();
-  const [viewStack, setViewStack] = useState<CommandPaletteView[]>([]);
-  const currentView = viewStack.at(-1) ?? null;
   const primaryEnvironmentId = usePrimaryEnvironmentId();
-  const paletteMode = getCommandPaletteMode({ currentView });
 
   const projectCwdById = useMemo(
     () => new Map<ProjectId, string>(projects.map((project) => [project.id, project.cwd])),
@@ -488,43 +491,6 @@ function OpenCommandPaletteDialog() {
     [availableEditors],
   );
 
-  function pushPaletteView(view: CommandPaletteView): void {
-    setViewStack((previousViews) => [
-      ...previousViews,
-      {
-        addonIcon: view.addonIcon,
-        groups: view.groups,
-        ...(view.initialQuery ? { initialQuery: view.initialQuery } : {}),
-        ...(view.placeholder ? { placeholder: view.placeholder } : {}),
-      },
-    ]);
-    setHighlightedItemValue(null);
-    setQuery(view.initialQuery ?? "");
-  }
-
-  function pushView(item: CommandPaletteSubmenuItem): void {
-    pushPaletteView({
-      addonIcon: item.addonIcon,
-      groups: item.groups,
-      ...(item.initialQuery ? { initialQuery: item.initialQuery } : {}),
-      ...(item.placeholder ? { placeholder: item.placeholder } : {}),
-    });
-  }
-
-  function popView(): void {
-    setViewStack((previousViews) => previousViews.slice(0, -1));
-    setHighlightedItemValue(null);
-    setQuery("");
-  }
-
-  function handleQueryChange(nextQuery: string): void {
-    setHighlightedItemValue(null);
-    setQuery(nextQuery);
-    if (nextQuery === "" && currentView?.initialQuery) {
-      popView();
-    }
-  }
-
   const handleAddProject = useCallback(
     async (rawCwd: string) => {
       const environmentId = primaryEnvironmentId;
@@ -630,7 +596,7 @@ function OpenCommandPaletteDialog() {
         toastManager.add({
           type: "error",
           title: "Failed to add project",
-          description: error instanceof Error ? error.message : "An error occurred.",
+          description: formatSchemaBackedTransportErrorDescription(error, "An error occurred."),
         });
       });
   }, [handleAddProject, primaryEnvironmentId, setOpen, settings.addProjectBaseDirectory]);
@@ -665,28 +631,105 @@ function OpenCommandPaletteDialog() {
     return groups;
   }, [openAddProjectFlow, projectProjectItems]);
 
-  const openProjectFlow = useCallback(() => {
+  function createInitialSessionState(): CommandPaletteSessionState {
+    const viewStack =
+      openIntent?.kind === "project"
+        ? [
+            {
+              addonIcon: <IconFolder1 className="size-4" />,
+              groups: projectGroups,
+              placeholder: "Search projects...",
+            },
+          ]
+        : [];
+
+    return {
+      sessionId: openSessionId,
+      viewStack,
+      query: "",
+      highlightedItemValue: null,
+    };
+  }
+
+  const [sessionState, setSessionState] =
+    useState<CommandPaletteSessionState>(createInitialSessionState);
+  const activeSessionState =
+    sessionState.sessionId === openSessionId ? sessionState : createInitialSessionState();
+  if (activeSessionState !== sessionState) {
+    setSessionState(activeSessionState);
+  }
+  const { query, highlightedItemValue, viewStack } = activeSessionState;
+  const deferredQuery = useDeferredValue(query);
+  const isActionsOnly = deferredQuery.startsWith(">");
+  const currentView = viewStack.at(-1) ?? null;
+  const paletteMode = getCommandPaletteMode({ currentView });
+
+  openAddProjectFlowRef.current = openAddProjectFlow;
+  useMountEffect(() =>
+    useCommandPaletteStore.getState().registerController({
+      openAddProject: () => {
+        openAddProjectFlowRef.current();
+      },
+    }),
+  );
+
+  function pushPaletteView(view: CommandPaletteView): void {
+    setSessionState((previousState) => ({
+      ...previousState,
+      viewStack: [
+        ...previousState.viewStack,
+        {
+          addonIcon: view.addonIcon,
+          groups: view.groups,
+          ...(view.initialQuery ? { initialQuery: view.initialQuery } : {}),
+          ...(view.placeholder ? { placeholder: view.placeholder } : {}),
+        },
+      ],
+      highlightedItemValue: null,
+      query: view.initialQuery ?? "",
+    }));
+  }
+
+  function pushView(item: CommandPaletteSubmenuItem): void {
     pushPaletteView({
-      addonIcon: <IconFolder1 className="size-4" />,
-      groups: projectGroups,
-      placeholder: "Search projects...",
+      addonIcon: item.addonIcon,
+      groups: item.groups,
+      ...(item.initialQuery ? { initialQuery: item.initialQuery } : {}),
+      ...(item.placeholder ? { placeholder: item.placeholder } : {}),
     });
-  }, [projectGroups]);
+  }
 
-  useEffect(() => {
-    if (!openIntent) {
-      return;
-    }
+  function popView(): void {
+    setSessionState((previousState) => ({
+      ...previousState,
+      viewStack: previousState.viewStack.slice(0, -1),
+      highlightedItemValue: null,
+      query: "",
+    }));
+  }
 
-    clearOpenIntent();
+  function handleQueryChange(nextQuery: string): void {
+    setSessionState((previousState) => {
+      const previousView = previousState.viewStack.at(-1) ?? null;
+      if (nextQuery === "" && previousView?.initialQuery) {
+        return {
+          ...previousState,
+          viewStack: previousState.viewStack.slice(0, -1),
+          highlightedItemValue: null,
+          query: "",
+        };
+      }
+      return {
+        ...previousState,
+        highlightedItemValue: null,
+        query: nextQuery,
+      };
+    });
+  }
 
-    if (openIntent.kind === "add-project") {
-      openAddProjectFlow();
-      return;
-    }
-
-    openProjectFlow();
-  }, [clearOpenIntent, openAddProjectFlow, openIntent, openProjectFlow]);
+  if (!open) {
+    return null;
+  }
 
   const actionItems: Array<CommandPaletteActionItem | CommandPaletteSubmenuItem> = [];
 
@@ -791,7 +834,7 @@ function OpenCommandPaletteDialog() {
           toastManager.add({
             type: "error",
             title: "Unable to open provider log",
-            description: error instanceof Error ? error.message : "An error occurred.",
+            description: formatSchemaBackedTransportErrorDescription(error, "An error occurred."),
           });
         }
       },
@@ -808,6 +851,29 @@ function OpenCommandPaletteDialog() {
       icon: <IconClipboard className="size-4 text-muted-foreground/80" />,
       run: async () => {
         await copyPathToClipboard(serverTracePath, "Copied server trace path");
+      },
+    });
+  }
+
+  if (import.meta.env.DEV) {
+    actionItems.push({
+      kind: "action",
+      value: "action:dev:chat-input-examples",
+      searchTerms: [
+        "chat input",
+        "composer",
+        "composer examples",
+        "cursor",
+        "cursor input",
+        "input examples",
+        "ui examples",
+        "design",
+      ],
+      title: "Open chat input examples",
+      description: "Cursor-style input layouts for comparison (dev)",
+      icon: <IconBubbleText className="size-4 text-muted-foreground/80" />,
+      run: async () => {
+        await navigate({ to: "/dev/composer-examples" });
       },
     });
   }
@@ -849,7 +915,10 @@ function OpenCommandPaletteDialog() {
       toastManager.add({
         type: "error",
         title: "Unable to run command",
-        description: error instanceof Error ? error.message : "An unexpected error occurred.",
+        description: formatSchemaBackedTransportErrorDescription(
+          error,
+          "An unexpected error occurred.",
+        ),
       });
     });
   }
@@ -870,7 +939,10 @@ function OpenCommandPaletteDialog() {
         autoHighlight="always"
         mode="none"
         onItemHighlighted={(value) => {
-          setHighlightedItemValue(typeof value === "string" ? value : null);
+          setSessionState((previousState) => ({
+            ...previousState,
+            highlightedItemValue: typeof value === "string" ? value : null,
+          }));
         }}
         onValueChange={handleQueryChange}
         value={query}

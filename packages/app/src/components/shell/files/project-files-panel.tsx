@@ -9,12 +9,12 @@ import {
   IconBarsThree,
   IconFiles,
 } from "central-icons";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-import { PIERRE_WORKBENCH_CODE_UNSAFE_CSS } from "~/lib/pierre-workbench-code-css";
+import { formatProjectErrorDescription } from "~/lib/project-error-description";
 import { projectReadFileQueryOptions } from "~/lib/project-react-query";
-import { resolveDiffThemeName } from "~/lib/diff-rendering";
+import { resolveDiffThemeName, WORKBENCH_CODE_UNSAFE_CSS } from "~/lib/diff-rendering";
 import { useTheme } from "~/hooks/use-theme";
 import { shellPanelsActions, useActiveTab, useSecondaryRail } from "~/stores/shell-panels-store";
 import { ProjectFileTree, type ProjectFileTreeHandle } from "./project-file-tree";
@@ -122,7 +122,7 @@ function SourcePreview(props: {
       preferredHighlighter: "shiki-js",
       theme: resolveDiffThemeName(resolvedTheme),
       themeType: resolvedTheme,
-      unsafeCSS: PIERRE_WORKBENCH_CODE_UNSAFE_CSS,
+      unsafeCSS: WORKBENCH_CODE_UNSAFE_CSS,
     }),
     [props.wordWrap, resolvedTheme],
   );
@@ -155,13 +155,15 @@ function SourcePreview(props: {
   }
 
   if (fileQuery.isError || !fileQuery.data) {
+    const errorDescription = formatProjectErrorDescription(
+      fileQuery.error,
+      "The file could not be read.",
+    );
     return (
       <div className="flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-1 px-4 py-8 text-center">
         <div className="text-body font-medium text-destructive/85">Unable to preview file</div>
-        <div className="max-w-72 text-detail text-muted-foreground/55">
-          {fileQuery.error instanceof Error
-            ? fileQuery.error.message
-            : "The file could not be read."}
+        <div className="max-w-72 whitespace-pre-wrap text-detail text-muted-foreground/55">
+          {errorDescription}
         </div>
       </div>
     );
@@ -193,6 +195,19 @@ export function ProjectFilesPanel(props: {
   environmentId: EnvironmentId | null;
   availableEditors: readonly EditorId[];
 }) {
+  return (
+    <ProjectFilesPanelContent
+      key={`${props.environmentId ?? "none"}:${props.cwd ?? "none"}`}
+      {...props}
+    />
+  );
+}
+
+function ProjectFilesPanelContent(props: {
+  cwd: string | null;
+  environmentId: EnvironmentId | null;
+  availableEditors: readonly EditorId[];
+}) {
   const [history, setHistory] = useState<PreviewHistory>(EMPTY_PREVIEW_HISTORY);
   const fileTreeRef = useRef<ProjectFileTreeHandle | null>(null);
   const activeTab = useActiveTab();
@@ -219,10 +234,6 @@ export function ProjectFilesPanel(props: {
       };
     });
   }, []);
-
-  useEffect(() => {
-    setHistory(EMPTY_PREVIEW_HISTORY);
-  }, [props.cwd, props.environmentId]);
 
   const tree = (
     <ProjectFileTree
@@ -281,7 +292,7 @@ export function ProjectFilesPanel(props: {
       </div>
 
       <RightWorkbenchLayout cwd={props.cwd} tab="files" rail={tree}>
-        <div className="editor-panel-inner flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-(--glass-editor-surface-background)">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-(--glass-editor-surface-background)">
           <div className="flex min-h-0 flex-1 flex-col">
             {selectedPath ? (
               <SourcePreview

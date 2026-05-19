@@ -2492,7 +2492,7 @@ describe("ClaudeAdapterLive", () => {
     );
   });
 
-  it.effect("classifies Agent tools and read-only Claude tools correctly for approvals", () => {
+  it.effect("allows read-only Claude tools but prompts for dynamic and env-file reads", () => {
     const harness = makeHarness();
     return Effect.gen(function* () {
       const adapter = yield* ClaudeAdapter;
@@ -2546,20 +2546,32 @@ describe("ClaudeAdapterLive", () => {
         },
       );
 
-      const grepRequested = yield* Stream.runHead(adapter.streamEvents);
-      assert.equal(grepRequested._tag, "Some");
-      if (grepRequested._tag !== "Some" || grepRequested.value.type !== "request.opened") {
+      const grepPermissionResult = yield* Effect.promise(() => grepPermissionPromise);
+      assert.equal((grepPermissionResult as PermissionResult).behavior, "allow");
+
+      const envPermissionPromise = canUseTool(
+        "Read",
+        { file_path: ".env.local" },
+        {
+          signal: new AbortController().signal,
+          toolUseID: "tool-env-approval-1",
+        },
+      );
+
+      const envRequested = yield* Stream.runHead(adapter.streamEvents);
+      assert.equal(envRequested._tag, "Some");
+      if (envRequested._tag !== "Some" || envRequested.value.type !== "request.opened") {
         return;
       }
-      assert.equal(grepRequested.value.payload.requestType, "file_read_approval");
+      assert.equal(envRequested.value.payload.requestType, "file_read_approval");
 
       yield* adapter.respondToRequest(
         session.threadId,
-        ApprovalRequestId.make(String(grepRequested.value.requestId)),
+        ApprovalRequestId.make(String(envRequested.value.requestId)),
         "accept",
       );
       yield* Stream.runHead(adapter.streamEvents);
-      yield* Effect.promise(() => grepPermissionPromise);
+      yield* Effect.promise(() => envPermissionPromise);
     }).pipe(
       Effect.provideService(Random.Random, makeDeterministicRandomService()),
       Effect.provide(harness.layer),

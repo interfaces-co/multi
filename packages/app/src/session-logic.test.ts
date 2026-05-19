@@ -8,7 +8,6 @@ import {
 import { describe, expect, it } from "vitest";
 
 import {
-  deriveCompletionDividerBeforeEntryId,
   deriveActiveWorkStartedAt,
   deriveActivePlanState,
   PROVIDER_OPTIONS,
@@ -19,7 +18,6 @@ import {
   findLatestProposedPlan,
   findSidebarProposedPlan,
   hasActionableProposedPlan,
-  hasToolActivityForTurn,
   isLatestTurnSettled,
 } from "./session-logic";
 
@@ -1499,36 +1497,6 @@ describe("deriveTimelineEntries", () => {
     });
   });
 
-  it("anchors the completion divider to latestTurn.assistantMessageId before timestamp fallback", () => {
-    const entries = deriveTimelineEntries(
-      [
-        {
-          id: MessageId.make("assistant-earlier"),
-          role: "assistant",
-          text: "progress update",
-          createdAt: "2026-02-23T00:00:01.000Z",
-          streaming: false,
-        },
-        {
-          id: MessageId.make("assistant-final"),
-          role: "assistant",
-          text: "final answer",
-          createdAt: "2026-02-23T00:00:01.000Z",
-          streaming: false,
-        },
-      ],
-      [],
-      [],
-    );
-
-    expect(
-      deriveCompletionDividerBeforeEntryId(entries, {
-        assistantMessageId: MessageId.make("assistant-final"),
-        startedAt: "2026-02-23T00:00:00.000Z",
-        completedAt: "2026-02-23T00:00:02.000Z",
-      }),
-    ).toBe("assistant-final");
-  });
 });
 
 describe("deriveWorkLogEntries context window handling", () => {
@@ -1573,27 +1541,6 @@ describe("deriveWorkLogEntries context window handling", () => {
 
     expect(entries).toHaveLength(1);
     expect(entries[0]?.label).toBe("Context compacted");
-  });
-});
-
-describe("hasToolActivityForTurn", () => {
-  it("returns false when turn id is missing", () => {
-    const activities: OrchestrationThreadActivity[] = [
-      makeActivity({ id: "tool-1", turnId: "turn-1", kind: "tool.completed", tone: "tool" }),
-    ];
-
-    expect(hasToolActivityForTurn(activities, undefined)).toBe(false);
-    expect(hasToolActivityForTurn(activities, null)).toBe(false);
-  });
-
-  it("returns true only for matching tool activity in the target turn", () => {
-    const activities: OrchestrationThreadActivity[] = [
-      makeActivity({ id: "tool-1", turnId: "turn-1", kind: "tool.completed", tone: "tool" }),
-      makeActivity({ id: "info-1", turnId: "turn-2", kind: "turn.completed", tone: "info" }),
-    ];
-
-    expect(hasToolActivityForTurn(activities, TurnId.make("turn-1"))).toBe(true);
-    expect(hasToolActivityForTurn(activities, TurnId.make("turn-2"))).toBe(false);
   });
 });
 
@@ -1739,13 +1686,16 @@ describe("deriveActiveWorkStartedAt", () => {
 });
 
 describe("PROVIDER_OPTIONS", () => {
-  it("advertises Claude as available while keeping Cursor as a placeholder", () => {
+  it("advertises the canonical provider list with Pi pending", () => {
     const claude = PROVIDER_OPTIONS.find((option) => option.value === "claudeAgent");
     const cursor = PROVIDER_OPTIONS.find((option) => option.value === "cursor");
+    const pi = PROVIDER_OPTIONS.find((option) => option.value === "pi");
     expect(PROVIDER_OPTIONS).toEqual([
       { value: "codex", label: "Codex", available: true },
       { value: "claudeAgent", label: "Claude", available: true },
-      { value: "cursor", label: "Cursor", available: false },
+      { value: "opencode", label: "OpenCode", available: true },
+      { value: "cursor", label: "Cursor", available: true },
+      { value: "pi", label: "Pi", available: false },
     ]);
     expect(claude).toEqual({
       value: "claudeAgent",
@@ -1755,6 +1705,11 @@ describe("PROVIDER_OPTIONS", () => {
     expect(cursor).toEqual({
       value: "cursor",
       label: "Cursor",
+      available: true,
+    });
+    expect(pi).toEqual({
+      value: "pi",
+      label: "Pi",
       available: false,
     });
   });

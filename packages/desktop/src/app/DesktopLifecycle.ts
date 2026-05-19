@@ -6,8 +6,6 @@ import * as Layer from "effect/Layer";
 import * as Ref from "effect/Ref";
 import * as Scope from "effect/Scope";
 
-import type * as Electron from "electron";
-
 import * as DesktopEnvironment from "./DesktopEnvironment";
 import * as DesktopObservability from "./DesktopObservability";
 import * as ElectronApp from "../electron/ElectronApp";
@@ -97,40 +95,19 @@ const requestDesktopShutdownAndWait = Effect.fn("desktop.lifecycle.requestShutdo
   },
 );
 
-function handleBeforeQuit(
-  event: Electron.Event,
+function triggerShutdown(
   runEffect: <A, E>(effect: Effect.Effect<A, E, DesktopLifecycleRuntimeServices>) => Promise<A>,
-  allowQuit: () => boolean,
-  markQuitAllowed: () => void,
+  reason: string,
 ): void {
-  if (allowQuit()) {
-    void runEffect(
-      Effect.gen(function* () {
-        const state = yield* DesktopState.DesktopState;
-        yield* Ref.set(state.quitting, true);
-        yield* logLifecycleInfo("before-quit received");
-      }).pipe(Effect.withSpan("desktop.lifecycle.beforeQuit")),
-    );
-    return;
-  }
-
-  event.preventDefault();
   void runEffect(
     Effect.gen(function* () {
       const state = yield* DesktopState.DesktopState;
       yield* Ref.set(state.quitting, true);
-      yield* logLifecycleInfo("before-quit received");
-      yield* requestDesktopShutdownAndWait();
-    }).pipe(Effect.withSpan("desktop.lifecycle.beforeQuit")),
-  ).finally(() => {
-    markQuitAllowed();
-    void runEffect(
-      Effect.gen(function* () {
-        const electronApp = yield* ElectronApp.ElectronApp;
-        yield* electronApp.quit;
-      }).pipe(Effect.withSpan("desktop.lifecycle.quitAfterShutdown")),
-    );
-  });
+      yield* logLifecycleInfo(reason);
+      const shutdown = yield* DesktopShutdown;
+      yield* shutdown.request;
+    }).pipe(Effect.withSpan(`desktop.lifecycle.${reason}`)),
+  );
 }
 
 function quitFromSignal(
@@ -145,7 +122,8 @@ function quitFromSignal(
       const wasQuitting = yield* Ref.getAndSet(state.quitting, true);
       if (wasQuitting) return;
       yield* logLifecycleInfo("process signal received", { signal });
-      yield* requestDesktopShutdownAndWait();
+      const shutdown = yield* DesktopShutdown;
+      yield* shutdown.request;
       yield* electronApp.quit;
     }).pipe(Effect.withSpan("desktop.lifecycle.processSignal")),
   );
@@ -189,21 +167,16 @@ export const layer = Layer.succeed(
       const environment = yield* DesktopEnvironment.DesktopEnvironment;
       const context = yield* Effect.context<DesktopLifecycleRuntimeServices>();
       const runEffect = Effect.runPromiseWith(context);
-      let quitAllowed = false;
       yield* electronTheme.onUpdated(() => {
         void runEffect(
           desktopWindow.syncAppearance.pipe(Effect.withSpan("desktop.lifecycle.themeUpdated")),
         );
       });
-      yield* electronApp.on("before-quit", (event: Electron.Event) => {
-        handleBeforeQuit(
-          event,
-          runEffect,
-          () => quitAllowed,
-          () => {
-            quitAllowed = true;
-          },
-        );
+      yield* electronApp.on("before-quit", () => {
+        triggerShutdown(runEffect, "beforeQuit");
+      });
+      yield* electronApp.on("will-quit", () => {
+        triggerShutdown(runEffect, "willQuit");
       });
       yield* electronApp.on("activate", () => {
         void runEffect(desktopWindow.activate.pipe(Effect.withSpan("desktop.lifecycle.activate")));

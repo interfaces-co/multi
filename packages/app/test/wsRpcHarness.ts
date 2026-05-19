@@ -172,7 +172,7 @@ export class BrowserWsRpcHarness {
       throw new Error(`No stream registered for ${method}`);
     }
     return Stream.fromIterable(this.getInitialStreamValues(request) ?? []).pipe(
-      Stream.concat(Stream.fromPubSub(pubsub)),
+      Stream.concat(Stream.fromPubSub(pubsub).pipe(Stream.catchCause(() => Stream.empty))),
     );
   }
 }

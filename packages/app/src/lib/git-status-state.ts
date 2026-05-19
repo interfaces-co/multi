@@ -6,7 +6,7 @@ import {
 } from "@multi/contracts";
 import { Cause } from "effect";
 import { Atom } from "effect/unstable/reactivity";
-import { useEffect } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 
 import { appAtomRegistry } from "../rpc/atom-registry";
 import {
@@ -170,9 +170,14 @@ export function resetGitStatusStateForTests(): void {
 
 export function useGitStatus(target: GitStatusTarget): GitStatusState {
   const targetKey = getGitStatusTargetKey(target);
-  useEffect(
+  const subscribe = useCallback(
     () => watchGitStatus({ environmentId: target.environmentId, cwd: target.cwd }),
     [target.environmentId, target.cwd],
+  );
+  useSyncExternalStore(
+    subscribe,
+    () => targetKey,
+    () => null,
   );
 
   const state = useAtomValue(

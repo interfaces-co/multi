@@ -9,9 +9,10 @@ import {
 import { TabsPanel, TabsRoot } from "@multi/ui/tabs";
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import { cva } from "class-variance-authority";
-import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useRef } from "react";
+import { type CSSProperties, type ReactNode, useCallback, useMemo, useRef } from "react";
 
 import { isElectron, isElectronHost } from "~/env";
+import { useMountEffect } from "~/hooks/use-mount-effect";
 import { useSettings } from "~/hooks/use-settings";
 import {
   type WorkbenchTab,
@@ -189,28 +190,6 @@ function RightAside(props: {
     muted,
   });
 
-  useEffect(() => {
-    if (!isElectronHost()) {
-      return;
-    }
-    if (search.diff === "1") {
-      if (activeTab !== "git") {
-        shellPanelsActions.setActiveTab("git");
-      }
-      if (muted) {
-        shellPanelsActions.setMuted(false);
-      }
-      return;
-    }
-    const w = search.workbench;
-    if (w === undefined) {
-      return;
-    }
-    if (w !== activeTab) {
-      shellPanelsActions.setActiveTab(w);
-    }
-  }, [search.diff, search.workbench, activeTab, muted]);
-
   const handleWorkbenchTabChange = useCallback(
     (value: unknown) => {
       if (!isWorkbenchTab(value)) {
@@ -260,12 +239,19 @@ function RightAside(props: {
       ref={asideRef}
       aria-hidden={!rightOpen ? true : undefined}
     >
+      <RightAsideRouteSearchSync
+        key={`${search.diff ?? ""}:${search.workbench ?? ""}:${activeTab}:${muted}`}
+        activeTab={activeTab}
+        muted={muted}
+        searchDiff={search.diff}
+        searchWorkbench={search.workbench}
+      />
       {rightOpen ? (
         <>
           <TabsRoot
             value={effectiveActiveTab}
             onValueChange={handleWorkbenchTabChange}
-            className="editor-panel-inner relative z-10 flex h-full min-h-0 w-full flex-col bg-(--glass-editor-surface-background) opacity-100"
+            className="relative z-10 flex h-full min-h-0 w-full flex-col bg-(--glass-editor-surface-background) opacity-100"
           >
             <RightAsideHeader
               cwd={props.cwd}
@@ -288,11 +274,41 @@ function RightAside(props: {
   );
 }
 
+function RightAsideRouteSearchSync(props: {
+  readonly activeTab: WorkbenchTab;
+  readonly muted: boolean;
+  readonly searchDiff: string | undefined;
+  readonly searchWorkbench: WorkbenchTab | undefined;
+}) {
+  useMountEffect(() => {
+    if (!isElectronHost()) {
+      return;
+    }
+    if (props.searchDiff === "1") {
+      if (props.activeTab !== "git") {
+        shellPanelsActions.setActiveTab("git");
+      }
+      if (props.muted) {
+        shellPanelsActions.setMuted(false);
+      }
+      return;
+    }
+    if (props.searchWorkbench === undefined) {
+      return;
+    }
+    if (props.searchWorkbench !== props.activeTab) {
+      shellPanelsActions.setActiveTab(props.searchWorkbench);
+    }
+  });
+
+  return null;
+}
+
 function RightAsidePanels(props: { activeTab: WorkbenchTab; right: RightWorkbenchDefinition }) {
   return (
     <div className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
       {props.right.tabs.map((tab) => {
-        const panel = props.right.panels[tab.id] ?? null;
+        const panel = tab.id === props.activeTab ? (props.right.panels[tab.id] ?? null) : null;
         return (
           <TabsPanel
             key={tab.id}
@@ -417,12 +433,12 @@ export function AppShell(props: {
       "--multi-shell-titlebar-control-size": "var(--multi-titlebar-control-height)",
       "--multi-shell-titlebar-control-y": "var(--multi-titlebar-control-row-top)",
       "--multi-shell-titlebar-gutter": "8px",
-      "--multi-composer-max-width": `${agentWindowChatMaxWidth}px`,
+      "--agent-window-chat-max-width": `${agentWindowChatMaxWidth}px`,
     }),
     [leftWidth, rightWidth, agentWindowChatMaxWidth],
   );
 
-  useEffect(() => {
+  useMountEffect(() => {
     const previousValue = document.body.getAttribute("data-cursor-glass-mode");
     document.body.setAttribute("data-cursor-glass-mode", "true");
     return () => {
@@ -432,7 +448,7 @@ export function AppShell(props: {
         document.body.setAttribute("data-cursor-glass-mode", previousValue);
       }
     };
-  }, []);
+  });
 
   return (
     <div
@@ -456,7 +472,7 @@ export function AppShell(props: {
         <div className="relative flex min-h-0 flex-1 flex-row">
           <main
             className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-multi-chat outline-hidden"
-            data-component="agent-panel"
+            data-component="chat-panel"
           >
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden outline-hidden">
               {props.center}

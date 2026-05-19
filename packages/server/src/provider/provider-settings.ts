@@ -17,12 +17,17 @@ const CODEX_PROVIDER = ProviderDriverKind.make("codex");
 const CLAUDE_AGENT_PROVIDER = ProviderDriverKind.make("claudeAgent");
 const CURSOR_PROVIDER = ProviderDriverKind.make("cursor");
 const OPENCODE_PROVIDER = ProviderDriverKind.make("opencode");
+const decodeCodexSettings = Schema.decodeUnknownSync(CodexSettings);
+const decodeClaudeSettings = Schema.decodeUnknownSync(ClaudeSettings);
+const decodeCursorSettings = Schema.decodeUnknownSync(CursorSettings);
+const decodeOpenCodeSettings = Schema.decodeUnknownSync(OpenCodeSettings);
+const DEFAULT_CURSOR_SETTINGS = decodeCursorSettings({});
 
 export const CANONICAL_PROVIDER_DRIVER_ORDER = [
   CODEX_PROVIDER,
   CLAUDE_AGENT_PROVIDER,
-  CURSOR_PROVIDER,
   OPENCODE_PROVIDER,
+  CURSOR_PROVIDER,
 ] as const satisfies ReadonlyArray<ProviderDriverKind>;
 
 export type ResolvedOpenCodeSettings = typeof OpenCodeSettings.Type & {
@@ -83,7 +88,7 @@ function fallbackClaudeSettings(settings: ServerSettings, instanceId: ProviderIn
 function fallbackCursorSettings(settings: ServerSettings, instanceId: ProviderInstanceId) {
   return isDefaultProviderInstance(CURSOR_PROVIDER, instanceId)
     ? settings.providers.cursor
-    : DEFAULT_SERVER_SETTINGS.providers.cursor;
+    : DEFAULT_CURSOR_SETTINGS;
 }
 
 function fallbackOpenCodeSettings(settings: ServerSettings, instanceId: ProviderInstanceId) {
@@ -96,7 +101,7 @@ export function resolveCodexSettings(
   settings: ServerSettings,
   instanceId: ProviderInstanceId = defaultInstanceIdForDriver(CODEX_PROVIDER),
 ): typeof CodexSettings.Type {
-  return Schema.decodeUnknownSync(CodexSettings)(
+  return decodeCodexSettings(
     resolveSettingsRecord({
       fallback: fallbackCodexSettings(settings, instanceId),
       instance: resolveProviderInstanceConfig({
@@ -112,7 +117,7 @@ export function resolveClaudeSettings(
   settings: ServerSettings,
   instanceId: ProviderInstanceId = defaultInstanceIdForDriver(CLAUDE_AGENT_PROVIDER),
 ): typeof ClaudeSettings.Type {
-  return Schema.decodeUnknownSync(ClaudeSettings)(
+  return decodeClaudeSettings(
     resolveSettingsRecord({
       fallback: fallbackClaudeSettings(settings, instanceId),
       instance: resolveProviderInstanceConfig({
@@ -128,7 +133,7 @@ export function resolveCursorSettings(
   settings: ServerSettings,
   instanceId: ProviderInstanceId = defaultInstanceIdForDriver(CURSOR_PROVIDER),
 ): typeof CursorSettings.Type {
-  return Schema.decodeUnknownSync(CursorSettings)(
+  return decodeCursorSettings(
     resolveSettingsRecord({
       fallback: fallbackCursorSettings(settings, instanceId),
       instance: resolveProviderInstanceConfig({
@@ -149,7 +154,7 @@ export function resolveOpenCodeSettings(
     driver: OPENCODE_PROVIDER,
     instanceId,
   });
-  const resolved = Schema.decodeUnknownSync(OpenCodeSettings)(
+  const resolved = decodeOpenCodeSettings(
     resolveSettingsRecord({
       fallback: fallbackOpenCodeSettings(settings, instanceId),
       instance,
@@ -172,10 +177,10 @@ export function resolveProviderEnabled(input: {
       return resolveCodexSettings(input.settings, instanceId).enabled;
     case CLAUDE_AGENT_PROVIDER:
       return resolveClaudeSettings(input.settings, instanceId).enabled;
-    case CURSOR_PROVIDER:
-      return resolveCursorSettings(input.settings, instanceId).enabled;
     case OPENCODE_PROVIDER:
       return resolveOpenCodeSettings(input.settings, instanceId).enabled;
+    case CURSOR_PROVIDER:
+      return resolveCursorSettings(input.settings, instanceId).enabled;
     default:
       return input.settings.providerInstances[instanceId]?.enabled ?? true;
   }

@@ -1,10 +1,12 @@
 import { StatusDot as UiStatusDot } from "@multi/ui/status-dot";
+import { scopedThreadKey } from "@multi/client-runtime";
+import { IconArchive1, IconPin, IconUnpin } from "central-icons";
 import {
   type ComponentProps,
   type KeyboardEvent,
+  type MouseEvent,
   memo,
   useCallback,
-  useEffect,
   useRef,
   useState,
 } from "react";
@@ -13,8 +15,8 @@ import { toast } from "sonner";
 import { ThreadContextMenu } from "~/components/shell/sidebar/thread-context-menu";
 import { RowButton } from "~/components/shell/shared/row-button";
 import { useThreadActions } from "~/hooks/use-thread-actions";
-import type { SidebarChatItem } from "~/lib/sidebar-chat-view-model";
-import { useThreadUnreadStore } from "~/stores/thread-unread-store";
+import type { SidebarChatItem } from "./sidebar-chat-view-model";
+import { useUiStateStore } from "~/stores/ui-state-store";
 import { cn } from "~/lib/utils";
 
 type UiStatusDotState = NonNullable<ComponentProps<typeof UiStatusDot>["state"]>;
@@ -62,6 +64,17 @@ function StatusSlot(props: { item: SidebarChatItem }) {
   );
 }
 
+const hoverActionButtonClass = cn(
+  "flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-multi-control border border-transparent bg-transparent p-0 text-multi-fg-tertiary outline-none",
+  "hover:bg-multi-bg-quaternary hover:text-multi-fg-primary",
+  "focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0",
+);
+
+function stopActionPointerDown(event: MouseEvent<HTMLButtonElement>) {
+  event.preventDefault();
+  event.stopPropagation();
+}
+
 export const AgentRow = memo(
   function AgentRow(props: {
     item: SidebarChatItem;
@@ -71,19 +84,17 @@ export const AgentRow = memo(
   }) {
     const { commitRename, archiveThread } = useThreadActions();
     const targetThreadRef = props.item.kind === "thread" ? props.item.threadRef : null;
-    const mark = useThreadUnreadStore((s) => s.mark);
+    const markThreadUnread = useUiStateStore((store) => store.markThreadUnread);
+    const setThreadPinned = useUiStateStore((store) => store.setThreadPinned);
     const [renaming, setRenaming] = useState(false);
     const [renameValue, setRenameValue] = useState("");
-    const inputRef = useRef<HTMLInputElement | null>(null);
     const committedRef = useRef(false);
 
-    useEffect(() => {
-      if (!renaming) return;
-      const node = inputRef.current;
+    const focusRenameInput = useCallback((node: HTMLInputElement | null) => {
       if (!node) return;
       node.focus();
       node.select();
-    }, [renaming]);
+    }, []);
 
     const finishRename = useCallback(() => {
       setRenaming(false);
@@ -159,7 +170,7 @@ export const AgentRow = memo(
             <StatusSlot item={props.item} />
             <span className="flex min-w-0 flex-1 flex-col gap-0.5 overflow-hidden pl-0.5">
               <span
-                className="min-w-0 truncate text-body font-normal text-multi-fg-secondary group-data-[selected=true]/agent-row:text-multi-fg-primary"
+                className="min-w-0 truncate text-(length:--multi-sidebar-label-size) font-normal leading-(--multi-sidebar-label-leading) text-multi-fg-secondary group-data-[selected=true]/agent-row:text-multi-fg-primary"
                 data-agent-sidebar-title=""
                 title={props.item.title}
               >
@@ -168,7 +179,7 @@ export const AgentRow = memo(
             </span>
           </span>
           <span
-            className="max-w-14 min-w-8 shrink-0 overflow-hidden text-ellipsis whitespace-nowrap text-right text-detail text-multi-fg-tertiary tabular-nums group-data-[selected=true]/agent-row:text-multi-fg-secondary"
+            className="max-w-14 min-w-8 shrink-0 overflow-hidden text-ellipsis whitespace-nowrap text-right text-(length:--multi-text-detail) leading-(--multi-leading-detail) text-multi-fg-tertiary tabular-nums group-data-[selected=true]/agent-row:text-multi-fg-secondary"
             data-agent-sidebar-subtitle=""
           >
             {props.item.ago}
@@ -177,20 +188,42 @@ export const AgentRow = memo(
       );
     }
 
+    const threadItem = props.item;
+    const archiveCurrentThread = (event: MouseEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!targetThreadRef) {
+        return;
+      }
+      void archiveThread(targetThreadRef).catch((error) => {
+        toast.error("Failed to archive thread", {
+          description: error instanceof Error ? error.message : "An error occurred.",
+        });
+      });
+    };
+    const togglePinnedThread = (event: MouseEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!targetThreadRef) {
+        return;
+      }
+      setThreadPinned(scopedThreadKey(targetThreadRef), !threadItem.pinned);
+    };
     return (
       <ThreadContextMenu
-        threadId={props.item.id}
+        threadId={threadItem.id}
         onRename={() => {
           setRenaming(true);
-          setRenameValue(props.item.title);
+          setRenameValue(threadItem.title);
         }}
         onMarkUnread={() => {
-          mark(props.item.id);
-        }}
-        onArchive={() => {
           if (!targetThreadRef) {
             return;
           }
+          markThreadUnread(scopedThreadKey(targetThreadRef), threadItem.latestReadableAt);
+        }}
+        onArchive={() => {
+          if (!targetThreadRef) return;
           void archiveThread(targetThreadRef).catch((error) => {
             toast.error("Failed to archive thread", {
               description: error instanceof Error ? error.message : "An error occurred.",
@@ -201,7 +234,7 @@ export const AgentRow = memo(
         {renaming ? (
           <div
             className={cn(
-              "font-multi relative flex h-auto w-full min-w-0 cursor-(--multi-button-cursor) items-center gap-3 rounded-multi-control border px-1.5 py-[5px] text-left text-body font-normal",
+              "font-multi relative flex h-auto w-full min-w-0 cursor-(--multi-button-cursor) items-center gap-3 rounded-multi-control border px-1.5 py-[5px] text-left text-(length:--multi-sidebar-label-size) font-normal leading-(--multi-sidebar-label-leading)",
               "border-multi-stroke-primary bg-multi-bg-tertiary",
             )}
             data-agent-sidebar-cell=""
@@ -211,54 +244,92 @@ export const AgentRow = memo(
               <StatusSlot item={props.item} />
               <span className="flex min-w-0 flex-1 flex-col gap-0.5 overflow-hidden pl-0.5">
                 <input
-                  ref={inputRef}
+                  ref={focusRenameInput}
                   type="text"
                   value={renameValue}
                   onChange={(e) => setRenameValue(e.target.value)}
                   onKeyDown={onRenameKeyDown}
                   onBlur={onBlur}
                   onClick={(e) => e.stopPropagation()}
-                  className="w-full min-w-0 select-text bg-transparent text-body text-foreground outline-none ring-0"
+                  className="w-full min-w-0 select-text bg-transparent text-(length:--multi-sidebar-label-size) leading-(--multi-sidebar-label-leading) text-foreground outline-none ring-0"
                   aria-label="Rename thread"
                 />
               </span>
             </span>
             <span
-              className="max-w-14 min-w-8 shrink-0 overflow-hidden text-ellipsis whitespace-nowrap text-right text-detail text-multi-fg-secondary tabular-nums"
+              className="max-w-14 min-w-8 shrink-0 overflow-hidden text-ellipsis whitespace-nowrap text-right text-(length:--multi-text-detail) leading-(--multi-leading-detail) text-multi-fg-secondary tabular-nums"
               data-agent-sidebar-subtitle=""
             >
               {props.item.ago}
             </span>
           </div>
         ) : (
-          <RowButton
-            variant="agent"
-            data-selected={props.selected}
-            data-chat-item=""
-            data-agent-sidebar-cell=""
-            onFocus={() => props.onPrefetchAgent?.(props.item.id)}
-            onPointerEnter={() => props.onPrefetchAgent?.(props.item.id)}
-            onClick={() => props.onSelectAgent(props.item.id)}
-          >
-            <span className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
-              <StatusSlot item={props.item} />
-              <span className="flex min-w-0 flex-1 flex-col gap-0.5 overflow-hidden pl-0.5">
-                <span
-                  className="min-w-0 truncate text-body font-normal text-multi-fg-secondary group-data-[selected=true]/agent-row:text-multi-fg-primary"
-                  data-agent-sidebar-title=""
-                  title={props.item.title}
-                >
-                  {props.item.title}
+          <div className="group/agent-row-shell relative min-w-0" data-agent-sidebar-row-shell="">
+            <RowButton
+              variant="agent"
+              className="pr-1.5 transition-[background-color,color,padding-right] group-hover/agent-row-shell:pr-[6.75rem] group-focus-within/agent-row-shell:pr-[6.75rem]"
+              data-selected={props.selected}
+              data-chat-item=""
+              data-agent-sidebar-cell=""
+              onFocus={() => props.onPrefetchAgent?.(props.item.id)}
+              onPointerEnter={() => props.onPrefetchAgent?.(props.item.id)}
+              onClick={() => props.onSelectAgent(props.item.id)}
+            >
+              <span className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
+                <StatusSlot item={props.item} />
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5 overflow-hidden pl-0.5">
+                  <span
+                    className="min-w-0 truncate text-(length:--multi-sidebar-label-size) font-normal leading-(--multi-sidebar-label-leading) text-multi-fg-secondary group-data-[selected=true]/agent-row:text-multi-fg-primary"
+                    data-agent-sidebar-title=""
+                    title={props.item.title}
+                  >
+                    {props.item.title}
+                  </span>
                 </span>
               </span>
-            </span>
+            </RowButton>
             <span
-              className="max-w-14 min-w-8 shrink-0 overflow-hidden text-ellipsis whitespace-nowrap text-right text-detail text-multi-fg-tertiary tabular-nums group-data-[selected=true]/agent-row:text-multi-fg-secondary"
-              data-agent-sidebar-subtitle=""
+              className="pointer-events-none absolute top-1/2 right-1 flex max-w-0 -translate-y-1/2 items-center gap-0.5 overflow-hidden opacity-0 transition-[max-width,opacity] duration-100 ease-out group-hover/agent-row-shell:pointer-events-auto group-hover/agent-row-shell:max-w-[6.75rem] group-hover/agent-row-shell:opacity-100 group-focus-within/agent-row-shell:pointer-events-auto group-focus-within/agent-row-shell:max-w-[6.75rem] group-focus-within/agent-row-shell:opacity-100 motion-reduce:transition-none"
+              data-agent-sidebar-actions=""
             >
-              {props.item.ago}
+              <button
+                type="button"
+                aria-label="Archive"
+                title="Archive"
+                onClick={archiveCurrentThread}
+                onMouseDown={stopActionPointerDown}
+                className={hoverActionButtonClass}
+                data-agent-sidebar-archive-action=""
+              >
+                <IconArchive1 className="size-3.5" aria-hidden />
+              </button>
+              <span
+                className={cn(
+                  "max-w-8 min-w-7 shrink-0 overflow-hidden text-ellipsis whitespace-nowrap text-center text-(length:--multi-text-detail) leading-(--multi-leading-detail) tabular-nums",
+                  props.selected ? "text-multi-fg-secondary" : "text-multi-fg-tertiary",
+                )}
+                data-agent-sidebar-subtitle=""
+                data-agent-sidebar-trailing-content=""
+              >
+                {props.item.ago}
+              </span>
+              <button
+                type="button"
+                aria-label={threadItem.pinned ? "Unpin" : "Pin"}
+                title={threadItem.pinned ? "Unpin" : "Pin"}
+                onClick={togglePinnedThread}
+                onMouseDown={stopActionPointerDown}
+                className={hoverActionButtonClass}
+                data-agent-sidebar-pin-action=""
+              >
+                {threadItem.pinned ? (
+                  <IconUnpin className="size-3.5" aria-hidden />
+                ) : (
+                  <IconPin className="size-3.5" aria-hidden />
+                )}
+              </button>
             </span>
-          </RowButton>
+          </div>
         )}
       </ThreadContextMenu>
     );

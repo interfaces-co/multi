@@ -39,7 +39,6 @@ const makeProviderAdapterRegistry = Effect.fn("makeProviderAdapterRegistry")(fun
   options?: ProviderAdapterRegistryLiveOptions,
 ) {
   const serverSettings = yield* ServerSettingsService;
-  const cursorAdapterOption = yield* Effect.serviceOption(CursorAdapter);
   const adapters =
     options?.adapters !== undefined
       ? options.adapters
@@ -47,7 +46,7 @@ const makeProviderAdapterRegistry = Effect.fn("makeProviderAdapterRegistry")(fun
           codex: yield* CodexAdapter,
           claudeAgent: yield* ClaudeAdapter,
           opencode: yield* OpenCodeAdapter,
-          ...(cursorAdapterOption._tag === "Some" ? { cursor: cursorAdapterOption.value } : {}),
+          cursor: yield* CursorAdapter,
         });
   const byProvider = new Map(
     adapters.map((adapter) => [ProviderDriverKind.make(adapter.provider), adapter] as const),

@@ -1,11 +1,7 @@
-import { DEFAULT_SERVER_SETTINGS, WS_METHODS } from "@multi/contracts";
+import { WS_METHODS } from "@multi/contracts";
 import { Stream } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  __resetClientTracingForTests,
-  configureClientTracing,
-} from "../observability/clientTracing";
 import {
   getSlowRpcAckRequests,
   resetRequestLatencyStateForTests,
@@ -148,7 +144,6 @@ afterEach(async () => {
   globalThis.fetch = originalFetch;
   resetRequestLatencyStateForTests();
   resetWsConnectionStateForTests();
-  await __resetClientTracingForTests();
   vi.restoreAllMocks();
 });
 
@@ -889,6 +884,47 @@ describe("WsTransport", () => {
     await transport.dispose();
   });
 
+  it("retries stream subscriptions after RPC stream shutdown decode errors", async () => {
+    const transport = createTransport("ws://localhost:3020");
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    let attempts = 0;
+    const doneCauseDecodeMessage =
+      'SchemaError(Expected array, got {"_id":"Cause","failures":[{"_tag":"Fail","error":{"~effect/Cause/Done":"~effect/Cause/Done","_tag":"Done"}}]}\n' +
+      '  at ["cause"])';
+
+    const unsubscribe = transport.subscribe(
+      () =>
+        Stream.suspend(() => {
+          attempts += 1;
+          return Stream.fail(new Error(doneCauseDecodeMessage));
+        }),
+      vi.fn(),
+      { retryDelay: 10 },
+    );
+
+    await waitFor(() => {
+      expect(sockets).toHaveLength(1);
+    });
+
+    getSocket().open();
+
+    await waitFor(() => {
+      expect(attempts).toBeGreaterThanOrEqual(2);
+    });
+
+    expect(warnSpy).not.toHaveBeenCalledWith(
+      "WebSocket RPC subscription failed",
+      expect.anything(),
+    );
+    expect(warnSpy).not.toHaveBeenCalledWith(
+      "WebSocket RPC subscription disconnected",
+      expect.anything(),
+    );
+
+    unsubscribe();
+    await transport.dispose();
+  });
+
   it("keeps retrying stream subscriptions after transport failures", async () => {
     const transport = createTransport("ws://localhost:3020");
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
@@ -1065,47 +1101,5 @@ describe("WsTransport", () => {
     });
 
     expect(callOrder).toEqual(["close:start", "close:done", "runtime:dispose"]);
-  });
-
-  it("propagates OTLP trace ids for ws transport requests when client tracing is enabled", async () => {
-    await configureClientTracing({
-      exportIntervalMs: 10,
-    });
-
-    const transport = createTransport("ws://localhost:3020");
-    const requestPromise = transport.request((client) => client[WS_METHODS.serverGetSettings]({}));
-
-    await waitFor(() => {
-      expect(sockets).toHaveLength(1);
-    });
-
-    const socket = getSocket();
-    socket.open();
-
-    await waitFor(() => {
-      expect(socket.sent).toHaveLength(1);
-    });
-
-    const requestMessage = JSON.parse(socket.sent[0] ?? "{}") as {
-      id: string;
-      spanId?: string;
-      traceId?: string;
-    };
-    expect(requestMessage.traceId).toMatch(/^[0-9a-f]{32}$/);
-    expect(requestMessage.spanId).toMatch(/^[0-9a-f]{16}$/);
-
-    socket.serverMessage(
-      JSON.stringify({
-        _tag: "Exit",
-        requestId: requestMessage.id,
-        exit: {
-          _tag: "Success",
-          value: DEFAULT_SERVER_SETTINGS,
-        },
-      }),
-    );
-
-    await expect(requestPromise).resolves.toEqual(DEFAULT_SERVER_SETTINGS);
-    await transport.dispose();
   });
 });

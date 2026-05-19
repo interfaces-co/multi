@@ -24,12 +24,16 @@ export const ExecutionEnvironmentCapabilities = Schema.Struct({
 });
 export type ExecutionEnvironmentCapabilities = typeof ExecutionEnvironmentCapabilities.Type;
 
+export const ExecutionEnvironmentStartupStatus = Schema.Literals(["starting", "ready"]);
+export type ExecutionEnvironmentStartupStatus = typeof ExecutionEnvironmentStartupStatus.Type;
+
 export const ExecutionEnvironmentDescriptor = Schema.Struct({
   environmentId: EnvironmentId,
   label: TrimmedNonEmptyString,
   platform: ExecutionEnvironmentPlatform,
   serverVersion: TrimmedNonEmptyString,
   capabilities: ExecutionEnvironmentCapabilities,
+  startupStatus: Schema.optionalKey(ExecutionEnvironmentStartupStatus),
 });
 export type ExecutionEnvironmentDescriptor = typeof ExecutionEnvironmentDescriptor.Type;
 

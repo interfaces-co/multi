@@ -1,5 +1,5 @@
 import { memo, useMemo, useState } from "react";
-import { getVscodeIconUrlForEntry } from "../../../vscode-icons";
+import { getVscodeIconUrlForEntry } from "./vscode-entry-icons";
 import { IconFileBend, IconFolder1 } from "central-icons";
 import { cn } from "~/lib/utils";
 

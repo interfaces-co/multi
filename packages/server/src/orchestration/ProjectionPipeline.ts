@@ -75,6 +75,8 @@ interface ProjectorDefinition {
   ) => Effect.Effect<void, ProjectionRepositoryError>;
 }
 
+const applyCheckpointsProjection: ProjectorDefinition["apply"] = () => Effect.void;
+
 interface AttachmentSideEffects {
   readonly deletedThreadIds: Set<string>;
   readonly prunedThreadRelativePaths: Map<string, Set<string>>;
@@ -480,7 +482,6 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
           yield* projectionThreadRepository.upsert({
             ...existingRow.value,
             archivedAt: event.payload.archivedAt,
-            updatedAt: event.payload.updatedAt,
           });
           return;
         }
@@ -495,7 +496,6 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
           yield* projectionThreadRepository.upsert({
             ...existingRow.value,
             archivedAt: null,
-            updatedAt: event.payload.updatedAt,
           });
           return;
         }
@@ -1139,8 +1139,6 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
           return;
       }
     });
-
-    const applyCheckpointsProjection: ProjectorDefinition["apply"] = () => Effect.void;
 
     const applyPendingApprovalsProjection: ProjectorDefinition["apply"] = Effect.fn(
       "applyPendingApprovalsProjection",

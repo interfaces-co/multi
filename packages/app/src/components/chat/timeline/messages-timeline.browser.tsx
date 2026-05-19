@@ -15,17 +15,12 @@ function buildProps() {
     editUserMessagesDisabled: false,
     activeTurnStartedAt: null,
     timelineControllerRef: createRef<MessagesTimelineController | null>(),
-    completionDividerBeforeEntryId: null,
-    turnDiffSummaryByAssistantMessageId: new Map(),
-    routeThreadKey: "environment-local:thread-1",
-    onOpenTurnDiff: vi.fn(),
     revertTurnCountByUserMessageId: new Map(),
     isServerThread: true,
     onBeginEditUserMessage: vi.fn(),
     onImageExpand: vi.fn(),
     activeThreadEnvironmentId: EnvironmentId.make("environment-local"),
     markdownCwd: undefined,
-    resolvedTheme: "dark" as const,
     projectRoot: undefined,
     onIsAtBottomChange: vi.fn(),
   };
@@ -133,6 +128,14 @@ function firstVisibleMessageId(scrollElement: HTMLElement) {
   return firstVisibleMessage?.dataset.messageId ?? null;
 }
 
+function requireElement<T extends Element>(selector: string, root: ParentNode = document): T {
+  const element = root.querySelector<T>(selector);
+  if (!element) {
+    throw new Error(`Expected element matching ${selector}.`);
+  }
+  return element;
+}
+
 describe("messages-timeline", () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -162,6 +165,65 @@ describe("messages-timeline", () => {
 
     try {
       await expect.element(page.getByText("Thinking - Inspecting repository state")).toBeVisible();
+    } finally {
+      await screen.unmount();
+    }
+  });
+
+  it("keeps compact work row chevrons adjacent to the visible text cluster", async () => {
+    const props = buildProps();
+    const screen = await renderTimeline(props, [
+      {
+        id: "work-command-1",
+        kind: "work",
+        createdAt: "2026-04-13T12:00:00.000Z",
+        entry: {
+          id: "work-command-1",
+          createdAt: "2026-04-13T12:00:00.000Z",
+          label: "ran",
+          command:
+            "pnpm exec vitest run --config vitest.browser.config.ts src/components/chat/timeline/messages-timeline.browser.tsx --reporter verbose --maxWorkers 1",
+          output: "completed",
+          tone: "tool",
+          status: "completed",
+          requestKind: "command",
+        },
+      },
+    ]);
+
+    try {
+      await vi.waitFor(() => {
+        expect(document.querySelector("[data-assistant-work-group]")).not.toBeNull();
+      });
+
+      const group = requireElement<HTMLElement>("[data-assistant-work-group]");
+      const line = requireElement<HTMLElement>("[data-tool-call-line]", group);
+      const action = requireElement<HTMLElement>("[data-tool-call-line-action]", line);
+      const details = requireElement<HTMLElement>("[data-tool-call-line-details]", line);
+      const chevron = requireElement<HTMLElement>("[data-tool-call-line-chevron]", line);
+
+      const groupRect = group.getBoundingClientRect();
+      const lineRect = line.getBoundingClientRect();
+      const actionRect = action.getBoundingClientRect();
+      const detailsRect = details.getBoundingClientRect();
+      const chevronRect = chevron.getBoundingClientRect();
+
+      expect(
+        lineRect.width,
+        "tool row should use the available chat lane when text overflows",
+      ).toBeGreaterThan(groupRect.width * 0.9);
+      expect(
+        lineRect.right,
+        "tool row should not overflow the work group lane",
+      ).toBeLessThanOrEqual(groupRect.right + 1);
+      expect(actionRect.width, "tool row action should remain visible").toBeGreaterThan(0);
+      expect(detailsRect.width, "tool row details should receive truncation space").toBeGreaterThan(
+        0,
+      );
+      expect(
+        chevronRect.left - detailsRect.right,
+        "tool row chevron should sit next to the visible details text, not in a far-right column",
+      ).toBeLessThanOrEqual(6);
     } finally {
       await screen.unmount();
     }

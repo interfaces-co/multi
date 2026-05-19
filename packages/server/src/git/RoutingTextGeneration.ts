@@ -1,6 +1,6 @@
 /**
  * RoutingTextGeneration – Dispatches text generation requests to either the
- * Codex CLI or Claude CLI implementation based on the provider instance in each
+ * configured provider implementation based on the provider instance in each
  * request input.
  *
  * When `modelSelection.instanceId` is `"claudeAgent"` the request is forwarded to

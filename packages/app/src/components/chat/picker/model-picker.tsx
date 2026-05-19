@@ -1,5 +1,9 @@
-import { type ProviderInstanceId, type ResolvedKeybindingsConfig } from "@multi/contracts";
-import { memo, useEffect, useMemo, useState } from "react";
+import {
+  type ModelSelection,
+  type ProviderInstanceId,
+  type ResolvedKeybindingsConfig,
+} from "@multi/contracts";
+import { memo, useMemo, useState } from "react";
 import type { VariantProps } from "class-variance-authority";
 import { IconChevronRightMedium } from "central-icons";
 import { Button, buttonVariants } from "@multi/ui/button";
@@ -8,9 +12,9 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "@multi/ui/tooltip";
 import { cn } from "~/lib/utils";
 import { ModelPickerContent } from "./model-content";
 import { ProviderInstanceIcon } from "./instance-icon";
-import { ModelEsque, getTriggerDisplayModelLabel, getTriggerDisplayModelName } from "./icon-utils";
-import { setModelPickerOpen } from "../../../stores/ui/model-picker-open-state";
-import type { ProviderInstanceEntry } from "../../../provider-instances";
+import { getTriggerDisplayModelLabel, getTriggerDisplayModelName } from "./icon-utils";
+import type { ProviderInstanceEntry } from "../../../model/provider-instances";
+import type { AppModelCatalogItem, AppModelResolverStatus } from "../../../model/selection";
 
 type ModelPickerPopoverPlacement =
   | "top"
@@ -47,7 +51,9 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   /** Instance entries rendered in the sidebar + used to resolve display name. */
   instanceEntries: ReadonlyArray<ProviderInstanceEntry>;
   keybindings?: ResolvedKeybindingsConfig;
-  modelOptionsByInstance: ReadonlyMap<ProviderInstanceId, ReadonlyArray<ModelEsque>>;
+  modelCatalogItems: ReadonlyArray<AppModelCatalogItem>;
+  selectedCatalogItem: AppModelCatalogItem | undefined;
+  availabilityStatus?: AppModelResolverStatus | undefined;
   activeProviderIconClassName?: string;
   compact?: boolean;
   disabled?: boolean;
@@ -62,7 +68,7 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   triggerVariant?: VariantProps<typeof buttonVariants>["variant"];
   triggerClassName?: string;
   onOpenChange?: (open: boolean) => void;
-  onInstanceModelChange: (instanceId: ProviderInstanceId, model: string) => void;
+  onSelectionChange: (selection: ModelSelection) => void;
 }) {
   const [uncontrolledIsMenuOpen, setUncontrolledIsMenuOpen] = useState(false);
   const isMenuOpen = props.open ?? uncontrolledIsMenuOpen;
@@ -77,20 +83,15 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   }, [props.activeInstanceId, props.instanceEntries]);
 
   const activeInstanceId = props.activeInstanceId;
-  const selectedInstanceOptions = props.modelOptionsByInstance.get(activeInstanceId) ?? [];
-  const selectableInstanceOptions = selectedInstanceOptions.filter(
-    (option) => option.selectable !== false,
-  );
-  // If the current slug belongs to a different instance (for example after
-  // a provider switch or disable), prefer the active instance's first
-  // option so the trigger icon and label stay in sync instead of showing
-  // a stale foreign slug.
-  const selectedModel =
-    selectableInstanceOptions.find((option) => option.slug === props.model) ??
-    selectableInstanceOptions[0];
+  const modelCatalogItems = props.modelCatalogItems;
+  const selectedModel = props.selectedCatalogItem;
   const triggerTitle = selectedModel ? getTriggerDisplayModelName(selectedModel) : props.model;
   const triggerSubtitle = selectedModel?.subProvider;
   const triggerLabel = selectedModel ? getTriggerDisplayModelLabel(selectedModel) : props.model;
+  const availabilityMessage =
+    props.availabilityStatus && props.availabilityStatus.kind !== "ready"
+      ? props.availabilityStatus.message
+      : null;
   const popoverPlacement =
     MODEL_PICKER_POPOVER_PLACEMENTS[props.popoverPlacement ?? "bottom-start"];
   const duplicateDriverCount = props.instanceEntries.filter(
@@ -105,16 +106,9 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
     }
   };
 
-  useEffect(() => {
-    setModelPickerOpen(isMenuOpen);
-    return () => {
-      setModelPickerOpen(false);
-    };
-  }, [isMenuOpen]);
-
-  const handleInstanceModelChange = (instanceId: ProviderInstanceId, model: string) => {
+  const handleSelectionChange = (selection: ModelSelection) => {
     if (props.disabled) return;
-    props.onInstanceModelChange(instanceId, model);
+    props.onSelectionChange(selection);
     setIsMenuOpen(false);
   };
 
@@ -137,7 +131,7 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
             data-chat-provider-model-picker="true"
             className={cn(
               "ui-model-picker__trigger max-w-full min-w-0 select-none justify-start overflow-hidden rounded-full px-1.5 py-2.5 text-muted-foreground/70 whitespace-nowrap hover:text-foreground/80 [&_svg]:mx-0",
-              props.compact ? "max-w-42 shrink-0" : "max-w-48 shrink sm:max-w-56 sm:px-3",
+              props.compact ? "shrink" : "max-w-48 shrink sm:max-w-56 sm:px-3",
               props.triggerClassName,
             )}
             disabled={props.disabled}
@@ -199,7 +193,14 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
                 triggerTitle
               )}
             </TooltipTrigger>
-            <TooltipPopup side="top">{triggerLabel}</TooltipPopup>
+            <TooltipPopup side="top" className="max-w-64">
+              <span className="block">{triggerLabel}</span>
+              {availabilityMessage ? (
+                <span className="block pt-1 text-xs/4 text-multi-fg-tertiary">
+                  {availabilityMessage}
+                </span>
+              ) : null}
+            </TooltipPopup>
           </Tooltip>
           <IconChevronRightMedium
             aria-hidden="true"
@@ -219,12 +220,13 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
           model={props.model}
           instanceEntries={props.instanceEntries}
           {...(props.keybindings ? { keybindings: props.keybindings } : {})}
-          modelOptionsByInstance={props.modelOptionsByInstance}
+          availabilityStatus={props.availabilityStatus}
+          modelCatalogItems={modelCatalogItems}
           terminalOpen={props.terminalOpen ?? false}
           popoverOpen={isMenuOpen}
           openSearchSeed={props.openSearchSeed}
           onRequestClose={() => setIsMenuOpen(false)}
-          onInstanceModelChange={handleInstanceModelChange}
+          onSelectionChange={handleSelectionChange}
         />
       </PopoverPopup>
     </Popover>

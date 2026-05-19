@@ -11,16 +11,7 @@ import {
   IconStop,
 } from "central-icons";
 import { Virtualizer } from "@pierre/diffs/react";
-import {
-  Suspense,
-  lazy,
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type ReactNode, useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
@@ -36,22 +27,25 @@ import {
 } from "@multi/ui/dialog";
 
 import { isElectron } from "~/env";
+import { formatGitActionErrorDescription } from "~/git/action-error-description";
 import {
   type DiffRow,
   type GitPanelModel,
   useDiffStylePreference,
 } from "~/hooks/use-environment-git";
+import { useMountEffect } from "~/hooks/use-mount-effect";
 import {
   GIT_AGENT_ACTIONS,
   GIT_AGENT_ACTION_ORDER,
   GIT_AGENT_PRIMARY_ACTION,
   type GitAgentAction,
 } from "~/lib/git-agent-actions";
+import { toastManager } from "~/app/toast";
 import { useGitViewed } from "~/hooks/use-git-viewed-state";
-import { parseDiffRouteSearch, stripDiffSearchParams } from "~/diff-route-search";
+import { parseDiffRouteSearch, stripDiffSearchParams } from "~/app/routes/chat-shell-search";
 import { cn } from "~/lib/utils";
+import ReviewDiffPanel from "~/components/diff-panel";
 import { DiffWorkerPoolProvider } from "~/components/diff-worker-pool-provider";
-import { DiffPanelLoadingState } from "~/components/diff-panel-shell";
 import { shellPanelsActions, useSecondaryRail } from "~/stores/shell-panels-store";
 import { GitChangesFileTree } from "./git-changes-file-tree";
 import { GitDiffCard } from "./git-diff-card";
@@ -59,9 +53,12 @@ import { WorkbenchChromeRow } from "../shell/workbench-chrome-row";
 import { WorkbenchIconButton, WorkbenchTextButton } from "../shell/workbench-icon-button";
 import { RightWorkbenchLayout } from "../shell/right-workbench-layout";
 
-const ReviewDiffPanel = lazy(() => import("~/components/diff-panel"));
-
 type GitChangesFilter = "uncommitted" | "unstaged" | "staged" | "branch";
+type GitPanelSelectionState = {
+  readonly filesKey: string;
+  readonly focusId: string | null;
+  readonly selectedId: string | null;
+};
 
 const GIT_CHANGES_FILTERS: readonly GitChangesFilter[] = [
   "uncommitted",
@@ -76,6 +73,34 @@ const GIT_CHANGES_FILTER_LABELS: Record<GitChangesFilter, string> = {
   staged: "Staged",
   branch: "All commits",
 };
+
+function showGitActionErrorToast(title: string, error: unknown): void {
+  toastManager.add({
+    type: "error",
+    title,
+    description: formatGitActionErrorDescription(error),
+  });
+}
+
+function resolveGitPanelSelectedId(input: {
+  readonly visibleFiles: readonly DiffRow[];
+  readonly previousSelectedId: string | null;
+  readonly focusId: string | null;
+}): string | null {
+  if (input.visibleFiles.length === 0) {
+    return null;
+  }
+  if (input.focusId && input.visibleFiles.some((row) => row.id === input.focusId)) {
+    return input.focusId;
+  }
+  if (
+    input.previousSelectedId !== null &&
+    input.visibleFiles.some((row) => row.id === input.previousSelectedId)
+  ) {
+    return input.previousSelectedId;
+  }
+  return input.visibleFiles[0]?.id ?? null;
+}
 
 export function GitPanel(props: {
   git: GitPanelModel;
@@ -92,7 +117,7 @@ export function GitPanel(props: {
     return (
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 px-4 py-8 text-center">
         <p className="text-body font-medium text-foreground/85">Source control</p>
-        <p className="max-w-[18rem] text-detail text-muted-foreground/72">
+        <p className="max-w-72 text-detail text-muted-foreground/72">
           Git status and diffs are available in the Multi desktop app.
         </p>
       </div>
@@ -117,7 +142,7 @@ export function GitPanel(props: {
       return (
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 px-4 py-8 text-center">
           <p className="text-body font-medium text-destructive/90">Git error</p>
-          <p className="max-w-[20rem] text-detail text-muted-foreground/80">{git.view.message}</p>
+          <p className="max-w-xs text-detail text-muted-foreground/80">{git.view.message}</p>
         </div>
       );
     case "no-repo":
@@ -125,7 +150,7 @@ export function GitPanel(props: {
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 py-10 text-center">
           <div className="space-y-1 px-4 py-3">
             <p className="text-body font-medium text-foreground/85">No repository</p>
-            <p className="max-w-[18rem] text-detail text-muted-foreground/72">
+            <p className="max-w-72 text-detail text-muted-foreground/72">
               Initialize Git in this project to track changes and review diffs.
             </p>
           </div>
@@ -135,10 +160,10 @@ export function GitPanel(props: {
               void git
                 .init()
                 .catch((error: unknown) =>
-                  toast.error(error instanceof Error ? error.message : String(error)),
+                  showGitActionErrorToast("Could not initialize Git", error),
                 );
             }}
-            className="rounded-multi-control border border-multi-border/60 bg-multi-active/40 px-3 py-2 text-body font-medium text-foreground transition-colors hover:bg-multi-hover"
+            className="select-none rounded-multi-control border border-multi-border/60 bg-multi-active/40 px-3 py-2 text-body font-medium text-foreground transition-colors hover:bg-multi-hover"
           >
             Init Git
           </button>
@@ -148,7 +173,7 @@ export function GitPanel(props: {
       return (
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 px-4 py-12 text-center">
           <p className="text-body font-medium text-foreground/85">Working tree clean</p>
-          <p className="max-w-[18rem] text-detail text-muted-foreground/72">
+          <p className="max-w-72 text-detail text-muted-foreground/72">
             No staged or unstaged changes in this repository.
           </p>
         </div>
@@ -203,7 +228,28 @@ function GitPanelInner(props: {
     [visibleFiles],
   );
   const filesKey = useMemo(() => visibleFiles.map((row) => row.id).join("\n"), [visibleFiles]);
-  const [selectedId, setSelectedId] = useState<string | null>(() => visibleFiles[0]?.id ?? null);
+  const [selectionState, setSelectionState] = useState<GitPanelSelectionState>(() => ({
+    filesKey,
+    focusId: git.focusId,
+    selectedId: resolveGitPanelSelectedId({
+      visibleFiles,
+      previousSelectedId: null,
+      focusId: git.focusId,
+    }),
+  }));
+  let selectedId = selectionState.selectedId;
+  if (selectionState.filesKey !== filesKey || selectionState.focusId !== git.focusId) {
+    selectedId = resolveGitPanelSelectedId({
+      visibleFiles,
+      previousSelectedId: selectionState.selectedId,
+      focusId: git.focusId,
+    });
+    setSelectionState({
+      filesKey,
+      focusId: git.focusId,
+      selectedId,
+    });
+  }
   const allDiffCardsCollapsed =
     visibleFiles.length > 0 && visibleFiles.every((row) => !git.expandedIds.has(row.id));
   const diffLayoutKey = gitRailOpen ? `rail:${gitRailWidth}` : "rail:closed";
@@ -218,49 +264,11 @@ function GitPanelInner(props: {
     git.requestDiff(id);
   };
 
-  useEffect(() => {
-    if (visibleFiles.length === 0) {
-      setSelectedId(null);
-      return;
-    }
-
-    setSelectedId((previous) => {
-      if (git.focusId && visibleFiles.some((row) => row.id === git.focusId)) {
-        return git.focusId;
-      }
-
-      return previous !== null && visibleFiles.some((row) => row.id === previous)
-        ? previous
-        : visibleFiles[0]!.id;
-    });
-  }, [filesKey, git.focusId, visibleFiles]);
-
-  useEffect(() => {
-    if (!selectedId) return;
-    gitRef.current.toggleExpand(selectedId, true);
-  }, [selectedId]);
-
-  useEffect(() => {
-    if (!selectedId) return;
-    const root = deckRootRef.current;
-    if (!root) return;
-
-    requestAnimationFrame(() => {
-      const escaped = CSS.escape(selectedId);
-      root.querySelector(`[data-diff-card-id="${escaped}"]`)?.scrollIntoView({
-        block: "nearest",
-        behavior: "smooth",
-      });
-    });
-  }, [selectedId]);
-
   const confirmDiscard = useCallback(() => {
     if (!pending) return;
     void git
       .discard([pending.path])
-      .catch((error: unknown) =>
-        toast.error(error instanceof Error ? error.message : String(error)),
-      );
+      .catch((error: unknown) => showGitActionErrorToast("Could not discard changes", error));
     setPending(null);
   }, [git, pending]);
 
@@ -268,9 +276,7 @@ function GitPanelInner(props: {
     const allPaths = files.map((f) => f.path);
     void git
       .discard(allPaths)
-      .catch((error: unknown) =>
-        toast.error(error instanceof Error ? error.message : String(error)),
-      );
+      .catch((error: unknown) => showGitActionErrorToast("Could not discard changes", error));
     setDiscardAllPending(false);
   }, [git, files]);
 
@@ -281,7 +287,7 @@ function GitPanelInner(props: {
   }, [onAgentAction, props.pendingAgentAction]);
 
   const handleSelectFile = useCallback((file: DiffRow) => {
-    setSelectedId(file.id);
+    setSelectionState((current) => ({ ...current, selectedId: file.id }));
   }, []);
   const closeReview = useCallback(() => {
     void navigate({
@@ -326,7 +332,7 @@ function GitPanelInner(props: {
         <RightWorkbenchLayout
           cwd={git.cwd}
           tab="git"
-          railHostClassName="multi-shell-git-rail"
+          railHostClassName="bg-(--multi-shell-sidebar-bg) shadow-[inset_-1px_0_0_color-mix(in_srgb,var(--multi-stroke-quaternary)_78%,transparent)]"
           rail={
             <GitChangesFileTree
               rows={visibleFiles}
@@ -338,8 +344,16 @@ function GitPanelInner(props: {
         >
           <div
             ref={deckRootRef}
-            className="editor-panel-inner flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-(--glass-editor-surface-background)"
+            className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-(--glass-editor-surface-background)"
           >
+            {selectedId ? (
+              <SelectedGitDiffSync
+                key={selectedId}
+                selectedId={selectedId}
+                deckRootRef={deckRootRef}
+                gitRef={gitRef}
+              />
+            ) : null}
             {props.reviewingTurnDiff ? (
               <GitReviewDiffSurface layoutKey={diffLayoutKey} />
             ) : visibleFiles.length === 0 ? (
@@ -400,6 +414,30 @@ function GitPanelInner(props: {
   );
 }
 
+function SelectedGitDiffSync(props: {
+  readonly selectedId: string;
+  readonly deckRootRef: { readonly current: HTMLDivElement | null };
+  readonly gitRef: { readonly current: GitPanelModel };
+}) {
+  useMountEffect(() => {
+    props.gitRef.current.toggleExpand(props.selectedId, true);
+    const root = props.deckRootRef.current;
+    if (!root) return;
+
+    const frame = requestAnimationFrame(() => {
+      const escaped = CSS.escape(props.selectedId);
+      root.querySelector(`[data-diff-card-id="${escaped}"]`)?.scrollIntoView({
+        block: "nearest",
+        behavior: "smooth",
+      });
+    });
+
+    return () => cancelAnimationFrame(frame);
+  });
+
+  return null;
+}
+
 function GitReviewOnlyPanel() {
   const navigate = useNavigate();
   const closeReview = useCallback(() => {
@@ -424,7 +462,7 @@ function ReviewModeHeader(props: { onClose: () => void }) {
       variant="panel"
       gap="loose"
       trailing={
-        <WorkbenchTextButton onClick={props.onClose} className="max-w-[6rem]" title="Close Review">
+        <WorkbenchTextButton onClick={props.onClose} className="max-w-24" title="Close Review">
           Close
         </WorkbenchTextButton>
       }
@@ -442,9 +480,7 @@ function ReviewModeHeader(props: { onClose: () => void }) {
 function GitReviewDiffSurface(props: { layoutKey?: string }) {
   return (
     <DiffWorkerPoolProvider>
-      <Suspense fallback={<DiffPanelLoadingState label="Loading checkpoint diff..." />}>
-        <ReviewDiffPanel key={props.layoutKey} mode="sheet" />
-      </Suspense>
+      <ReviewDiffPanel key={props.layoutKey} mode="sheet" />
     </DiffWorkerPoolProvider>
   );
 }
@@ -497,7 +533,7 @@ function LocalBranchBar(props: {
                   onClick={() => props.onEditorMenuOpen(false)}
                 />
                 <div
-                  className="absolute top-full right-0 z-50 mt-1 min-w-[176px] rounded-multi-control border border-multi-stroke-secondary bg-multi-bg-elevated p-[3px] text-multi-fg-primary shadow-multi-popup"
+                  className="absolute top-full right-0 z-50 mt-1 min-w-44 rounded-multi-control border border-multi-stroke-secondary bg-multi-bg-elevated p-[3px] text-multi-fg-primary shadow-multi-popup"
                   role="menu"
                 >
                   <MenuItem
@@ -524,12 +560,12 @@ function LocalBranchBar(props: {
           </div>
           <div className="no-drag relative min-w-0 shrink-0">
             <div
-              className="group no-drag inline-flex h-(--multi-workbench-action-size) min-w-0 overflow-hidden rounded-multi-control border border-primary bg-primary text-body font-medium text-primary-foreground shadow-sm data-[pending=true]:border-rose-500/90 data-[pending=true]:bg-rose-500/90"
+              className="group no-drag inline-flex h-(--multi-workbench-action-size) min-w-0 select-none overflow-hidden rounded-multi-control border border-primary bg-primary text-body font-medium text-primary-foreground shadow-sm data-[pending=true]:border-rose-500/90 data-[pending=true]:bg-rose-500/90"
               data-pending={isAgentActionPending || undefined}
             >
               <button
                 type="button"
-                className="inline-flex h-full min-w-0 items-center justify-center gap-1.5 px-2 text-inherit transition-colors hover:bg-primary/90 disabled:cursor-default disabled:opacity-70 disabled:hover:bg-transparent group-data-[pending=true]:hover:bg-rose-500/90"
+                className="inline-flex h-full min-w-0 select-none items-center justify-center gap-1.5 px-2 text-inherit transition-colors hover:bg-primary/90 disabled:cursor-default disabled:opacity-70 disabled:hover:bg-transparent group-data-[pending=true]:hover:bg-rose-500/90"
                 disabled={
                   isAgentActionPending &&
                   (props.onStopAgentAction === null || props.stoppingAgentAction)
@@ -552,7 +588,7 @@ function LocalBranchBar(props: {
               </button>
               <button
                 type="button"
-                className="inline-flex h-full w-[22px] shrink-0 items-center justify-center border-l border-primary-foreground/18 text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-default disabled:opacity-70 disabled:hover:bg-transparent data-[open=true]:bg-primary/90"
+                className="inline-flex h-full w-6 shrink-0 select-none items-center justify-center border-l border-primary-foreground/18 text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-default disabled:opacity-70 disabled:hover:bg-transparent data-[open=true]:bg-primary/90"
                 disabled={isAgentActionPending}
                 onClick={() => {
                   if (isAgentActionPending) return;
@@ -576,7 +612,7 @@ function LocalBranchBar(props: {
                   onClick={() => props.onCommitMenuOpen(false)}
                 />
                 <div
-                  className="absolute top-full right-0 z-50 mt-1 min-w-[180px] rounded-multi-control border border-multi-stroke-secondary bg-multi-bg-elevated p-[3px] text-multi-fg-primary shadow-multi-popup"
+                  className="absolute top-full right-0 z-50 mt-1 min-w-44 rounded-multi-control border border-multi-stroke-secondary bg-multi-bg-elevated p-[3px] text-multi-fg-primary shadow-multi-popup"
                   role="menu"
                 >
                   {GIT_AGENT_ACTION_ORDER.map((action) => (
@@ -601,7 +637,7 @@ function LocalBranchBar(props: {
       <button
         type="button"
         onClick={copyBranch}
-        className="no-drag inline-flex h-(--multi-workbench-action-size) min-w-0 items-center gap-(--multi-workbench-sub-chrome-action-gap) overflow-hidden rounded-multi-control px-1.5 text-body font-medium text-multi-fg-primary transition-colors hover:bg-multi-bg-quaternary hover:text-multi-fg-primary"
+        className="no-drag inline-flex h-(--multi-workbench-action-size) min-w-0 select-none items-center gap-(--multi-workbench-sub-chrome-action-gap) overflow-hidden rounded-multi-control px-1.5 text-body font-medium text-multi-fg-primary transition-colors hover:bg-multi-bg-quaternary hover:text-multi-fg-primary"
         title="Copy branch name"
       >
         <IconBranch className="size-3 shrink-0 text-multi-icon-tertiary" />
@@ -691,7 +727,7 @@ function ChangesFilterMenu(props: {
     <Menu>
       <MenuTrigger
         type="button"
-        className="no-drag inline-flex h-(--multi-workbench-action-size) min-w-0 max-w-64 items-center gap-1 overflow-hidden rounded-multi-control px-1.5 text-body font-medium text-multi-fg-secondary tabular-nums outline-hidden transition-colors hover:bg-multi-bg-quaternary hover:text-multi-fg-primary data-popup-open:bg-multi-bg-quaternary data-popup-open:text-multi-fg-primary focus-visible:ring-1 focus-visible:ring-multi-stroke-focused focus-visible:ring-inset"
+        className="no-drag inline-flex h-(--multi-workbench-action-size) min-w-0 max-w-64 select-none items-center gap-1 overflow-hidden rounded-multi-control px-1.5 text-body font-medium text-multi-fg-secondary tabular-nums outline-hidden transition-colors hover:bg-multi-bg-quaternary hover:text-multi-fg-primary data-popup-open:bg-multi-bg-quaternary data-popup-open:text-multi-fg-primary focus-visible:ring-1 focus-visible:ring-multi-stroke-focused focus-visible:ring-inset"
         aria-label="Change filter"
       >
         <IconFolder1 className="size-3.5 shrink-0 text-multi-icon-tertiary" aria-hidden />

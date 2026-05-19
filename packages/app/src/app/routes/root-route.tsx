@@ -1,10 +1,10 @@
 import { type ServerLifecycleWelcomePayload } from "@multi/contracts";
 import { scopedProjectKey, scopeProjectRef } from "@multi/client-runtime";
 import { getRouteApi, Outlet, type ErrorComponentProps, useNavigate } from "@tanstack/react-router";
-import { useEffect, useEffectEvent, useRef } from "react";
+import { useEffectEvent, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { APP_DISPLAY_NAME } from "~/branding";
+import { APP_DISPLAY_NAME } from "~/app/branding";
 import { CommandPalette } from "~/components/command-palette";
 import { TaskCompletionNotifications } from "~/notifications/taskCompletion";
 import {
@@ -14,8 +14,9 @@ import {
 } from "~/components/web-socket-connection-surface";
 import { Button } from "@multi/ui/button";
 import { AnchoredToastProvider, ToastProvider, toastManager } from "~/app/toast";
-import { resolveAndPersistPreferredEditor } from "~/editor-preferences";
+import { resolveAndPersistPreferredEditor } from "~/editor/preferences";
 import { readLocalApi } from "~/local-api";
+import { formatSchemaBackedTransportErrorDescription } from "~/rpc/transport-error";
 import {
   getServerConfigUpdatedNotification,
   ServerConfigUpdatedNotification,
@@ -25,54 +26,51 @@ import {
   useServerConfigUpdatedSubscription,
   useServerWelcomeSubscription,
 } from "~/rpc/server-state";
-import { selectEnvironmentState, selectProjectByRef, useStore } from "~/store";
+import { selectEnvironmentState, selectProjectByRef, useStore } from "~/stores/thread-store";
 import { useUiStateStore } from "~/stores/ui-state-store";
 import { syncBrowserChromeTheme } from "~/hooks/use-theme";
+import { useMountEffect } from "~/hooks/use-mount-effect";
 import {
   ensureEnvironmentConnectionBootstrapped,
   getPrimaryEnvironmentConnection,
   startEnvironmentConnectionService,
 } from "~/environments/runtime";
-import { configureClientTracing } from "~/observability/clientTracing";
-import { traceBrowserEvent } from "~/observability/browserDebug";
 import { updatePrimaryEnvironmentDescriptor } from "~/environments/primary";
 import { RouterDevtoolsPanel } from "~/dev/router-devtools";
-import { deriveLogicalProjectKey, derivePhysicalProjectKeyFromPath } from "~/logical-project";
+import {
+  deriveLogicalProjectKey,
+  derivePhysicalProjectKeyFromPath,
+} from "~/stores/project-identity";
 import { useSettings } from "~/hooks/use-settings";
 
 const routeApi = getRouteApi("__root__");
+type ServerEnvironmentDescriptor = NonNullable<ReturnType<typeof useServerEnvironment>>;
+type SetActiveEnvironmentId = (
+  environmentId: ServerEnvironmentDescriptor["environmentId"],
+) => void;
 
 export function RootRouteView() {
   const { authGateState } = routeApi.useRouteContext();
 
-  useEffect(() => {
-    traceBrowserEvent("root.auth-gate-state", {
-      status: authGateState.status,
-    });
-  }, [authGateState.status]);
-
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      syncBrowserChromeTheme();
-    });
-    return () => {
-      window.cancelAnimationFrame(frame);
-    };
-  }, [authGateState.status]);
-
   if (authGateState.status !== "authenticated") {
     return (
       <>
-        <Outlet />
+        <BrowserChromeThemeSync key={authGateState.status} />
+        <AuthenticationRequiredView
+          message={
+            authGateState.errorMessage ??
+            "The local environment did not accept the desktop bootstrap credential."
+          }
+        />
         <RouterDevtoolsPanel />
       </>
     );
   }
   return (
     <ToastProvider>
+      <BrowserChromeThemeSync key={authGateState.status} />
       <AnchoredToastProvider>
         <CursorPreferenceSync />
-        <AuthenticatedTracingBootstrap />
         <ServerStateBootstrap />
         <EnvironmentConnectionManagerBootstrap />
         <EventRouter />
@@ -90,14 +88,39 @@ export function RootRouteView() {
   );
 }
 
+function BrowserChromeThemeSync() {
+  useMountEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      syncBrowserChromeTheme();
+    });
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  });
+
+  return null;
+}
+
 function CursorPreferenceSync() {
   const cursorPointerOnButtons = useSettings((settings) => settings.cursorPointerOnButtons);
 
-  useEffect(() => {
+  return (
+    <CursorPreferenceDomSync
+      key={cursorPointerOnButtons ? "pointer-cursor" : "default-cursor"}
+      cursorPointerOnButtons={cursorPointerOnButtons}
+    />
+  );
+}
+
+function CursorPreferenceDomSync(props: { readonly cursorPointerOnButtons: boolean }) {
+  useMountEffect(() => {
     const root = document.documentElement;
-    root.style.setProperty("--multi-button-cursor", cursorPointerOnButtons ? "pointer" : "auto");
-    root.toggleAttribute("data-no-button-pointer", !cursorPointerOnButtons);
-  }, [cursorPointerOnButtons]);
+    root.style.setProperty(
+      "--multi-button-cursor",
+      props.cursorPointerOnButtons ? "pointer" : "auto",
+    );
+    root.toggleAttribute("data-no-button-pointer", !props.cursorPointerOnButtons);
+  });
 
   return null;
 }
@@ -168,6 +191,27 @@ export function RootRouteNotFoundView() {
   );
 }
 
+function AuthenticationRequiredView({ message }: { readonly message: string }) {
+  return (
+    <div className="relative flex min-h-svh items-center justify-center overflow-hidden bg-background px-4 py-10 text-foreground sm:px-6">
+      <section className="relative w-full max-w-xl rounded-2xl border border-border/80 bg-card/90 p-6 shadow-2xl shadow-black/20 backdrop-blur-md sm:p-8">
+        <p className="text-detail font-semibold tracking-[0.18em] text-muted-foreground uppercase">
+          {APP_DISPLAY_NAME}
+        </p>
+        <h1 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
+          Local authentication failed.
+        </h1>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{message}</p>
+        <div className="mt-5">
+          <Button size="sm" onClick={() => window.location.reload()}>
+            Reload app
+          </Button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function errorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim().length > 0) {
     return error.message;
@@ -197,25 +241,7 @@ function errorDetails(error: unknown): string {
 }
 
 function ServerStateBootstrap() {
-  useEffect(() => {
-    traceBrowserEvent("root.server-state-bootstrap.start");
-    return startServerStateSync(getPrimaryEnvironmentConnection().client.server);
-  }, []);
-
-  return null;
-}
-
-function AuthenticatedTracingBootstrap() {
-  useEffect(() => {
-    traceBrowserEvent("root.client-tracing.configure.start");
-    void configureClientTracing()
-      .then(() => {
-        traceBrowserEvent("root.client-tracing.configure.done");
-      })
-      .catch((error) => {
-        traceBrowserEvent("root.client-tracing.configure.failed", { error }, "warn");
-      });
-  }, []);
+  useMountEffect(() => startServerStateSync(getPrimaryEnvironmentConnection().client.server));
 
   return null;
 }
@@ -223,10 +249,7 @@ function AuthenticatedTracingBootstrap() {
 function EnvironmentConnectionManagerBootstrap() {
   const queryClient = useQueryClient();
 
-  useEffect(() => {
-    traceBrowserEvent("root.environment-connection-service.start");
-    return startEnvironmentConnectionService(queryClient);
-  }, [queryClient]);
+  useMountEffect(() => startEnvironmentConnectionService(queryClient));
 
   return null;
 }
@@ -241,25 +264,13 @@ function EventRouter() {
   const handleWelcome = useEffectEvent((payload: ServerLifecycleWelcomePayload | null) => {
     if (!payload) return;
 
-    traceBrowserEvent("root.lifecycle.welcome", {
-      environmentId: payload.environment.environmentId,
-      bootstrapProjectId: payload.bootstrapProjectId ?? null,
-      bootstrapThreadId: payload.bootstrapThreadId ?? null,
-    });
-
     updatePrimaryEnvironmentDescriptor(payload.environment);
     setActiveEnvironmentId(payload.environment.environmentId);
     void (async () => {
-      traceBrowserEvent("root.lifecycle.ensure-environment-bootstrap.start", {
-        environmentId: payload.environment.environmentId,
-      });
       await ensureEnvironmentConnectionBootstrapped(payload.environment.environmentId);
       if (disposedRef.current) {
         return;
       }
-      traceBrowserEvent("root.lifecycle.ensure-environment-bootstrap.done", {
-        environmentId: payload.environment.environmentId,
-      });
 
       if (!payload.bootstrapProjectId || !payload.bootstrapThreadId) {
         return;
@@ -276,7 +287,7 @@ function EventRouter() {
           : scopedProjectKey(bootstrapProjectRef));
       useUiStateStore.getState().setProjectExpanded(bootstrapProjectKey, true);
     })().catch((error) => {
-      traceBrowserEvent("root.lifecycle.welcome-handler.failed", { error }, "error");
+      console.error("Failed to handle server lifecycle welcome.", error);
     });
   });
 
@@ -328,8 +339,10 @@ function EventRouter() {
                 toastManager.add({
                   type: "error",
                   title: "Unable to open keybindings file",
-                  description:
-                    error instanceof Error ? error.message : "Unknown error opening file.",
+                  description: formatSchemaBackedTransportErrorDescription(
+                    error,
+                    "Unknown error opening file.",
+                  ),
                 });
               });
           },
@@ -338,50 +351,58 @@ function EventRouter() {
     },
   );
 
-  useEffect(() => {
-    if (!serverEnvironment) {
-      return;
-    }
+  useMountEffect(() => {
+    disposedRef.current = false;
+    return () => {
+      disposedRef.current = true;
+    };
+  });
 
-    updatePrimaryEnvironmentDescriptor(serverEnvironment);
-    setActiveEnvironmentId(serverEnvironment.environmentId);
+  useServerWelcomeSubscription(handleWelcome);
+  useServerConfigUpdatedSubscription(handleServerConfigUpdated);
+
+  return serverEnvironment ? (
+    <ServerEnvironmentBootstrap
+      key={serverEnvironmentKey(serverEnvironment)}
+      serverEnvironment={serverEnvironment}
+      setActiveEnvironmentId={setActiveEnvironmentId}
+    />
+  ) : null;
+}
+
+function serverEnvironmentKey(serverEnvironment: ServerEnvironmentDescriptor): string {
+  return JSON.stringify(serverEnvironment);
+}
+
+function ServerEnvironmentBootstrap(props: {
+  readonly serverEnvironment: ServerEnvironmentDescriptor;
+  readonly setActiveEnvironmentId: SetActiveEnvironmentId;
+}) {
+  useMountEffect(() => {
+    updatePrimaryEnvironmentDescriptor(props.serverEnvironment);
+    props.setActiveEnvironmentId(props.serverEnvironment.environmentId);
 
     if (
-      selectEnvironmentState(useStore.getState(), serverEnvironment.environmentId).bootstrapComplete
+      selectEnvironmentState(useStore.getState(), props.serverEnvironment.environmentId)
+        .bootstrapComplete
     ) {
       return;
     }
 
     let disposed = false;
     void (async () => {
-      traceBrowserEvent("root.server-environment.ensure-bootstrap.start", {
-        environmentId: serverEnvironment.environmentId,
-      });
-      await ensureEnvironmentConnectionBootstrapped(serverEnvironment.environmentId);
+      await ensureEnvironmentConnectionBootstrapped(props.serverEnvironment.environmentId);
       if (disposed) {
         return;
       }
-      traceBrowserEvent("root.server-environment.ensure-bootstrap.done", {
-        environmentId: serverEnvironment.environmentId,
-      });
     })().catch((error) => {
-      traceBrowserEvent("root.server-environment.ensure-bootstrap.failed", { error }, "error");
+      console.error("Failed to bootstrap server environment connection.", error);
     });
 
     return () => {
       disposed = true;
     };
-  }, [serverEnvironment, setActiveEnvironmentId]);
-
-  useEffect(() => {
-    disposedRef.current = false;
-    return () => {
-      disposedRef.current = true;
-    };
-  }, []);
-
-  useServerWelcomeSubscription(handleWelcome);
-  useServerConfigUpdatedSubscription(handleServerConfigUpdated);
+  });
 
   return null;
 }

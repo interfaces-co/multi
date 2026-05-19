@@ -1,11 +1,11 @@
 import type { ProviderInteractionMode, RuntimeMode } from "@multi/contracts";
 
-import type { ComposerImageAttachment } from "../../../composer-draft-store";
-import type { QueuedComposerItem, QueuedComposerItemId } from "../../../composer-queue-store";
+import type { ComposerImageAttachment } from "../../../stores/chat-drafts";
+import type { QueuedComposerItem, QueuedComposerItemId } from "../../../stores/chat-send-queue";
 import type { TerminalContextDraft } from "../../../lib/terminal-context";
 import { formatTerminalContextLabel } from "../../../lib/terminal-context";
-import { readFileAsDataUrl } from "../composer/composer-send";
-import type { ComposerInputHandle } from "../composer/composer-input";
+import { readFileAsDataUrl } from "../composer/send";
+import type { ComposerInputHandle } from "../composer/input";
 
 export type ComposerInputSendContext = ReturnType<ComposerInputHandle["getSendContext"]>;
 
@@ -56,14 +56,23 @@ export function readComposerImageAttachmentsForTurn(images: readonly ComposerIma
   );
 }
 
-export function resolveComposerThreadTitleSeed(input: {
+const THREAD_TITLE_MAX_LENGTH = 50;
+
+export function resolveComposerThreadTitle(input: {
   trimmedPrompt: string;
   composerImages: readonly ComposerImageAttachment[];
   terminalContexts: readonly TerminalContextDraft[];
 }): string {
-  if (input.trimmedPrompt) {
-    return input.trimmedPrompt;
-  }
+  const seed = resolveComposerThreadTitleSeed(input);
+  return trimThreadTitle(seed);
+}
+
+function resolveComposerThreadTitleSeed(input: {
+  trimmedPrompt: string;
+  composerImages: readonly ComposerImageAttachment[];
+  terminalContexts: readonly TerminalContextDraft[];
+}): string {
+  if (input.trimmedPrompt) return input.trimmedPrompt;
 
   const firstComposerImage = input.composerImages[0];
   if (firstComposerImage) {
@@ -76,4 +85,13 @@ export function resolveComposerThreadTitleSeed(input: {
   }
 
   return "New thread";
+}
+
+function trimThreadTitle(text: string): string {
+  const trimmed = text.trim();
+  if (trimmed.length <= THREAD_TITLE_MAX_LENGTH) {
+    return trimmed;
+  }
+
+  return `${trimmed.slice(0, THREAD_TITLE_MAX_LENGTH)}...`;
 }

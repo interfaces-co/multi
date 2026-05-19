@@ -1,16 +1,6 @@
 import Mime from "@effect/platform-node/Mime";
-import { appendFile } from "node:fs/promises";
 import { Data, Effect, FileSystem, Option, Path } from "effect";
-import { cast } from "effect/Function";
-import {
-  HttpBody,
-  HttpClient,
-  HttpClientResponse,
-  HttpRouter,
-  HttpServerResponse,
-  HttpServerRequest,
-} from "effect/unstable/http";
-import { OtlpTracer } from "effect/unstable/observability";
+import { HttpRouter, HttpServerResponse, HttpServerRequest } from "effect/unstable/http";
 
 import {
   ATTACHMENTS_ROUTE_PREFIX,
@@ -19,8 +9,6 @@ import {
 } from "./attachment-paths";
 import { resolveAttachmentPathById } from "./attachment-store";
 import { resolveStaticDir, ServerConfig } from "./config";
-import { decodeOtlpTraceRecords } from "./observability/TraceRecord.ts";
-import { BrowserTraceCollector } from "./observability/BrowserTraceCollector.service.ts";
 import { ProjectFaviconResolver } from "./project/ProjectFaviconResolver.service";
 import { ServerAuth } from "./auth/ServerAuth.service.ts";
 import { respondToAuthError } from "./auth/http.ts";
@@ -28,12 +16,11 @@ import { ServerEnvironment } from "./environment/ServerEnvironment.service.ts";
 
 const PROJECT_FAVICON_CACHE_CONTROL = "public, max-age=3600";
 const FALLBACK_PROJECT_FAVICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#6b728080" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-fallback="project-favicon"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2Z"/></svg>`;
-const OTLP_TRACES_PROXY_PATH = "/api/observability/v1/traces";
 const LOOPBACK_HOSTNAMES = new Set(["127.0.0.1", "::1", "localhost"]);
 
 export const browserApiCorsLayer = HttpRouter.cors({
   allowedMethods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["authorization", "b3", "traceparent", "content-type"],
+  allowedHeaders: ["authorization", "content-type"],
   maxAge: 600,
 });
 
@@ -59,6 +46,97 @@ const requireAuthenticatedRequest = Effect.gen(function* () {
   yield* serverAuth.authenticateHttpRequest(request);
 });
 
+class AttachmentRequestUrlError extends Data.TaggedError("AttachmentRequestUrlError")<{}> {}
+
+class AttachmentPathError extends Data.TaggedError("AttachmentPathError")<{}> {}
+
+class AttachmentNotFoundError extends Data.TaggedError("AttachmentNotFoundError")<{}> {}
+
+class AttachmentServeError extends Data.TaggedError("AttachmentServeError")<{
+  readonly cause: unknown;
+}> {}
+
+type AttachmentRouteError =
+  | AttachmentRequestUrlError
+  | AttachmentPathError
+  | AttachmentNotFoundError
+  | AttachmentServeError;
+
+function respondToAttachmentRouteError(error: AttachmentRouteError) {
+  switch (error._tag) {
+    case "AttachmentRequestUrlError":
+      return Effect.succeed(HttpServerResponse.text("Bad Request", { status: 400 }));
+    case "AttachmentPathError":
+      return Effect.succeed(HttpServerResponse.text("Invalid attachment path", { status: 400 }));
+    case "AttachmentNotFoundError":
+      return Effect.succeed(HttpServerResponse.text("Not Found", { status: 404 }));
+    case "AttachmentServeError":
+      return Effect.succeed(HttpServerResponse.text("Internal Server Error", { status: 500 }));
+  }
+}
+
+class ProjectFaviconRequestUrlError extends Data.TaggedError("ProjectFaviconRequestUrlError")<{}> {}
+
+class ProjectFaviconMissingCwdError extends Data.TaggedError("ProjectFaviconMissingCwdError")<{}> {}
+
+class ProjectFaviconServeError extends Data.TaggedError("ProjectFaviconServeError")<{
+  readonly cause: unknown;
+}> {}
+
+type ProjectFaviconRouteError =
+  | ProjectFaviconRequestUrlError
+  | ProjectFaviconMissingCwdError
+  | ProjectFaviconServeError;
+
+function respondToProjectFaviconRouteError(error: ProjectFaviconRouteError) {
+  switch (error._tag) {
+    case "ProjectFaviconRequestUrlError":
+      return Effect.succeed(HttpServerResponse.text("Bad Request", { status: 400 }));
+    case "ProjectFaviconMissingCwdError":
+      return Effect.succeed(HttpServerResponse.text("Missing cwd parameter", { status: 400 }));
+    case "ProjectFaviconServeError":
+      return Effect.succeed(HttpServerResponse.text("Internal Server Error", { status: 500 }));
+  }
+}
+
+class StaticRequestUrlError extends Data.TaggedError("StaticRequestUrlError")<{}> {}
+
+class StaticUnavailableError extends Data.TaggedError("StaticUnavailableError")<{}> {}
+
+class StaticPathError extends Data.TaggedError("StaticPathError")<{}> {}
+
+class StaticNotFoundError extends Data.TaggedError("StaticNotFoundError")<{}> {}
+
+class StaticServeError extends Data.TaggedError("StaticServeError")<{
+  readonly cause: unknown;
+}> {}
+
+type StaticRouteError =
+  | StaticRequestUrlError
+  | StaticUnavailableError
+  | StaticPathError
+  | StaticNotFoundError
+  | StaticServeError;
+
+function respondToStaticRouteError(error: StaticRouteError) {
+  switch (error._tag) {
+    case "StaticRequestUrlError":
+      return Effect.succeed(HttpServerResponse.text("Bad Request", { status: 400 }));
+    case "StaticUnavailableError":
+      return Effect.succeed(
+        HttpServerResponse.text("No static directory configured and no dev URL set.", {
+          status: 503,
+        }),
+      );
+    case "StaticPathError":
+      return Effect.succeed(HttpServerResponse.text("Invalid static file path", { status: 400 }));
+    case "StaticNotFoundError":
+      return Effect.succeed(HttpServerResponse.text("Not Found", { status: 404 }));
+    case "StaticServeError":
+      return Effect.succeed(HttpServerResponse.text("Internal Server Error", { status: 500 }));
+  }
+}
+
 export const serverEnvironmentRouteLayer = HttpRouter.add(
   "GET",
   "/.well-known/multi/environment",
@@ -70,111 +148,6 @@ export const serverEnvironmentRouteLayer = HttpRouter.add(
   }),
 );
 
-class DecodeOtlpTraceRecordsError extends Data.TaggedError("DecodeOtlpTraceRecordsError")<{
-  readonly cause: unknown;
-  readonly bodyJson: OtlpTracer.TraceData;
-}> {}
-
-export const otlpTracesProxyRouteLayer = HttpRouter.add(
-  "POST",
-  OTLP_TRACES_PROXY_PATH,
-  Effect.gen(function* () {
-    yield* requireAuthenticatedRequest;
-    const request = yield* HttpServerRequest.HttpServerRequest;
-    const config = yield* ServerConfig;
-    const otlpTracesUrl = config.otlpTracesUrl;
-    const browserTraceCollector = yield* BrowserTraceCollector;
-    const httpClient = yield* HttpClient.HttpClient;
-    const bodyJson = cast<unknown, OtlpTracer.TraceData>(yield* request.json);
-
-    yield* Effect.try({
-      try: () => decodeOtlpTraceRecords(bodyJson),
-      catch: (cause) => new DecodeOtlpTraceRecordsError({ cause, bodyJson }),
-    }).pipe(
-      Effect.flatMap((records) => browserTraceCollector.record(records)),
-      Effect.catch((cause) =>
-        Effect.logWarning("Failed to decode browser OTLP traces", {
-          cause,
-          bodyJson,
-        }),
-      ),
-    );
-
-    if (otlpTracesUrl === undefined) {
-      return HttpServerResponse.empty({ status: 204 });
-    }
-
-    return yield* httpClient
-      .post(otlpTracesUrl, {
-        body: HttpBody.jsonUnsafe(bodyJson),
-      })
-      .pipe(
-        Effect.flatMap(HttpClientResponse.filterStatusOk),
-        Effect.as(HttpServerResponse.empty({ status: 204 })),
-        Effect.tapError((cause) =>
-          Effect.logWarning("Failed to export browser OTLP traces", {
-            cause,
-            otlpTracesUrl,
-          }),
-        ),
-        Effect.catch(() =>
-          Effect.succeed(HttpServerResponse.text("Trace export failed.", { status: 502 })),
-        ),
-      );
-  }).pipe(Effect.catchTag("AuthError", respondToAuthError)),
-);
-
-function normalizeDebugEventsPayload(input: unknown): ReadonlyArray<unknown> {
-  if (
-    input &&
-    typeof input === "object" &&
-    "events" in input &&
-    Array.isArray((input as { readonly events?: unknown }).events)
-  ) {
-    return (input as { readonly events: ReadonlyArray<unknown> }).events;
-  }
-  if (Array.isArray(input)) {
-    return input;
-  }
-  return [input];
-}
-
-function encodeDebugEventLine(event: unknown, index: number): string {
-  return `${JSON.stringify({
-    source: "browser",
-    receivedAt: new Date().toISOString(),
-    index,
-    event,
-  })}\n`;
-}
-
-export const browserDebugEventsRouteLayer = HttpRouter.add(
-  "POST",
-  "/api/debug/browser-events",
-  Effect.gen(function* () {
-    const request = yield* HttpServerRequest.HttpServerRequest;
-    const config = yield* ServerConfig;
-    const body = yield* request.json;
-    const events = normalizeDebugEventsPayload(body);
-    const filePath = `${config.logsDir}/browser-debug.ndjson`;
-    const contents = events.map(encodeDebugEventLine).join("");
-
-    if (contents.length > 0) {
-      yield* Effect.tryPromise(() => appendFile(filePath, contents, "utf8")).pipe(
-        Effect.tapError((cause) =>
-          Effect.logWarning("Failed to append browser debug event", {
-            cause,
-            filePath,
-          }),
-        ),
-        Effect.catch(() => Effect.void),
-      );
-    }
-
-    return HttpServerResponse.jsonUnsafe({ ok: true, path: filePath }, { status: 202 });
-  }),
-);
-
 export const attachmentsRouteLayer = HttpRouter.add(
   "GET",
   `${ATTACHMENTS_ROUTE_PREFIX}/*`,
@@ -183,14 +156,14 @@ export const attachmentsRouteLayer = HttpRouter.add(
     const request = yield* HttpServerRequest.HttpServerRequest;
     const url = HttpServerRequest.toURL(request);
     if (Option.isNone(url)) {
-      return HttpServerResponse.text("Bad Request", { status: 400 });
+      return yield* new AttachmentRequestUrlError();
     }
 
     const config = yield* ServerConfig;
     const rawRelativePath = url.value.pathname.slice(ATTACHMENTS_ROUTE_PREFIX.length);
     const normalizedRelativePath = normalizeAttachmentRelativePath(rawRelativePath);
     if (!normalizedRelativePath) {
-      return HttpServerResponse.text("Invalid attachment path", { status: 400 });
+      return yield* new AttachmentPathError();
     }
 
     const isIdLookup =
@@ -205,9 +178,7 @@ export const attachmentsRouteLayer = HttpRouter.add(
           relativePath: normalizedRelativePath,
         });
     if (!filePath) {
-      return HttpServerResponse.text(isIdLookup ? "Not Found" : "Invalid attachment path", {
-        status: isIdLookup ? 404 : 400,
-      });
+      return yield* (isIdLookup ? new AttachmentNotFoundError() : new AttachmentPathError());
     }
 
     const fileSystem = yield* FileSystem.FileSystem;
@@ -215,7 +186,7 @@ export const attachmentsRouteLayer = HttpRouter.add(
       .stat(filePath)
       .pipe(Effect.catch(() => Effect.succeed(null)));
     if (!fileInfo || fileInfo.type !== "File") {
-      return HttpServerResponse.text("Not Found", { status: 404 });
+      return yield* new AttachmentNotFoundError();
     }
 
     return yield* HttpServerResponse.file(filePath, {
@@ -224,11 +195,22 @@ export const attachmentsRouteLayer = HttpRouter.add(
         "Cache-Control": "public, max-age=31536000, immutable",
       },
     }).pipe(
-      Effect.catch(() =>
-        Effect.succeed(HttpServerResponse.text("Internal Server Error", { status: 500 })),
+      Effect.mapError(
+        (cause) =>
+          new AttachmentServeError({
+            cause,
+          }),
       ),
     );
-  }).pipe(Effect.catchTag("AuthError", respondToAuthError)),
+  }).pipe(
+    Effect.catchTag("AuthError", respondToAuthError),
+    Effect.catchTags({
+      AttachmentRequestUrlError: respondToAttachmentRouteError,
+      AttachmentPathError: respondToAttachmentRouteError,
+      AttachmentNotFoundError: respondToAttachmentRouteError,
+      AttachmentServeError: respondToAttachmentRouteError,
+    }),
+  ),
 );
 
 export const projectFaviconRouteLayer = HttpRouter.add(
@@ -239,12 +221,12 @@ export const projectFaviconRouteLayer = HttpRouter.add(
     const request = yield* HttpServerRequest.HttpServerRequest;
     const url = HttpServerRequest.toURL(request);
     if (Option.isNone(url)) {
-      return HttpServerResponse.text("Bad Request", { status: 400 });
+      return yield* new ProjectFaviconRequestUrlError();
     }
 
     const projectCwd = url.value.searchParams.get("cwd");
     if (!projectCwd) {
-      return HttpServerResponse.text("Missing cwd parameter", { status: 400 });
+      return yield* new ProjectFaviconMissingCwdError();
     }
 
     const faviconResolver = yield* ProjectFaviconResolver;
@@ -265,11 +247,21 @@ export const projectFaviconRouteLayer = HttpRouter.add(
         "Cache-Control": PROJECT_FAVICON_CACHE_CONTROL,
       },
     }).pipe(
-      Effect.catch(() =>
-        Effect.succeed(HttpServerResponse.text("Internal Server Error", { status: 500 })),
+      Effect.mapError(
+        (cause) =>
+          new ProjectFaviconServeError({
+            cause,
+          }),
       ),
     );
-  }).pipe(Effect.catchTag("AuthError", respondToAuthError)),
+  }).pipe(
+    Effect.catchTag("AuthError", respondToAuthError),
+    Effect.catchTags({
+      ProjectFaviconRequestUrlError: respondToProjectFaviconRouteError,
+      ProjectFaviconMissingCwdError: respondToProjectFaviconRouteError,
+      ProjectFaviconServeError: respondToProjectFaviconRouteError,
+    }),
+  ),
 );
 
 export const staticAndDevRouteLayer = HttpRouter.add(
@@ -280,7 +272,7 @@ export const staticAndDevRouteLayer = HttpRouter.add(
     const url = HttpServerRequest.toURL(request);
 
     if (Option.isNone(url)) {
-      return HttpServerResponse.text("Bad Request", { status: 400 });
+      return yield* new StaticRequestUrlError();
     }
 
     const config = yield* ServerConfig;
@@ -292,9 +284,7 @@ export const staticAndDevRouteLayer = HttpRouter.add(
 
     const staticDir = config.staticDir ?? (config.devUrl ? yield* resolveStaticDir() : undefined);
     if (!staticDir) {
-      return HttpServerResponse.text("No static directory configured and no dev URL set.", {
-        status: 503,
-      });
+      return yield* new StaticUnavailableError();
     }
 
     const fileSystem = yield* FileSystem.FileSystem;
@@ -311,7 +301,7 @@ export const staticAndDevRouteLayer = HttpRouter.add(
       hasPathTraversalSegment ||
       staticRelativePath.includes("\0")
     ) {
-      return HttpServerResponse.text("Invalid static file path", { status: 400 });
+      return yield* new StaticPathError();
     }
 
     const isWithinStaticRoot = (candidate: string) =>
@@ -320,14 +310,14 @@ export const staticAndDevRouteLayer = HttpRouter.add(
 
     let filePath = path.resolve(staticRoot, staticRelativePath);
     if (!isWithinStaticRoot(filePath)) {
-      return HttpServerResponse.text("Invalid static file path", { status: 400 });
+      return yield* new StaticPathError();
     }
 
     const ext = path.extname(filePath);
     if (!ext) {
       filePath = path.resolve(filePath, "index.html");
       if (!isWithinStaticRoot(filePath)) {
-        return HttpServerResponse.text("Invalid static file path", { status: 400 });
+        return yield* new StaticPathError();
       }
     }
 
@@ -338,10 +328,7 @@ export const staticAndDevRouteLayer = HttpRouter.add(
       const indexPath = path.resolve(staticRoot, "index.html");
       const indexData = yield* fileSystem
         .readFile(indexPath)
-        .pipe(Effect.catch(() => Effect.succeed(null)));
-      if (!indexData) {
-        return HttpServerResponse.text("Not Found", { status: 404 });
-      }
+        .pipe(Effect.mapError(() => new StaticNotFoundError()));
       return HttpServerResponse.uint8Array(indexData, {
         status: 200,
         contentType: "text/html; charset=utf-8",
@@ -351,14 +338,19 @@ export const staticAndDevRouteLayer = HttpRouter.add(
     const contentType = Mime.getType(filePath) ?? "application/octet-stream";
     const data = yield* fileSystem
       .readFile(filePath)
-      .pipe(Effect.catch(() => Effect.succeed(null)));
-    if (!data) {
-      return HttpServerResponse.text("Internal Server Error", { status: 500 });
-    }
+      .pipe(Effect.mapError((cause) => new StaticServeError({ cause })));
 
     return HttpServerResponse.uint8Array(data, {
       status: 200,
       contentType,
     });
-  }),
+  }).pipe(
+    Effect.catchTags({
+      StaticRequestUrlError: respondToStaticRouteError,
+      StaticUnavailableError: respondToStaticRouteError,
+      StaticPathError: respondToStaticRouteError,
+      StaticNotFoundError: respondToStaticRouteError,
+      StaticServeError: respondToStaticRouteError,
+    }),
+  ),
 );

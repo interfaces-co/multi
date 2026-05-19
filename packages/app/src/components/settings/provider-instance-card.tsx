@@ -6,7 +6,7 @@ import {
   IconTrashCan as Trash2Icon,
   IconCrossMediumDefault as XIcon,
 } from "central-icons";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   isProviderDriverKind,
   type ProviderInstanceConfig,
@@ -18,7 +18,7 @@ import {
 } from "@multi/contracts";
 
 import { cn } from "../../lib/utils";
-import { normalizeProviderAccentColor } from "../../provider-instances";
+import { normalizeProviderAccentColor } from "../../model/provider-instances";
 import { Badge } from "@multi/ui/badge";
 import { Button } from "@multi/ui/button";
 import { Collapsible, CollapsibleContent } from "@multi/ui/collapsible";
@@ -30,12 +30,6 @@ import type { DriverOption } from "./provider-driver-meta";
 import { ProviderSettingsForm } from "./provider-settings-form";
 import { ProviderModelsSection } from "./provider-models-section";
 import { ProviderInstanceIcon } from "../chat/picker/instance-icon";
-import {
-  PROVIDER_STATUS_STYLES,
-  getProviderSummary,
-  getProviderVersionLabel,
-  type ProviderStatusKey,
-} from "./provider-status";
 
 const PROVIDER_ACCENT_SWATCHES = [
   "#2563eb",
@@ -104,7 +98,7 @@ function nextConfigBlobWithValue(
   return base;
 }
 
-export function deriveProviderModelsForDisplay(input: {
+function deriveProviderModelsForDisplay(input: {
   readonly liveModels: ReadonlyArray<ServerProviderModel> | undefined;
   readonly customModels: ReadonlyArray<string>;
 }): ReadonlyArray<ServerProviderModel> {
@@ -126,6 +120,80 @@ export function deriveProviderModelsForDisplay(input: {
   return [...serverModels, ...customModels];
 }
 
+const PROVIDER_STATUS_STYLES = {
+  disabled: {
+    dot: "bg-amber-400",
+  },
+  error: {
+    dot: "bg-destructive",
+  },
+  ready: {
+    dot: "bg-success",
+  },
+  warning: {
+    dot: "bg-warning",
+  },
+} as const;
+
+type ProviderStatusKey = keyof typeof PROVIDER_STATUS_STYLES;
+
+function getProviderSummary(provider: ServerProvider | undefined) {
+  if (!provider) {
+    return {
+      headline: "Checking provider status",
+      detail: "Waiting for the server to report installation and authentication details.",
+    };
+  }
+  if (!provider.enabled) {
+    return {
+      headline: "Disabled",
+      detail:
+        provider.message ?? "This provider is installed but disabled for new sessions in T3 Code.",
+    };
+  }
+  if (!provider.installed) {
+    return {
+      headline: "Not found",
+      detail: provider.message ?? "CLI not detected on PATH.",
+    };
+  }
+  if (provider.auth.status === "authenticated") {
+    const authLabel = provider.auth.label ?? provider.auth.type;
+    return {
+      headline: authLabel ? `Authenticated · ${authLabel}` : "Authenticated",
+      detail: provider.message ?? null,
+    };
+  }
+  if (provider.auth.status === "unauthenticated") {
+    return {
+      headline: "Not authenticated",
+      detail: provider.message ?? null,
+    };
+  }
+  if (provider.status === "warning") {
+    return {
+      headline: "Needs attention",
+      detail:
+        provider.message ?? "The provider is installed, but the server could not fully verify it.",
+    };
+  }
+  if (provider.status === "error") {
+    return {
+      headline: "Unavailable",
+      detail: provider.message ?? "The provider failed its startup checks.",
+    };
+  }
+  return {
+    headline: "Available",
+    detail: provider.message ?? "Installed and ready, but authentication could not be verified.",
+  };
+}
+
+function getProviderVersionLabel(version: string | null | undefined) {
+  if (!version) return null;
+  return version.startsWith("v") ? version : `v${version}`;
+}
+
 function ProviderAccentColorPicker(props: {
   readonly displayName: string;
   readonly value: string | undefined;
@@ -133,12 +201,8 @@ function ProviderAccentColorPicker(props: {
 }) {
   const [draft, setDraft] = useState(props.value ?? "");
   const [isEditing, setIsEditing] = useState(false);
-  const draftColor = normalizeProviderAccentColor(draft);
-
-  useEffect(() => {
-    if (isEditing) return;
-    setDraft(props.value ?? "");
-  }, [isEditing, props.value]);
+  const displayedDraft = isEditing ? draft : (props.value ?? "");
+  const draftColor = normalizeProviderAccentColor(displayedDraft);
 
   const commitDraft = () => {
     setIsEditing(false);
@@ -158,7 +222,10 @@ function ProviderAccentColorPicker(props: {
         <input
           type="color"
           value={draftColor ?? PROVIDER_ACCENT_SWATCHES[0]}
-          onFocus={() => setIsEditing(true)}
+          onFocus={() => {
+            setIsEditing(true);
+            setDraft(props.value ?? "");
+          }}
           onInput={(event) => {
             setIsEditing(true);
             setDraft(event.currentTarget.value);
@@ -218,13 +285,32 @@ function ProviderEnvironmentSection(props: {
   readonly environment: ReadonlyArray<ProviderInstanceEnvironmentVariable>;
   readonly onChange: (environment: ReadonlyArray<ProviderInstanceEnvironmentVariable>) => void;
 }) {
+  return <ProviderEnvironmentDraftRows key={environmentDraftKey(props.environment)} {...props} />;
+}
+
+function environmentDraftKey(
+  environment: ReadonlyArray<ProviderInstanceEnvironmentVariable>,
+): string {
+  return environment
+    .map((variable, index) =>
+      JSON.stringify([
+        index,
+        variable.name,
+        variable.value,
+        variable.sensitive,
+        variable.valueRedacted ?? null,
+      ]),
+    )
+    .join("\n");
+}
+
+function ProviderEnvironmentDraftRows(props: {
+  readonly environment: ReadonlyArray<ProviderInstanceEnvironmentVariable>;
+  readonly onChange: (environment: ReadonlyArray<ProviderInstanceEnvironmentVariable>) => void;
+}) {
   const [rows, setRows] = useState<ReadonlyArray<EnvironmentDraftRow>>(() =>
     props.environment.map(makeEnvironmentDraftRow),
   );
-
-  useEffect(() => {
-    setRows(props.environment.map(makeEnvironmentDraftRow));
-  }, [props.environment]);
 
   const publishRows = (nextRows: ReadonlyArray<EnvironmentDraftRow>) => {
     const published: ProviderInstanceEnvironmentVariable[] = [];

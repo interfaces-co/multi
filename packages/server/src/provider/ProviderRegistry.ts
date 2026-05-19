@@ -34,9 +34,6 @@ const loadProviders = (
     concurrency: "unbounded",
   });
 
-const hasModelCapabilities = (model: ServerProvider["models"][number]): boolean =>
-  (model.capabilities?.optionDescriptors?.length ?? 0) > 0;
-
 const mergeProviderModels = (
   previousModels: ReadonlyArray<ServerProvider["models"][number]>,
   nextModels: ReadonlyArray<ServerProvider["models"][number]>,
@@ -45,19 +42,8 @@ const mergeProviderModels = (
     return previousModels;
   }
 
-  const previousBySlug = new Map(previousModels.map((model) => [model.slug, model] as const));
-  const mergedModels = nextModels.map((model) => {
-    const previousModel = previousBySlug.get(model.slug);
-    if (!previousModel || hasModelCapabilities(model) || !hasModelCapabilities(previousModel)) {
-      return model;
-    }
-    return {
-      ...model,
-      capabilities: previousModel.capabilities,
-    };
-  });
   const nextSlugs = new Set(nextModels.map((model) => model.slug));
-  return [...mergedModels, ...previousModels.filter((model) => !nextSlugs.has(model.slug))];
+  return [...nextModels, ...previousModels.filter((model) => !nextSlugs.has(model.slug))];
 };
 
 export const mergeProviderSnapshot = (
@@ -82,11 +68,10 @@ const ProviderRegistryLiveBase = Layer.effect(
     const codexProvider = yield* CodexProvider;
     const claudeProvider = yield* ClaudeProvider;
     const openCodeProvider = yield* OpenCodeProvider;
+    const cursorProvider = yield* CursorProvider;
     const config = yield* ServerConfig;
     const fileSystem = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
-
-    const cursorProvider = yield* CursorProvider;
 
     const providerSources = createBuiltInProviderSources({
       codex: codexProvider,
@@ -253,10 +238,10 @@ const ProviderRegistryLiveBase = Layer.effect(
 export const ProviderRegistryLive = Layer.unwrap(
   Effect.sync(() =>
     ProviderRegistryLiveBase.pipe(
-      Layer.provideMerge(CursorProviderLive),
       Layer.provideMerge(CodexProviderLive),
       Layer.provideMerge(ClaudeProviderLive),
       Layer.provideMerge(OpenCodeProviderLive),
+      Layer.provideMerge(CursorProviderLive),
       Layer.provideMerge(OpenCodeRuntimeLive),
     ),
   ),

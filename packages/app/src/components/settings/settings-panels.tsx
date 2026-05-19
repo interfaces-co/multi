@@ -1,5 +1,5 @@
 import {
-  IconArchive,
+  IconArchive1,
   IconArchiveJunk,
   IconChevronRightMedium,
   IconLoader,
@@ -7,7 +7,7 @@ import {
 } from "central-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { useDebouncer } from "@tanstack/react-pacer";
-import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, useCallback, useMemo, useRef, useState } from "react";
 import {
   type AgentWindowSendWhileStreamingBehavior,
   type AgentWindowUsageSummaryDisplay,
@@ -21,7 +21,7 @@ import { scopeThreadRef } from "@multi/client-runtime";
 import { DEFAULT_UNIFIED_SETTINGS, type UnifiedSettings } from "@multi/contracts/settings";
 import { createModelSelection } from "@multi/shared/model";
 import { Equal } from "effect";
-import { APP_VERSION } from "../../branding";
+import { APP_VERSION } from "~/app/branding";
 import {
   DEFAULT_APPEARANCE_SNAPSHOT,
   appearanceSettingsActions,
@@ -35,7 +35,7 @@ import {
 } from "../../components/desktop-update-state";
 import { ProviderModelPicker } from "../chat/picker/model-picker";
 import { TraitsPicker } from "../chat/picker/traits-picker";
-import { resolveAndPersistPreferredEditor } from "../../editor-preferences";
+import { resolveAndPersistPreferredEditor } from "../../editor/preferences";
 import { isElectron } from "../../env";
 import { useTheme } from "../../hooks/use-theme";
 import { useSettings, useUpdateSettings } from "../../hooks/use-settings";
@@ -44,18 +44,15 @@ import {
   setDesktopUpdateStateQueryData,
   useDesktopUpdateState,
 } from "../../lib/desktop-update-react-query";
-import {
-  getCustomModelOptionsByInstance,
-  resolveAppModelSelectionState,
-} from "../../model-selection";
+import { resolveAppProviderModelState } from "../../model/selection";
 import { ensureLocalApi, readLocalApi } from "../../local-api";
 import { useShallow } from "zustand/react/shallow";
 import {
   selectProjectsAcrossEnvironments,
   selectThreadShellsAcrossEnvironments,
   useStore,
-} from "../../store";
-import { formatRelativeTimeLabel } from "../../timestamp-format";
+} from "../../stores/thread-store";
+import { formatRelativeTimeLabel } from "../../lib/timestamp-format";
 import { Button } from "@multi/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@multi/ui/empty";
 import { Input } from "@multi/ui/input";
@@ -63,10 +60,7 @@ import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "@mu
 import { Switch } from "@multi/ui/switch";
 import { Text, textVariants } from "@multi/ui/text";
 import { toastManager } from "~/app/toast";
-import {
-  deriveProviderInstanceEntriesForSettings,
-  sortProviderInstanceEntries,
-} from "../../provider-instances";
+import { formatProviderErrorDescription } from "~/lib/provider-error-description";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@multi/ui/tooltip";
 import {
   SettingResetButton,
@@ -149,6 +143,14 @@ function buildProviderInstanceUpdatePatch(input: {
       ? { textGenerationModelSelection: input.textGenerationModelSelection }
       : {}),
   };
+}
+
+function showProviderSettingsError(title: string, error: unknown): void {
+  toastManager.add({
+    type: "error",
+    title,
+    description: formatProviderErrorDescription(error, "Provider settings update failed."),
+  });
 }
 
 function AboutVersionTitle() {
@@ -376,10 +378,14 @@ export function useSettingsRestore(onRestored?: () => void) {
     );
     if (!confirmed) return;
 
-    setTheme("system");
-    appearanceSettingsActions.reset();
-    resetSettings();
-    onRestored?.();
+    try {
+      setTheme("system");
+      appearanceSettingsActions.reset();
+      await resetSettings();
+      onRestored?.();
+    } catch (error) {
+      showProviderSettingsError("Failed to restore default settings", error);
+    }
   }, [changedSettingLabels, onRestored, resetSettings, setTheme]);
 
   return {
@@ -490,12 +496,6 @@ function FontFamilyInput(props: {
     onUnmount: (debouncer) => debouncer.flush(),
   });
 
-  const onDraftValueChange = props.onDraftValueChange;
-  useEffect(() => {
-    setDraftValue(props.value);
-    onDraftValueChange?.(props.value);
-  }, [props.value, onDraftValueChange]);
-
   return (
     <Input
       size="sm"
@@ -511,6 +511,49 @@ function FontFamilyInput(props: {
         commitValue.maybeExecute(nextValue);
       }}
     />
+  );
+}
+
+function CodeFontFamilySettingsRow(props: { codeFont: string }) {
+  const [codeFontDraft, setCodeFontDraft] = useState(props.codeFont);
+  const codePreviewStyle = useMemo<CSSProperties>(
+    () => ({
+      fontFamily: codeFontDraft.trim() || "var(--multi-font-mono)",
+      fontSize: "var(--multi-code-font-size-user, 12px)",
+      lineHeight: "calc(var(--multi-code-font-size-user, 12px) * 1.45)",
+    }),
+    [codeFontDraft],
+  );
+
+  return (
+    <SettingsRow
+      title="Code Font Family"
+      description="Override the font for code editors and diffs."
+      control={
+        <FontFamilyInput
+          label="Code Font Family"
+          value={props.codeFont}
+          placeholder="System monospace"
+          onChange={appearanceSettingsActions.setCodeFontFamily}
+          onDraftValueChange={setCodeFontDraft}
+        />
+      }
+    >
+      <div className="mt-2 overflow-hidden rounded-sm" style={codePreviewStyle}>
+        <div className="flex bg-rose-500/10 text-foreground/72">
+          <span className="w-8 shrink-0 text-center text-rose-500/80">1</span>
+          <span>return a + b;</span>
+        </div>
+        <div className="flex bg-emerald-500/10 text-foreground/72">
+          <span className="w-8 shrink-0 text-center text-emerald-600/80">1</span>
+          <span>const result = a + b;</span>
+        </div>
+        <div className="flex bg-emerald-500/10 text-foreground/72">
+          <span className="w-8 shrink-0 text-center text-emerald-600/80">2</span>
+          <span>return result;</span>
+        </div>
+      </div>
+    </SettingsRow>
   );
 }
 
@@ -725,21 +768,8 @@ export function GeneralSettingsPanel() {
 export function AppearanceSettingsPanel() {
   const { theme, setTheme } = useTheme();
   const appearance = useAppearanceSettingsSnapshot();
-  const [codeFontDraft, setCodeFontDraft] = useState(appearance.codeFont);
   const settings = useSettings();
   const { updateSettings } = useUpdateSettings();
-  const codePreviewStyle = useMemo<CSSProperties>(
-    () => ({
-      fontFamily: codeFontDraft.trim() || "var(--multi-font-mono)",
-      fontSize: "var(--multi-code-font-size-user, 12px)",
-      lineHeight: "calc(var(--multi-code-font-size-user, 12px) * 1.45)",
-    }),
-    [codeFontDraft],
-  );
-
-  useEffect(() => {
-    setCodeFontDraft(appearance.codeFont);
-  }, [appearance.codeFont]);
 
   return (
     <SettingsPageContainer>
@@ -887,35 +917,7 @@ export function AppearanceSettingsPanel() {
             />
           }
         />
-        <SettingsRow
-          title="Code Font Family"
-          description="Override the font for code editors and diffs."
-          control={
-            <FontFamilyInput
-              key={appearance.codeFont}
-              label="Code Font Family"
-              value={appearance.codeFont}
-              placeholder="System monospace"
-              onChange={appearanceSettingsActions.setCodeFontFamily}
-              onDraftValueChange={setCodeFontDraft}
-            />
-          }
-        >
-          <div className="mt-2 overflow-hidden rounded-sm" style={codePreviewStyle}>
-            <div className="flex bg-rose-500/10 text-foreground/72">
-              <span className="w-8 shrink-0 text-center text-rose-500/80">1</span>
-              <span>return a + b;</span>
-            </div>
-            <div className="flex bg-emerald-500/10 text-foreground/72">
-              <span className="w-8 shrink-0 text-center text-emerald-600/80">1</span>
-              <span>const result = a + b;</span>
-            </div>
-            <div className="flex bg-emerald-500/10 text-foreground/72">
-              <span className="w-8 shrink-0 text-center text-emerald-600/80">2</span>
-              <span>return result;</span>
-            </div>
-          </div>
-        </SettingsRow>
+        <CodeFontFamilySettingsRow key={appearance.codeFont} codeFont={appearance.codeFont} />
       </SettingsSection>
 
       <SettingsSection title="Agent Window">
@@ -1282,8 +1284,6 @@ function withoutProviderInstanceFavorites(
   return favorites.filter((favorite) => favorite.provider !== instanceId);
 }
 
-const DEFAULT_DRIVER_KIND = ProviderDriverKind.make("codex");
-
 export function ModelsSettingsPanel() {
   const settings = useSettings();
   const { updateSettings } = useUpdateSettings();
@@ -1294,23 +1294,30 @@ export function ModelsSettingsPanel() {
   const refreshingRef = useRef<Promise<void> | null>(null);
 
   const visibleProviderSettings = PROVIDER_SETTINGS;
-  const textGenerationModelSelection = resolveAppModelSelectionState(settings, serverProviders);
+  const textGenerationModelState = resolveAppProviderModelState({
+    settings,
+    providers: serverProviders,
+    requestedSelection: settings.textGenerationModelSelection,
+  });
+  const textGenerationModelStatus =
+    textGenerationModelState.status.kind === "ready"
+      ? null
+      : textGenerationModelState.status.message;
+  const textGenerationModelSelection = textGenerationModelState.modelSelection;
   const textGenInstanceId = textGenerationModelSelection.instanceId;
   const textGenModel = textGenerationModelSelection.model;
   const textGenModelOptions = textGenerationModelSelection.options;
-  const modelInstanceEntries = sortProviderInstanceEntries(
-    deriveProviderInstanceEntriesForSettings(settings, serverProviders),
-  );
-  const textGenInstanceEntry = modelInstanceEntries.find(
-    (entry) => entry.instanceId === textGenInstanceId,
-  );
-  const textGenProvider: ProviderDriverKind =
-    textGenInstanceEntry?.driverKind ?? DEFAULT_DRIVER_KIND;
-  const gitModelOptionsByInstance = getCustomModelOptionsByInstance(
-    settings,
-    serverProviders,
-    textGenInstanceId,
-    textGenModel,
+  const modelInstanceEntries = textGenerationModelState.providerInstanceEntries;
+  const textGenInstanceEntry = textGenerationModelState.selectedProviderEntry;
+  const textGenProvider = textGenerationModelState.selectedProvider;
+  const resolveTextGenerationModelSelection = useCallback(
+    (nextSettings: UnifiedSettings) =>
+      resolveAppProviderModelState({
+        settings: nextSettings,
+        providers: serverProviders,
+        requestedSelection: nextSettings.textGenerationModelSelection,
+      }).modelSelection,
+    [serverProviders],
   );
   const isGitWritingModelDirty = !Equal.equals(
     settings.textGenerationModelSelection ?? null,
@@ -1324,7 +1331,7 @@ export function ModelsSettingsPanel() {
       .server.refreshProviders()
       .then((payload) => applyProvidersUpdated(payload))
       .catch((error: unknown) => {
-        console.warn("Failed to refresh providers", error);
+        showProviderSettingsError("Failed to refresh providers", error);
       })
       .finally(() => {
         refreshingRef.current = null;
@@ -1431,10 +1438,12 @@ export function ModelsSettingsPanel() {
   };
 
   const deleteProviderInstance = (id: ProviderInstanceId) => {
-    updateSettings({
+    void updateSettings({
       providerInstances: withoutProviderInstanceKey(settings.providerInstances, id),
       providerModelPreferences: withoutProviderInstanceKey(settings.providerModelPreferences, id),
       favorites: withoutProviderInstanceFavorites(settings.favorites ?? [], id),
+    }).catch((error: unknown) => {
+      showProviderSettingsError("Failed to delete provider instance", error);
     });
   };
 
@@ -1448,7 +1457,7 @@ export function ModelsSettingsPanel() {
     const hiddenModels = [...new Set(next.hiddenModels.filter((slug) => slug.trim().length > 0))];
     const modelOrder = [...new Set(next.modelOrder.filter((slug) => slug.trim().length > 0))];
     const rest = withoutProviderInstanceKey(settings.providerModelPreferences, instanceId);
-    updateSettings({
+    void updateSettings({
       providerModelPreferences:
         hiddenModels.length === 0 && modelOrder.length === 0
           ? rest
@@ -1459,6 +1468,8 @@ export function ModelsSettingsPanel() {
                 modelOrder,
               },
             },
+    }).catch((error: unknown) => {
+      showProviderSettingsError("Failed to update provider settings", error);
     });
   };
 
@@ -1469,11 +1480,13 @@ export function ModelsSettingsPanel() {
     const favoriteModels = [
       ...new Set(nextFavoriteModels.map((slug) => slug.trim()).filter((slug) => slug.length > 0)),
     ];
-    updateSettings({
+    void updateSettings({
       favorites: [
         ...withoutProviderInstanceFavorites(settings.favorites ?? [], instanceId),
         ...favoriteModels.map((model) => ({ provider: instanceId, model })),
       ],
+    }).catch((error: unknown) => {
+      showProviderSettingsError("Failed to update provider favorites", error);
     });
   };
 
@@ -1498,7 +1511,7 @@ export function ModelsSettingsPanel() {
       ),
       favorites: withoutProviderInstanceFavorites(settings.favorites ?? [], defaultInstanceId),
     }).catch((error: unknown) => {
-      console.warn("Failed to reset provider settings", error);
+      showProviderSettingsError("Failed to reset provider settings", error);
     });
   };
 
@@ -1508,14 +1521,17 @@ export function ModelsSettingsPanel() {
         <SettingsRow
           title="Text generation model"
           description="Configure the model used for generated commit messages, PR titles, and similar Git text."
+          status={textGenerationModelStatus}
           resetAction={
             isGitWritingModelDirty ? (
               <SettingResetButton
                 label="text generation model"
                 onClick={() =>
-                  updateSettings({
+                  void updateSettings({
                     textGenerationModelSelection:
                       DEFAULT_UNIFIED_SETTINGS.textGenerationModelSelection,
+                  }).catch((error: unknown) => {
+                    showProviderSettingsError("Failed to update provider settings", error);
                   })
                 }
               />
@@ -1527,18 +1543,20 @@ export function ModelsSettingsPanel() {
                 activeInstanceId={textGenInstanceId}
                 model={textGenModel}
                 instanceEntries={modelInstanceEntries}
-                modelOptionsByInstance={gitModelOptionsByInstance}
+                modelCatalogItems={textGenerationModelState.modelCatalogItems}
+                selectedCatalogItem={textGenerationModelState.selectedCatalogItem}
+                availabilityStatus={textGenerationModelState.status}
                 triggerVariant="outline"
                 triggerClassName="min-w-0 max-w-none shrink-0 text-foreground/90 hover:text-foreground"
-                onInstanceModelChange={(instanceId, model) => {
-                  updateSettings({
-                    textGenerationModelSelection: resolveAppModelSelectionState(
-                      {
-                        ...settings,
-                        textGenerationModelSelection: createModelSelection(instanceId, model),
-                      },
-                      serverProviders,
-                    ),
+                onSelectionChange={(selection) => {
+                  const nextSettings = {
+                    ...settings,
+                    textGenerationModelSelection: selection,
+                  };
+                  void updateSettings({
+                    textGenerationModelSelection: resolveTextGenerationModelSelection(nextSettings),
+                  }).catch((error: unknown) => {
+                    showProviderSettingsError("Failed to update provider settings", error);
                   });
                 }}
               />
@@ -1553,18 +1571,18 @@ export function ModelsSettingsPanel() {
                 triggerVariant="outline"
                 triggerClassName="min-w-0 max-w-none shrink-0 text-foreground/90 hover:text-foreground"
                 onModelOptionsChange={(nextOptions) => {
-                  updateSettings({
-                    textGenerationModelSelection: resolveAppModelSelectionState(
-                      {
-                        ...settings,
-                        textGenerationModelSelection: createModelSelection(
-                          textGenInstanceId,
-                          textGenModel,
-                          nextOptions,
-                        ),
-                      },
-                      serverProviders,
+                  const nextSettings = {
+                    ...settings,
+                    textGenerationModelSelection: createModelSelection(
+                      textGenInstanceId,
+                      textGenModel,
+                      nextOptions,
                     ),
+                  };
+                  void updateSettings({
+                    textGenerationModelSelection: resolveTextGenerationModelSelection(nextSettings),
+                  }).catch((error: unknown) => {
+                    showProviderSettingsError("Failed to update provider settings", error);
                   });
                 }}
               />
@@ -1661,23 +1679,21 @@ export function ModelsSettingsPanel() {
                     instanceId: row.instanceId,
                     instance: next,
                   });
+                  const nextSettings = {
+                    ...settings,
+                    ...patch,
+                    textGenerationModelSelection:
+                      settings.textGenerationModelSelection ?? textGenerationModelSelection,
+                  };
                   void updateSettings({
                     ...patch,
-                    textGenerationModelSelection: resolveAppModelSelectionState(
-                      {
-                        ...settings,
-                        ...patch,
-                        textGenerationModelSelection:
-                          settings.textGenerationModelSelection ?? textGenerationModelSelection,
-                      },
-                      serverProviders,
-                    ),
+                    textGenerationModelSelection: resolveTextGenerationModelSelection(nextSettings),
                   }).catch((error: unknown) => {
-                    console.warn("Failed to update provider settings", error);
+                    showProviderSettingsError("Failed to update provider settings", error);
                   });
                 } else {
                   void updateProviderInstance(row, next).catch((error: unknown) => {
-                    console.warn("Failed to update provider settings", error);
+                    showProviderSettingsError("Failed to update provider settings", error);
                   });
                 }
               }}
@@ -1771,7 +1787,7 @@ export function ArchivedThreadsPanel() {
         <SettingsSection title="Archived threads">
           <Empty className="min-h-88">
             <EmptyMedia variant="icon">
-              <IconArchive />
+              <IconArchive1 />
             </EmptyMedia>
             <EmptyHeader>
               <EmptyTitle>No archived threads</EmptyTitle>

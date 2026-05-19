@@ -4,7 +4,7 @@ import { type ProviderDriverKind } from "@multi/contracts";
 import { PROVIDER_ICON_BY_PROVIDER } from "./icon-utils";
 import { cn } from "~/lib/utils";
 
-export function providerInstanceInitials(label: string): string {
+function providerInstanceInitials(label: string): string {
   const words = label.replace(/[_-]+/g, " ").split(/\s+/u).filter(Boolean);
   if (words.length === 0) return "";
   if (words.length === 1) return words[0]!.slice(0, 2).toUpperCase();

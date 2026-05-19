@@ -26,7 +26,7 @@ type BuiltInAdapterMap = {
   readonly codex: ProviderAdapterShape<ProviderAdapterError>;
   readonly claudeAgent: ProviderAdapterShape<ProviderAdapterError>;
   readonly opencode: ProviderAdapterShape<ProviderAdapterError>;
-  readonly cursor?: ProviderAdapterShape<ProviderAdapterError>;
+  readonly cursor: ProviderAdapterShape<ProviderAdapterError>;
 };
 
 export const BUILT_IN_PROVIDER_ORDER = [
@@ -74,6 +74,6 @@ export function createBuiltInAdapterList(
     adapters.codex,
     adapters.claudeAgent,
     adapters.opencode,
-    ...(adapters.cursor ? [adapters.cursor] : []),
+    adapters.cursor,
   ];
 }

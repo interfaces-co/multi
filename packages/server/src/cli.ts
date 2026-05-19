@@ -4,6 +4,7 @@ import {
   AuthSessionId,
   CommandId,
   DEFAULT_PROJECTLESS_CWD,
+  OrchestrationHttpErrorResponse,
   OrchestrationReadModel,
   ProjectId,
   type ClientOrchestrationCommand,
@@ -504,9 +505,6 @@ const ProjectCliRuntimeLive = Layer.mergeAll(
 );
 
 const PROJECT_CLI_LIVE_SERVER_TIMEOUT = Duration.seconds(1);
-const OrchestrationHttpErrorResponse = Schema.Struct({
-  error: Schema.String,
-});
 
 const withProjectCliSessionToken = <A, E, R>(
   authControlPlane: AuthControlPlaneShape,
@@ -807,7 +805,7 @@ const subjectFlag = Flag.string("subject").pipe(
 );
 
 const baseUrlFlag = Flag.string("base-url").pipe(
-  Flag.withDescription("Optional public base URL used to print a ready `/pair#token=...` link."),
+  Flag.withDescription("Optional public base URL used to print a ready `/#token=...` link."),
   Flag.optional,
 );
 
@@ -1173,9 +1171,7 @@ const startCommand = Command.make("start", { ...sharedServerCommandFlags }).pipe
 );
 
 const serveCommand = Command.make("serve", { ...sharedServerCommandFlags }).pipe(
-  Command.withDescription(
-    "Run the Multi server without opening a browser and print headless pairing details.",
-  ),
+  Command.withDescription("Run the Multi server without opening a browser and print auth details."),
   Command.withHandler((flags) =>
     runServerCommand(flags, {
       startupPresentation: "headless",

@@ -1,17 +1,6 @@
-import {
-  Cause,
-  Duration,
-  Effect,
-  Exit,
-  Layer,
-  ManagedRuntime,
-  Option,
-  Scope,
-  Stream,
-} from "effect";
+import { Cause, Duration, Effect, Exit, ManagedRuntime, Option, Scope, Stream } from "effect";
 import { RpcClient } from "effect/unstable/rpc";
 
-import { ClientTracingLive } from "../observability/clientTracing";
 import { clearAllTrackedRpcRequests } from "./request-latency-state";
 import {
   createWsRpcProtocolLayer,
@@ -45,6 +34,14 @@ function formatErrorMessage(error: unknown): string {
     return error.message;
   }
   return String(error);
+}
+
+function isRpcStreamDoneCauseDecodeError(message: string): boolean {
+  return (
+    message.includes('SchemaError(Expected array, got {"_id":"Cause"') &&
+    message.includes('"~effect/Cause/Done":"~effect/Cause/Done"') &&
+    message.includes('at ["cause"]')
+  );
 }
 
 export class WsTransport {
@@ -158,6 +155,11 @@ export class WsTransport {
           }
 
           const formattedError = formatErrorMessage(error);
+          if (isRpcStreamDoneCauseDecodeError(formattedError)) {
+            await sleep(retryDelayMs);
+            continue;
+          }
+
           if (!isTransportConnectionErrorMessage(formattedError)) {
             console.warn("WebSocket RPC subscription failed", {
               error: formattedError,
@@ -221,13 +223,10 @@ export class WsTransport {
     this.nextSessionId = sessionId;
     this.activeSessionId = sessionId;
     const runtime = ManagedRuntime.make(
-      Layer.mergeAll(
-        createWsRpcProtocolLayer(this.url, {
-          ...this.lifecycleHandlers,
-          isActive: () => !this.disposed && this.activeSessionId === sessionId,
-        }),
-        ClientTracingLive,
-      ),
+      createWsRpcProtocolLayer(this.url, {
+        ...this.lifecycleHandlers,
+        isActive: () => !this.disposed && this.activeSessionId === sessionId,
+      }),
     );
     const clientScope = runtime.runSync(Scope.make());
     return {

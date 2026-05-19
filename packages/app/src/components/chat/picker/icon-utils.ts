@@ -1,6 +1,5 @@
 import { ProviderDriverKind } from "@multi/contracts";
 
-import { PROVIDER_OPTIONS } from "../../../session-logic";
 import { IconOpenaiCodex, IconCursor, IconClaudeai, IconOpencode } from "central-icons";
 
 export const PROVIDER_ICON_BY_PROVIDER: Partial<
@@ -11,19 +10,6 @@ export const PROVIDER_ICON_BY_PROVIDER: Partial<
   [ProviderDriverKind.make("opencode")]: IconOpencode,
   [ProviderDriverKind.make("cursor")]: IconCursor,
 };
-
-type AvailableProviderOption = {
-  value: ProviderDriverKind;
-  label: string;
-  available: true;
-  pickerSidebarBadge?: "new" | "soon";
-};
-
-export const AVAILABLE_PROVIDER_OPTIONS: AvailableProviderOption[] = PROVIDER_OPTIONS.filter(
-  (option) => option.available,
-).map((option) =>
-  Object.assign(option, { value: ProviderDriverKind.make(option.value), available: true as const }),
-);
 
 export type ModelEsque = {
   slug: string;

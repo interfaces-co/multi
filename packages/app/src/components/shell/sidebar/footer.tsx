@@ -4,7 +4,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { IconSettingsGear2 } from "central-icons";
 
 import { cn } from "~/lib/utils";
-import { readLastChatRouteTarget } from "~/chat-route-persistence";
+import { readLastChatRouteTarget } from "~/app/routes/chat-route-persistence";
 import { UpdatePill } from "~/components/shell/shared/update-pill";
 
 export function ShellSidebarFooter(props: { settings?: boolean }) {

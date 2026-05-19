@@ -1,11 +1,9 @@
 import { Effect, Layer, References, Tracer } from "effect";
 import { OtlpMetrics, OtlpSerialization, OtlpTracer } from "effect/unstable/observability";
+import { makeLocalFileTracer, makeTraceSink } from "@multi/shared/observability";
 
 import { ServerConfig } from "../config.ts";
 import { ServerLoggerLive } from "../server-logger.ts";
-import { makeLocalFileTracer } from "./LocalFileTracer.ts";
-import { BrowserTraceCollector } from "./BrowserTraceCollector.service.ts";
-import { makeTraceSink } from "./TraceSink.ts";
 
 const otlpSerializationLayer = OtlpSerialization.layerJson;
 
@@ -50,17 +48,7 @@ export const ObservabilityLive = Layer.unwrap(
           ...(delegate ? { delegate } : {}),
         });
 
-        return Layer.mergeAll(
-          Layer.succeed(Tracer.Tracer, tracer),
-          Layer.succeed(BrowserTraceCollector, {
-            record: (records) =>
-              Effect.sync(() => {
-                for (const record of records) {
-                  sink.push(record);
-                }
-              }),
-          }),
-        );
+        return Layer.succeed(Tracer.Tracer, tracer);
       }),
     ).pipe(Layer.provideMerge(otlpSerializationLayer));
 

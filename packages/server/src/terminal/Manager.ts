@@ -6,7 +6,6 @@ import {
   type TerminalSessionSnapshot,
   type TerminalSessionStatus,
 } from "@multi/contracts";
-import { makeKeyedCoalescingWorker } from "@multi/shared/KeyedCoalescingWorker";
 import { listLoginShellCandidates, readUserLoginShell } from "@multi/shared/shell";
 import {
   Effect,
@@ -31,6 +30,7 @@ import {
   TerminalHistoryError,
   TerminalManager,
   TerminalNotRunningError,
+  TerminalProcessOperationError,
   TerminalSessionLookupError,
   type TerminalManagerShape,
 } from "./Manager.service";
@@ -45,6 +45,7 @@ import {
   coerceAccessibleProjectCwd,
   type ProjectCwdCandidate,
 } from "../project/AccessibleProjectCwd.ts";
+import { makeKeyedCoalescingWorker } from "./KeyedCoalescingWorker";
 
 const DEFAULT_HISTORY_LINE_LIMIT = 5_000;
 const DEFAULT_PERSIST_DEBOUNCE_MS = 40;
@@ -53,6 +54,25 @@ const DEFAULT_PROCESS_KILL_GRACE_MS = 1_000;
 const DEFAULT_MAX_RETAINED_INACTIVE_SESSIONS = 128;
 const DEFAULT_OPEN_COLS = 120;
 const DEFAULT_OPEN_ROWS = 30;
+
+const toTerminalHistoryError =
+  (operation: "read" | "truncate", threadId: string, terminalId: string) => (cause: unknown) =>
+    new TerminalHistoryError({
+      operation,
+      threadId,
+      terminalId,
+      cause,
+    });
+
+const toTerminalProcessOperationError =
+  (operation: "write" | "resize", threadId: string, terminalId: string) => (cause: unknown) =>
+    new TerminalProcessOperationError({
+      operation,
+      threadId,
+      terminalId,
+      cause,
+    });
+
 // Keep shell identity out of the inherited process environment.
 //
 // Multi may be launched from Electron, a dev server, Codex, or a real terminal.
@@ -755,15 +775,6 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
       }
       return path.join(logsDir, `${threadPart}_${toSafeTerminalId(terminalId)}.log`);
     };
-
-    const toTerminalHistoryError =
-      (operation: "read" | "truncate", threadId: string, terminalId: string) => (cause: unknown) =>
-        new TerminalHistoryError({
-          operation,
-          threadId,
-          terminalId,
-          cause,
-        });
 
     const readManagerState = SynchronizedRef.get(managerStateRef);
 
@@ -1662,13 +1673,17 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
           }
 
           const liveSession = existing.value;
-          const nextRuntimeEnv = normalizedRuntimeEnv(input.env);
           const currentRuntimeEnv = liveSession.runtimeEnv;
+          const cwdChanged = liveSession.cwd !== cwd;
+          const nextRuntimeEnv =
+            input.env === undefined && !cwdChanged
+              ? currentRuntimeEnv
+              : normalizedRuntimeEnv(input.env);
           const targetCols = input.cols ?? liveSession.cols;
           const targetRows = input.rows ?? liveSession.rows;
           const runtimeEnvChanged = !Equal.equals(currentRuntimeEnv, nextRuntimeEnv);
 
-          if (liveSession.cwd !== cwd || runtimeEnvChanged) {
+          if (cwdChanged || runtimeEnvChanged) {
             yield* stopProcess(liveSession);
             liveSession.cwd = cwd;
             liveSession.worktreePath = input.worktreePath ?? null;
@@ -1715,11 +1730,15 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
             return snapshot(liveSession);
           }
 
+          const liveProcess = liveSession.process;
           if (liveSession.cols !== targetCols || liveSession.rows !== targetRows) {
             liveSession.cols = targetCols;
             liveSession.rows = targetRows;
             liveSession.updatedAt = new Date().toISOString();
-            liveSession.process.resize(targetCols, targetRows);
+            yield* Effect.try({
+              try: () => liveProcess.resize(targetCols, targetRows),
+              catch: toTerminalProcessOperationError("resize", input.threadId, terminalId),
+            });
           }
 
           return snapshot(liveSession);
@@ -1737,7 +1756,10 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
           terminalId,
         });
       }
-      yield* Effect.sync(() => process.write(input.data));
+      yield* Effect.try({
+        try: () => process.write(input.data),
+        catch: toTerminalProcessOperationError("write", input.threadId, terminalId),
+      });
     });
 
     const resize: TerminalManagerShape["resize"] = Effect.fn("terminal.resize")(function* (input) {
@@ -1753,7 +1775,10 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
       session.cols = input.cols;
       session.rows = input.rows;
       session.updatedAt = new Date().toISOString();
-      yield* Effect.sync(() => process.resize(input.cols, input.rows));
+      yield* Effect.try({
+        try: () => process.resize(input.cols, input.rows),
+        catch: toTerminalProcessOperationError("resize", input.threadId, terminalId),
+      });
     });
 
     const clear: TerminalManagerShape["clear"] = (input) =>

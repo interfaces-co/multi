@@ -13,9 +13,9 @@ import { DraftInput } from "./draft-input";
 import { Input } from "@multi/ui/input";
 import { Switch } from "@multi/ui/switch";
 import { Textarea } from "@multi/ui/textarea";
-import type { ProviderClientDefinition } from "./provider-driver-meta";
+import type { DriverOption } from "./provider-driver-meta";
 
-export interface ProviderSettingsFieldModel {
+interface ProviderSettingsFieldModel {
   readonly key: string;
   readonly control: ProviderSettingsFormControl;
   readonly label: string;
@@ -32,14 +32,12 @@ function titleizeFieldKey(key: string): string {
     .replace(/^./, (char) => char.toUpperCase());
 }
 
-function readFieldAnnotations(
-  fieldSchema: ProviderClientDefinition["settingsSchema"]["fields"][string],
-) {
+function readFieldAnnotations(fieldSchema: DriverOption["settingsSchema"]["fields"][string]) {
   return Schema.resolveAnnotationsKey(fieldSchema) ?? Schema.resolveAnnotations(fieldSchema);
 }
 
 function readFieldAnnotationString(
-  fieldSchema: ProviderClientDefinition["settingsSchema"]["fields"][string],
+  fieldSchema: DriverOption["settingsSchema"]["fields"][string],
   key: "title" | "description",
 ): string | undefined {
   const annotations = readFieldAnnotations(fieldSchema);
@@ -48,20 +46,20 @@ function readFieldAnnotationString(
 }
 
 function readProviderSettingsFormAnnotation(
-  fieldSchema: ProviderClientDefinition["settingsSchema"]["fields"][string],
+  fieldSchema: DriverOption["settingsSchema"]["fields"][string],
 ): ProviderSettingsFormAnnotation {
   const annotation = readFieldAnnotations(fieldSchema)?.providerSettingsForm;
   return annotation ?? {};
 }
 
 function readProviderSettingsFormSchemaAnnotation(
-  definition: ProviderClientDefinition,
+  definition: DriverOption,
 ): ProviderSettingsFormSchemaAnnotation {
   return Schema.resolveAnnotations(definition.settingsSchema)?.providerSettingsFormSchema ?? {};
 }
 
 function readFieldBooleanDefault(
-  fieldSchema: ProviderClientDefinition["settingsSchema"]["fields"][string],
+  fieldSchema: DriverOption["settingsSchema"]["fields"][string],
 ): boolean | undefined {
   try {
     const decoded = Schema.decodeUnknownSync(fieldSchema as Schema.Decoder<unknown>)(undefined);
@@ -72,7 +70,7 @@ function readFieldBooleanDefault(
 }
 
 export function deriveProviderSettingsFields(
-  definition: ProviderClientDefinition,
+  definition: DriverOption,
 ): ReadonlyArray<ProviderSettingsFieldModel> {
   const schemaAnnotation = readProviderSettingsFormSchemaAnnotation(definition);
   const orderedKeys = new Map(
@@ -113,13 +111,13 @@ export function deriveProviderSettingsFields(
     });
 }
 
-export function readProviderConfigString(config: unknown, key: string): string {
+function readProviderConfigString(config: unknown, key: string): string {
   if (config === null || typeof config !== "object") return "";
   const value = (config as Record<string, unknown>)[key];
   return typeof value === "string" ? value : "";
 }
 
-export function readProviderConfigBoolean(
+function readProviderConfigBoolean(
   config: unknown,
   key: string,
   defaultValue = false,
@@ -129,7 +127,7 @@ export function readProviderConfigBoolean(
   return typeof value === "boolean" ? value : defaultValue;
 }
 
-export function nextProviderConfigWithFieldValue(
+function nextProviderConfigWithFieldValue(
   config: unknown,
   field: ProviderSettingsFieldModel,
   value: string | boolean,
@@ -157,7 +155,7 @@ export function nextProviderConfigWithFieldValue(
 }
 
 interface ProviderSettingsFormProps {
-  readonly definition: ProviderClientDefinition;
+  readonly definition: DriverOption;
   readonly value: unknown;
   readonly idPrefix: string;
   readonly variant: "card" | "dialog";

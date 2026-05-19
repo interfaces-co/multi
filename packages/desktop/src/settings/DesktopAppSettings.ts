@@ -22,6 +22,7 @@ import * as DesktopEnvironment from "../app/DesktopEnvironment";
 export interface DesktopSettings {
   readonly serverExposureMode: DesktopServerExposureMode;
   readonly themeSource: DesktopTheme;
+  readonly lastBackendPort?: number;
 }
 
 export interface DesktopSettingsChange {
@@ -37,6 +38,7 @@ export const DEFAULT_DESKTOP_SETTINGS: DesktopSettings = {
 const DesktopSettingsDocument = Schema.Struct({
   serverExposureMode: Schema.optionalKey(DesktopServerExposureModeSchema),
   themeSource: Schema.optionalKey(DesktopThemeSchema),
+  lastBackendPort: Schema.optionalKey(Schema.Number),
 });
 
 type DesktopSettingsDocument = typeof DesktopSettingsDocument.Type;
@@ -68,6 +70,9 @@ export interface DesktopAppSettingsShape {
   readonly setThemeSource: (
     theme: DesktopTheme,
   ) => Effect.Effect<DesktopSettingsChange, DesktopSettingsWriteError>;
+  readonly setLastBackendPort: (
+    port: number,
+  ) => Effect.Effect<DesktopSettingsChange, DesktopSettingsWriteError>;
 }
 
 export class DesktopAppSettings extends Context.Service<
@@ -83,10 +88,17 @@ function normalizeDesktopSettingsDocument(
   parsed: DesktopSettingsDocument,
   _appVersion: string,
 ): DesktopSettings {
+  const lastBackendPort = parsed.lastBackendPort;
   return {
     serverExposureMode:
       parsed.serverExposureMode === "network-accessible" ? "network-accessible" : "local-only",
     themeSource: parsed.themeSource ?? "system",
+    ...(typeof lastBackendPort === "number" &&
+    Number.isInteger(lastBackendPort) &&
+    lastBackendPort >= 1 &&
+    lastBackendPort <= 65_535
+      ? { lastBackendPort }
+      : {}),
   };
 }
 
@@ -101,6 +113,12 @@ function toDesktopSettingsDocument(
   }
   if (settings.themeSource !== defaults.themeSource) {
     document.themeSource = settings.themeSource;
+  }
+  if (
+    settings.lastBackendPort !== undefined &&
+    settings.lastBackendPort !== defaults.lastBackendPort
+  ) {
+    document.lastBackendPort = settings.lastBackendPort;
   }
   return document;
 }
@@ -123,6 +141,15 @@ function setThemeSource(settings: DesktopSettings, requestedTheme: DesktopTheme)
     : {
         ...settings,
         themeSource: requestedTheme,
+      };
+}
+
+function setLastBackendPort(settings: DesktopSettings, requestedPort: number): DesktopSettings {
+  return settings.lastBackendPort === requestedPort
+    ? settings
+    : {
+        ...settings,
+        lastBackendPort: requestedPort,
       };
 }
 
@@ -213,6 +240,10 @@ export const layer = Layer.effect(
         persist((settings) => setThemeSource(settings, theme)).pipe(
           Effect.withSpan("desktop.settings.setThemeSource", { attributes: { theme } }),
         ),
+      setLastBackendPort: (port) =>
+        persist((settings) => setLastBackendPort(settings, port)).pipe(
+          Effect.withSpan("desktop.settings.setLastBackendPort", { attributes: { port } }),
+        ),
     });
   }),
 );
@@ -240,6 +271,7 @@ export const layerTest = (initialSettings: DesktopSettings = DEFAULT_DESKTOP_SET
         setServerExposureMode: (mode) =>
           update((settings) => setServerExposureMode(settings, mode)),
         setThemeSource: (theme) => update((settings) => setThemeSource(settings, theme)),
+        setLastBackendPort: (port) => update((settings) => setLastBackendPort(settings, port)),
       });
     }),
   );

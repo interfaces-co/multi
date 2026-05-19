@@ -6,23 +6,24 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
 
 import { ProviderModelPicker } from "./model-picker";
-import { getCustomModelOptionsByInstance } from "../../../model-selection";
-import {
-  deriveProviderInstanceEntries,
-  sortProviderInstanceEntries,
-} from "../../../provider-instances";
-import type { ModelEsque } from "./icon-utils";
+import { resolveAppProviderModelState } from "../../../model/selection";
 import {
   DEFAULT_CLIENT_SETTINGS,
   DEFAULT_UNIFIED_SETTINGS,
   type UnifiedSettings,
 } from "@multi/contracts/settings";
+import { __resetClientSettingsPersistenceForTests } from "../../../hooks/use-settings";
 import { __resetLocalApiForTests } from "../../../local-api";
+
+function getFirstStarButton() {
+  const starButton = document.querySelector<HTMLButtonElement>('button[aria-label*="favorites"]');
+  expect(starButton).not.toBeNull();
+  return starButton!;
+}
 
 // Mock the environments/runtime module to provide a mock primary environment connection
 vi.mock("../../../environments/runtime", () => {
   const primaryConnection = {
-    kind: "primary" as const,
     knownEnvironment: {
       id: "environment-local",
       label: "Local environment",
@@ -47,32 +48,15 @@ vi.mock("../../../environments/runtime", () => {
 
   return {
     getEnvironmentHttpBaseUrl: () => "http://localhost:3000",
-    getSavedEnvironmentRecord: () => null,
-    getSavedEnvironmentRuntimeState: () => null,
-    hasSavedEnvironmentRegistryHydrated: () => true,
-    listSavedEnvironmentRecords: () => [],
-    resetSavedEnvironmentRegistryStoreForTests: vi.fn(),
-    resetSavedEnvironmentRuntimeStoreForTests: vi.fn(),
     resolveEnvironmentHttpUrl: (_environmentId: unknown, path: string) =>
       new URL(path, "http://localhost:3000").toString(),
-    waitForSavedEnvironmentRegistryHydration: async () => undefined,
-    addSavedEnvironment: vi.fn(),
-    disconnectSavedEnvironment: vi.fn(),
     ensureEnvironmentConnectionBootstrapped: async () => undefined,
     getPrimaryEnvironmentConnection: () => primaryConnection,
     readEnvironmentConnection: () => primaryConnection,
-    reconnectSavedEnvironment: vi.fn(),
-    removeSavedEnvironment: vi.fn(),
     requireEnvironmentConnection: () => primaryConnection,
     resetEnvironmentServiceForTests: vi.fn(),
     startEnvironmentConnectionService: vi.fn(),
     subscribeEnvironmentConnections: () => () => {},
-    useSavedEnvironmentRegistryStore: (
-      selector: (state: { byId: Record<string, never> }) => unknown,
-    ) => selector({ byId: {} }),
-    useSavedEnvironmentRuntimeStore: (
-      selector: (state: { byId: Record<string, never> }) => unknown,
-    ) => selector({ byId: {} }),
   };
 });
 
@@ -235,6 +219,7 @@ function buildOpenCodeProvider(models: ServerProvider["models"]): ServerProvider
   return {
     driver: ProviderDriverKind.make("opencode"),
     instanceId: ProviderInstanceId.make("opencode"),
+    displayName: "OpenCode",
     enabled: true,
     installed: true,
     version: "1.0.0",
@@ -276,35 +261,73 @@ async function mountPicker(props: {
 }) {
   const host = document.createElement("div");
   document.body.append(host);
-  const onInstanceModelChange = vi.fn();
+  const onSelectionChange = vi.fn();
   const providers = props.providers ?? TEST_PROVIDERS;
-  const instanceEntries = sortProviderInstanceEntries(deriveProviderInstanceEntries(providers));
-  const activeInstanceId = props.activeInstanceId ?? CODEX_INSTANCE_ID;
-  const modelOptionsByInstance = getCustomModelOptionsByInstance(
-    props.settings ?? DEFAULT_UNIFIED_SETTINGS,
+  const state = resolveAppProviderModelState({
+    settings: props.settings ?? DEFAULT_UNIFIED_SETTINGS,
     providers,
-    activeInstanceId,
-    props.model,
-  );
+    requestedInstanceId: props.activeInstanceId ?? CODEX_INSTANCE_ID,
+    requestedModel: props.model,
+  });
   const screen = await render(
     <ProviderModelPicker
-      activeInstanceId={activeInstanceId}
-      model={props.model}
-      instanceEntries={instanceEntries}
-      modelOptionsByInstance={modelOptionsByInstance}
+      activeInstanceId={state.selectedInstanceId}
+      model={state.selectedModel}
+      instanceEntries={state.providerInstanceEntries}
+      modelCatalogItems={state.modelCatalogItems}
+      selectedCatalogItem={state.selectedCatalogItem}
+      availabilityStatus={state.status}
       {...(props.popoverPlacement !== undefined
         ? { popoverPlacement: props.popoverPlacement }
         : {})}
       triggerVariant={props.triggerVariant}
       {...(props.open !== undefined ? { open: props.open } : {})}
       {...(props.openSearchSeed !== undefined ? { openSearchSeed: props.openSearchSeed } : {})}
-      onInstanceModelChange={onInstanceModelChange}
+      onSelectionChange={onSelectionChange}
     />,
     { container: host },
   );
 
   return {
-    onInstanceModelChange,
+    onSelectionChange,
+    cleanup: async () => {
+      await screen.unmount();
+      host.remove();
+    },
+  };
+}
+
+async function mountPickerFromResolver(props: {
+  requestedInstanceId?: ProviderInstanceId | null;
+  requestedModel?: string | null;
+  providers?: ReadonlyArray<ServerProvider>;
+  settings?: UnifiedSettings;
+}) {
+  const host = document.createElement("div");
+  document.body.append(host);
+  const onSelectionChange = vi.fn();
+  const state = resolveAppProviderModelState({
+    settings: props.settings ?? DEFAULT_UNIFIED_SETTINGS,
+    providers: props.providers ?? TEST_PROVIDERS,
+    requestedInstanceId: props.requestedInstanceId ?? null,
+    requestedModel: props.requestedModel ?? null,
+  });
+  const screen = await render(
+    <ProviderModelPicker
+      activeInstanceId={state.selectedInstanceId}
+      model={state.selectedModel}
+      instanceEntries={state.providerInstanceEntries}
+      modelCatalogItems={state.modelCatalogItems}
+      selectedCatalogItem={state.selectedCatalogItem}
+      availabilityStatus={state.status}
+      onSelectionChange={onSelectionChange}
+    />,
+    { container: host },
+  );
+
+  return {
+    state,
+    onSelectionChange,
     cleanup: async () => {
       await screen.unmount();
       host.remove();
@@ -334,15 +357,32 @@ function getSidebarProviderOrder() {
   );
 }
 
+function disableProvider(
+  providers: ReadonlyArray<ServerProvider>,
+  instanceId: ProviderInstanceId,
+): ReadonlyArray<ServerProvider> {
+  return providers.map((provider) =>
+    provider.instanceId === instanceId
+      ? {
+          ...provider,
+          enabled: false,
+          status: "disabled",
+        }
+      : provider,
+  );
+}
+
 describe("ProviderModelPicker", () => {
   beforeEach(async () => {
     // Reset test environment before each test
     await __resetLocalApiForTests();
+    __resetClientSettingsPersistenceForTests();
   });
 
   afterEach(async () => {
     document.body.innerHTML = "";
     await __resetLocalApiForTests();
+    __resetClientSettingsPersistenceForTests();
   });
 
   it("seeds model search when opened with openSearchSeed", async () => {
@@ -531,8 +571,7 @@ describe("ProviderModelPicker", () => {
           "codex",
           "claudeAgent",
           "cursor",
-          "gemini-coming-soon",
-          "github-copilot-coming-soon",
+          "pi-pending",
         ]);
         expect(getVisibleModelNames()).toEqual([
           "Claude Sonnet 4.6",
@@ -639,8 +678,7 @@ describe("ProviderModelPicker", () => {
           "codex_personal",
           "codex_isolated",
           "claudeAgent",
-          "gemini-coming-soon",
-          "github-copilot-coming-soon",
+          "pi-pending",
         ]);
         expect(
           document.querySelector<HTMLElement>('[data-model-picker-provider="codex_personal"]')
@@ -661,32 +699,24 @@ describe("ProviderModelPicker", () => {
     }
   });
 
-  it("falls back to the active provider's first model when props.model belongs to another provider (#1982)", async () => {
+  it("renders the resolver-selected catalog item when requested model belongs to another provider (#1982)", async () => {
     const host = document.createElement("div");
     document.body.append(host);
-    const onInstanceModelChange = vi.fn();
-    const modelOptionsByInstance = new Map<ProviderInstanceId, ReadonlyArray<ModelEsque>>([
-      [
-        "claudeAgent" as ProviderInstanceId,
-        [
-          { slug: "claude-opus-4-6", name: "Claude Opus 4.6" },
-          { slug: "claude-sonnet-4-6", name: "Claude Sonnet 4.6" },
-        ],
-      ],
-      ["codex" as ProviderInstanceId, [{ slug: "gpt-5-codex", name: "GPT-5 Codex" }]],
-      ["cursor" as ProviderInstanceId, []],
-      ["opencode" as ProviderInstanceId, []],
-    ]);
-    const instanceEntries = sortProviderInstanceEntries(
-      deriveProviderInstanceEntries(TEST_PROVIDERS),
-    );
+    const onSelectionChange = vi.fn();
+    const state = resolveAppProviderModelState({
+      settings: DEFAULT_UNIFIED_SETTINGS,
+      providers: TEST_PROVIDERS,
+      requestedInstanceId: CLAUDE_INSTANCE_ID,
+      requestedModel: "gpt-5-codex",
+    });
     const screen = await render(
       <ProviderModelPicker
-        activeInstanceId={"claudeAgent" as ProviderInstanceId}
-        model="gpt-5-codex"
-        instanceEntries={instanceEntries}
-        modelOptionsByInstance={modelOptionsByInstance}
-        onInstanceModelChange={onInstanceModelChange}
+        activeInstanceId={state.selectedInstanceId}
+        model={state.selectedModel}
+        instanceEntries={state.providerInstanceEntries}
+        modelCatalogItems={state.modelCatalogItems}
+        selectedCatalogItem={state.selectedCatalogItem}
+        onSelectionChange={onSelectionChange}
       />,
       { container: host },
     );
@@ -702,6 +732,110 @@ describe("ProviderModelPicker", () => {
     } finally {
       await screen.unmount();
       host.remove();
+    }
+  });
+
+  it("renders resolver fallback state for missing and disabled selections", async () => {
+    const missingProvider = await mountPickerFromResolver({
+      requestedInstanceId: ProviderInstanceId.make("missingProvider"),
+      requestedModel: "retired-model",
+    });
+
+    try {
+      expect(missingProvider.state.status.kind).toBe("missing-provider");
+      expect(missingProvider.state.selectedInstanceId).toBe(CODEX_INSTANCE_ID);
+      expect(missingProvider.state.selectedModel).toBe("gpt-5-codex");
+
+      await page.getByRole("button").click();
+
+      await vi.waitFor(() => {
+        const trigger = document.querySelector<HTMLElement>(
+          '[data-chat-provider-model-picker="true"]',
+        );
+        expect(trigger?.textContent).toContain("GPT-5 Codex");
+        expect(trigger?.textContent).not.toContain("retired-model");
+        expect(document.body.textContent ?? "").toContain(missingProvider.state.status.message);
+      });
+    } finally {
+      await missingProvider.cleanup();
+    }
+
+    const missingModel = await mountPickerFromResolver({
+      requestedInstanceId: CLAUDE_INSTANCE_ID,
+      requestedModel: "retired-claude-model",
+    });
+
+    try {
+      expect(missingModel.state.status.kind).toBe("missing-model");
+      expect(missingModel.state.selectedInstanceId).toBe(CLAUDE_INSTANCE_ID);
+      expect(missingModel.state.selectedModel).toBe("claude-opus-4-6");
+
+      await page.getByRole("button").click();
+
+      await vi.waitFor(() => {
+        const trigger = document.querySelector<HTMLElement>(
+          '[data-chat-provider-model-picker="true"]',
+        );
+        expect(trigger?.textContent).toContain("Claude Opus 4.6");
+        expect(trigger?.textContent).not.toContain("retired-claude-model");
+        expect(document.body.textContent ?? "").toContain(missingModel.state.status.message);
+      });
+    } finally {
+      await missingModel.cleanup();
+    }
+
+    const disabledProvider = await mountPickerFromResolver({
+      requestedInstanceId: CLAUDE_INSTANCE_ID,
+      requestedModel: "claude-opus-4-6",
+      providers: disableProvider(TEST_PROVIDERS, CLAUDE_INSTANCE_ID),
+    });
+
+    try {
+      expect(disabledProvider.state.status.kind).toBe("disabled-provider");
+      expect(disabledProvider.state.selectedInstanceId).toBe(CODEX_INSTANCE_ID);
+      expect(disabledProvider.state.selectedModel).toBe("gpt-5-codex");
+
+      await page.getByRole("button").click();
+
+      await vi.waitFor(() => {
+        const disabledRailButton = document.querySelector<HTMLButtonElement>(
+          '[data-model-picker-provider="claudeAgent"]',
+        );
+        expect(disabledRailButton).not.toBeNull();
+        expect(disabledRailButton?.disabled).toBe(true);
+        expect(disabledRailButton?.getAttribute("aria-label")).toBe(
+          "Claude — Disabled in settings.",
+        );
+        const listText = getModelPickerListText();
+        expect(listText).toContain("GPT-5 Codex");
+        expect(listText).not.toContain("Claude Opus 4.6");
+        expect(document.body.textContent ?? "").toContain(disabledProvider.state.status.message);
+      });
+    } finally {
+      await disabledProvider.cleanup();
+    }
+  });
+
+  it("renders the empty catalog resolver state without selectable rows", async () => {
+    const emptyCatalog = await mountPickerFromResolver({
+      requestedInstanceId: CODEX_INSTANCE_ID,
+      requestedModel: "gpt-5-codex",
+      providers: [buildCodexProvider([])],
+    });
+
+    try {
+      expect(emptyCatalog.state.status.kind).toBe("empty-catalog");
+      expect(emptyCatalog.state.selectedInstanceId).toBe(CODEX_INSTANCE_ID);
+      expect(emptyCatalog.state.selectableModelOptions).toHaveLength(0);
+
+      await page.getByRole("button").click();
+
+      await vi.waitFor(() => {
+        expect(getVisibleModelNames()).toEqual([]);
+        expect(document.body.textContent ?? "").toContain(emptyCatalog.state.status.message);
+      });
+    } finally {
+      await emptyCatalog.cleanup();
     }
   });
 
@@ -809,10 +943,10 @@ describe("ProviderModelPicker", () => {
       });
       await userEvent.keyboard("{Enter}");
 
-      expect(mounted.onInstanceModelChange).toHaveBeenCalledWith(
-        "claudeAgent",
-        "claude-sonnet-4-6",
-      );
+      expect(mounted.onSelectionChange).toHaveBeenCalledWith({
+        instanceId: "claudeAgent",
+        model: "claude-sonnet-4-6",
+      });
     } finally {
       await mounted.cleanup();
     }
@@ -1032,14 +1166,6 @@ describe("ProviderModelPicker", () => {
         expect(text).toContain("Claude Opus 4.6");
       });
 
-      const getFirstStarButton = () => {
-        const starButton = document.querySelector<HTMLButtonElement>(
-          'button[aria-label*="favorites"]',
-        );
-        expect(starButton).not.toBeNull();
-        return starButton!;
-      };
-
       const firstStar = getFirstStarButton();
       const initialAriaLabel = firstStar.getAttribute("aria-label");
       expect(
@@ -1138,10 +1264,10 @@ describe("ProviderModelPicker", () => {
       await modelRow.click();
 
       // Verify callback was called with correct values
-      expect(mounted.onInstanceModelChange).toHaveBeenCalledWith(
-        "claudeAgent",
-        "claude-sonnet-4-6",
-      );
+      expect(mounted.onSelectionChange).toHaveBeenCalledWith({
+        instanceId: "claudeAgent",
+        model: "claude-sonnet-4-6",
+      });
     } finally {
       await mounted.cleanup();
     }
@@ -1238,18 +1364,7 @@ describe("ProviderModelPicker", () => {
   });
 
   it("shows disabled providers grayed out in sidebar", async () => {
-    const disabledProviders = TEST_PROVIDERS.slice();
-    const claudeIndex = disabledProviders.findIndex(
-      (provider) => provider.instanceId === ProviderInstanceId.make("claudeAgent"),
-    );
-    if (claudeIndex >= 0) {
-      const claudeProvider = disabledProviders[claudeIndex]!;
-      disabledProviders[claudeIndex] = {
-        ...claudeProvider,
-        enabled: false,
-        status: "disabled",
-      };
-    }
+    const disabledProviders = disableProvider(TEST_PROVIDERS, CLAUDE_INSTANCE_ID);
 
     const mounted = await mountPicker({
       model: "gpt-5-codex",

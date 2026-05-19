@@ -10,13 +10,13 @@ vi.mock("../environment-api", () => ({
   readEnvironmentApi: vi.fn(),
 }));
 
-vi.mock("../ws-rpc-client", () => ({
-  getWsRpcClientForEnvironment: vi.fn(),
+vi.mock("~/environments/runtime", () => ({
+  getEnvironmentWsRpcClient: vi.fn(),
 }));
 
+import { getEnvironmentWsRpcClient } from "~/environments/runtime";
 import { createEnvironmentApi, readEnvironmentApi } from "../environment-api";
 import { readLocalApi } from "../local-api";
-import { getWsRpcClientForEnvironment } from "../ws-rpc-client";
 
 import {
   ensureNativeEnvironmentApi,
@@ -31,11 +31,6 @@ const localApi = {
   persistence: {
     getClientSettings: vi.fn(),
     setClientSettings: vi.fn(),
-    getSavedEnvironmentRegistry: vi.fn(),
-    setSavedEnvironmentRegistry: vi.fn(),
-    getSavedEnvironmentSecret: vi.fn(),
-    setSavedEnvironmentSecret: vi.fn(),
-    removeSavedEnvironmentSecret: vi.fn(),
   },
   server: {
     getConfig: vi.fn(),
@@ -85,11 +80,11 @@ describe("native-runtime-api", () => {
   it("can fallback to primary environment when no environment id is provided", () => {
     vi.mocked(readLocalApi).mockReturnValue(localApi);
     vi.mocked(readEnvironmentApi).mockReturnValue(undefined);
-    vi.mocked(getWsRpcClientForEnvironment).mockReturnValue({} as never);
+    vi.mocked(getEnvironmentWsRpcClient).mockReturnValue({} as never);
     vi.mocked(createEnvironmentApi).mockReturnValue(environmentApi);
 
     const result = readNativeRuntimeApi(null, { allowPrimaryEnvironmentFallback: true });
-    expect(getWsRpcClientForEnvironment).toHaveBeenCalledWith(null);
+    expect(getEnvironmentWsRpcClient).toHaveBeenCalledWith(null);
     expect(createEnvironmentApi).toHaveBeenCalledTimes(1);
     expect(result?.git).toBe(environmentApi.git);
   });
@@ -103,7 +98,7 @@ describe("native-runtime-api", () => {
 
   it("returns fallback environment api when enabled", () => {
     vi.mocked(readEnvironmentApi).mockReturnValue(undefined);
-    vi.mocked(getWsRpcClientForEnvironment).mockReturnValue({} as never);
+    vi.mocked(getEnvironmentWsRpcClient).mockReturnValue({} as never);
     vi.mocked(createEnvironmentApi).mockReturnValue(environmentApi);
 
     const result = readNativeEnvironmentApi(undefined, { allowPrimaryEnvironmentFallback: true });

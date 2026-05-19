@@ -1,34 +1,46 @@
 "use client";
 
+import { Button } from "@multi/ui/button";
+import {
+  Dialog,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogPanel,
+  DialogPopup,
+  DialogTitle,
+} from "@multi/ui/dialog";
+import { Input } from "@multi/ui/input";
+import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@multi/ui/menu";
 import type { EnvironmentId } from "@multi/contracts";
 import type { TimestampFormat } from "@multi/contracts/settings";
-import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@multi/ui/menu";
 import {
-  IconCheckmark1,
   IconArrowUp,
+  IconCheckmark1,
   IconClipboard,
   IconDotGrid1x3Horizontal,
   IconFileDownload,
+  IconFileText,
   IconLoader,
 } from "central-icons";
-import { memo, useCallback, useState } from "react";
+import { memo, type FormEvent, useId, useState } from "react";
+import { toast } from "sonner";
 
 import { toastManager } from "~/app/toast";
 import ChatMarkdown from "~/components/chat/markdown/chat-markdown";
 import { readEnvironmentApi } from "~/environment-api";
-import { useCopyToClipboard } from "~/hooks/use-copy-to-clipboard";
+import { formatProjectErrorDescription } from "~/lib/project-error-description";
 import { cn } from "~/lib/utils";
 import {
   buildProposedPlanMarkdownFilename,
-  downloadPlanAsTextFile,
   normalizePlanMarkdownForExport,
   proposedPlanTitle,
   stripDisplayedPlanMarkdown,
-} from "~/proposed-plan";
+} from "~/plan/proposed-plan";
 import type { ActivePlanState, LatestProposedPlanState } from "~/session-logic";
-import { formatTimestamp } from "~/timestamp-format";
+import { formatTimestamp } from "~/lib/timestamp-format";
 import { WorkbenchChromeRow } from "../shell/workbench-chrome-row";
-import { WorkbenchIconButton, WorkbenchTextButton } from "../shell/workbench-icon-button";
+import { workbenchIconButtonVariants, WorkbenchTextButton } from "../shell/workbench-icon-button";
 
 function stepStatusIcon(status: ActivePlanState["steps"][number]["status"]): React.ReactNode {
   if (status === "completed") {
@@ -55,77 +67,30 @@ function stepStatusIcon(status: ActivePlanState["steps"][number]["status"]): Rea
 export interface PlanWorkbenchPanelProps {
   activePlan: ActivePlanState | null;
   activeProposedPlan: LatestProposedPlanState | null;
+  environmentId: EnvironmentId | null;
   label: "Plan" | "Tasks";
-  environmentId: EnvironmentId;
   markdownCwd: string | undefined;
-  projectRoot: string | undefined;
   timestampFormat: TimestampFormat;
   canImplementPlan?: boolean | undefined;
   isImplementingPlan?: boolean | undefined;
   onImplementPlan?: (() => void) | undefined;
-  onImplementPlanInNewThread?: (() => void) | undefined;
 }
 
 export const PlanWorkbenchPanel = memo(function PlanWorkbenchPanel({
   activePlan,
   activeProposedPlan,
-  label,
   environmentId,
+  label,
   markdownCwd,
-  projectRoot,
   timestampFormat,
   canImplementPlan = false,
   isImplementingPlan = false,
   onImplementPlan,
-  onImplementPlanInNewThread,
 }: PlanWorkbenchPanelProps) {
-  const [isSavingToProject, setIsSavingToProject] = useState(false);
-  const { copyToClipboard, isCopied } = useCopyToClipboard();
-
   const planMarkdown = activeProposedPlan?.planMarkdown ?? null;
   const displayedPlanMarkdown = planMarkdown ? stripDisplayedPlanMarkdown(planMarkdown) : null;
   const planTitle = planMarkdown ? proposedPlanTitle(planMarkdown) : null;
   const timestamp = activePlan?.createdAt ?? activeProposedPlan?.updatedAt ?? null;
-
-  const handleCopyPlan = useCallback(() => {
-    if (!planMarkdown) return;
-    copyToClipboard(planMarkdown);
-  }, [copyToClipboard, planMarkdown]);
-
-  const handleDownload = useCallback(() => {
-    if (!planMarkdown) return;
-    const filename = buildProposedPlanMarkdownFilename(planMarkdown);
-    downloadPlanAsTextFile(filename, normalizePlanMarkdownForExport(planMarkdown));
-  }, [planMarkdown]);
-
-  const handleSaveToProject = useCallback(() => {
-    const api = readEnvironmentApi(environmentId);
-    if (!api || !projectRoot || !planMarkdown) return;
-
-    const filename = buildProposedPlanMarkdownFilename(planMarkdown);
-    setIsSavingToProject(true);
-    void api.projects
-      .writeFile({
-        cwd: projectRoot,
-        relativePath: filename,
-        contents: normalizePlanMarkdownForExport(planMarkdown),
-      })
-      .then((result) => {
-        toastManager.add({
-          type: "success",
-          title: "Plan saved",
-          description: result.relativePath,
-        });
-      })
-      .catch((error) => {
-        toastManager.add({
-          type: "error",
-          title: "Could not save plan",
-          description: error instanceof Error ? error.message : "An error occurred.",
-        });
-      })
-      .finally(() => setIsSavingToProject(false));
-  }, [environmentId, planMarkdown, projectRoot]);
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
@@ -135,10 +100,16 @@ export const PlanWorkbenchPanel = memo(function PlanWorkbenchPanel({
         trailing={
           planMarkdown ? (
             <div className="flex shrink-0 items-center gap-(--multi-workbench-chrome-action-gap)">
+              <PlanActions
+                key={activeProposedPlan?.id ?? planMarkdown}
+                environmentId={environmentId}
+                markdownCwd={markdownCwd}
+                planMarkdown={planMarkdown}
+              />
               {onImplementPlan ? (
                 <WorkbenchTextButton
                   onClick={onImplementPlan}
-                  title="Implement plan"
+                  title="Build plan"
                   tone="primary"
                   disabled={!canImplementPlan || isImplementingPlan}
                 >
@@ -147,53 +118,9 @@ export const PlanWorkbenchPanel = memo(function PlanWorkbenchPanel({
                   ) : (
                     <IconArrowUp className="size-3.5 shrink-0" aria-hidden />
                   )}
-                  <span>{isImplementingPlan ? "Starting" : "Implement"}</span>
+                  <span>{isImplementingPlan ? "Building" : "Build"}</span>
                 </WorkbenchTextButton>
               ) : null}
-              <WorkbenchTextButton onClick={handleCopyPlan} title="Copy plan markdown">
-                <IconClipboard className="size-3.5 shrink-0" aria-hidden />
-                <span>{isCopied ? "Copied" : "Copy"}</span>
-              </WorkbenchTextButton>
-              <WorkbenchIconButton
-                aria-label="Download plan markdown"
-                chrome="panel"
-                onClick={handleDownload}
-              >
-                <IconFileDownload className="size-3.5" aria-hidden />
-              </WorkbenchIconButton>
-              <Menu>
-                <MenuTrigger
-                  type="button"
-                  aria-label="Plan actions"
-                  className="no-drag ui-icon-button box-border flex h-(--multi-workbench-action-size) min-h-(--multi-workbench-action-size) min-w-(--multi-workbench-action-size) shrink-0 items-center justify-center rounded-multi-control border-0 bg-transparent px-(--multi-workbench-chrome-icon-padding-x) text-multi-icon-secondary shadow-none outline-hidden transition-colors hover:bg-multi-bg-quaternary hover:text-multi-icon-primary focus-visible:ring-1 focus-visible:ring-multi-stroke-focused focus-visible:ring-inset"
-                >
-                  <IconDotGrid1x3Horizontal className="size-3.5" aria-hidden />
-                </MenuTrigger>
-                <MenuPopup align="end" variant="workbench">
-                  {onImplementPlanInNewThread ? (
-                    <MenuItem
-                      variant="workbench"
-                      onClick={onImplementPlanInNewThread}
-                      disabled={!canImplementPlan || isImplementingPlan}
-                    >
-                      Implement in a new thread
-                    </MenuItem>
-                  ) : null}
-                  <MenuItem variant="workbench" onClick={handleCopyPlan}>
-                    {isCopied ? "Copied" : "Copy to clipboard"}
-                  </MenuItem>
-                  <MenuItem variant="workbench" onClick={handleDownload}>
-                    Download as markdown
-                  </MenuItem>
-                  <MenuItem
-                    variant="workbench"
-                    onClick={handleSaveToProject}
-                    disabled={!projectRoot || isSavingToProject}
-                  >
-                    {isSavingToProject ? "Saving to project" : "Save to project"}
-                  </MenuItem>
-                </MenuPopup>
-              </Menu>
             </div>
           ) : null
         }
@@ -272,3 +199,178 @@ export const PlanWorkbenchPanel = memo(function PlanWorkbenchPanel({
     </div>
   );
 });
+
+function PlanActions(props: {
+  environmentId: EnvironmentId | null;
+  markdownCwd: string | undefined;
+  planMarkdown: string;
+}) {
+  const formId = useId();
+  const contents = normalizePlanMarkdownForExport(props.planMarkdown);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [relativePath, setRelativePath] = useState(() =>
+    buildProposedPlanMarkdownFilename(props.planMarkdown),
+  );
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const copyPlan = async (): Promise<void> => {
+    if (!navigator.clipboard?.writeText) {
+      toast.error("Clipboard API unavailable.");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(contents);
+      toast.success("Plan copied.");
+    } catch (error) {
+      toast.error("Could not copy plan.", {
+        description: error instanceof Error ? error.message : "An error occurred.",
+      });
+    }
+  };
+
+  const downloadPlan = (): void => {
+    const blob = new Blob([contents], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = buildProposedPlanMarkdownFilename(props.planMarkdown);
+    anchor.rel = "noopener";
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const savePlan = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault();
+    const trimmedPath = relativePath.trim();
+    if (!props.markdownCwd) {
+      toast.error("No project path is available.");
+      return;
+    }
+    if (!props.environmentId) {
+      toast.error("Environment API unavailable.");
+      return;
+    }
+    if (!trimmedPath) {
+      toast.error("Enter a project-relative path.");
+      return;
+    }
+
+    const api = readEnvironmentApi(props.environmentId);
+    if (!api) {
+      toast.error("Environment API unavailable.");
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      const result = await api.projects.writeFile({
+        cwd: props.markdownCwd,
+        relativePath: trimmedPath,
+        contents,
+      });
+      toast.success(`Saved ${result.relativePath}.`);
+      setSaveDialogOpen(false);
+    } catch (error) {
+      const description = formatProjectErrorDescription(error, "An error occurred.");
+      setSaveError(description);
+      toastManager.add({
+        type: "error",
+        title: "Could not save plan",
+        description,
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <Menu>
+        <MenuTrigger
+          type="button"
+          aria-label="Plan actions"
+          className={workbenchIconButtonVariants({ chrome: "panel" })}
+        >
+          <IconDotGrid1x3Horizontal className="size-3.5" aria-hidden />
+        </MenuTrigger>
+        <MenuPopup align="end" side="bottom" variant="workbench">
+          <MenuItem variant="workbench" onClick={() => void copyPlan()}>
+            <IconClipboard className="size-3.5" aria-hidden />
+            <span>Copy markdown</span>
+          </MenuItem>
+          <MenuItem variant="workbench" onClick={downloadPlan}>
+            <IconFileDownload className="size-3.5" aria-hidden />
+            <span>Download markdown</span>
+          </MenuItem>
+          <MenuItem
+            variant="workbench"
+            onClick={() => {
+              setSaveError(null);
+              setSaveDialogOpen(true);
+            }}
+          >
+            <IconFileText className="size-3.5" aria-hidden />
+            <span>Save to project</span>
+          </MenuItem>
+        </MenuPopup>
+      </Menu>
+
+      <Dialog
+        open={saveDialogOpen}
+        onOpenChange={(open) => {
+          setSaveDialogOpen(open);
+          if (!open) {
+            setSaveError(null);
+          }
+        }}
+      >
+        <DialogPopup className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Save plan</DialogTitle>
+            <DialogDescription>
+              Enter a path relative to {props.markdownCwd ?? "the project"}.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogPanel>
+            <form id={formId} className="space-y-2" onSubmit={savePlan}>
+              <label className="grid gap-1.5 text-sm text-multi-fg-secondary">
+                <span>Path</span>
+                <Input
+                  autoFocus
+                  value={relativePath}
+                  onChange={(event) => {
+                    setRelativePath(event.target.value);
+                    setSaveError(null);
+                  }}
+                  placeholder="docs/plan.md"
+                />
+              </label>
+              {saveError ? (
+                <div
+                  role="alert"
+                  className="rounded-md border border-destructive/25 bg-destructive/8 px-3 py-2 text-detail text-destructive"
+                >
+                  <p className="font-medium">Could not save plan.</p>
+                  <p className="whitespace-pre-wrap text-destructive/85">{saveError}</p>
+                </div>
+              ) : null}
+            </form>
+          </DialogPanel>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setSaveDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button form={formId} type="submit" disabled={isSaving}>
+              {isSaving ? "Saving" : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogPopup>
+      </Dialog>
+    </>
+  );
+}

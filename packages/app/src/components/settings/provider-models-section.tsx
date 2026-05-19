@@ -18,8 +18,8 @@ import {
 import { normalizeModelSlug } from "@multi/shared/model";
 
 import { cn } from "../../lib/utils";
-import { sortModelsForProviderInstance } from "../../model-ordering";
-import { MAX_CUSTOM_MODEL_LENGTH } from "../../model-selection";
+import { sortModelsForProviderInstance } from "../../model/ordering";
+import { MAX_CUSTOM_MODEL_LENGTH } from "../../model/selection";
 import { Button } from "@multi/ui/button";
 import { Input } from "@multi/ui/input";
 import { Tooltip, TooltipPopup, TooltipProvider, TooltipTrigger } from "@multi/ui/tooltip";
@@ -36,14 +36,14 @@ const CUSTOM_MODEL_PLACEHOLDER_BY_KIND: Partial<Record<ProviderDriverKind, strin
   [ProviderDriverKind.make("opencode")]: "openai/gpt-5",
 };
 
-function collectCapabilityLabels(model: ServerProviderModel): string[] {
+function getProviderModelCapabilityLabels(model: ServerProviderModel): string[] {
   const descriptors = model.capabilities?.optionDescriptors ?? [];
-  const capLabels: string[] = [];
+  const labels: string[] = [];
   if (descriptors.some((descriptor) => descriptor.id === "fastMode")) {
-    capLabels.push("Fast mode");
+    labels.push("Fast mode");
   }
   if (descriptors.some((descriptor) => descriptor.id === "thinking")) {
-    capLabels.push("Thinking");
+    labels.push("Thinking");
   }
   if (
     descriptors.some(
@@ -55,9 +55,9 @@ function collectCapabilityLabels(model: ServerProviderModel): string[] {
           descriptor.id === "variant"),
     )
   ) {
-    capLabels.push("Reasoning");
+    labels.push("Reasoning");
   }
-  return capLabels;
+  return labels;
 }
 
 interface ProviderModelRowProps {
@@ -85,7 +85,7 @@ const ProviderModelRow = memo(function ProviderModelRow({
   onToggleHidden,
   onRemove,
 }: ProviderModelRowProps) {
-  const capLabels = collectCapabilityLabels(model);
+  const capLabels = getProviderModelCapabilityLabels(model);
   const hasDetails = capLabels.length > 0 || model.name !== model.slug;
   const selectable = model.selectable !== false;
 
@@ -392,7 +392,7 @@ export function ProviderModelsSection({
   const handleMoveDown = useCallback((slug: string) => handleMove(slug, 1), [handleMove]);
 
   const handleAdd = () => {
-    const normalized = driverKind ? normalizeModelSlug(input, driverKind) : input.trim() || null;
+    const normalized = driverKind ? normalizeModelSlug(input) : input.trim() || null;
     if (!normalized) {
       setError("Enter a model slug.");
       return;

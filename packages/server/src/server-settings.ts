@@ -11,9 +11,8 @@
  * @module ServerSettings
  */
 import {
-  DEFAULT_GIT_TEXT_GENERATION_MODEL_BY_PROVIDER,
   DEFAULT_SERVER_SETTINGS,
-  DEFAULT_GIT_TEXT_GENERATION_MODEL,
+  DEFAULT_TEXT_GENERATION_MODEL_SELECTION,
   defaultInstanceIdForDriver,
   isProviderDriverKind,
   type ModelSelection,
@@ -53,6 +52,8 @@ import {
   resolveProviderEnabled,
 } from "./provider/provider-settings.ts";
 
+const decodeServerSettings = Schema.decodeEffect(ServerSettings);
+
 export interface ServerSettingsShape {
   /** Start the settings runtime and attach file watching. */
   readonly start: Effect.Effect<void, ServerSettingsError>;
@@ -91,9 +92,7 @@ export class ServerSettingsService extends Context.Service<
           updateSettings: (patch) =>
             Ref.get(currentSettingsRef).pipe(
               Effect.flatMap((currentSettings) =>
-                Schema.decodeEffect(ServerSettings)(
-                  applyServerSettingsPatch(currentSettings, patch),
-                ).pipe(
+                decodeServerSettings(applyServerSettingsPatch(currentSettings, patch)).pipe(
                   Effect.mapError(
                     (cause) =>
                       new ServerSettingsError({
@@ -113,6 +112,7 @@ export class ServerSettingsService extends Context.Service<
 }
 
 const ServerSettingsJson = fromLenientJson(ServerSettings);
+const decodeServerSettingsJsonExit = Schema.decodeUnknownExit(ServerSettingsJson);
 
 /**
  * Ensure the `textGenerationModelSelection` points to an enabled provider.
@@ -152,9 +152,7 @@ function fallbackTextGenerationProvider(settings: ServerSettings): ServerSetting
       ...settings,
       textGenerationModelSelection: {
         instanceId,
-        model:
-          DEFAULT_GIT_TEXT_GENERATION_MODEL_BY_PROVIDER[driver] ??
-          DEFAULT_GIT_TEXT_GENERATION_MODEL,
+        model: settings.textGenerationModelSelection.model,
       } satisfies ModelSelection,
     };
   }
@@ -163,20 +161,19 @@ function fallbackTextGenerationProvider(settings: ServerSettings): ServerSetting
     if (instance.enabled === false) {
       continue;
     }
-    const model = DEFAULT_GIT_TEXT_GENERATION_MODEL_BY_PROVIDER[instance.driver];
-    if (!model) {
-      continue;
-    }
     return {
       ...settings,
       textGenerationModelSelection: {
         instanceId: ProviderInstanceId.make(rawInstanceId),
-        model,
+        model: settings.textGenerationModelSelection.model,
       } satisfies ModelSelection,
     };
   }
 
-  return settings;
+  return {
+    ...settings,
+    textGenerationModelSelection: DEFAULT_TEXT_GENERATION_MODEL_SELECTION,
+  };
 }
 
 // Values under these keys are compared as a whole — never stripped field-by-field.
@@ -259,7 +256,7 @@ const makeServerSettings = Effect.gen(function* () {
     }
 
     const raw = yield* readRawConfig;
-    const decoded = Schema.decodeUnknownExit(ServerSettingsJson)(raw);
+    const decoded = decodeServerSettingsJsonExit(raw);
     if (decoded._tag === "Failure") {
       yield* Effect.logWarning("failed to parse settings.json, using defaults", {
         path: settingsPath,
@@ -373,9 +370,7 @@ const makeServerSettings = Effect.gen(function* () {
       writeSemaphore.withPermits(1)(
         Effect.gen(function* () {
           const current = yield* getSettingsFromCache;
-          const next = yield* Schema.decodeEffect(ServerSettings)(
-            applyServerSettingsPatch(current, patch),
-          ).pipe(
+          const next = yield* decodeServerSettings(applyServerSettingsPatch(current, patch)).pipe(
             Effect.mapError(
               (cause) =>
                 new ServerSettingsError({

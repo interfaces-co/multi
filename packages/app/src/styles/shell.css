@@ -4,24 +4,26 @@
  */
 
 :root {
-  --multi-header-height: var(--multi-header-height-user, 32px);
+  --multi-header-height: var(--multi-header-height-user, 34px);
   --multi-titlebar-control-height: 22px;
   --multi-titlebar-control-row-top: calc(
     (var(--multi-header-height) - var(--multi-titlebar-control-height)) / 2
   );
   --multi-electron-traffic-inset: 80px;
   --multi-electron-traffic-padding-top: var(--multi-electron-traffic-padding-top-user, 0px);
-  --multi-sidebar-label-size: var(--multi-sidebar-label-size-user, var(--multi-text-detail));
+  --multi-sidebar-label-size: var(
+    --multi-sidebar-label-size-user,
+    var(--multi-ui-font-size-user, 13px)
+  );
   --multi-sidebar-label-weight: var(--multi-sidebar-label-weight-user, 400);
   --multi-sidebar-label-leading: var(
     --multi-sidebar-label-leading-user,
-    var(--multi-leading-detail)
+    calc(var(--multi-ui-font-size-user, 13px) + 3px)
   );
   --multi-workbench-toggle-left: var(--multi-workbench-toggle-left-user, 12px);
   --multi-workbench-toggle-right: var(--multi-workbench-toggle-right-user, 12px);
   --multi-workbench-changes-toggle-w: var(--multi-workbench-changes-toggle-w-user, 7rem);
-  --multi-workbench-chrome-row-height: 35px;
-  --multi-workbench-sub-chrome-row-height: 26px;
+  --multi-workbench-chrome-row-height: 34px;
   --multi-workbench-panel-title-row-height: 29px;
   --multi-workbench-chrome-padding-inline: 8px;
   --multi-workbench-sub-chrome-padding-inline: 6px;
@@ -29,7 +31,7 @@
   --multi-workbench-sub-chrome-action-gap: 2px;
   --multi-workbench-chrome-icon-padding-x: 3px;
   --multi-workbench-action-size: 22px;
-  --composer-tab-label-max-width: 200px;
+  --multi-workbench-tab-label-max-width: 200px;
 }
 
 [data-electron] {
@@ -37,7 +39,7 @@
     --multi-workbench-toggle-left-user,
     var(--multi-electron-traffic-inset)
   );
-  --multi-electron-traffic-padding-top: var(--multi-electron-traffic-padding-top-user, 28px);
+  --multi-electron-traffic-padding-top: var(--multi-electron-traffic-padding-top-user, 26px);
 }
 
 /* Glass panels: backdrop-filter + isolation */
@@ -75,11 +77,6 @@ body {
   );
 }
 
-.traffic-lights-spacer {
-  flex-shrink: 0;
-  width: var(--multi-traffic-lights-spacer-width, var(--multi-electron-traffic-inset));
-}
-
 .agent-window {
   --multi-agent-window-font-smoothing-webkit: var(--multi-font-smoothing-webkit);
   --multi-agent-window-font-smoothing-moz: var(--multi-font-smoothing-moz);
@@ -92,10 +89,10 @@ body {
   background: var(--multi-color-surface);
   container-type: inline-size;
   font-family: var(--multi-font-ui);
-  font-size: 12px;
+  font-size: var(--multi-ui-font-size-user, 13px);
   font-synthesis: none;
   letter-spacing: 0;
-  line-height: 16px;
+  line-height: calc(var(--multi-ui-font-size-user, 13px) + 3px);
   -webkit-font-smoothing: var(--multi-agent-window-font-smoothing-webkit);
   -moz-osx-font-smoothing: var(--multi-agent-window-font-smoothing-moz);
   --multi-shell-sash-stripe-width: 4px;
@@ -154,18 +151,12 @@ body {
 
 .multi-shell-titlebar-right-toggle {
   right: var(--multi-shell-titlebar-gutter);
-  top: calc(
-    (var(--multi-workbench-chrome-row-height) - var(--multi-shell-titlebar-control-size)) / 2
-  );
+  top: var(--multi-shell-titlebar-control-y);
 }
 
 .multi-workbench-titlebar-end-space {
   width: var(--multi-shell-right-workbench-header-end-space);
   height: var(--multi-shell-titlebar-control-size);
-}
-
-.editor-panel-inner {
-  min-height: 0;
 }
 
 /* Composite pane title band — full-width under the 35px tool island. */
@@ -227,27 +218,6 @@ body {
   justify-content: center;
 }
 
-/* Secondary pane rails / preview strips — quieter than primary 35px tool island */
-.agent-window .multi-workbench-sub-chrome {
-  display: flex;
-  align-items: center;
-  min-height: var(--multi-workbench-sub-chrome-row-height);
-  max-height: var(--multi-workbench-sub-chrome-row-height);
-  flex-shrink: 0;
-  gap: var(--multi-workbench-sub-chrome-action-gap);
-  padding-inline: var(--multi-workbench-sub-chrome-padding-inline);
-  border-bottom: 1px solid var(--multi-workbench-panel-border-faint);
-  background-color: var(--multi-workbench-panel-title-background);
-}
-
-.agent-window .multi-workbench-sub-chrome-label {
-  color: color-mix(in srgb, var(--foreground) 76%, transparent);
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 14px;
-  letter-spacing: 0.015em;
-}
-
 .agent-window
   .editor-panel-tab-root.editor-panel-tab-root--simple-tabs:not(.multi-workbench-tool-island) {
   border-bottom-color: var(--multi-workbench-panel-border-muted);
@@ -304,7 +274,7 @@ body {
 }
 
 @container (max-width: 900px) {
-  .agent-window__workbench {
+  .agent-window:not([data-shell-right-intent="expanded"]) .agent-window__workbench {
     width: var(--multi-shell-right-workbench-collapsed-width);
     min-width: 0;
     pointer-events: none;
@@ -352,8 +322,8 @@ body {
   background: transparent;
   box-shadow: none;
   color: var(--multi-fg-secondary);
-  font-size: 12px;
-  line-height: 16px;
+  font-size: var(--multi-sidebar-label-size);
+  line-height: var(--multi-sidebar-label-leading);
 }
 
 .agent-window-chat-header [data-slot="button"]:hover,

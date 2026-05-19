@@ -16,7 +16,7 @@ import * as Schema from "effect/Schema";
 import * as Semaphore from "effect/Semaphore";
 import * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
-import { HttpClient } from "effect/unstable/http";
+import { HttpClient, HttpClientResponse } from "effect/unstable/http";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 
 import {
@@ -36,6 +36,9 @@ const DEFAULT_BACKEND_READINESS_INTERVAL = Duration.millis(100);
 const DEFAULT_BACKEND_READINESS_REQUEST_TIMEOUT = Duration.seconds(1);
 const DEFAULT_BACKEND_TERMINATE_GRACE = Duration.seconds(2);
 const BACKEND_READINESS_PATH = "/.well-known/multi/environment";
+const BackendReadinessDescriptor = Schema.Struct({
+  startupStatus: Schema.optionalKey(Schema.Literals(["starting", "ready"])),
+});
 
 type BackendProcessLayerServices = ChildProcessSpawner.ChildProcessSpawner | HttpClient.HttpClient;
 
@@ -90,6 +93,7 @@ type BackendProcessError = BackendProcessBootstrapEncodeError | BackendProcessSp
 interface RunBackendProcessOptions extends DesktopBackendStartConfig {
   readonly readinessTimeout?: Duration.Duration;
   readonly onStarted?: (pid: number) => Effect.Effect<void>;
+  readonly onHttpAvailable?: () => Effect.Effect<void>;
   readonly onReady?: () => Effect.Effect<void>;
   readonly onReadinessFailure?: (error: BackendTimeoutError) => Effect.Effect<void>;
   readonly onOutput?: (
@@ -178,15 +182,32 @@ const closeRun = (
 const waitForHttpReady = Effect.fn("desktop.backendManager.waitForHttpReady")(function* (
   baseUrl: URL,
   timeout: Duration.Duration,
+  onHttpAvailable?: () => Effect.Effect<void>,
 ): Effect.fn.Return<void, BackendTimeoutError, HttpClient.HttpClient> {
   const readinessUrl = new URL(BACKEND_READINESS_PATH, baseUrl);
+  let httpAvailableNotified = false;
   const client = (yield* HttpClient.HttpClient).pipe(
     HttpClient.filterStatusOk,
     HttpClient.transformResponse(Effect.timeout(DEFAULT_BACKEND_READINESS_REQUEST_TIMEOUT)),
-    HttpClient.retry(Schedule.spaced(DEFAULT_BACKEND_READINESS_INTERVAL)),
   );
 
   yield* client.get(readinessUrl).pipe(
+    Effect.flatMap(HttpClientResponse.schemaBodyJson(BackendReadinessDescriptor)),
+    Effect.flatMap((descriptor) =>
+      Effect.gen(function* () {
+        if (!httpAvailableNotified) {
+          httpAvailableNotified = true;
+          if (onHttpAvailable) {
+            yield* onHttpAvailable().pipe(Effect.ignore);
+          }
+        }
+        if (descriptor.startupStatus === undefined || descriptor.startupStatus === "ready") {
+          return;
+        }
+        return yield* Effect.fail("backend command startup is not ready");
+      }),
+    ),
+    Effect.retry(Schedule.spaced(DEFAULT_BACKEND_READINESS_INTERVAL)),
     Effect.asVoid,
     Effect.timeout(timeout),
     Effect.mapError(() => new BackendTimeoutError({ url: readinessUrl })),
@@ -267,6 +288,7 @@ const runBackendProcess = Effect.fn("runBackendProcess")(function* (
   yield* waitForHttpReady(
     options.httpBaseUrl,
     options.readinessTimeout ?? DEFAULT_BACKEND_READINESS_TIMEOUT,
+    options.onHttpAvailable,
   ).pipe(
     Effect.tap(() => options.onReady?.() ?? Effect.void),
     Effect.catch((error) => options.onReadinessFailure?.(error) ?? Effect.void),
@@ -434,6 +456,15 @@ const makeDesktopBackendManager = Effect.fn("makeDesktopBackendManager")(functio
               phase: "START",
               details: `pid=${pid} port=${config.bootstrap.port} cwd=${config.cwd}`,
             });
+          }),
+          onHttpAvailable: Effect.fn("desktop.backendManager.onHttpAvailable")(function* () {
+            yield* desktopWindow.ensureMain.pipe(
+              Effect.catch((error) =>
+                logBackendManagerError("failed to open main window after backend http availability", {
+                  message: error.message,
+                }),
+              ),
+            );
           }),
           onReady: Effect.fn("desktop.backendManager.onReady")(function* () {
             const isCurrentRun = yield* Ref.modify(state, (latest) => {

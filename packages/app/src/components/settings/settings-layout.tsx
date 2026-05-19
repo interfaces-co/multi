@@ -1,20 +1,10 @@
-import { IconChevronLeftMedium } from "central-icons";
-import { type ReactNode, useEffect, useState } from "react";
+import { IconStepBack } from "central-icons";
+import { type ReactNode } from "react";
 
 import { cn } from "../../lib/utils";
 import { Button } from "@multi/ui/button";
 import { Text, textVariants } from "@multi/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@multi/ui/tooltip";
-
-/** Re-render every `intervalMs`; return a stable timestamp snapshot for render-time relative labels. */
-export function useRelativeTimeTick(intervalMs = 1_000) {
-  const [nowMs, setNowMs] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNowMs(Date.now()), intervalMs);
-    return () => clearInterval(id);
-  }, [intervalMs]);
-  return nowMs;
-}
 
 export function SettingsSection({
   title,
@@ -115,7 +105,7 @@ export function SettingResetButton({ label, onClick }: { label: string; onClick:
               onClick();
             }}
           >
-            <IconChevronLeftMedium className="size-3" />
+            <IconStepBack className="size-3" />
           </Button>
         }
       />
@@ -127,7 +117,7 @@ export function SettingResetButton({ label, onClick }: { label: string; onClick:
 export function SettingsPageContainer({ children }: { children: ReactNode }) {
   return (
     <div className="flex-1 overflow-y-auto px-5 py-12 sm:px-8 sm:py-17">
-      <div className="mx-auto flex w-full max-w-[550px] flex-col gap-5">{children}</div>
+      <div className="mx-auto flex w-full max-w-xl flex-col gap-5">{children}</div>
     </div>
   );
 }

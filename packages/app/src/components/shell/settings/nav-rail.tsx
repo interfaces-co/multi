@@ -1,12 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import {
-  IconArchive,
-  IconChevronLeftMedium,
-  IconChainLink1,
+  IconArchive1,
   IconCode,
   IconColorSwatch,
   IconRobot,
   IconSettingsGear2,
+  IconStepBack,
 } from "central-icons";
 import type { ComponentType } from "react";
 
@@ -20,7 +19,6 @@ const items: {
     | "/settings/appearance"
     | "/settings/agents"
     | "/settings/models"
-    | "/settings/connections"
     | "/settings/archived";
   label: string;
   icon: ComponentType<{ className?: string }>;
@@ -29,8 +27,7 @@ const items: {
   { to: "/settings/appearance", label: "Appearance", icon: IconColorSwatch },
   { to: "/settings/agents", label: "Agents", icon: IconRobot },
   { to: "/settings/models", label: "Models", icon: IconCode },
-  { to: "/settings/connections", label: "Connections", icon: IconChainLink1 },
-  { to: "/settings/archived", label: "Archived", icon: IconArchive },
+  { to: "/settings/archived", label: "Archived", icon: IconArchive1 },
 ];
 
 export function SettingsNavRail() {
@@ -47,14 +44,14 @@ export function SettingsNavRail() {
               to={item.to}
               activeProps={{
                 className: cn(
-                  "font-multi flex min-h-[26px] min-w-0 w-full select-none items-center justify-start gap-1.5 rounded-multi-control border border-transparent px-1.5 py-1.5 text-body transition-colors",
+                  "font-multi flex min-h-[26px] min-w-0 w-full select-none items-center justify-start gap-1.5 rounded-multi-control border border-transparent px-1.5 py-1.5 text-(length:--multi-sidebar-label-size) leading-(--multi-sidebar-label-leading) transition-colors",
                   "border-multi-border/90 bg-multi-active text-foreground",
                 ),
                 "aria-current": "page",
               }}
               inactiveProps={{
                 className: cn(
-                  "font-multi flex min-h-[26px] min-w-0 w-full select-none items-center justify-start gap-1.5 rounded-multi-control border border-transparent px-1.5 py-1.5 text-body transition-colors",
+                  "font-multi flex min-h-[26px] min-w-0 w-full select-none items-center justify-start gap-1.5 rounded-multi-control border border-transparent px-1.5 py-1.5 text-(length:--multi-sidebar-label-size) leading-(--multi-sidebar-label-leading) transition-colors",
                   "text-muted-foreground hover:bg-multi-hover hover:text-foreground",
                 ),
               }}
@@ -70,11 +67,11 @@ export function SettingsNavRail() {
           type="button"
           size="sm"
           variant="outline"
-          className="w-full select-none px-1.5"
+          className="w-full select-none px-1.5 text-(length:--multi-sidebar-label-size) leading-(--multi-sidebar-label-leading)"
           disabled={changedSettingLabels.length === 0}
           onClick={() => void restoreDefaults()}
         >
-          <IconChevronLeftMedium className="size-3.5" />
+          <IconStepBack className="size-3.5" />
           Restore defaults
         </Button>
       </div>

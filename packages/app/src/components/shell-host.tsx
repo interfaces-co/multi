@@ -4,26 +4,27 @@ import {
   scopeProjectRef,
   scopeThreadRef,
 } from "@multi/client-runtime";
-import { truncate } from "@multi/shared/String";
 import { DEFAULT_PROJECTLESS_CWD, type EditorId, type EnvironmentId } from "@multi/contracts";
 import type { TimestampFormat } from "@multi/contracts/settings";
 import { useMutation } from "@tanstack/react-query";
 import { Outlet, useNavigate, useParams, useRouter } from "@tanstack/react-router";
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useShallow } from "zustand/react/shallow";
 import { IconBranch, IconConsole, IconFileText, IconSquareChecklist } from "central-icons";
 
-import { readLastChatRouteTarget } from "~/chat-route-persistence";
+import { readLastChatRouteTarget } from "~/app/routes/chat-route-persistence";
+import { toastManager } from "~/app/toast";
 import { prefetchDraftNavigation, prefetchThreadNavigation } from "~/app/thread-prefetch";
 import { useCommandPaletteStore } from "~/stores/ui/command-palette-store";
 import { isElectron } from "~/env";
+import { formatGitActionErrorDescription } from "~/git/action-error-description";
 import { useEnvironmentGitPanel } from "~/hooks/use-environment-git";
 import { useHandleNewThread } from "~/hooks/use-handle-new-thread";
 import { useRouteThreadId } from "~/hooks/use-route-thread-id";
 import { getServerConfig, useServerAvailableEditors } from "~/rpc/server-state";
-import { useComposerDraftStore } from "~/composer-draft-store";
-import { resolveComposerModelSelection } from "~/composer-model-selection";
+import { useComposerDraftStore } from "~/stores/chat-drafts";
+import { resolveAppProviderModelState } from "~/model/selection";
 import { readEnvironmentApi } from "~/environment-api";
 import {
   startNewThreadFromContext,
@@ -45,18 +46,16 @@ import {
   useSecondaryRail,
   useTerminalSessions,
 } from "~/stores/shell-panels-store";
-import { useThreadUnreadStore } from "~/stores/thread-unread-store";
+import { useUiStateStore } from "~/stores/ui-state-store";
 import { writeStoredProjectCwd } from "~/lib/project-state";
-import { inferLoginShellCaption } from "~/lib/terminal-shell-caption";
-import { useThreadPlanCatalog } from "~/lib/thread-plan-catalog";
-import { buildPlanImplementationPrompt, buildPlanImplementationThreadTitle } from "~/proposed-plan";
+import { deriveLogicalProjectKey } from "~/stores/project-identity";
+import { buildPlanImplementationPrompt } from "~/plan/proposed-plan";
 import {
   buildProjectChatSections,
   type SidebarDraftSummary,
   type SidebarThreadSummary as SidebarSectionThreadSummary,
-} from "~/lib/sidebar-chat-view-model";
+} from "./shell/agents/sidebar-chat-view-model";
 import { cn, newCommandId, newMessageId, newThreadId } from "~/lib/utils";
-import { resolveSidebarNewThreadEnvMode, resolveThreadStatusPill } from "~/lib/thread-sidebar";
 import { useSettings } from "~/hooks/use-settings";
 import {
   deriveActivePlanState,
@@ -70,7 +69,8 @@ import {
   selectProjectsAcrossEnvironments,
   selectSidebarThreadsAcrossEnvironments,
   useStore,
-} from "~/store";
+} from "~/stores/thread-store";
+import { createThreadSelectorAcrossEnvironments } from "~/stores/thread-selectors";
 import {
   DEFAULT_INTERACTION_MODE,
   DEFAULT_RUNTIME_MODE,
@@ -78,7 +78,7 @@ import {
   type SidebarThreadSummary as StoreSidebarThreadSummary,
   type Thread,
 } from "~/types";
-import { resolveThreadRouteTarget } from "~/thread-routes";
+import { resolveThreadRouteTarget } from "~/app/routes/thread-route-targets";
 import { GitPanel } from "./shell/git/panel";
 import { ProjectFilesPanel } from "./shell/files/project-files-panel";
 import { AppShell, type RightWorkbenchDefinition } from "./shell/shell/app";
@@ -86,17 +86,42 @@ import type { WorkbenchTabMeta } from "./shell/shell/right-workbench-header";
 import { RightWorkbenchLayout } from "./shell/shell/right-workbench-layout";
 import { WorkbenchPanel } from "./shell/shell/workbench-panel";
 import { PlanWorkbenchPanel } from "./shell/plan/plan-workbench-panel";
-import { getComposerProviderState } from "./chat/composer/provider-registry";
-import { formatOutgoingPrompt } from "./chat/composer/composer-send";
-import { waitForStartedServerThread } from "./chat/view/thread-lifecycle";
+import { getComposerProviderState } from "../model/provider-state";
+import { formatOutgoingPrompt } from "./chat/composer/send";
 import { ShellSettingsProvider } from "./shell/settings/context";
 import { SettingsNavRail } from "./shell/settings/nav-rail";
 import { ShellSidebarFooter } from "./shell/sidebar/footer";
 import { ShellSidebarHeader } from "./shell/sidebar/header";
-import { ThreadRail } from "./shell/sidebar/thread-rail";
+import { AgentList } from "./shell/agents/list";
 import { TerminalPanel } from "./shell/terminal/panel";
 import { TerminalRail } from "./shell/terminal/terminal-rail";
 import { TerminalWorkbenchSubChrome } from "./shell/terminal/workbench-subchrome";
+
+function inferLoginShellCaption(): string {
+  try {
+    const envShell =
+      typeof process !== "undefined" && process.env && typeof process.env.SHELL === "string"
+        ? process.env.SHELL
+        : undefined;
+    if (envShell) {
+      const raw = envShell.trim().replace(/^["']+|["']+$/g, "");
+      const last = Math.max(raw.lastIndexOf("/"), raw.lastIndexOf("\\"));
+      const base = last < 0 ? raw : raw.slice(last + 1);
+      const withoutExe = base.replace(/\.exe$/i, "");
+      if (withoutExe.length > 0) {
+        return withoutExe;
+      }
+    }
+  } catch {
+    /* non-Node or restricted env */
+  }
+
+  if (typeof navigator !== "undefined" && /Win/i.test(navigator.userAgent)) {
+    return "powershell";
+  }
+
+  return "zsh";
+}
 
 function projectScopedKeyFor(
   environmentId: EnvironmentId,
@@ -107,8 +132,35 @@ function projectScopedKeyFor(
 
 function needsSidebarAttention(sidebarThread: StoreSidebarThreadSummary | undefined): boolean {
   if (!sidebarThread) return false;
-  const label = resolveThreadStatusPill({ thread: sidebarThread })?.label;
-  return label === "Pending Approval" || label === "Awaiting Input" || label === "Plan Ready";
+  if (sidebarThread.hasPendingApprovals || sidebarThread.hasPendingUserInput) {
+    return true;
+  }
+  if (
+    sidebarThread.session?.status === "running" ||
+    sidebarThread.session?.status === "connecting"
+  ) {
+    return false;
+  }
+  return (
+    sidebarThread.interactionMode === "plan" &&
+    isLatestTurnSettled(sidebarThread.latestTurn, sidebarThread.session) &&
+    sidebarThread.hasActionableProposedPlan
+  );
+}
+
+function isUnreadFromVisitBoundary(
+  latestReadableAt: string | null | undefined,
+  lastVisitedAt: string | null | undefined,
+): boolean {
+  if (!latestReadableAt) return false;
+  if (!lastVisitedAt) return true;
+  const latestReadableAtMs = Date.parse(latestReadableAt);
+  const lastVisitedAtMs = Date.parse(lastVisitedAt);
+  return (
+    Number.isFinite(latestReadableAtMs) &&
+    Number.isFinite(lastVisitedAtMs) &&
+    latestReadableAtMs > lastVisitedAtMs
+  );
 }
 
 function hasGitAgentStartFailure(thread: Thread, action: GitAgentAction): boolean {
@@ -121,6 +173,47 @@ function hasGitAgentStartFailure(thread: Thread, action: GitAgentAction): boolea
       activity.kind === "provider.turn.start.failed" &&
       activity.createdAt >= latestUserMessage.createdAt,
   );
+}
+
+function resolveActiveGitAgentHandoff(input: {
+  activeRun: GitAgentRun | null;
+  activeThread: Thread | null;
+  mutationIsPending: boolean;
+  orchestrationHandoff: GitAgentActionHandoff | null;
+}): GitAgentActionHandoff | null {
+  if (input.activeRun !== null || input.orchestrationHandoff === null) {
+    return null;
+  }
+
+  if (input.mutationIsPending) {
+    return input.orchestrationHandoff;
+  }
+
+  const activeThread = input.activeThread;
+  if (
+    activeThread === null ||
+    activeThread.environmentId !== input.orchestrationHandoff.target.environmentId ||
+    activeThread.id !== input.orchestrationHandoff.target.threadId
+  ) {
+    return input.orchestrationHandoff;
+  }
+
+  const orchestrationStatus = activeThread.session?.orchestrationStatus ?? null;
+  if (orchestrationStatus === "starting" || orchestrationStatus === "running") {
+    return input.orchestrationHandoff;
+  }
+
+  const latestTurnState = activeThread.latestTurn?.state ?? null;
+  if (
+    latestTurnState === "completed" ||
+    latestTurnState === "interrupted" ||
+    latestTurnState === "error" ||
+    hasGitAgentStartFailure(activeThread, input.orchestrationHandoff.action)
+  ) {
+    return null;
+  }
+
+  return input.orchestrationHandoff;
 }
 
 function toSummaryFromSidebarThread(
@@ -143,6 +236,7 @@ function toSummaryFromSidebarThread(
     name: thread.title,
     createdAt: thread.createdAt,
     modifiedAt: thread.updatedAt ?? thread.createdAt,
+    latestReadableAt: thread.latestTurn?.completedAt ?? null,
     messageCount: 0,
     firstMessage: thread.title,
     isStreaming: orchestrationStatus === "starting" || orchestrationStatus === "running",
@@ -162,12 +256,10 @@ interface PlanWorkbenchState {
   label: PlanWorkbenchLabel;
   environmentId: EnvironmentId | null;
   markdownCwd: string | undefined;
-  projectRoot: string | undefined;
   timestampFormat: TimestampFormat;
   canImplementPlan: boolean;
   isImplementingPlan: boolean;
   onImplementPlan: (() => void) | undefined;
-  onImplementPlanInNewThread: (() => void) | undefined;
 }
 
 export function ShellHost(props: { children?: ReactNode; mode: "chat" | "settings" }) {
@@ -248,7 +340,8 @@ function ChatShellHost(props: { children?: ReactNode }) {
   const cancelDraftThreadPromotion = useComposerDraftStore(
     (store) => store.cancelDraftThreadPromotion,
   );
-  const unread = useThreadUnreadStore((store) => store.unread);
+  const threadLastVisitedAtById = useUiStateStore((store) => store.threadLastVisitedAtById);
+  const pinnedThreadKeys = useUiStateStore((store) => store.pinnedThreadKeys);
   const {
     activeDraftThread,
     activeThread: routeActiveThread,
@@ -342,9 +435,24 @@ function ChatShellHost(props: { children?: ReactNode }) {
     });
   }, [projectByScopedKey, sidebarThreads]);
 
-  const unreadIds = useMemo(
-    () => new Set(Object.keys(unread).filter((id) => unread[id])),
-    [unread],
+  const unreadIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const thread of sidebarThreads) {
+      const threadKey = scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id));
+      if (
+        isUnreadFromVisitBoundary(
+          thread.latestTurn?.completedAt,
+          threadLastVisitedAtById[threadKey],
+        )
+      ) {
+        ids.add(thread.id);
+      }
+    }
+    return ids;
+  }, [sidebarThreads, threadLastVisitedAtById]);
+  const pinnedThreadKeySet = useMemo(
+    () => new Set(pinnedThreadKeys),
+    [pinnedThreadKeys],
   );
 
   const activeThread = routeActiveThread ?? null;
@@ -436,19 +544,27 @@ function ChatShellHost(props: { children?: ReactNode }) {
     DEFAULT_INTERACTION_MODE;
   const activeLatestTurn = activeThread?.latestTurn ?? null;
   const latestTurnSettled = isLatestTurnSettled(activeLatestTurn, activeThread?.session ?? null);
-  const threadPlanCatalog = useThreadPlanCatalog(
-    useMemo(() => {
-      const threadIds: Thread["id"][] = [];
-      if (activeThread?.id) {
-        threadIds.push(activeThread.id);
-      }
-      const sourceThreadId = activeLatestTurn?.sourceProposedPlan?.threadId;
-      if (sourceThreadId && sourceThreadId !== activeThread?.id) {
-        threadIds.push(sourceThreadId);
-      }
-      return threadIds;
-    }, [activeLatestTurn?.sourceProposedPlan?.threadId, activeThread?.id]),
+  const sourceProposedPlanThreadId =
+    activeLatestTurn?.sourceProposedPlan?.threadId &&
+    activeLatestTurn.sourceProposedPlan.threadId !== activeThread?.id
+      ? activeLatestTurn.sourceProposedPlan.threadId
+      : null;
+  const sourceProposedPlanThread = useStore(
+    useMemo(
+      () => createThreadSelectorAcrossEnvironments(sourceProposedPlanThreadId),
+      [sourceProposedPlanThreadId],
+    ),
   );
+  const planThreads = useMemo(() => {
+    const threads: Thread[] = [];
+    if (activeThread) {
+      threads.push(activeThread);
+    }
+    if (sourceProposedPlanThread && sourceProposedPlanThread.id !== activeThread?.id) {
+      threads.push(sourceProposedPlanThread);
+    }
+    return threads;
+  }, [activeThread, sourceProposedPlanThread]);
   const activePlan = useMemo(
     () =>
       deriveActivePlanState(
@@ -460,12 +576,12 @@ function ChatShellHost(props: { children?: ReactNode }) {
   const activeProposedPlan = useMemo(
     () =>
       findSidebarProposedPlan({
-        threads: threadPlanCatalog,
+        threads: planThreads,
         latestTurn: activeLatestTurn,
         latestTurnSettled,
         threadId: activeThread?.id ?? null,
       }),
-    [activeLatestTurn, activeThread?.id, latestTurnSettled, threadPlanCatalog],
+    [activeLatestTurn, activeThread?.id, latestTurnSettled, planThreads],
   );
   const activeProposedPlanSourceThreadId =
     activeProposedPlan && activeThread
@@ -496,7 +612,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
           ? useComposerDraftStore.getState().draftsByThreadKey[composerDraftKey]
           : undefined;
       const serverConfig = getServerConfig();
-      const resolved = resolveComposerModelSelection({
+      const resolved = resolveAppProviderModelState({
         draft: composerDraft,
         providers: serverConfig?.providers ?? [],
         settings,
@@ -509,7 +625,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
         model: resolved.selectedModel,
         models: resolved.selectedProviderModels,
         prompt: implementationPrompt,
-        modelOptions: resolved.composerModelOptions?.[resolved.selectedProvider],
+        modelOptions: resolved.modelOptionSelectionsByInstance?.[resolved.selectedInstanceId],
       });
       return {
         modelSelection: resolved.modelSelection,
@@ -524,178 +640,106 @@ function ChatShellHost(props: { children?: ReactNode }) {
     },
     [activeProject?.defaultModelSelection, activeThread, routeTarget, settings],
   );
-  const startPlanImplementation = useCallback(
-    async (target: "current-thread" | "new-thread") => {
+  const startPlanImplementation = useCallback(async () => {
+    if (
+      !activeThread ||
+      !activeProposedPlan ||
+      !activeProposedPlanSourceThreadId ||
+      !canImplementPlan ||
+      isImplementingPlan
+    ) {
+      return;
+    }
+
+    const api = readEnvironmentApi(activeThread.environmentId);
+    if (!api) {
+      toast.error("Environment API unavailable.");
+      return;
+    }
+
+    const createdAt = new Date().toISOString();
+    const planMarkdown = activeProposedPlan.planMarkdown;
+    const implementationPrompt = buildPlanImplementationPrompt(planMarkdown);
+    const { modelSelection, messageText } =
+      resolvePlanImplementationModelSelection(implementationPrompt);
+    const sourceProposedPlan = {
+      threadId: activeProposedPlanSourceThreadId,
+      planId: activeProposedPlan.id,
+    };
+
+    setIsImplementingPlan(true);
+    try {
       if (
-        !activeThread ||
-        !activeProposedPlan ||
-        !activeProposedPlanSourceThreadId ||
-        !canImplementPlan ||
-        isImplementingPlan
+        modelSelection.model !== activeThread.modelSelection.model ||
+        modelSelection.instanceId !== activeThread.modelSelection.instanceId ||
+        JSON.stringify(modelSelection.options ?? null) !==
+          JSON.stringify(activeThread.modelSelection.options ?? null)
       ) {
-        return;
-      }
-
-      const api = readEnvironmentApi(activeThread.environmentId);
-      if (!api) {
-        toast.error("Environment API unavailable.");
-        return;
-      }
-
-      const createdAt = new Date().toISOString();
-      const planMarkdown = activeProposedPlan.planMarkdown;
-      const implementationPrompt = buildPlanImplementationPrompt(planMarkdown);
-      const { modelSelection, messageText } =
-        resolvePlanImplementationModelSelection(implementationPrompt);
-      const sourceProposedPlan = {
-        threadId: activeProposedPlanSourceThreadId,
-        planId: activeProposedPlan.id,
-      };
-      let createdThreadId: Thread["id"] | null = null;
-      let shouldDeleteCreatedThread = false;
-
-      setIsImplementingPlan(true);
-      try {
-        if (target === "new-thread") {
-          const nextThreadId = newThreadId();
-          const nextThreadTitle = truncate(buildPlanImplementationThreadTitle(planMarkdown));
-          createdThreadId = nextThreadId;
-          shouldDeleteCreatedThread = true;
-          await api.orchestration.dispatchCommand({
-            type: "thread.create",
-            commandId: newCommandId(),
-            threadId: nextThreadId,
-            projectId: activeThread.projectId,
-            title: nextThreadTitle,
-            modelSelection,
-            runtimeMode,
-            interactionMode: "default",
-            branch: activeThread.branch,
-            worktreePath: activeThread.worktreePath,
-            createdAt,
-          });
-          await api.orchestration.dispatchCommand({
-            type: "thread.turn.start",
-            commandId: newCommandId(),
-            threadId: nextThreadId,
-            message: {
-              messageId: newMessageId(),
-              role: "user",
-              text: messageText,
-              attachments: [],
-            },
-            modelSelection,
-            titleSeed: nextThreadTitle,
-            runtimeMode,
-            interactionMode: "default",
-            sourceProposedPlan,
-            createdAt,
-          });
-          shouldDeleteCreatedThread = false;
-          await waitForStartedServerThread(
-            scopeThreadRef(activeThread.environmentId, nextThreadId),
-          );
-          shellPanelsActions.activatePlanTab();
-          await navigate({
-            to: "/$environmentId/$threadId",
-            params: {
-              environmentId: activeThread.environmentId,
-              threadId: nextThreadId,
-            },
-          });
-          return;
-        }
-
-        if (
-          modelSelection.model !== activeThread.modelSelection.model ||
-          modelSelection.instanceId !== activeThread.modelSelection.instanceId ||
-          JSON.stringify(modelSelection.options ?? null) !==
-            JSON.stringify(activeThread.modelSelection.options ?? null)
-        ) {
-          await api.orchestration.dispatchCommand({
-            type: "thread.meta.update",
-            commandId: newCommandId(),
-            threadId: activeThread.id,
-            modelSelection,
-          });
-        }
-        if (runtimeMode !== activeThread.runtimeMode) {
-          await api.orchestration.dispatchCommand({
-            type: "thread.runtime-mode.set",
-            commandId: newCommandId(),
-            threadId: activeThread.id,
-            runtimeMode,
-            createdAt,
-          });
-        }
-        if (activeThread.interactionMode !== "default") {
-          await api.orchestration.dispatchCommand({
-            type: "thread.interaction-mode.set",
-            commandId: newCommandId(),
-            threadId: activeThread.id,
-            interactionMode: "default",
-            createdAt,
-          });
-        }
-
         await api.orchestration.dispatchCommand({
-          type: "thread.turn.start",
+          type: "thread.meta.update",
           commandId: newCommandId(),
           threadId: activeThread.id,
-          message: {
-            messageId: newMessageId(),
-            role: "user",
-            text: messageText,
-            attachments: [],
-          },
           modelSelection,
-          titleSeed: activeThread.title,
+        });
+      }
+      if (runtimeMode !== activeThread.runtimeMode) {
+        await api.orchestration.dispatchCommand({
+          type: "thread.runtime-mode.set",
+          commandId: newCommandId(),
+          threadId: activeThread.id,
           runtimeMode,
-          interactionMode: "default",
-          sourceProposedPlan,
           createdAt,
         });
-        shellPanelsActions.activatePlanTab();
-      } catch (error) {
-        if (shouldDeleteCreatedThread && createdThreadId !== null) {
-          await api.orchestration
-            .dispatchCommand({
-              type: "thread.delete",
-              commandId: newCommandId(),
-              threadId: createdThreadId,
-            })
-            .catch(() => undefined);
-        }
-        toast.error(
-          target === "new-thread"
-            ? "Could not start implementation thread."
-            : "Could not implement plan.",
-          {
-            description: error instanceof Error ? error.message : "An error occurred.",
-          },
-        );
-      } finally {
-        setIsImplementingPlan(false);
       }
-    },
-    [
-      activeProposedPlan,
-      activeProposedPlanSourceThreadId,
-      activeThread,
-      canImplementPlan,
-      isImplementingPlan,
-      navigate,
-      resolvePlanImplementationModelSelection,
-      runtimeMode,
-    ],
-  );
+      if (activeThread.interactionMode !== "default") {
+        await api.orchestration.dispatchCommand({
+          type: "thread.interaction-mode.set",
+          commandId: newCommandId(),
+          threadId: activeThread.id,
+          interactionMode: "default",
+          createdAt,
+        });
+      }
+
+      await api.orchestration.dispatchCommand({
+        type: "thread.turn.start",
+        commandId: newCommandId(),
+        threadId: activeThread.id,
+        message: {
+          messageId: newMessageId(),
+          role: "user",
+          text: messageText,
+          attachments: [],
+        },
+        modelSelection,
+        titleSeed: activeThread.title,
+        runtimeMode,
+        interactionMode: "default",
+        sourceProposedPlan,
+        createdAt,
+      });
+      shellPanelsActions.activatePlanTab();
+    } catch (error) {
+      toast.error("Could not implement plan.", {
+        description: error instanceof Error ? error.message : "An error occurred.",
+      });
+    } finally {
+      setIsImplementingPlan(false);
+    }
+  }, [
+    activeProposedPlan,
+    activeProposedPlanSourceThreadId,
+    activeThread,
+    canImplementPlan,
+    isImplementingPlan,
+    resolvePlanImplementationModelSelection,
+    runtimeMode,
+  ]);
   const implementPlanInCurrentThread = useCallback(() => {
-    void startPlanImplementation("current-thread");
+    void startPlanImplementation();
   }, [startPlanImplementation]);
-  const implementPlanInNewThread = useCallback(() => {
-    void startPlanImplementation("new-thread");
-  }, [startPlanImplementation]);
-  const planAvailable = activePlan !== null || activeProposedPlan !== null;
+  const planAvailable =
+    interactionMode === "plan" || activePlan !== null || activeProposedPlan !== null;
   const planLabel: PlanWorkbenchLabel =
     activeProposedPlan || interactionMode === "plan" ? "Plan" : "Tasks";
   const planWorkbench: PlanWorkbenchState = {
@@ -705,27 +749,30 @@ function ChatShellHost(props: { children?: ReactNode }) {
     label: planLabel,
     environmentId: activeThread?.environmentId ?? activeEnvironmentId,
     markdownCwd: activeCwd ?? undefined,
-    projectRoot: activeThread?.worktreePath ?? activeProject?.cwd ?? undefined,
     timestampFormat: settings.timestampFormat,
     canImplementPlan,
     isImplementingPlan,
     onImplementPlan: showPlanImplementationActions ? implementPlanInCurrentThread : undefined,
-    onImplementPlanInNewThread: showPlanImplementationActions
-      ? implementPlanInNewThread
-      : undefined,
   };
-  const sections = useMemo(
-    () =>
-      buildProjectChatSections(
-        summaries,
-        drafts,
-        activeCwd,
-        null,
-        unreadIds,
-        projects.map((project) => project.cwd),
-      ),
-    [activeCwd, drafts, projects, summaries, unreadIds],
-  );
+  const sections = useMemo(() => {
+    const projectStateKeyByCwd = new Map(
+      projects.map((project) => [project.cwd, deriveLogicalProjectKey(project)] as const),
+    );
+    return buildProjectChatSections(
+      summaries,
+      drafts,
+      activeCwd,
+      null,
+      unreadIds,
+      projects.map((project) => project.cwd),
+      pinnedThreadKeySet,
+    ).map((section) => {
+      const projectStateKey = section.projectCwd
+        ? projectStateKeyByCwd.get(section.projectCwd)
+        : undefined;
+      return projectStateKey ? Object.assign(section, { projectStateKey }) : section;
+    });
+  }, [activeCwd, drafts, pinnedThreadKeySet, projects, summaries, unreadIds]);
 
   const create = useCallback(
     (cwd?: string) => {
@@ -733,9 +780,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
         activeDraftThread,
         activeThread: routeActiveThread,
         defaultProjectRef,
-        defaultThreadEnvMode: resolveSidebarNewThreadEnvMode({
-          defaultEnvMode: defaultThreadEnvMode,
-        }),
+        defaultThreadEnvMode,
         handleNewThread,
       };
       const project =
@@ -760,7 +805,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
     ],
   );
 
-  const clearThreadUnread = useThreadUnreadStore((store) => store.clear);
+  const markThreadVisited = useUiStateStore((store) => store.markThreadVisited);
 
   const select = useCallback(
     (id: string) => {
@@ -772,9 +817,9 @@ function ChatShellHost(props: { children?: ReactNode }) {
         void navigate({ to: "/draft/$draftId", params: { draftId: id } });
         return;
       }
-      clearThreadUnread(id);
       const summary = summaries.find((entry) => entry.id === id);
       if (summary) {
+        markThreadVisited(scopedThreadKey(scopeThreadRef(summary.environmentId, summary.id)));
         if (summary.projectId !== null && summary.cwd) {
           writeStoredProjectCwd(summary.cwd);
         }
@@ -784,7 +829,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
         });
       }
     },
-    [clearThreadUnread, drafts, navigate, summaries],
+    [drafts, markThreadVisited, navigate, summaries],
   );
 
   const prefetchAgent = useCallback(
@@ -892,7 +937,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
           ? useComposerDraftStore.getState().draftsByThreadKey[composerDraftKey]
           : undefined;
       const serverConfig = getServerConfig();
-      const modelSelection = resolveComposerModelSelection({
+      const modelSelection = resolveAppProviderModelState({
         draft: composerDraft,
         providers: serverConfig?.providers ?? [],
         settings,
@@ -1005,18 +1050,37 @@ function ChatShellHost(props: { children?: ReactNode }) {
     mutationFn: startGitAgentAction,
     onError: (error) => {
       setGitAgentOrchestrationHandoff(null);
-      toast.error(error instanceof Error ? error.message : "Failed to start Git action.");
+      toastManager.add({
+        type: "error",
+        title: "Failed to start Git action",
+        description: formatGitActionErrorDescription(error, "Failed to start Git action."),
+      });
     },
   });
+  const activeGitAgentHandoff = useMemo(
+    () =>
+      resolveActiveGitAgentHandoff({
+        activeRun: activeGitAgentRun,
+        activeThread,
+        mutationIsPending: gitAgentActionMutation.isPending,
+        orchestrationHandoff: gitAgentOrchestrationHandoff,
+      }),
+    [
+      activeGitAgentRun,
+      activeThread,
+      gitAgentActionMutation.isPending,
+      gitAgentOrchestrationHandoff,
+    ],
+  );
   const interruptGitAgentActionMutation = useMutation({
     mutationKey: [
       "git",
       "agent-action",
       "interrupt",
       activeGitAgentRun?.target.environmentId ??
-        gitAgentOrchestrationHandoff?.target.environmentId ??
+        activeGitAgentHandoff?.target.environmentId ??
         null,
-      activeGitAgentRun?.target.threadId ?? gitAgentOrchestrationHandoff?.target.threadId ?? null,
+      activeGitAgentRun?.target.threadId ?? activeGitAgentHandoff?.target.threadId ?? null,
     ] as const,
     onMutate: () => {
       setGitAgentOrchestrationHandoff(null);
@@ -1035,60 +1099,31 @@ function ChatShellHost(props: { children?: ReactNode }) {
       });
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to stop Git action.");
+      toastManager.add({
+        type: "error",
+        title: "Failed to stop Git action",
+        description: formatGitActionErrorDescription(error, "Failed to stop Git action."),
+      });
     },
     onSettled: () => {
       setGitAgentOrchestrationHandoff(null);
     },
   });
-  useEffect(() => {
-    if (activeGitAgentRun !== null) {
-      setGitAgentOrchestrationHandoff(null);
-      return;
-    }
-    if (gitAgentOrchestrationHandoff === null || gitAgentActionMutation.isPending) {
-      return;
-    }
-    const targetMatchesActiveThread =
-      activeThread?.environmentId === gitAgentOrchestrationHandoff.target.environmentId &&
-      activeThread.id === gitAgentOrchestrationHandoff.target.threadId;
-    if (!targetMatchesActiveThread) {
-      return;
-    }
-    const orchestrationStatus = activeThread.session?.orchestrationStatus ?? null;
-    if (orchestrationStatus === "starting" || orchestrationStatus === "running") {
-      return;
-    }
-    const latestTurnState = activeThread.latestTurn?.state ?? null;
-    if (
-      latestTurnState === "completed" ||
-      latestTurnState === "interrupted" ||
-      latestTurnState === "error" ||
-      hasGitAgentStartFailure(activeThread, gitAgentOrchestrationHandoff.action)
-    ) {
-      setGitAgentOrchestrationHandoff(null);
-    }
-  }, [
-    activeGitAgentRun,
-    activeThread,
-    gitAgentActionMutation.isPending,
-    gitAgentOrchestrationHandoff,
-  ]);
   const pendingGitAgentAction = resolvePendingGitAgentAction({
     activeRun: activeGitAgentRun,
     mutationIsPending: gitAgentActionMutation.isPending,
     mutationVariables: gitAgentActionMutation.variables,
-    orchestrationHandoff: gitAgentOrchestrationHandoff,
+    orchestrationHandoff: activeGitAgentHandoff,
   });
   const gitAgentInterruptTarget =
-    activeGitAgentRun?.target ?? gitAgentOrchestrationHandoff?.target ?? null;
+    activeGitAgentRun?.target ?? activeGitAgentHandoff?.target ?? null;
   const stopGitAgentAction = gitAgentInterruptTarget
     ? () => interruptGitAgentActionMutation.mutate(gitAgentInterruptTarget)
     : null;
   const stoppingGitAgentAction =
     interruptGitAgentActionMutation.isPending && pendingGitAgentAction !== null;
   const center = (
-    <GitAgentActionHandoffContext.Provider value={gitAgentOrchestrationHandoff}>
+    <GitAgentActionHandoffContext.Provider value={activeGitAgentHandoff}>
       {props.children ?? <Outlet />}
     </GitAgentActionHandoffContext.Provider>
   );
@@ -1102,7 +1137,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
       <div className={cn("shrink-0", isElectron && "no-drag")}>
         <ShellSidebarHeader onNewChat={create} onAddProject={openAddProject} />
       </div>
-      <ThreadRail
+      <AgentList
         loading={false}
         error={false}
         sections={sections}
@@ -1115,25 +1150,21 @@ function ChatShellHost(props: { children?: ReactNode }) {
     </div>
   );
 
-  if (isElectron) {
-    return (
-      <DesktopChatShellHost
-        left={chatLeft}
-        center={center}
-        routeThreadId={routeThreadId}
-        cwd={activeCwd}
-        environmentId={activeEnvironmentId}
-        availableEditors={availableEditors}
-        plan={planWorkbench}
-        onGitAgentAction={(action) => gitAgentActionMutation.mutate(action)}
-        onStopGitAgentAction={stopGitAgentAction}
-        stoppingGitAgentAction={stoppingGitAgentAction}
-        pendingGitAgentAction={pendingGitAgentAction}
-      />
-    );
-  }
-
-  return <AppShell cwd={activeCwd} left={chatLeft} center={center} right={null} />;
+  return (
+    <ChatWorkbenchShellHost
+      left={chatLeft}
+      center={center}
+      routeThreadId={routeThreadId}
+      cwd={activeCwd}
+      environmentId={activeEnvironmentId}
+      availableEditors={availableEditors}
+      plan={planWorkbench}
+      onGitAgentAction={(action) => gitAgentActionMutation.mutate(action)}
+      onStopGitAgentAction={stopGitAgentAction}
+      stoppingGitAgentAction={stoppingGitAgentAction}
+      pendingGitAgentAction={pendingGitAgentAction}
+    />
+  );
 }
 
 function TerminalWorkbenchPanel(props: {
@@ -1174,7 +1205,7 @@ function TerminalWorkbenchPanel(props: {
   );
 }
 
-function DesktopChatShellHost(props: {
+function ChatWorkbenchShellHost(props: {
   left: ReactNode;
   center: ReactNode;
   routeThreadId: string | null;
@@ -1237,15 +1268,13 @@ function DesktopChatShellHost(props: {
           <PlanWorkbenchPanel
             activePlan={props.plan.activePlan}
             activeProposedPlan={props.plan.activeProposedPlan}
-            label={props.plan.label}
             environmentId={props.plan.environmentId}
+            label={props.plan.label}
             markdownCwd={props.plan.markdownCwd}
-            projectRoot={props.plan.projectRoot}
             timestampFormat={props.plan.timestampFormat}
             canImplementPlan={props.plan.canImplementPlan}
             isImplementingPlan={props.plan.isImplementingPlan}
             onImplementPlan={props.plan.onImplementPlan}
-            onImplementPlanInNewThread={props.plan.onImplementPlanInNewThread}
           />
         </WorkbenchPanel>
       );
@@ -1268,8 +1297,6 @@ function DesktopChatShellHost(props: {
     props.plan.markdownCwd,
     props.plan.isImplementingPlan,
     props.plan.onImplementPlan,
-    props.plan.onImplementPlanInNewThread,
-    props.plan.projectRoot,
     props.plan.timestampFormat,
     planTabAvailable,
     props.stoppingGitAgentAction,
@@ -1277,13 +1304,16 @@ function DesktopChatShellHost(props: {
   ]);
 
   return (
-    <AppShell
-      cwd={props.cwd}
-      routeThreadId={props.routeThreadId}
-      gitFocusId={git.focusId}
-      left={props.left}
-      center={props.center}
-      right={right}
-    />
+    <>
+      {git.lifecycleSync}
+      <AppShell
+        cwd={props.cwd}
+        routeThreadId={props.routeThreadId}
+        gitFocusId={git.focusId}
+        left={props.left}
+        center={props.center}
+        right={right}
+      />
+    </>
   );
 }

@@ -1,29 +1,46 @@
 import { Outlet } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffectEvent } from "react";
 
 import {
   SettingsRestoreProvider,
   useSettingsRestoreState,
 } from "~/components/settings/settings-restore-context";
 import { ShellHost } from "~/components/shell-host";
+import { useMountEffect } from "~/hooks/use-mount-effect";
+import { resolveShortcutCommand } from "~/keybindings";
+import { useServerKeybindings } from "~/rpc/server-state";
 
 function SettingsContentLayout() {
   const { restoreSignal } = useSettingsRestoreState();
+  const keybindings = useServerKeybindings();
 
-  useEffect(() => {
+  const handleWindowKeyDown = useEffectEvent((event: KeyboardEvent) => {
+    if (event.defaultPrevented) return;
+
+    const command = resolveShortcutCommand(event, keybindings, {
+      context: {
+        terminalFocus: false,
+        terminalOpen: false,
+      },
+    });
+    if (command !== "route.back") {
+      return;
+    }
+
+    event.preventDefault();
+    window.history.back();
+  });
+
+  useMountEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented) return;
-      if (event.key === "Escape") {
-        event.preventDefault();
-        window.history.back();
-      }
+      handleWindowKeyDown(event);
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => {
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, []);
+  });
 
   return (
     <div className="settings-form-page flex min-h-0 min-w-0 flex-1 flex-col bg-transparent text-foreground">

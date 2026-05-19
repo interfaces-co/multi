@@ -1,3 +1,5 @@
+import { createServer } from "node:net";
+
 import * as Cause from "effect/Cause";
 import * as Data from "effect/Data";
 import * as Duration from "effect/Duration";
@@ -7,7 +9,6 @@ import * as Option from "effect/Option";
 import * as Random from "effect/Random";
 import * as Ref from "effect/Ref";
 
-import * as NetService from "@multi/shared/Net";
 import * as ElectronApp from "../electron/ElectronApp";
 import * as ElectronDialog from "../electron/ElectronDialog";
 import * as ElectronProtocol from "../electron/ElectronProtocol";
@@ -25,10 +26,7 @@ import * as DesktopShellEnvironment from "../shell/DesktopShellEnvironment";
 import * as DesktopState from "./DesktopState";
 import * as DesktopUpdates from "../updates/DesktopUpdates";
 
-const DEFAULT_DESKTOP_BACKEND_PORT = 3773;
 const DESKTOP_BACKEND_SHUTDOWN_TIMEOUT = Duration.seconds(5);
-const MAX_TCP_PORT = 65_535;
-const DESKTOP_BACKEND_PORT_PROBE_HOSTS = ["127.0.0.1", "0.0.0.0", "::"] as const;
 
 const makeDesktopRunId = Random.nextUUIDv4.pipe(
   Effect.map((value) => value.replaceAll("-", "").slice(0, 12)),
@@ -37,12 +35,15 @@ const makeDesktopRunId = Random.nextUUIDv4.pipe(
 class DesktopBackendPortUnavailableError extends Data.TaggedError(
   "DesktopBackendPortUnavailableError",
 )<{
-  readonly startPort: number;
-  readonly maxPort: number;
-  readonly hosts: readonly string[];
+  readonly preferredPort?: number;
+  readonly cause: unknown;
 }> {
   override get message() {
-    return `No desktop backend port is available on hosts ${this.hosts.join(", ")} between ${this.startPort} and ${this.maxPort}.`;
+    const target =
+      this.preferredPort === undefined
+        ? "an ephemeral loopback port"
+        : `preferred loopback port ${this.preferredPort}`;
+    return `No desktop backend port is available for ${target}.`;
   }
 }
 
@@ -60,40 +61,60 @@ const { logInfo: logBootstrapInfo, logWarning: logBootstrapWarning } =
 const { logInfo: logStartupInfo, logError: logStartupError } =
   DesktopObservability.makeComponentLogger("desktop-startup");
 
-const resolveDesktopBackendPort = Effect.fn("resolveDesktopBackendPort")(function* (
-  configuredPort: Option.Option<number>,
-) {
+function reserveLoopbackPort(port: number): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    server.once("error", reject);
+    server.listen(port, "127.0.0.1", () => {
+      const address = server.address();
+      const selectedPort = typeof address === "object" && address ? address.port : port;
+      server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve(selectedPort);
+      });
+    });
+  });
+}
+
+const reserveBackendPort = (port: number) =>
+  Effect.tryPromise({
+    try: () => reserveLoopbackPort(port),
+    catch: (cause) =>
+      new DesktopBackendPortUnavailableError({
+        ...(port > 0 ? { preferredPort: port } : {}),
+        cause,
+      }),
+  });
+
+const resolveDesktopBackendPort = Effect.fn("resolveDesktopBackendPort")(function* (input: {
+  readonly configuredPort: Option.Option<number>;
+  readonly lastBackendPort: number | undefined;
+}) {
+  const { configuredPort, lastBackendPort } = input;
   if (Option.isSome(configuredPort)) {
     return {
       port: configuredPort.value,
-      selectedByScan: false,
+      source: "configured",
     } as const;
   }
 
-  const net = yield* NetService.NetService;
-  for (let port = DEFAULT_DESKTOP_BACKEND_PORT; port <= MAX_TCP_PORT; port += 1) {
-    let availableOnEveryHost = true;
-
-    for (const host of DESKTOP_BACKEND_PORT_PROBE_HOSTS) {
-      if (!(yield* net.canListenOnHost(port, host))) {
-        availableOnEveryHost = false;
-        break;
-      }
-    }
-
-    if (availableOnEveryHost) {
+  if (lastBackendPort !== undefined) {
+    const port = yield* reserveBackendPort(lastBackendPort).pipe(Effect.option);
+    if (Option.isSome(port)) {
       return {
-        port,
-        selectedByScan: true,
+        port: port.value,
+        source: "last",
       } as const;
     }
   }
 
-  return yield* new DesktopBackendPortUnavailableError({
-    startPort: DEFAULT_DESKTOP_BACKEND_PORT,
-    maxPort: MAX_TCP_PORT,
-    hosts: DESKTOP_BACKEND_PORT_PROBE_HOSTS,
-  });
+  return {
+    port: yield* reserveBackendPort(0),
+    source: "ephemeral",
+  } as const;
 });
 
 const handleFatalStartupError = Effect.fn("desktop.startup.handleFatalStartupError")(function* (
@@ -145,19 +166,26 @@ const bootstrap = Effect.gen(function* () {
     return yield* new DesktopDevelopmentBackendPortRequiredError();
   }
 
-  const backendPortSelection = yield* resolveDesktopBackendPort(environment.configuredBackendPort);
-  const backendPort = backendPortSelection.port;
-  yield* logBootstrapInfo(
-    backendPortSelection.selectedByScan
-      ? "selected backend port via sequential scan"
-      : "using configured backend port",
-    {
-      port: backendPort,
-      ...(backendPortSelection.selectedByScan ? { startPort: DEFAULT_DESKTOP_BACKEND_PORT } : {}),
-    },
-  );
-
   const settings = yield* desktopSettings.get;
+  const backendPortSelection = yield* resolveDesktopBackendPort({
+    configuredPort: environment.configuredBackendPort,
+    lastBackendPort: settings.lastBackendPort,
+  });
+  const backendPort = backendPortSelection.port;
+  yield* logBootstrapInfo("selected backend port", {
+    port: backendPort,
+    source: backendPortSelection.source,
+  });
+  if (backendPortSelection.source !== "configured" && settings.lastBackendPort !== backendPort) {
+    yield* desktopSettings.setLastBackendPort(backendPort).pipe(
+      Effect.catch((error) =>
+        logBootstrapWarning("failed to persist selected backend port", {
+          error: error.message,
+        }),
+      ),
+    );
+  }
+
   if (settings.serverExposureMode !== environment.defaultDesktopSettings.serverExposureMode) {
     yield* logBootstrapInfo("bootstrap restoring persisted server exposure mode", {
       mode: settings.serverExposureMode,
@@ -223,10 +251,10 @@ const startup = Effect.gen(function* () {
   );
   yield* logStartupInfo("app ready");
   yield* appIdentity.configure;
-  yield* applicationMenu.configure;
   yield* electronProtocol.registerDesktopFileProtocol;
-  yield* updates.configure;
   yield* bootstrap.pipe(Effect.catchCause((cause) => fatalStartupCause("bootstrap", cause)));
+  yield* applicationMenu.configure;
+  yield* updates.configure;
 }).pipe(Effect.withSpan("desktop.startup"));
 
 const scopedProgram = Effect.scoped(

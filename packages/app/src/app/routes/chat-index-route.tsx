@@ -1,12 +1,13 @@
+import type { EnvironmentId } from "@multi/contracts";
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
-import { useComposerDraftStore } from "~/composer-draft-store";
-import { useStore } from "~/store";
-import { selectEnvironmentState } from "~/store";
+import { useComposerDraftStore } from "~/stores/chat-drafts";
+import { useStore } from "~/stores/thread-store";
+import { selectEnvironmentState } from "~/stores/thread-store";
 import { newDraftId, newThreadId } from "~/lib/utils";
-import { readLastChatRouteTarget } from "~/chat-route-persistence";
-import { buildDraftThreadRouteParams } from "~/thread-routes";
+import { readLastChatRouteTarget } from "~/app/routes/chat-route-persistence";
+import { buildDraftThreadRouteParams } from "~/app/routes/thread-route-targets";
 import { DEFAULT_INTERACTION_MODE, DEFAULT_RUNTIME_MODE } from "~/types";
+import { useMountEffect } from "~/hooks/use-mount-effect";
 
 export function ChatIndexRouteView() {
   const navigate = useNavigate();
@@ -14,6 +15,24 @@ export function ChatIndexRouteView() {
   const bootstrapComplete = useStore(
     (state) => selectEnvironmentState(state, activeEnvironmentId).bootstrapComplete,
   );
+
+  if (!activeEnvironmentId || !bootstrapComplete) {
+    return null;
+  }
+
+  return (
+    <ChatIndexRouteSync
+      key={activeEnvironmentId}
+      activeEnvironmentId={activeEnvironmentId}
+      navigate={navigate}
+    />
+  );
+}
+
+function ChatIndexRouteSync(props: {
+  readonly activeEnvironmentId: EnvironmentId;
+  readonly navigate: ReturnType<typeof useNavigate>;
+}) {
   const getProjectlessDraftSession = useComposerDraftStore(
     (store) => store.getProjectlessDraftSession,
   );
@@ -22,13 +41,10 @@ export function ChatIndexRouteView() {
   );
   const applyStickyState = useComposerDraftStore((store) => store.applyStickyState);
 
-  useEffect(() => {
-    if (!activeEnvironmentId || !bootstrapComplete) {
-      return;
-    }
+  useMountEffect(() => {
     const lastChatRouteTarget = readLastChatRouteTarget();
     if (lastChatRouteTarget?.kind === "draft") {
-      void navigate({
+      void props.navigate({
         to: "/draft/$draftId",
         params: { draftId: lastChatRouteTarget.draftId },
         replace: true,
@@ -36,7 +52,7 @@ export function ChatIndexRouteView() {
       return;
     }
     if (lastChatRouteTarget?.kind === "server") {
-      void navigate({
+      void props.navigate({
         to: "/$environmentId/$threadId",
         params: {
           environmentId: lastChatRouteTarget.threadRef.environmentId,
@@ -47,10 +63,10 @@ export function ChatIndexRouteView() {
       return;
     }
 
-    const existingDraft = getProjectlessDraftSession(activeEnvironmentId);
+    const existingDraft = getProjectlessDraftSession(props.activeEnvironmentId);
     const draftId = existingDraft?.draftId ?? newDraftId();
     if (!existingDraft) {
-      setProjectlessDraftThreadId(activeEnvironmentId, draftId, {
+      setProjectlessDraftThreadId(props.activeEnvironmentId, draftId, {
         threadId: newThreadId(),
         createdAt: new Date().toISOString(),
         runtimeMode: DEFAULT_RUNTIME_MODE,
@@ -58,19 +74,12 @@ export function ChatIndexRouteView() {
       });
       applyStickyState(draftId);
     }
-    void navigate({
+    void props.navigate({
       to: "/draft/$draftId",
       params: buildDraftThreadRouteParams(draftId),
       replace: true,
     });
-  }, [
-    activeEnvironmentId,
-    bootstrapComplete,
-    applyStickyState,
-    getProjectlessDraftSession,
-    navigate,
-    setProjectlessDraftThreadId,
-  ]);
+  });
 
   return null;
 }

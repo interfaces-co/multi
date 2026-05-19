@@ -1,10 +1,10 @@
 import { type EnvironmentId, type ThreadId } from "@multi/contracts";
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef } from "react";
-import { useShallow } from "zustand/react/shallow";
+import { useRef } from "react";
 import { toastManager } from "~/app/toast";
-import { selectSidebarThreadsAcrossEnvironments, useStore } from "../store";
+import { selectSidebarThreadsAcrossEnvironments, useStore } from "../stores/thread-store";
 import type { SidebarThreadSummary } from "../types";
+import { useMountEffect } from "~/hooks/use-mount-effect";
 import {
   buildInputNeededCopy,
   buildTaskCompletionCopy,
@@ -230,56 +230,51 @@ function collectInputNeededSummaryCandidates(
 
 export function TaskCompletionNotifications() {
   const navigate = useNavigate();
-  const threads = useStore(useShallow(selectSidebarThreadsAcrossEnvironments));
-  const previousThreadsRef = useRef<readonly SidebarThreadSummary[]>([]);
-  const readyRef = useRef(false);
+  const navigateRef = useRef(navigate);
+  navigateRef.current = navigate;
 
-  useEffect(() => {
-    if (!readyRef.current) {
-      previousThreadsRef.current = threads;
-      readyRef.current = true;
-      return;
-    }
+  useMountEffect(() => {
+    let previousThreads = selectSidebarThreadsAcrossEnvironments(useStore.getState());
 
-    const previousThreads = previousThreadsRef.current;
-    const completions = collectCompletedSummaryCandidates(previousThreads, threads);
-    const inputNeededCandidates = collectInputNeededSummaryCandidates(previousThreads, threads);
-    previousThreadsRef.current = threads;
-
-    if (completions.length === 0 && inputNeededCandidates.length === 0) {
-      return;
-    }
-
-    const shouldAttemptSystemNotification = window.desktopBridge ? true : !isWindowForeground();
-
-    for (const completion of completions) {
-      const copy = buildTaskCompletionCopy(completion);
-      if (shouldAttemptSystemNotification) {
-        void showSystemThreadNotification(
-          copy,
-          completion.environmentId,
-          completion.threadId,
-          navigate,
-        );
-      }
-    }
-
-    for (const candidate of inputNeededCandidates) {
-      const copy = buildInputNeededCopy(candidate);
-      showThreadToast(copy, candidate.environmentId, candidate.threadId, "warning", navigate);
-
-      if (shouldAttemptSystemNotification) {
-        void showSystemThreadNotification(
-          copy,
-          candidate.environmentId,
-          candidate.threadId,
-          navigate,
-        );
-      }
-    }
-  }, [navigate, threads]);
+    return useStore.subscribe((state) => {
+      const threads = selectSidebarThreadsAcrossEnvironments(state);
+      emitTaskCompletionNotifications(previousThreads, threads, navigateRef.current);
+      previousThreads = threads;
+    });
+  });
 
   return null;
+}
+
+function emitTaskCompletionNotifications(
+  previousThreads: readonly SidebarThreadSummary[],
+  threads: readonly SidebarThreadSummary[],
+  navigate: ReturnType<typeof useNavigate>,
+): void {
+  const completions = collectCompletedSummaryCandidates(previousThreads, threads);
+  const inputNeededCandidates = collectInputNeededSummaryCandidates(previousThreads, threads);
+
+  if (completions.length === 0 && inputNeededCandidates.length === 0) {
+    return;
+  }
+
+  const shouldAttemptSystemNotification = window.desktopBridge ? true : !isWindowForeground();
+
+  for (const completion of completions) {
+    const copy = buildTaskCompletionCopy(completion);
+    if (shouldAttemptSystemNotification) {
+      void showSystemThreadNotification(copy, completion.environmentId, completion.threadId, navigate);
+    }
+  }
+
+  for (const candidate of inputNeededCandidates) {
+    const copy = buildInputNeededCopy(candidate);
+    showThreadToast(copy, candidate.environmentId, candidate.threadId, "warning", navigate);
+
+    if (shouldAttemptSystemNotification) {
+      void showSystemThreadNotification(copy, candidate.environmentId, candidate.threadId, navigate);
+    }
+  }
 }
 
 export function buildNotificationSettingsSupportText(

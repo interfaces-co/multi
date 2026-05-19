@@ -20,7 +20,7 @@ import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 
 import { GitCommandError, type GitBranch, type GitWorkingTreeFileStatus } from "@multi/contracts";
 import { dedupeRemoteBranchesWithLocalMatches } from "@multi/shared/git";
-import { compactTraceAttributes } from "../observability/Attributes.ts";
+import { compactTraceAttributes } from "@multi/shared/observability";
 import { gitCommandDuration, gitCommandsTotal, withMetrics } from "../observability/Metrics.ts";
 import {
   GitCore,
@@ -77,6 +77,7 @@ const NON_REPOSITORY_STATUS_DETAILS = Object.freeze<GitStatusDetails>({
   aheadCount: 0,
   behindCount: 0,
 });
+const isGitCommandError = Schema.is(GitCommandError);
 
 type TraceTailState = {
   processedChars: number;
@@ -547,7 +548,7 @@ function toGitCommandError(
   detail: string,
 ) {
   return (cause: unknown) =>
-    Schema.is(GitCommandError)(cause)
+    isGitCommandError(cause)
       ? cause
       : new GitCommandError({
           operation: input.operation,

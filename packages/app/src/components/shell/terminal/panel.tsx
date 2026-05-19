@@ -1,9 +1,13 @@
 "use client";
 
-import { type EnvironmentId, DEFAULT_TERMINAL_ID, type TerminalEvent } from "@multi/contracts";
+import {
+  type EnvironmentId,
+  DEFAULT_TERMINAL_ID,
+  type TerminalEvent,
+} from "@multi/contracts";
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import {
   readTerminalHostFontFamily,
@@ -11,57 +15,92 @@ import {
   readTerminalHostThemeForMount,
 } from "~/components/shell/terminal/terminal-host-theme";
 import { subscribeTerminalHostDocument } from "~/components/shell/terminal/terminal-xterm-host-sync";
-import { readNativeEnvironmentApi } from "~/lib/native-runtime-api";
-import { clampTerminalDimensions, waitForTerminalLayoutFrame } from "~/lib/terminal-dimensions";
-import { traceBrowserEvent } from "~/observability/browserDebug";
-
-function workbenchThreadId(cwd: string) {
-  return `workbench:${cwd}`;
-}
-
-type WorkbenchTerminalApi = NonNullable<ReturnType<typeof readNativeEnvironmentApi>>["terminal"];
-
-function readWorkbenchTerminalApi(
-  environmentId: EnvironmentId | null | undefined,
-): WorkbenchTerminalApi | null {
-  return (
-    readNativeEnvironmentApi(environmentId, {
-      allowPrimaryEnvironmentFallback: true,
-    })?.terminal ?? null
-  );
-}
+import {
+  terminalDeleteShortcutData,
+  terminalNavigationShortcutData,
+} from "~/keybindings";
+import {
+  readWorkbenchTerminalApi,
+  workbenchTerminalThreadId,
+} from "~/components/shell/terminal/workbench-terminal";
+import {
+  clampTerminalDimensions,
+  waitForTerminalLayoutFrame,
+} from "~/lib/terminal-dimensions";
+import { useMountEffect } from "~/hooks/use-mount-effect";
 
 export function TerminalPanel(props: {
   cwd: string | null;
   environmentId?: EnvironmentId | null;
   terminalId?: string;
 }) {
+  const activeTerminalId = props.terminalId ?? DEFAULT_TERMINAL_ID;
+
+  if (!props.cwd) {
+    return (
+      <div className="flex min-h-0 flex-1 items-center justify-center px-4 text-center">
+        <p className="text-body text-muted-foreground/60">No project open</p>
+      </div>
+    );
+  }
+
+  return (
+    <TerminalPanelSession
+      key={createTerminalPanelSessionKey({
+        cwd: props.cwd,
+        environmentId: props.environmentId,
+        terminalId: activeTerminalId,
+      })}
+      cwd={props.cwd}
+      environmentId={props.environmentId}
+      terminalId={activeTerminalId}
+    />
+  );
+}
+
+function createTerminalPanelSessionKey(input: {
+  cwd: string;
+  environmentId: EnvironmentId | null | undefined;
+  terminalId: string;
+}): string {
+  return JSON.stringify([
+    input.cwd,
+    input.environmentId ?? null,
+    input.terminalId,
+  ]);
+}
+
+function TerminalPanelSession({
+  cwd,
+  environmentId,
+  terminalId,
+}: {
+  cwd: string;
+  environmentId: EnvironmentId | null | undefined;
+  terminalId: string;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const term = useRef<Terminal | null>(null);
   const fit = useRef<FitAddon | null>(null);
-  const size = useRef<{ thread: string; cols: number; rows: number } | null>(null);
-  const openSession = useRef<{ thread: string; terminalId: string } | null>(null);
+  const size = useRef<{ thread: string; cols: number; rows: number } | null>(
+    null,
+  );
+  const openSession = useRef<{ thread: string; terminalId: string } | null>(
+    null,
+  );
   const [bootErr, setBootErr] = useState<string | null>(null);
 
   const dev = import.meta.env.DEV;
-  const activeTerminalId = props.terminalId ?? DEFAULT_TERMINAL_ID;
 
-  useEffect(() => {
+  useMountEffect(() => {
     const el = ref.current;
-    const api = readWorkbenchTerminalApi(props.environmentId);
-    if (!el || !api || !props.cwd) {
-      traceBrowserEvent("terminal.panel.waiting-for-prerequisite", {
-        hasElement: Boolean(el),
-        hasApi: Boolean(api),
-        hasCwd: Boolean(props.cwd),
-        environmentId: props.environmentId ?? null,
-      });
+    const api = readWorkbenchTerminalApi(environmentId);
+    if (!el || !api) {
       return;
     }
 
-    const cwd = props.cwd;
-    const thread = workbenchThreadId(cwd);
-    const termId = activeTerminalId;
+    const thread = workbenchTerminalThreadId(cwd);
+    const termId = terminalId;
     const cfg = readTerminalHostThemeForMount(el);
     const family = readTerminalHostFontFamily(el);
     const fontSize = readTerminalHostFontSize(el);
@@ -74,12 +113,6 @@ export function TerminalPanel(props: {
 
     openSession.current = null;
     setBootErr(null);
-    traceBrowserEvent("terminal.panel.mount.start", {
-      cwd,
-      thread,
-      terminalId: termId,
-      environmentId: props.environmentId ?? null,
-    });
 
     try {
       next = new Terminal({
@@ -103,7 +136,6 @@ export function TerminalPanel(props: {
       fit.current = addon;
     } catch (err) {
       if (dev) console.warn("[TerminalPanel] xterm init failed", err);
-      traceBrowserEvent("terminal.panel.xterm-init.failed", { error: err }, "error");
       setBootErr("Could not load terminal renderer.");
       return () => {
         live = false;
@@ -131,7 +163,39 @@ export function TerminalPanel(props: {
       next.clear();
     };
 
+    const sendTerminalInput = (data: string) => {
+      if (
+        openSession.current?.thread !== thread ||
+        openSession.current.terminalId !== termId
+      ) {
+        return;
+      }
+      void api
+        .write({
+          threadId: thread,
+          terminalId: termId,
+          data,
+        })
+        .catch(() => undefined);
+    };
+
     next.attachCustomKeyEventHandler((event) => {
+      const navigationData = terminalNavigationShortcutData(event);
+      if (navigationData !== null) {
+        event.preventDefault();
+        event.stopPropagation();
+        sendTerminalInput(navigationData);
+        return false;
+      }
+
+      const deleteData = terminalDeleteShortcutData(event);
+      if (deleteData !== null) {
+        event.preventDefault();
+        event.stopPropagation();
+        sendTerminalInput(deleteData);
+        return false;
+      }
+
       const hit =
         event.metaKey &&
         !event.ctrlKey &&
@@ -142,7 +206,10 @@ export function TerminalPanel(props: {
       event.preventDefault();
       event.stopPropagation();
       clear();
-      if (openSession.current?.thread === thread && openSession.current.terminalId === termId) {
+      if (
+        openSession.current?.thread === thread &&
+        openSession.current.terminalId === termId
+      ) {
         void api
           .clear({
             threadId: thread,
@@ -154,16 +221,7 @@ export function TerminalPanel(props: {
     });
 
     data = next.onData((chunk) => {
-      if (openSession.current?.thread !== thread || openSession.current.terminalId !== termId) {
-        return;
-      }
-      void api
-        .write({
-          threadId: thread,
-          terminalId: termId,
-          data: chunk,
-        })
-        .catch(() => undefined);
+      sendTerminalInput(chunk);
     });
 
     const onEvent = (event: TerminalEvent) => {
@@ -187,12 +245,18 @@ export function TerminalPanel(props: {
 
     const syncPtySize = (terminal: Terminal) => {
       const addon = fit.current;
-      if (!addon || !live || !props.cwd) return;
+      if (!addon || !live) return;
       addon.fit();
-      if (openSession.current?.thread !== thread || openSession.current?.terminalId !== termId) {
+      if (
+        openSession.current?.thread !== thread ||
+        openSession.current?.terminalId !== termId
+      ) {
         return;
       }
-      const nextSize = clampTerminalDimensions({ cols: terminal.cols, rows: terminal.rows });
+      const nextSize = clampTerminalDimensions({
+        cols: terminal.cols,
+        rows: terminal.rows,
+      });
       const prev = size.current;
       if (
         prev &&
@@ -238,13 +302,6 @@ export function TerminalPanel(props: {
         rows: activeTerminal.rows,
       });
       size.current = { thread, ...openSize };
-      traceBrowserEvent("terminal.panel.open.start", {
-        cwd,
-        threadId: thread,
-        terminalId: termId,
-        cols: openSize.cols,
-        rows: openSize.rows,
-      });
 
       try {
         const snap = await api.open({
@@ -256,25 +313,10 @@ export function TerminalPanel(props: {
         });
         if (!live) return;
         openSession.current = { thread, terminalId: termId };
-        traceBrowserEvent("terminal.panel.open.done", {
-          threadId: thread,
-          terminalId: termId,
-          historyLength: snap.history.length,
-        });
         hydrate(snap.history);
         syncPtySize(activeTerminal);
       } catch (err) {
         if (dev) console.warn("[TerminalPanel] terminal.open failed", err);
-        traceBrowserEvent(
-          "terminal.panel.open.failed",
-          {
-            threadId: thread,
-            terminalId: termId,
-            cwd,
-            error: err,
-          },
-          "error",
-        );
         if (live) {
           openSession.current = null;
           setBootErr("Could not open terminal session.");
@@ -285,13 +327,12 @@ export function TerminalPanel(props: {
 
     return () => {
       live = false;
-      if (openSession.current?.thread === thread && openSession.current.terminalId === termId) {
+      if (
+        openSession.current?.thread === thread &&
+        openSession.current.terminalId === termId
+      ) {
         openSession.current = null;
       }
-      traceBrowserEvent("terminal.panel.unmount", {
-        threadId: thread,
-        terminalId: termId,
-      });
       unsubscribeTerminalHost();
       off?.();
       data?.dispose();
@@ -301,25 +342,31 @@ export function TerminalPanel(props: {
       size.current = null;
       el.replaceChildren();
     };
-  }, [activeTerminalId, dev, props.cwd, props.environmentId]);
+  });
 
-  useEffect(() => {
+  useMountEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const termId = activeTerminalId;
+    const termId = terminalId;
     let fitFrame: number | null = null;
     const fitAndResize = () => {
       fitFrame = null;
       const addon = fit.current;
       const next = term.current;
-      const api = readWorkbenchTerminalApi(props.environmentId);
-      if (!addon || !next || !api || !props.cwd) return;
+      const api = readWorkbenchTerminalApi(environmentId);
+      if (!addon || !next || !api) return;
       addon.fit();
-      const thread = workbenchThreadId(props.cwd);
-      if (openSession.current?.thread !== thread || openSession.current.terminalId !== termId) {
+      const thread = workbenchTerminalThreadId(cwd);
+      if (
+        openSession.current?.thread !== thread ||
+        openSession.current.terminalId !== termId
+      ) {
         return;
       }
-      const nextSize = clampTerminalDimensions({ cols: next.cols, rows: next.rows });
+      const nextSize = clampTerminalDimensions({
+        cols: next.cols,
+        rows: next.rows,
+      });
       const prev = size.current;
       if (
         prev &&
@@ -351,22 +398,19 @@ export function TerminalPanel(props: {
         window.cancelAnimationFrame(fitFrame);
       }
     };
-  }, [activeTerminalId, props.cwd, props.environmentId]);
-
-  if (!props.cwd) {
-    return (
-      <div className="flex min-h-0 flex-1 items-center justify-center px-4 text-center">
-        <p className="text-body text-muted-foreground/60">No project open</p>
-      </div>
-    );
-  }
+  });
 
   return (
-    <div className="editor-panel-inner flex min-h-0 flex-1 flex-col overflow-hidden">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       {bootErr ? (
-        <p className="shrink-0 px-2 py-1 text-detail text-destructive">{bootErr}</p>
+        <p className="shrink-0 px-2 py-1 text-detail text-destructive">
+          {bootErr}
+        </p>
       ) : null}
-      <div ref={ref} className="workbench-terminal-viewport min-h-0 flex-1 overflow-hidden" />
+      <div
+        ref={ref}
+        className="workbench-terminal-viewport min-h-0 flex-1 overflow-hidden"
+      />
     </div>
   );
 }
