@@ -9,10 +9,8 @@ durable rules live in
 - `pi`: `/Users/workgyver/.agents/codebases/earendil-pi`
 - `opencode` current codebase-cli checkout:
   `/Users/workgyver/.agents/codebases/anomalyco-opencode`
-- Multi durable specs:
-  `specs/effect/guide.md`, `specs/effect/todo.md`,
-  `specs/effect/errors.md`, `specs/effect/schema.md`, and
-  `specs/effect/routes.md`
+- Multi durable specs: `specs/guide.md`, `specs/todo.md`,
+  `specs/runtime-permissions.md`
 - Requested opencode effect spec tree:
   `packages/opencode/specs/effect` at
   `f98449c9b5ef95444911e26206abb3d6479e6883`

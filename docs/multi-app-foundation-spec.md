@@ -44,12 +44,10 @@ The reusable pattern:
 
 Multi's matching spec tree:
 
-- [x] `specs/effect/guide.md`: service, runtime, error, schema, route, and
+- [x] `specs/guide.md`: service, runtime, error, schema, route, and
       verification rules.
-- [x] `specs/effect/todo.md`: current priority tracks and cleanup queue.
-- [x] `specs/effect/errors.md`: typed error and rendering rules.
-- [x] `specs/effect/schema.md`: schema ownership rules.
-- [x] `specs/effect/routes.md`: server transport and TanStack route rules.
+- [x] `specs/todo.md`: open cleanup work.
+- [x] `specs/runtime-permissions.md`: runtime mode action matrix.
 
 ## Multi Foundation Tracks
 
