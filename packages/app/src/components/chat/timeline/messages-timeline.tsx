@@ -1,25 +1,20 @@
 import {
   type EnvironmentId,
   type MessageId,
-  type TurnId,
 } from "@multi/contracts";
 import { useThrottledCallback } from "@tanstack/react-pacer";
 import {
   createContext,
-  type Dispatch,
   memo,
   type MutableRefObject,
   type RefObject,
-  type SetStateAction,
   use,
   useCallback,
   type CSSProperties,
   useMemo,
   useRef,
-  useState,
   type ReactNode,
 } from "react";
-import { IconChevronRightMedium } from "central-icons";
 import {
   defaultRangeExtractor,
   useVirtualizer,
@@ -28,7 +23,7 @@ import {
 } from "@tanstack/react-virtual";
 import { Spinner } from "@multi/ui/spinner";
 import { deriveTimelineEntries } from "../../../session-logic";
-import { type ChatMessage, type TurnDiffSummary } from "../../../types";
+import { type ChatMessage } from "../../../types";
 import { type ExpandedImagePreview } from "../message/expanded-image-preview";
 import {
   computeStableMessagesTimelineRows,
@@ -50,18 +45,13 @@ type UserMessageTimelineRow = Extract<MessagesTimelineRow, { kind: "message" }>;
 // ---------------------------------------------------------------------------
 
 export interface TimelineRowSharedState {
-  routeThreadKey: string;
   markdownCwd: string | undefined;
-  resolvedTheme: "light" | "dark";
   projectRoot: string | undefined;
   activeThreadEnvironmentId: EnvironmentId;
   isServerThread: boolean;
   onBeginEditUserMessage: ((messageId: MessageId) => void) | undefined;
   renderEditComposer: ((message: ChatMessage) => ReactNode) | undefined;
   onImageExpand: (preview: ExpandedImagePreview) => void;
-  onOpenTurnDiff: (turnId: TurnId, filePath?: string) => void;
-  expandedWorkedHeaderIds: ReadonlySet<string>;
-  onWorkedHeaderOpenChange: (rowId: string, open: boolean) => void;
 }
 
 export const TimelineRowCtx = createContext<TimelineRowSharedState>(null!);
@@ -70,12 +60,6 @@ const DEFAULT_VIRTUALIZER_RECT = { width: 0, height: 720 };
 const VIRTUAL_ROW_GAP_PX = 12;
 const VIRTUALIZER_OVERSCAN = 8;
 const keepScrollOffsetOnMeasuredRowResize = () => false;
-
-function createWorkedHeaderIdsKey(
-  workedHeaderIds: ReadonlySet<string>,
-): string {
-  return [...workedHeaderIds].join("\0");
-}
 
 function useValueIdentityVersion<TValue>(value: TValue): number {
   const valueRef = useRef(value);
@@ -108,15 +92,10 @@ interface MessagesTimelineProps {
   bottomClearancePx?: number | undefined;
   timelineControllerRef: React.RefObject<MessagesTimelineController | null>;
   timelineEntries: ReturnType<typeof deriveTimelineEntries>;
-  completionDividerBeforeEntryId: string | null;
-  turnDiffSummaryByAssistantMessageId: Map<MessageId, TurnDiffSummary>;
-  routeThreadKey: string;
-  onOpenTurnDiff: (turnId: TurnId, filePath?: string) => void;
   revertTurnCountByUserMessageId: Map<MessageId, number>;
   onImageExpand: (preview: ExpandedImagePreview) => void;
   activeThreadEnvironmentId: EnvironmentId;
   markdownCwd: string | undefined;
-  resolvedTheme: "light" | "dark";
   projectRoot: string | undefined;
   isServerThread: boolean;
   editingUserMessageId?: MessageId | null | undefined;
@@ -138,15 +117,10 @@ export const MessagesTimeline = memo(function MessagesTimeline({
   bottomClearancePx = 0,
   timelineControllerRef,
   timelineEntries,
-  completionDividerBeforeEntryId,
-  turnDiffSummaryByAssistantMessageId,
-  routeThreadKey,
-  onOpenTurnDiff,
   revertTurnCountByUserMessageId,
   onImageExpand,
   activeThreadEnvironmentId,
   markdownCwd,
-  resolvedTheme,
   projectRoot,
   isServerThread,
   editingUserMessageId = null,
@@ -159,55 +133,18 @@ export const MessagesTimeline = memo(function MessagesTimeline({
     () =>
       deriveMessagesTimelineRows({
         timelineEntries,
-        completionDividerBeforeEntryId,
         isWorking,
         activeTurnStartedAt,
-        turnDiffSummaryByAssistantMessageId,
         revertTurnCountByUserMessageId,
       }),
     [
       timelineEntries,
-      completionDividerBeforeEntryId,
       isWorking,
       activeTurnStartedAt,
-      turnDiffSummaryByAssistantMessageId,
       revertTurnCountByUserMessageId,
     ],
   );
-  const allRows = useStableRows(rawRows);
-  const initialWorkedHeaderIdsRef = useRef<ReadonlySet<string> | null>(null);
-  if (initialWorkedHeaderIdsRef.current === null) {
-    initialWorkedHeaderIdsRef.current = getWorkedHeaderIds(allRows);
-  }
-  const [workedHeaderOpenOverrides, setWorkedHeaderOpenOverrides] = useState<
-    ReadonlyMap<string, boolean>
-  >(() => new Map());
-  const expandedWorkedHeaderIds = useMemo(() => {
-    const initialWorkedHeaderIds =
-      initialWorkedHeaderIdsRef.current ?? new Set<string>();
-    const expandedIds = new Set<string>();
-    for (const row of allRows) {
-      if (row.kind !== "worked-header") {
-        continue;
-      }
-      const openOverride = workedHeaderOpenOverrides.get(row.id);
-      const defaultOpen = !initialWorkedHeaderIds.has(row.id);
-      if (openOverride ?? defaultOpen) {
-        expandedIds.add(row.id);
-      }
-    }
-    return expandedIds;
-  }, [allRows, workedHeaderOpenOverrides]);
-  const rows = useMemo(
-    () =>
-      allRows.filter((row) => isWorkedRowVisible(row, expandedWorkedHeaderIds)),
-    [allRows, expandedWorkedHeaderIds],
-  );
-  const workedHeaderIds = useMemo(() => getWorkedHeaderIds(allRows), [allRows]);
-  const workedHeaderIdsKey = useMemo(
-    () => createWorkedHeaderIdsKey(workedHeaderIds),
-    [workedHeaderIds],
-  );
+  const rows = useStableRows(rawRows);
   const stickyUserRowIndices = useMemo(
     () => rows.flatMap((row, index) => (isUserMessageRow(row) ? [index] : [])),
     [rows],
@@ -328,35 +265,6 @@ export const MessagesTimeline = memo(function MessagesTimeline({
     },
     { wait: 16, leading: true, trailing: true },
   );
-  const keepBottomPinnedThroughAnimation = useCallback(() => {
-    const startedAt = window.performance.now();
-    const tick = () => {
-      scheduleStickToBottom();
-      if (window.performance.now() - startedAt < 240) {
-        window.requestAnimationFrame(tick);
-      }
-    };
-    window.requestAnimationFrame(tick);
-  }, [scheduleStickToBottom]);
-  const handleWorkedHeaderOpenChange = useCallback(
-    (rowId: string, open: boolean) => {
-      const latestWorkedHeaderId =
-        allRows.findLast((row) => row.kind === "worked-header")?.id ?? null;
-      const shouldStickToBottom =
-        open && (getIsAtBottom() || rowId === latestWorkedHeaderId);
-
-      setWorkedHeaderOpenOverrides((previousOverrides) => {
-        const nextOverrides = new Map(previousOverrides);
-        nextOverrides.set(rowId, open);
-        return nextOverrides;
-      });
-
-      if (shouldStickToBottom) {
-        keepBottomPinnedThroughAnimation();
-      }
-    },
-    [allRows, getIsAtBottom, keepBottomPinnedThroughAnimation],
-  );
   const getIsAtBottomVersion = useValueIdentityVersion(getIsAtBottom);
   const rowsVersion = useValueIdentityVersion(rows);
   const scheduleStickToBottomVersion = useValueIdentityVersion(
@@ -417,41 +325,26 @@ export const MessagesTimeline = memo(function MessagesTimeline({
 
   const sharedState = useMemo<TimelineRowSharedState>(
     () => ({
-      routeThreadKey,
       markdownCwd,
-      resolvedTheme,
       projectRoot,
       activeThreadEnvironmentId,
       isServerThread,
       onBeginEditUserMessage,
       renderEditComposer,
       onImageExpand,
-      onOpenTurnDiff,
-      expandedWorkedHeaderIds,
-      onWorkedHeaderOpenChange: handleWorkedHeaderOpenChange,
     }),
     [
-      routeThreadKey,
       markdownCwd,
-      resolvedTheme,
       projectRoot,
       activeThreadEnvironmentId,
       isServerThread,
       onBeginEditUserMessage,
       renderEditComposer,
       onImageExpand,
-      onOpenTurnDiff,
-      expandedWorkedHeaderIds,
-      handleWorkedHeaderOpenChange,
     ],
   );
   const lifecycleSync = (
     <>
-      <WorkedHeaderOverridesPruneSync
-        key={`worked-headers:${workedHeaderIdsKey}`}
-        setWorkedHeaderOpenOverrides={setWorkedHeaderOpenOverrides}
-        workedHeaderIds={workedHeaderIds}
-      />
       <TimelineControllerSync
         key={`controller:${getIsAtBottomVersion}:${scrollToBottomVersion}`}
         getIsAtBottom={getIsAtBottom}
@@ -561,37 +454,6 @@ export const MessagesTimeline = memo(function MessagesTimeline({
   );
 });
 
-function WorkedHeaderOverridesPruneSync({
-  setWorkedHeaderOpenOverrides,
-  workedHeaderIds,
-}: {
-  setWorkedHeaderOpenOverrides: Dispatch<
-    SetStateAction<ReadonlyMap<string, boolean>>
-  >;
-  workedHeaderIds: ReadonlySet<string>;
-}) {
-  useMountEffect(() => {
-    setWorkedHeaderOpenOverrides((previousOverrides) => {
-      if (previousOverrides.size === 0) {
-        return previousOverrides;
-      }
-
-      const nextOverrides = new Map<string, boolean>();
-      let changed = false;
-      for (const [rowId, open] of previousOverrides) {
-        if (workedHeaderIds.has(rowId)) {
-          nextOverrides.set(rowId, open);
-        } else {
-          changed = true;
-        }
-      }
-      return changed ? nextOverrides : previousOverrides;
-    });
-  });
-
-  return null;
-}
-
 function TimelineControllerSync({
   getIsAtBottom,
   scrollToBottom,
@@ -699,35 +561,6 @@ function isUserMessageRow(
   return row.kind === "message" && row.message.role === "user";
 }
 
-function getWorkedHeaderIds(
-  rows: ReadonlyArray<MessagesTimelineRow>,
-): ReadonlySet<string> {
-  const result = new Set<string>();
-  for (const row of rows) {
-    if (row.kind === "worked-header") {
-      result.add(row.id);
-    }
-  }
-  return result;
-}
-
-function isWorkedRowVisible(
-  row: MessagesTimelineRow,
-  expandedWorkedHeaderIds: ReadonlySet<string>,
-): boolean {
-  switch (row.kind) {
-    case "work":
-    case "message":
-    case "proposed-plan":
-      return (
-        !row.workedHeaderId || expandedWorkedHeaderIds.has(row.workedHeaderId)
-      );
-    case "working":
-    case "worked-header":
-      return true;
-  }
-}
-
 function findActiveStickyUserRowIndex(
   indices: readonly number[],
   visibleStartIndex: number,
@@ -749,10 +582,6 @@ function estimateTimelineRowSize(row: MessagesTimelineRow | undefined): number {
 
   if (row.kind === "message") {
     return (row.message.role === "user" ? 88 : 156) + VIRTUAL_ROW_GAP_PX;
-  }
-
-  if (row.kind === "worked-header") {
-    return 32 + VIRTUAL_ROW_GAP_PX;
   }
 
   if (row.kind === "proposed-plan") {
@@ -819,16 +648,12 @@ const TimelineRowContent = memo(function TimelineRowContent({
       data-message-id={row.kind === "message" ? row.message.id : undefined}
       data-message-role={row.kind === "message" ? row.message.role : undefined}
     >
-      {row.kind === "worked-header" ? (
-        <WorkedHeaderRow row={row} />
-      ) : (
-        <TimelineRowBody
-          row={row}
-          editUserMessagesDisabled={editUserMessagesDisabled}
-          isEditingUserMessage={isEditingUserMessage}
-          ctx={ctx}
-        />
-      )}
+      <TimelineRowBody
+        row={row}
+        editUserMessagesDisabled={editUserMessagesDisabled}
+        isEditingUserMessage={isEditingUserMessage}
+        ctx={ctx}
+      />
     </div>
   );
 });
@@ -839,7 +664,7 @@ function TimelineRowBody({
   isEditingUserMessage,
   ctx,
 }: {
-  row: Exclude<TimelineRow, { kind: "worked-header" }>;
+  row: TimelineRow;
   editUserMessagesDisabled: boolean;
   isEditingUserMessage: boolean;
   ctx: TimelineRowSharedState;
@@ -865,11 +690,7 @@ function TimelineRowBody({
         <div className="box-border flex w-full min-w-0 px-0">
           <AssistantMessage
             message={row.message}
-            assistantTurnDiffSummary={row.assistantTurnDiffSummary}
-            routeThreadKey={ctx.routeThreadKey}
             markdownCwd={ctx.markdownCwd}
-            resolvedTheme={ctx.resolvedTheme}
-            onOpenTurnDiff={ctx.onOpenTurnDiff}
           />
         </div>
       )}
@@ -914,85 +735,6 @@ const HumanTimelineRow = memo(function HumanTimelineRow({
   );
 });
 
-const WorkedHeaderRow = memo(function WorkedHeaderRow({
-  row,
-}: {
-  row: Extract<TimelineRow, { kind: "worked-header" }>;
-}) {
-  const ctx = use(TimelineRowCtx);
-  const completionLabel = formatAssistantWorkedLabel(
-    row.durationStart,
-    row.completedAt,
-  );
-  if (!completionLabel) {
-    return null;
-  }
-
-  const hasCollapsibleRows = row.collapsibleRowIds.length > 0;
-  const expanded = ctx.expandedWorkedHeaderIds.has(row.id);
-
-  if (!hasCollapsibleRows) {
-    return (
-      <div className="inline-flex min-h-7 w-fit items-center gap-1 px-1 py-0.5 text-caption font-medium text-muted-foreground/75 tabular-nums">
-        <span>{completionLabel}</span>
-      </div>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      className={cn(
-        "inline-flex w-fit items-center gap-1 px-0 py-0.5 text-left text-caption font-medium text-muted-foreground/75 tabular-nums hover:text-multi-fg-secondary",
-        "motion-reduce:transition-none motion-reduce:active:scale-100",
-      )}
-      aria-expanded={expanded}
-      aria-label={`${expanded ? "Collapse" : "Expand"} assistant turn, ${completionLabel}`}
-      data-assistant-worked-trigger=""
-      onClick={() => ctx.onWorkedHeaderOpenChange(row.id, !expanded)}
-    >
-      <span>{completionLabel}</span>
-      <IconChevronRightMedium
-        aria-hidden="true"
-        className={cn(
-          "size-4 shrink-0 overflow-visible transition-transform duration-150 motion-reduce:transition-none",
-          expanded && "rotate-90",
-        )}
-      />
-    </button>
-  );
-});
-
-function formatAssistantWorkedLabel(
-  startIso: string,
-  completedAt: string | undefined,
-) {
-  if (!completedAt) return null;
-  const startMs = Date.parse(startIso);
-  const endMs = Date.parse(completedAt);
-  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs < startMs) {
-    return null;
-  }
-  return `Worked for ${formatCompactDuration(endMs - startMs)}`;
-}
-
-function formatCompactDuration(durationMs: number) {
-  const totalSeconds = Math.max(1, Math.ceil(durationMs / 1000));
-  if (totalSeconds < 60) {
-    return `${totalSeconds}s`;
-  }
-
-  if (totalSeconds >= 3600) {
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
-  }
-
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
-}
-
 // ---------------------------------------------------------------------------
 // WorkGroupSection — tool activity group with overflow control
 // ---------------------------------------------------------------------------
@@ -1010,7 +752,7 @@ const WorkGroupSection = memo(function WorkGroupSection({
   return (
     <div className="min-w-0 max-w-full flex-1">
       <div className="w-full min-w-0">
-        <div className="flex w-fit max-w-agent-chat flex-col gap-1.5">
+        <div className="flex w-full max-w-agent-chat flex-col gap-1.5">
           {groupedEntries.map((workEntry) => (
             <ToolCallMessage
               key={`work-row:${workEntry.id}`}
@@ -1027,7 +769,6 @@ const WorkGroupSection = memo(function WorkGroupSection({
 function timelineRowKind(
   row: TimelineRow,
 ): "human" | "assistant" | "tool-call" | "loading" {
-  if (row.kind === "worked-header") return "assistant";
   if (row.kind === "message")
     return row.message.role === "user" ? "human" : "assistant";
   if (row.kind === "working") return "loading";

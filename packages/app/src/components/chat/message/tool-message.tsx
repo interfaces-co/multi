@@ -31,7 +31,7 @@ export const ToolCallMessage = memo(function ToolCallMessage({
   const hasSubagents = subagents.length > 0;
 
   return (
-    <div className="min-w-0 max-w-full">
+    <div className="w-full min-w-0 max-w-full">
       <ToolCallRenderer
         toolCall={toolCall}
         callId={workEntry.toolCallId ?? workEntry.id}

@@ -1,47 +1,16 @@
-import { type TurnId } from "@multi/contracts";
 import { memo } from "react";
-import { type TurnDiffSummary, type ChatMessage } from "../../../types";
+import { type ChatMessage } from "../../../types";
 import ChatMarkdown from "../markdown/chat-markdown";
-import { Button } from "@multi/ui/button";
-import { ChangedFilesTree } from "./changed-files-tree";
-import { DiffStatLabel, hasNonZeroStat } from "./diff-stat-label";
-import { useUiStateStore } from "~/stores/ui-state-store";
 import { ChatMessageBubble } from "./message-surface";
 
 interface AssistantMessageProps {
   message: ChatMessage;
-  assistantTurnDiffSummary: TurnDiffSummary | undefined;
-  routeThreadKey: string;
   markdownCwd: string | undefined;
-  resolvedTheme: "light" | "dark";
-  onOpenTurnDiff: (turnId: TurnId, filePath?: string) => void;
-}
-
-function summarizeTurnDiffStats(files: TurnDiffSummary["files"]): {
-  additions: number;
-  deletions: number;
-} {
-  return files.reduce(
-    (acc, file) => {
-      if (typeof file.additions !== "number" || typeof file.deletions !== "number") {
-        return acc;
-      }
-      return {
-        additions: acc.additions + file.additions,
-        deletions: acc.deletions + file.deletions,
-      };
-    },
-    { additions: 0, deletions: 0 },
-  );
 }
 
 export const AssistantMessage = memo(function AssistantMessage({
   message,
-  assistantTurnDiffSummary,
-  routeThreadKey,
   markdownCwd,
-  resolvedTheme,
-  onOpenTurnDiff,
 }: AssistantMessageProps) {
   const messageText = message.text || (message.streaming ? "" : "(empty response)");
 
@@ -54,12 +23,6 @@ export const AssistantMessage = memo(function AssistantMessage({
           isStreaming={Boolean(message.streaming)}
         />
       </div>
-      <AssistantChangedFilesSection
-        turnSummary={assistantTurnDiffSummary}
-        routeThreadKey={routeThreadKey}
-        resolvedTheme={resolvedTheme}
-        onOpenTurnDiff={onOpenTurnDiff}
-      />
     </>
   );
 
@@ -69,101 +32,3 @@ export const AssistantMessage = memo(function AssistantMessage({
     </div>
   );
 });
-
-// ---------------------------------------------------------------------------
-// AssistantChangedFilesSection
-// ---------------------------------------------------------------------------
-
-const AssistantChangedFilesSection = memo(function AssistantChangedFilesSection({
-  turnSummary,
-  routeThreadKey,
-  resolvedTheme,
-  onOpenTurnDiff,
-}: {
-  turnSummary: TurnDiffSummary | undefined;
-  routeThreadKey: string;
-  resolvedTheme: "light" | "dark";
-  onOpenTurnDiff: (turnId: TurnId, filePath?: string) => void;
-}) {
-  if (!turnSummary) return null;
-  const checkpointFiles = turnSummary.files;
-  if (checkpointFiles.length === 0) return null;
-
-  return (
-    <AssistantChangedFilesSectionInner
-      turnSummary={turnSummary}
-      checkpointFiles={checkpointFiles}
-      routeThreadKey={routeThreadKey}
-      resolvedTheme={resolvedTheme}
-      onOpenTurnDiff={onOpenTurnDiff}
-    />
-  );
-});
-
-function AssistantChangedFilesSectionInner({
-  turnSummary,
-  checkpointFiles,
-  routeThreadKey,
-  resolvedTheme,
-  onOpenTurnDiff,
-}: {
-  turnSummary: TurnDiffSummary;
-  checkpointFiles: TurnDiffSummary["files"];
-  routeThreadKey: string;
-  resolvedTheme: "light" | "dark";
-  onOpenTurnDiff: (turnId: TurnId, filePath?: string) => void;
-}) {
-  const allDirectoriesExpanded = useUiStateStore(
-    (store) => store.threadChangedFilesExpandedById[routeThreadKey]?.[turnSummary.turnId] ?? true,
-  );
-  const setExpanded = useUiStateStore((store) => store.setThreadChangedFilesExpanded);
-  const summaryStat = summarizeTurnDiffStats(checkpointFiles);
-  const changedFileCountLabel = String(checkpointFiles.length);
-
-  return (
-    <div className="mt-2 rounded-lg border border-multi-stroke bg-multi-editor overflow-hidden">
-      <div className="flex h-7 items-center justify-between gap-2 border-b border-multi-stroke px-2">
-        <p className="text-body text-foreground/80">
-          <span>Changed files ({changedFileCountLabel})</span>
-          {hasNonZeroStat(summaryStat) && (
-            <>
-              <span className="mx-1.5 text-muted-foreground/40">&bull;</span>
-              <DiffStatLabel additions={summaryStat.additions} deletions={summaryStat.deletions} />
-            </>
-          )}
-        </p>
-        <div className="flex items-center gap-1.5">
-          <Button
-            type="button"
-            size="xs"
-            variant="ghost"
-            className="h-5 px-1.5 text-detail"
-            data-scroll-anchor-ignore
-            onClick={() => setExpanded(routeThreadKey, turnSummary.turnId, !allDirectoriesExpanded)}
-          >
-            {allDirectoriesExpanded ? "Collapse" : "Expand"}
-          </Button>
-          <Button
-            type="button"
-            size="xs"
-            variant="ghost"
-            className="h-5 px-1.5 text-detail"
-            onClick={() => onOpenTurnDiff(turnSummary.turnId, checkpointFiles[0]?.path)}
-          >
-            View diff
-          </Button>
-        </div>
-      </div>
-      <div className="p-2">
-        <ChangedFilesTree
-          key={`changed-files-tree:${turnSummary.turnId}`}
-          turnId={turnSummary.turnId}
-          files={checkpointFiles}
-          allDirectoriesExpanded={allDirectoriesExpanded}
-          resolvedTheme={resolvedTheme}
-          onOpenTurnDiff={onOpenTurnDiff}
-        />
-      </div>
-    </div>
-  );
-}

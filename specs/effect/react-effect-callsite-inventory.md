@@ -168,8 +168,8 @@ Target:
 
 File: `packages/app/src/components/chat/timeline/messages-timeline.tsx`
 
-- [x] `180`: `derived-state`; worked-header override pruning now lives in a
-      keyed mount-only sync child.
+- [x] Former `worked-header` override pruning was deleted with the chat turn
+      chrome cleanup.
 - [x] `331`: `external-sync`; imperative timeline controller exposure now
       lives in a keyed mount-only sync child.
 - [x] `345`: `resource-cleanup`; programmatic scroll cleanup now lives in a

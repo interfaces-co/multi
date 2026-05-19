@@ -119,7 +119,7 @@ const thinkingStatusTaskVariants = cva(
 
 const toolCallLineVariants = cva(
   cn(
-    "group/tool-call-line flex min-h-6 min-w-0 items-center gap-1 overflow-hidden",
+    "group/tool-call-line flex min-h-6 w-full min-w-0 items-center gap-1 overflow-hidden",
     "border-0 bg-transparent text-left select-none",
     "text-conversation",
     "text-ellipsis whitespace-nowrap text-multi-fg-primary",
@@ -480,13 +480,13 @@ function TaskToolCall({
 
   return (
     <div
-      className="ui-task-tool-call min-w-0 max-w-full text-multi-fg-secondary"
+      className="min-w-0 max-w-full text-multi-fg-secondary"
       data-status={hasError ? "error" : loading ? "running" : "completed"}
     >
       {hasBody ? (
         <button
           type="button"
-          className="ui-task-tool-call__header flex min-h-6 w-fit max-w-full min-w-0 cursor-pointer items-center gap-1"
+          className="flex min-h-6 w-full max-w-full min-w-0 cursor-pointer items-center gap-1"
           aria-expanded={isExpanded}
           onClick={toggleExpanded}
         >
@@ -500,13 +500,13 @@ function TaskToolCall({
           />
         </button>
       ) : (
-        <div className="ui-task-tool-call__header flex min-h-6 w-fit max-w-full min-w-0 items-center gap-1">
+        <div className="flex min-h-6 w-full max-w-full min-w-0 items-center gap-1">
           {statusIcon}
           {titleArea}
         </div>
       )}
       {isExpanded && hasBody ? (
-        <div className="ui-task-tool-call__body mt-1 min-w-0 max-w-full">
+        <div className="mt-1 min-w-0 max-w-full">
           {subagentConversation}
           {renderStep?.(toolCall, 0, callId)}
         </div>
@@ -695,7 +695,7 @@ const ExpandableToolMetadataLine = memo(function ExpandableToolMetadataLine({
         ) : (
           <button
             type="button"
-            className={cn(toolCallLineVariants({ clickable: true }), "w-fit max-w-full min-w-0")}
+            className={cn(toolCallLineVariants({ clickable: true }), "max-w-full min-w-0")}
             aria-expanded={isExpanded}
             onClick={toggleExpanded}
           >
@@ -797,7 +797,7 @@ function ShellToolCall({
       <button
         type="button"
         className={cn(
-          "group/shell-trigger flex min-h-6 w-fit max-w-full min-w-0 items-center gap-1 overflow-hidden",
+          "group/shell-trigger flex min-h-6 w-full max-w-full min-w-0 items-center gap-1 overflow-hidden",
           "border-0 bg-transparent p-0 text-left select-none",
           "text-conversation text-multi-fg-primary",
           expandable && "cursor-pointer",
@@ -826,7 +826,7 @@ function ShellToolCall({
           {details ? (
             <PretextOneLine
               text={details}
-              title={details}
+              title=""
               truncate="middle"
               className="min-w-0 flex-1 text-multi-fg-tertiary"
             />
@@ -936,7 +936,7 @@ function EditToolCall({
         {hasContent ? (
           <button
             type="button"
-            className={cn(toolCallLineVariants({ clickable: true }), "w-fit max-w-full min-w-0")}
+            className={cn(toolCallLineVariants({ clickable: true }), "max-w-full min-w-0")}
             aria-label={isExpanded ? "Collapse edit details" : "Expand edit details"}
             aria-expanded={isExpanded}
             onClick={toggleExpanded}

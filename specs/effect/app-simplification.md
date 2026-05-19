@@ -198,6 +198,21 @@ Detailed inventory: [app-root-files.md](./app-root-files.md).
 
 Detailed state inventory: [app-state-files.md](./app-state-files.md).
 
+### Wave B2: Chat Turn Chrome
+
+- [x] Draft the cleanup scope for redundant chat turn Git chrome before
+      implementation. See [chat-turn-chrome.md](./chat-turn-chrome.md).
+- [x] Remove inline assistant changed-file cards from chat after confirming the
+      exact surface to delete.
+- [x] Delete the one-caller changed-files tree component and helper-only test if
+      the inline chat summary is removed.
+- [x] Remove `threadChangedFilesExpandedById` from UI persistence when no
+      production surface reads it.
+- [x] Remove the `Worked for ...` completed-turn wrapper from chat tool rows.
+- [x] Keep checkpoint diff data for the Git workbench/diff panel.
+- [x] Keep work-log command rows on a stable width and run project actions in
+      the active sidebar terminal.
+
 ### Wave C: CSS
 
 - [x] Classify app CSS files into token/global renderer/feature-delete buckets.

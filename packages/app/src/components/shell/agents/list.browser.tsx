@@ -308,7 +308,6 @@ describe("AgentList sidebar", () => {
       projectExpandedById: {},
       projectOrder: [],
       threadLastVisitedAtById: {},
-      threadChangedFilesExpandedById: {},
     });
   });
 

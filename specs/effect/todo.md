@@ -152,6 +152,10 @@ P6  EFFECT
 - [x] Verify plan panel controls with focused browser coverage.
 - [x] Replace existing prop-to-state effects in composer controls with derived
       state or keyed component boundaries.
+- [x] Draft and implement chat turn chrome cleanup: remove inline
+      changed-files summaries from chat, keep the Git workbench/diff panel as
+      the canonical diff surface, and remove the `Worked for ...` turn wrapper.
+      See [chat-turn-chrome.md](./chat-turn-chrome.md).
 
 ## P4: Delete
 
