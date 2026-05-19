@@ -16,6 +16,7 @@ import { Button } from "@multi/ui/button";
 import { AnchoredToastProvider, ToastProvider, toastManager } from "~/app/toast";
 import { resolveAndPersistPreferredEditor } from "~/editor/preferences";
 import { readLocalApi } from "~/local-api";
+import { formatSchemaBackedTransportErrorDescription } from "~/rpc/transport-error";
 import {
   getServerConfigUpdatedNotification,
   ServerConfigUpdatedNotification,
@@ -338,8 +339,10 @@ function EventRouter() {
                 toastManager.add({
                   type: "error",
                   title: "Unable to open keybindings file",
-                  description:
-                    error instanceof Error ? error.message : "Unknown error opening file.",
+                  description: formatSchemaBackedTransportErrorDescription(
+                    error,
+                    "Unknown error opening file.",
+                  ),
                 });
               });
           },

@@ -3,7 +3,13 @@ import path from "node:path";
 
 import type { IPty } from "@lydell/node-pty";
 import { Effect, FileSystem, Layer, Path } from "effect";
-import { PtyAdapter, PtyAdapterShape, PtyExitEvent, PtyProcess } from "./PTY.service";
+import {
+  PtyAdapter,
+  PtyAdapterShape,
+  PtyExitEvent,
+  PtyProcess,
+  PtySpawnError,
+} from "./PTY.service";
 
 let didEnsureSpawnHelperExecutable = false;
 
@@ -123,11 +129,20 @@ export const layer = Layer.effect(
         // becomes TERM for the shell; forcing xterm-256color here regresses the
         // native-terminal prompt path. TERM/COLORTERM belong in input.env only
         // when the caller deliberately requested them.
-        const ptyProcess = nodePty.spawn(input.shell, input.args ?? [], {
-          cwd: input.cwd,
-          cols: input.cols,
-          rows: input.rows,
-          env: input.env,
+        const ptyProcess = yield* Effect.try({
+          try: () =>
+            nodePty.spawn(input.shell, input.args ?? [], {
+              cwd: input.cwd,
+              cols: input.cols,
+              rows: input.rows,
+              env: input.env,
+            }),
+          catch: (cause) =>
+            new PtySpawnError({
+              adapter: "node-pty",
+              message: "Failed to spawn node-pty process.",
+              cause,
+            }),
         });
         return new NodePtyProcess(ptyProcess);
       }),

@@ -4,7 +4,7 @@
  */
 
 :root {
-  --multi-header-height: var(--multi-header-height-user, 32px);
+  --multi-header-height: var(--multi-header-height-user, 34px);
   --multi-titlebar-control-height: 22px;
   --multi-titlebar-control-row-top: calc(
     (var(--multi-header-height) - var(--multi-titlebar-control-height)) / 2
@@ -23,7 +23,7 @@
   --multi-workbench-toggle-left: var(--multi-workbench-toggle-left-user, 12px);
   --multi-workbench-toggle-right: var(--multi-workbench-toggle-right-user, 12px);
   --multi-workbench-changes-toggle-w: var(--multi-workbench-changes-toggle-w-user, 7rem);
-  --multi-workbench-chrome-row-height: 35px;
+  --multi-workbench-chrome-row-height: 34px;
   --multi-workbench-panel-title-row-height: 29px;
   --multi-workbench-chrome-padding-inline: 8px;
   --multi-workbench-sub-chrome-padding-inline: 6px;
@@ -39,7 +39,7 @@
     --multi-workbench-toggle-left-user,
     var(--multi-electron-traffic-inset)
   );
-  --multi-electron-traffic-padding-top: var(--multi-electron-traffic-padding-top-user, 28px);
+  --multi-electron-traffic-padding-top: var(--multi-electron-traffic-padding-top-user, 26px);
 }
 
 /* Glass panels: backdrop-filter + isolation */

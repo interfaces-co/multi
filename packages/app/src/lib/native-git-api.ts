@@ -5,8 +5,8 @@ import type {
   GitListBranchesResult,
   GitStackedAction,
 } from "@multi/contracts";
+import { getEnvironmentWsRpcClient } from "~/environments/runtime";
 import type { WsRpcClient } from "~/rpc/ws-rpc-client";
-import { getWsRpcClientForEnvironment } from "~/ws-rpc-client";
 
 import { readNativeEnvironmentApi, readNativeRuntimeApi } from "./native-runtime-api";
 
@@ -45,7 +45,7 @@ function readMethod<K extends keyof NativeGitApiCandidate>(
 
 function readWsGit(environmentId?: EnvironmentId | null): WsRpcClient["git"] | null {
   try {
-    return getWsRpcClientForEnvironment(environmentId ?? null).git;
+    return getEnvironmentWsRpcClient(environmentId ?? null).git;
   } catch {
     return null;
   }

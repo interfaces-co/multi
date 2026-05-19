@@ -27,6 +27,7 @@ import {
 } from "@multi/ui/dialog";
 
 import { isElectron } from "~/env";
+import { formatGitActionErrorDescription } from "~/git/action-error-description";
 import {
   type DiffRow,
   type GitPanelModel,
@@ -72,41 +73,6 @@ const GIT_CHANGES_FILTER_LABELS: Record<GitChangesFilter, string> = {
   staged: "Staged",
   branch: "All commits",
 };
-
-function readRecordField(value: unknown, key: string): unknown {
-  if (typeof value !== "object" || value === null) {
-    return undefined;
-  }
-  return (value as Record<string, unknown>)[key];
-}
-
-function readNonEmptyStringField(value: unknown, key: string): string | null {
-  const field = readRecordField(value, key);
-  return typeof field === "string" && field.trim().length > 0 ? field.trim() : null;
-}
-
-function formatGitActionErrorDescription(error: unknown): string {
-  const message =
-    readNonEmptyStringField(error, "message") ??
-    (error instanceof Error && error.message.trim().length > 0 ? error.message.trim() : null);
-  const detail = readNonEmptyStringField(error, "detail");
-  const command = readNonEmptyStringField(error, "command");
-  const cwd = readNonEmptyStringField(error, "cwd");
-  const operation = readNonEmptyStringField(error, "operation");
-  const lines = [detail ?? message ?? "Git action failed."];
-
-  if (command) {
-    lines.push(`Command: ${command}`);
-  }
-  if (cwd) {
-    lines.push(`Project: ${cwd}`);
-  }
-  if (operation) {
-    lines.push(`Operation: ${operation}`);
-  }
-
-  return lines.join("\n");
-}
 
 function showGitActionErrorToast(title: string, error: unknown): void {
   toastManager.add({

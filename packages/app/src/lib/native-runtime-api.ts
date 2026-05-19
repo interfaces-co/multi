@@ -1,8 +1,8 @@
 import type { EnvironmentApi, EnvironmentId, LocalApi } from "@multi/contracts";
 
+import { getEnvironmentWsRpcClient } from "~/environments/runtime";
 import { createEnvironmentApi, readEnvironmentApi } from "~/environment-api";
 import { ensureLocalApi, readLocalApi } from "~/local-api";
-import { getWsRpcClientForEnvironment } from "~/ws-rpc-client";
 
 export { readLocalApi as readNativeApi, ensureLocalApi as ensureNativeApi };
 
@@ -26,7 +26,7 @@ function readEnvironmentApiWithFallback(
   }
 
   try {
-    return createEnvironmentApi(getWsRpcClientForEnvironment(null));
+    return createEnvironmentApi(getEnvironmentWsRpcClient(null));
   } catch {
     return undefined;
   }

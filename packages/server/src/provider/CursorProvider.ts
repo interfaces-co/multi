@@ -480,6 +480,26 @@ export function resolveCursorAcpBaseModelId(model: string | null | undefined): s
   return base.includes("[") ? base.slice(0, base.indexOf("[")) : base;
 }
 
+/**
+ * Cursor CLI model slug for `agent --model` before `acp`.
+ * In-session `session/set_config_option` does not reliably change the billed model;
+ * spawn-time binding is the source of truth for which backend runs.
+ */
+export function resolveCursorAgentCliModelId(
+  model: string | null | undefined,
+  selections: ReadonlyArray<ProviderOptionSelection> | null | undefined,
+): string | undefined {
+  const base = resolveCursorAcpBaseModelId(model);
+  if (base === "default") {
+    return undefined;
+  }
+  const fastMode = getProviderOptionBooleanSelectionValue(selections, "fastMode");
+  if (fastMode === true && !base.endsWith("-fast")) {
+    return `${base}-fast`;
+  }
+  return base;
+}
+
 export function resolveCursorAcpConfigUpdates(
   configOptions: ReadonlyArray<EffectAcpSchema.SessionConfigOption> | null | undefined,
   selections: ReadonlyArray<ProviderOptionSelection> | null | undefined,

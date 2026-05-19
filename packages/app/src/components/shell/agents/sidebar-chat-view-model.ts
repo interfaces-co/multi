@@ -1,4 +1,9 @@
-import { scopedProjectKey, scopeProjectRef, scopeThreadRef } from "@multi/client-runtime";
+import {
+  scopedProjectKey,
+  scopedThreadKey,
+  scopeProjectRef,
+  scopeThreadRef,
+} from "@multi/client-runtime";
 import type {
   EnvironmentId,
   OrchestrationSessionStatus,
@@ -56,12 +61,13 @@ interface SidebarChatItemBase {
 export type SidebarChatItem =
   | (SidebarChatItemBase & {
       id: ThreadId;
-    kind: "thread";
-    state: SidebarThreadState;
-    unread: boolean;
-    latestReadableAt: string | null;
-    threadRef: ScopedThreadRef;
-  })
+      kind: "thread";
+      state: SidebarThreadState;
+      unread: boolean;
+      pinned: boolean;
+      latestReadableAt: string | null;
+      threadRef: ScopedThreadRef;
+    })
   | (SidebarChatItemBase & {
       id: string;
       kind: "draft";
@@ -69,11 +75,15 @@ export type SidebarChatItem =
       unread: false;
     });
 
+type SidebarThreadChatItem = Extract<SidebarChatItem, { kind: "thread" }>;
+
 export interface SidebarSectionModel {
   id: string;
   label: string;
   cwd: string;
   active: boolean;
+  canCreateAgent?: boolean;
+  canOpenInEditor?: boolean;
   environmentId?: EnvironmentId;
   projectId?: ProjectId;
   projectCwd?: string;
@@ -126,13 +136,19 @@ function draftTitle(draft: SidebarDraftSummary) {
   return `${head} +${draft.attachmentCount - 1}`;
 }
 
-function buildThreadChat(sum: SidebarThreadSummary, unreadIds?: ReadonlySet<string>) {
+function buildThreadChat(
+  sum: SidebarThreadSummary,
+  unreadIds?: ReadonlySet<string>,
+  pinnedThreadKeys?: ReadonlySet<string>,
+) {
+  const threadRef = scopeThreadRef(sum.environmentId, sum.id);
   return {
     id: sum.id,
     kind: "thread",
     title: sum.name?.trim() || sum.firstMessage.trim() || "Untitled",
     state: threadState(sum),
     unread: unreadIds?.has(sum.id) ?? false,
+    pinned: pinnedThreadKeys?.has(scopedThreadKey(threadRef)) ?? false,
     updatedAt: sum.modifiedAt,
     latestReadableAt: sum.latestReadableAt ?? sum.modifiedAt,
     ago: formatCompactRelativeTimeLabel(sum.modifiedAt),
@@ -140,7 +156,7 @@ function buildThreadChat(sum: SidebarThreadSummary, unreadIds?: ReadonlySet<stri
     environmentId: sum.environmentId,
     projectId: sum.projectId,
     projectCwd: sum.projectCwd,
-    threadRef: scopeThreadRef(sum.environmentId, sum.id),
+    threadRef,
   } satisfies SidebarChatItem;
 }
 
@@ -173,6 +189,17 @@ function buildDraftChat(draft: SidebarDraftSummary) {
   } satisfies SidebarChatItem;
 }
 
+function compareUpdatedAtDesc(
+  left: Pick<SidebarChatItem, "updatedAt">,
+  right: Pick<SidebarChatItem, "updatedAt">,
+) {
+  return left.updatedAt < right.updatedAt ? 1 : left.updatedAt > right.updatedAt ? -1 : 0;
+}
+
+function isPinnedThreadItem(item: SidebarChatItem): item is SidebarThreadChatItem {
+  return item.kind === "thread" && item.pinned;
+}
+
 export function buildProjectChatSections(
   threadSummaries: readonly SidebarThreadSummary[],
   drafts: readonly SidebarDraftSummary[],
@@ -180,15 +207,19 @@ export function buildProjectChatSections(
   home: string | null,
   unreadIds?: ReadonlySet<string>,
   projectCwds: readonly string[] = [],
+  pinnedThreadKeys?: ReadonlySet<string>,
 ): SidebarSectionModel[] {
-  const list = [
-    ...threadSummaries.map((sum) => buildThreadChat(sum, unreadIds)),
+  const list: SidebarChatItem[] = [
+    ...threadSummaries.map((sum) => buildThreadChat(sum, unreadIds, pinnedThreadKeys)),
     ...drafts.map(buildDraftChat),
   ];
   if (list.length === 0) return [];
 
+  const pinnedItems = list.filter(isPinnedThreadItem).toSorted(compareUpdatedAtDesc);
+  const projectItems = list.filter((item) => !isPinnedThreadItem(item));
+
   const by = new Map<string, SidebarChatItem[]>();
-  for (const item of list) {
+  for (const item of projectItems) {
     const key = item.cwd || "/";
     const cur = by.get(key);
     if (cur) cur.push(item);
@@ -204,9 +235,7 @@ export function buildProjectChatSections(
   }
 
   const groups = [...by.entries()].map(([dir, items], index) => {
-    const sorted = items.toSorted((left, right) =>
-      left.updatedAt < right.updatedAt ? 1 : left.updatedAt > right.updatedAt ? -1 : 0,
-    );
+    const sorted = items.toSorted(compareUpdatedAtDesc);
     return { dir, label: shortProjectPathLabel(dir, home), sorted, index };
   });
 
@@ -225,13 +254,17 @@ export function buildProjectChatSections(
     if (sum.projectId === null) {
       continue;
     }
+    const threadRef = scopeThreadRef(sum.environmentId, sum.id);
+    if (pinnedThreadKeys?.has(scopedThreadKey(threadRef))) {
+      continue;
+    }
     const key = scopedProjectKey(scopeProjectRef(sum.environmentId, sum.projectId));
     const refs = threadRefsByProjectKey.get(key) ?? [];
-    refs.push(scopeThreadRef(sum.environmentId, sum.id));
+    refs.push(threadRef);
     threadRefsByProjectKey.set(key, refs);
   }
 
-  return groups.map((group) => {
+  const sections = groups.map((group) => {
     const sectionThreadRefs = group.sorted.flatMap((item) =>
       item.kind === "thread" ? [item.threadRef] : [],
     );
@@ -282,4 +315,24 @@ export function buildProjectChatSections(
       projectCwd: rootProject.projectCwd,
     } satisfies Pick<SidebarSectionModel, "environmentId" | "projectId" | "projectCwd">);
   });
+
+  if (pinnedItems.length === 0) {
+    return sections;
+  }
+
+  const pinnedThreadRefs = pinnedItems.map((item) => item.threadRef);
+  return [
+    {
+      id: "pinned",
+      label: "Pinned",
+      cwd: pinnedItems[0]?.cwd ?? cwd ?? "/",
+      active: false,
+      canCreateAgent: false,
+      canOpenInEditor: false,
+      sectionThreadRefs: pinnedThreadRefs,
+      threadRefs: pinnedThreadRefs,
+      items: pinnedItems,
+    } satisfies SidebarSectionModel,
+    ...sections,
+  ];
 }

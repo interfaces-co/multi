@@ -251,6 +251,9 @@ function runtimeModeToThreadConfig(input: RuntimeMode): {
   readonly approvalPolicy: EffectCodexSchema.V2ThreadStartParams__AskForApproval;
   readonly sandbox: EffectCodexSchema.V2ThreadStartParams__SandboxMode;
 } {
+  // Codex owns read gating through its thread approval policy. Multi only registers explicit
+  // approval handlers for command execution and file changes so allowed reads do not get a
+  // second Multi approval prompt.
   switch (input) {
     case "approval-required":
       return {

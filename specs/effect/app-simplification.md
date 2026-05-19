@@ -20,9 +20,9 @@ each deletion needs a verifier that covers the behavior being kept.
 
 Snapshot from `rg --files packages/app/src`:
 
-- [x] `331` app `ts` / `tsx` files.
-- [x] `17` root-level app `ts` / `tsx` files.
-- [x] `90` `*.test.*` / `*.browser.*` files.
+- [x] `327` app `ts` / `tsx` files.
+- [x] `16` root-level app `ts` / `tsx` files.
+- [x] `91` `*.test.*` / `*.browser.*` files.
 - [x] `10` CSS files under `packages/app/src`.
 - [x] `0` remaining `*.logic.ts` files under `packages/app/src/app`.
 - [x] `0` `*logic*` files outside `session-logic.ts` /
@@ -36,7 +36,7 @@ Detailed inventories:
 - [x] Root app files: [app-root-files.md](./app-root-files.md).
 - [x] App state files: [app-state-files.md](./app-state-files.md).
 - [x] App route files: [app-route-files.md](./app-route-files.md).
-- [x] App toast files: [app-toast-files.md](./app-toast-files.md).
+- [x] App toast file inventory completed and deleted.
 - [x] App CSS files: [app-css-files.md](./app-css-files.md).
 
 ## Target Shape
@@ -172,6 +172,10 @@ Detailed inventory: [app-root-files.md](./app-root-files.md).
       only production stat summary is private to `assistant-message.tsx`.
 - [x] Move the one-caller markdown highlight LRU cache from `lib` into
       `components/chat/markdown` with its focused unit test.
+- [x] Delete the one-caller `PretextOneLine` wrapper and
+      `use-pretext-one-line` layout-effect hook after replacing the Git diff
+      header path label with CSS truncation; `@chenglou/pretext` was removed
+      from the app dependency set.
 - [x] Keep `lib/desktop-chrome.ts` as the browser/Electron shell chrome metrics
       boundary. Its single production caller is startup boot, and the shell CSS
       contract test reads it to keep chrome CSS variables aligned.
@@ -197,6 +201,32 @@ Detailed inventory: [app-root-files.md](./app-root-files.md).
       route/shell/composer behavior coverage where needed.
 
 Detailed state inventory: [app-state-files.md](./app-state-files.md).
+
+### Wave B2: Chat Turn Chrome
+
+- [x] Draft the cleanup scope for redundant chat turn Git chrome before
+      implementation.
+- [x] Remove inline assistant changed-file cards from chat after confirming the
+      exact surface to delete.
+- [x] Delete the one-caller changed-files tree component and helper-only test if
+      the inline chat summary is removed.
+- [x] Remove `threadChangedFilesExpandedById` from UI persistence when no
+      production surface reads it.
+- [x] Delete the old split-row `worked-header` wrapper model from chat tool
+      rows.
+- [x] Replace it with the canonical Cursor-style work-group row: full
+      `max-w-agent-chat` lane, local non-persisted expansion, compact summary
+      line, compact child tool rows, and no reintroduced chat-local changed-file
+      state.
+- [x] Align compact command/tool rows to Cursor's row model: full lane
+      available for truncation, intrinsic visible text/chevron cluster, and no
+      far-right chevron column.
+- [x] Keep compact command/tool row truncation CSS-owned; do not use
+      `PretextOneLine`, `justify-between`, `ml-auto`, or a flex spacer that
+      pushes chevrons away from the visible text.
+- [x] Keep checkpoint diff data for the Git workbench/diff panel.
+- [x] Keep work-log command rows on a stable width and run project actions in
+      the shell workbench terminal for the target cwd.
 
 ### Wave C: CSS
 
@@ -234,9 +264,7 @@ Detailed rules: [react.md](./react.md).
       picker, and plan interactions.
 - [ ] Keep unit tests for pure domain transforms with stable inputs/outputs.
 - [ ] Delete tests for helpers that are inlined or no longer public boundaries.
-- [ ] Add multi-viewport sidebar coverage before deleting sidebar helper tests.
-
-Detailed sidebar coverage: [sidebar-usability.md](./sidebar-usability.md).
+- [x] Add multi-viewport sidebar coverage before deleting sidebar helper tests.
 
 ## Anti-Patterns
 
@@ -252,4 +280,4 @@ Detailed sidebar coverage: [sidebar-usability.md](./sidebar-usability.md).
 Remaining `.logic.ts` classification:
 
 - [x] `packages/app/src/app/toast.logic.ts` was inlined into `toast.tsx` and
-      deleted. See [app-toast-files.md](./app-toast-files.md).
+      deleted.

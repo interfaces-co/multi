@@ -1,5 +1,5 @@
 import { EnvironmentId, type ExecutionEnvironmentDescriptor } from "@multi/contracts";
-import { Effect, FileSystem, Layer, Path, Random } from "effect";
+import { Effect, FileSystem, Layer, Path, Random, Ref } from "effect";
 
 import { ServerConfig } from "../config.ts";
 import { ServerEnvironment, type ServerEnvironmentShape } from "./ServerEnvironment.service.ts";
@@ -82,10 +82,17 @@ export const makeServerEnvironment = Effect.fn("makeServerEnvironment")(function
       repositoryIdentity: true,
     },
   };
+  const startupStatusRef = yield* Ref.make<"starting" | "ready">("starting");
 
   return {
     getEnvironmentId: Effect.succeed(environmentId),
-    getDescriptor: Effect.succeed(descriptor),
+    getDescriptor: Ref.get(startupStatusRef).pipe(
+      Effect.map((startupStatus) => ({
+        ...descriptor,
+        startupStatus,
+      })),
+    ),
+    markStartupReady: Ref.set(startupStatusRef, "ready"),
   } satisfies ServerEnvironmentShape;
 });
 

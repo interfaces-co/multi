@@ -36,6 +36,7 @@ import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 
 import { isWindowsCommandNotFound } from "../process-runner.ts";
 import { collectStreamAsString } from "./provider-snapshot.ts";
+import { buildOpenCodePermissionRuleset } from "./runtime-permission-policy.ts";
 import { NetService } from "@multi/shared/Net";
 
 const OPENCODE_SERVER_READY_PREFIX = "opencode server listening";
@@ -266,21 +267,7 @@ export function toOpenCodeFileParts(input: {
 }
 
 export function buildOpenCodePermissionRules(runtimeMode: RuntimeMode): PermissionRuleset {
-  if (runtimeMode === "full-access") {
-    return [{ permission: "*", pattern: "*", action: "allow" }];
-  }
-
-  return [
-    { permission: "*", pattern: "*", action: "ask" },
-    { permission: "bash", pattern: "*", action: "ask" },
-    { permission: "edit", pattern: "*", action: "ask" },
-    { permission: "webfetch", pattern: "*", action: "ask" },
-    { permission: "websearch", pattern: "*", action: "ask" },
-    { permission: "codesearch", pattern: "*", action: "ask" },
-    { permission: "external_directory", pattern: "*", action: "ask" },
-    { permission: "doom_loop", pattern: "*", action: "ask" },
-    { permission: "question", pattern: "*", action: "allow" },
-  ];
+  return buildOpenCodePermissionRuleset(runtimeMode);
 }
 
 export function toOpenCodePermissionReply(

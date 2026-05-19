@@ -14,6 +14,7 @@ import {
   TerminalError,
   TerminalHistoryError,
   TerminalNotRunningError,
+  TerminalProcessOperationError,
   TerminalOpenInput,
   TerminalResizeInput,
   TerminalRestartInput,
@@ -30,6 +31,7 @@ export {
   TerminalError,
   TerminalHistoryError,
   TerminalNotRunningError,
+  TerminalProcessOperationError,
   TerminalSessionLookupError,
 };
 

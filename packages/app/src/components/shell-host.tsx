@@ -14,9 +14,11 @@ import { useShallow } from "zustand/react/shallow";
 import { IconBranch, IconConsole, IconFileText, IconSquareChecklist } from "central-icons";
 
 import { readLastChatRouteTarget } from "~/app/routes/chat-route-persistence";
+import { toastManager } from "~/app/toast";
 import { prefetchDraftNavigation, prefetchThreadNavigation } from "~/app/thread-prefetch";
 import { useCommandPaletteStore } from "~/stores/ui/command-palette-store";
 import { isElectron } from "~/env";
+import { formatGitActionErrorDescription } from "~/git/action-error-description";
 import { useEnvironmentGitPanel } from "~/hooks/use-environment-git";
 import { useHandleNewThread } from "~/hooks/use-handle-new-thread";
 import { useRouteThreadId } from "~/hooks/use-route-thread-id";
@@ -90,7 +92,7 @@ import { ShellSettingsProvider } from "./shell/settings/context";
 import { SettingsNavRail } from "./shell/settings/nav-rail";
 import { ShellSidebarFooter } from "./shell/sidebar/footer";
 import { ShellSidebarHeader } from "./shell/sidebar/header";
-import { ThreadRail } from "./shell/sidebar/thread-rail";
+import { AgentList } from "./shell/agents/list";
 import { TerminalPanel } from "./shell/terminal/panel";
 import { TerminalRail } from "./shell/terminal/terminal-rail";
 import { TerminalWorkbenchSubChrome } from "./shell/terminal/workbench-subchrome";
@@ -339,6 +341,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
     (store) => store.cancelDraftThreadPromotion,
   );
   const threadLastVisitedAtById = useUiStateStore((store) => store.threadLastVisitedAtById);
+  const pinnedThreadKeys = useUiStateStore((store) => store.pinnedThreadKeys);
   const {
     activeDraftThread,
     activeThread: routeActiveThread,
@@ -437,13 +440,20 @@ function ChatShellHost(props: { children?: ReactNode }) {
     for (const thread of sidebarThreads) {
       const threadKey = scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id));
       if (
-        isUnreadFromVisitBoundary(thread.latestTurn?.completedAt, threadLastVisitedAtById[threadKey])
+        isUnreadFromVisitBoundary(
+          thread.latestTurn?.completedAt,
+          threadLastVisitedAtById[threadKey],
+        )
       ) {
         ids.add(thread.id);
       }
     }
     return ids;
   }, [sidebarThreads, threadLastVisitedAtById]);
+  const pinnedThreadKeySet = useMemo(
+    () => new Set(pinnedThreadKeys),
+    [pinnedThreadKeys],
+  );
 
   const activeThread = routeActiveThread ?? null;
 
@@ -744,27 +754,25 @@ function ChatShellHost(props: { children?: ReactNode }) {
     isImplementingPlan,
     onImplementPlan: showPlanImplementationActions ? implementPlanInCurrentThread : undefined,
   };
-  const sections = useMemo(
-    () => {
-      const projectStateKeyByCwd = new Map(
-        projects.map((project) => [project.cwd, deriveLogicalProjectKey(project)] as const),
-      );
-      return buildProjectChatSections(
-        summaries,
-        drafts,
-        activeCwd,
-        null,
-        unreadIds,
-        projects.map((project) => project.cwd),
-      ).map((section) => {
-        const projectStateKey = section.projectCwd
-          ? projectStateKeyByCwd.get(section.projectCwd)
-          : undefined;
-        return projectStateKey ? { ...section, projectStateKey } : section;
-      });
-    },
-    [activeCwd, drafts, projects, summaries, unreadIds],
-  );
+  const sections = useMemo(() => {
+    const projectStateKeyByCwd = new Map(
+      projects.map((project) => [project.cwd, deriveLogicalProjectKey(project)] as const),
+    );
+    return buildProjectChatSections(
+      summaries,
+      drafts,
+      activeCwd,
+      null,
+      unreadIds,
+      projects.map((project) => project.cwd),
+      pinnedThreadKeySet,
+    ).map((section) => {
+      const projectStateKey = section.projectCwd
+        ? projectStateKeyByCwd.get(section.projectCwd)
+        : undefined;
+      return projectStateKey ? Object.assign(section, { projectStateKey }) : section;
+    });
+  }, [activeCwd, drafts, pinnedThreadKeySet, projects, summaries, unreadIds]);
 
   const create = useCallback(
     (cwd?: string) => {
@@ -1042,7 +1050,11 @@ function ChatShellHost(props: { children?: ReactNode }) {
     mutationFn: startGitAgentAction,
     onError: (error) => {
       setGitAgentOrchestrationHandoff(null);
-      toast.error(error instanceof Error ? error.message : "Failed to start Git action.");
+      toastManager.add({
+        type: "error",
+        title: "Failed to start Git action",
+        description: formatGitActionErrorDescription(error, "Failed to start Git action."),
+      });
     },
   });
   const activeGitAgentHandoff = useMemo(
@@ -1087,7 +1099,11 @@ function ChatShellHost(props: { children?: ReactNode }) {
       });
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to stop Git action.");
+      toastManager.add({
+        type: "error",
+        title: "Failed to stop Git action",
+        description: formatGitActionErrorDescription(error, "Failed to stop Git action."),
+      });
     },
     onSettled: () => {
       setGitAgentOrchestrationHandoff(null);
@@ -1121,7 +1137,7 @@ function ChatShellHost(props: { children?: ReactNode }) {
       <div className={cn("shrink-0", isElectron && "no-drag")}>
         <ShellSidebarHeader onNewChat={create} onAddProject={openAddProject} />
       </div>
-      <ThreadRail
+      <AgentList
         loading={false}
         error={false}
         sections={sections}

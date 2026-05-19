@@ -301,35 +301,6 @@ const makeAcpSessionRuntime = (
         });
       });
 
-    const updateConfigOptions = (
-      response:
-        | EffectAcpSchema.SetSessionConfigOptionResponse
-        | EffectAcpSchema.LoadSessionResponse
-        | EffectAcpSchema.NewSessionResponse
-        | EffectAcpSchema.ResumeSessionResponse,
-    ): Effect.Effect<void> => Ref.set(configOptionsRef, sessionConfigOptionsFromSetup(response));
-
-    const configOptionsWithCurrentValue = (
-      configOptions: ReadonlyArray<EffectAcpSchema.SessionConfigOption>,
-      configId: string,
-      value: string | boolean,
-    ): ReadonlyArray<EffectAcpSchema.SessionConfigOption> =>
-      configOptions.map((option) => {
-        if (option.id !== configId) {
-          return option;
-        }
-        if (option.type === "boolean") {
-          return {
-            ...option,
-            currentValue: typeof value === "boolean" ? value : value === "true",
-          };
-        }
-        return {
-          ...option,
-          currentValue: String(value),
-        };
-      });
-
     const updateConfigOptionsAfterSuccessfulWrite = (
       configId: string,
       value: string | boolean,
@@ -345,9 +316,6 @@ const makeAcpSessionRuntime = (
       Ref.update(modeStateRef, (current) =>
         current ? { ...current, currentModeId: modeId } : current,
       );
-
-    const isMethodNotFound = (error: EffectAcpErrors.AcpError): boolean =>
-      error._tag === "AcpRequestError" && error.code === -32601;
 
     const setConfigOption = (
       configId: string,
@@ -587,8 +555,33 @@ const makeAcpSessionRuntime = (
       setConfigOption,
       setModel: (model) =>
         getStartedState.pipe(
-          Effect.flatMap((started) => setConfigOption(started.modelConfigId ?? "model", model)),
-          Effect.asVoid,
+          Effect.flatMap((started) => {
+            const modelConfigId = started.modelConfigId ?? "model";
+            const useParameterizedPicker =
+              initializeClientCapabilities._meta?.parameterizedModelPicker === true;
+            if (!useParameterizedPicker) {
+              return setConfigOption(modelConfigId, model).pipe(Effect.asVoid);
+            }
+            const requestPayload = {
+              sessionId: started.sessionId,
+              modelId: model,
+            } satisfies EffectAcpSchema.SetSessionModelRequest;
+            return runLoggedRequest(
+              "session/set_model",
+              requestPayload,
+              acp.agent.setSessionModel(requestPayload),
+            ).pipe(
+              Effect.tap(() =>
+                Ref.update(configOptionsRef, (current) =>
+                  configOptionsWithCurrentValue(current, modelConfigId, model),
+                ),
+              ),
+              Effect.catchIf(isMethodNotFound, () =>
+                setConfigOption(modelConfigId, model).pipe(Effect.asVoid),
+              ),
+              Effect.asVoid,
+            );
+          }),
         ),
       request: (method, payload) =>
         runLoggedRequest(method, payload, acp.raw.request(method, payload)),
@@ -606,6 +599,28 @@ function sessionConfigOptionsFromSetup(
   return response?.configOptions ?? [];
 }
 
+function configOptionsWithCurrentValue(
+  configOptions: ReadonlyArray<EffectAcpSchema.SessionConfigOption>,
+  configId: string,
+  value: string | boolean,
+): ReadonlyArray<EffectAcpSchema.SessionConfigOption> {
+  return configOptions.map((option) => {
+    if (option.id !== configId) {
+      return option;
+    }
+    if (option.type === "boolean") {
+      return {
+        ...option,
+        currentValue: typeof value === "boolean" ? value : value === "true",
+      };
+    }
+    return {
+      ...option,
+      currentValue: String(value),
+    };
+  });
+}
+
 function configOptionCurrentValueMatches(
   configOption: EffectAcpSchema.SessionConfigOption,
   value: string | boolean,
@@ -618,6 +633,10 @@ function configOptionCurrentValueMatches(
     return false;
   }
   return currentValue.trim() === String(value).trim();
+}
+
+function isMethodNotFound(error: EffectAcpErrors.AcpError): boolean {
+  return error._tag === "AcpRequestError" && error.code === -32601;
 }
 
 const handleSessionUpdate = ({

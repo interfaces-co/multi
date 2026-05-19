@@ -25,7 +25,12 @@ const COMPILER_METHODS = new Set([
 const APP_SRC_SEGMENT = "packages/app/src/";
 const SERVER_SRC_SEGMENT = "packages/server/src/";
 const MOUNT_EFFECT_WRAPPER_SUFFIX = "packages/app/src/hooks/use-mount-effect.ts";
+const LAYOUT_EFFECT_WRAPPER_SUFFIX = "packages/app/src/hooks/use-layout-sync-effect.ts";
 const SERVER_RUNTIME_SUFFIX = "packages/server/src/server-runtime.ts";
+const DISALLOWED_REACT_EFFECT_HOOKS = new Map([
+  ["useEffect", "useMountEffect"],
+  ["useLayoutEffect", "useLayoutSyncEffect"],
+]);
 
 function unwrapExpression(node) {
   let current = node;
@@ -81,6 +86,20 @@ function isServerSourceFile(filename) {
 
 function isMountEffectWrapperFile(filename) {
   return normalizedFilename(filename).endsWith(MOUNT_EFFECT_WRAPPER_SUFFIX);
+}
+
+function isLayoutEffectWrapperFile(filename) {
+  return normalizedFilename(filename).endsWith(LAYOUT_EFFECT_WRAPPER_SUFFIX);
+}
+
+function isAllowedDirectReactEffectFile(filename, hookName) {
+  if (hookName === "useEffect") {
+    return isMountEffectWrapperFile(filename);
+  }
+  if (hookName === "useLayoutEffect") {
+    return isLayoutEffectWrapperFile(filename);
+  }
+  return false;
 }
 
 function isServerRuntimeFile(filename) {
@@ -200,18 +219,18 @@ const noDirectUseEffect = {
   },
   create(context) {
     const filename = context.filename;
-    if (!isAppSourceFile(filename) || isMountEffectWrapperFile(filename)) {
+    if (!isAppSourceFile(filename)) {
       return {};
     }
 
-    const useEffectLocalNames = new Set();
+    const reactEffectLocalNames = new Map();
     const reactObjectNames = new Set();
 
-    function reportDirectUseEffect(node) {
+    function reportDirectReactEffect(node, hookName) {
+      const wrapperName = DISALLOWED_REACT_EFFECT_HOOKS.get(hookName);
       context.report({
         node,
-        message:
-          "Do not call React useEffect directly in app source. Derive state during render, use an event/keyed boundary, or use useMountEffect for mount-only external sync.",
+        message: `Do not call React ${hookName} directly in app source. Derive state during render, use an event/keyed boundary, or use ${wrapperName} for external sync.`,
       });
     }
 
@@ -224,12 +243,16 @@ const noDirectUseEffect = {
         for (const specifier of node.specifiers ?? []) {
           if (specifier.type === "ImportSpecifier") {
             const imported = getPropertyName(specifier.imported);
-            if (imported === "useEffect") {
-              useEffectLocalNames.add(specifier.local.name);
+            if (
+              imported &&
+              DISALLOWED_REACT_EFFECT_HOOKS.has(imported) &&
+              !isAllowedDirectReactEffectFile(filename, imported)
+            ) {
+              const wrapperName = DISALLOWED_REACT_EFFECT_HOOKS.get(imported);
+              reactEffectLocalNames.set(specifier.local.name, imported);
               context.report({
                 node: specifier,
-                message:
-                  "Do not import React useEffect directly in app source. Import useMountEffect for mount-only external sync.",
+                message: `Do not import React ${imported} directly in app source. Import ${wrapperName} for external sync.`,
               });
             }
             continue;
@@ -249,8 +272,11 @@ const noDirectUseEffect = {
           return;
         }
 
-        if (callee.type === "Identifier" && useEffectLocalNames.has(callee.name)) {
-          reportDirectUseEffect(callee);
+        if (callee.type === "Identifier") {
+          const hookName = reactEffectLocalNames.get(callee.name);
+          if (hookName) {
+            reportDirectReactEffect(callee, hookName);
+          }
           return;
         }
 
@@ -258,13 +284,17 @@ const noDirectUseEffect = {
           return;
         }
 
-        if (getPropertyName(callee.property) !== "useEffect") {
+        const hookName = getPropertyName(callee.property);
+        if (!hookName || !DISALLOWED_REACT_EFFECT_HOOKS.has(hookName)) {
+          return;
+        }
+        if (isAllowedDirectReactEffectFile(filename, hookName)) {
           return;
         }
 
         const object = unwrapExpression(callee.object);
         if (object?.type === "Identifier" && reactObjectNames.has(object.name)) {
-          reportDirectUseEffect(callee.property);
+          reportDirectReactEffect(callee.property, hookName);
         }
       },
     };

@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildCursorCapabilitiesForModelConfigResponse,
   buildCursorDiscoveredModelsFromConfigOptions,
+  resolveCursorAgentCliModelId,
 } from "../../src/provider/CursorProvider.ts";
 
 const modelConfigOptions = [
@@ -104,5 +105,26 @@ describe("buildCursorCapabilitiesForModelConfigResponse", () => {
       "reasoning",
       "fastMode",
     ]);
+  });
+});
+
+describe("resolveCursorAgentCliModelId", () => {
+  it("maps composer-2.5 to the composer-2.5 CLI slug", () => {
+    expect(resolveCursorAgentCliModelId("composer-2.5", undefined)).toBe("composer-2.5");
+  });
+
+  it("maps composer-2.5 with fastMode to composer-2.5-fast", () => {
+    expect(
+      resolveCursorAgentCliModelId("composer-2.5", [{ id: "fastMode", value: true }]),
+    ).toBe("composer-2.5-fast");
+  });
+
+  it("keeps an explicit composer-2.5-fast slug", () => {
+    expect(resolveCursorAgentCliModelId("composer-2.5-fast", undefined)).toBe("composer-2.5-fast");
+  });
+
+  it("omits --model for default/auto", () => {
+    expect(resolveCursorAgentCliModelId("default", undefined)).toBeUndefined();
+    expect(resolveCursorAgentCliModelId(null, undefined)).toBeUndefined();
   });
 });

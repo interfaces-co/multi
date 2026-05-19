@@ -1,6 +1,6 @@
 import { type TimelineEntry, type WorkLogEntry } from "../../../session-logic";
-import { type ChatMessage, type ProposedPlan, type TurnDiffSummary } from "../../../types";
-import { type MessageId, type TurnId } from "@multi/contracts";
+import { type ChatMessage, type ProposedPlan } from "../../../types";
+import { type MessageId } from "@multi/contracts";
 
 export interface TimelineDurationMessage {
   id: string;
@@ -13,8 +13,18 @@ export interface WorkTimelineRow {
   kind: "work";
   id: string;
   createdAt: string;
+  durationStart: string;
+  durationMs: number;
+  isRunning: boolean;
+  summary: WorkGroupSummary;
   groupedEntries: WorkLogEntry[];
-  workedHeaderId?: string | undefined;
+}
+
+export interface WorkGroupSummary {
+  action: string;
+  details: string;
+  additions?: number | undefined;
+  deletions?: number | undefined;
 }
 
 export interface MessageTimelineRow {
@@ -23,10 +33,7 @@ export interface MessageTimelineRow {
   createdAt: string;
   message: ChatMessage;
   durationStart: string;
-  showCompletionDivider: boolean;
-  assistantTurnDiffSummary?: TurnDiffSummary | undefined;
   revertTurnCount?: number | undefined;
-  workedHeaderId?: string | undefined;
 }
 
 export interface ProposedPlanTimelineRow {
@@ -34,7 +41,6 @@ export interface ProposedPlanTimelineRow {
   id: string;
   createdAt: string;
   proposedPlan: ProposedPlan;
-  workedHeaderId?: string | undefined;
 }
 
 export interface WorkingTimelineRow {
@@ -43,23 +49,13 @@ export interface WorkingTimelineRow {
   createdAt: string | null;
 }
 
-export interface WorkedHeaderTimelineRow {
-  kind: "worked-header";
-  id: string;
-  createdAt: string;
-  turnId: TurnId | null;
-  durationStart: string;
-  completedAt?: string | undefined;
-  collapsibleRowIds: readonly string[];
-}
-
 export type BaseMessagesTimelineRow =
   | WorkTimelineRow
   | MessageTimelineRow
   | ProposedPlanTimelineRow
   | WorkingTimelineRow;
 
-export type MessagesTimelineRow = BaseMessagesTimelineRow | WorkedHeaderTimelineRow;
+export type MessagesTimelineRow = BaseMessagesTimelineRow;
 
 export interface StableMessagesTimelineRowsState {
   byId: Map<string, MessagesTimelineRow>;
@@ -87,10 +83,8 @@ export function computeMessageDurationStart(
 
 export function deriveMessagesTimelineRows(input: {
   timelineEntries: ReadonlyArray<TimelineEntry>;
-  completionDividerBeforeEntryId: string | null;
   isWorking: boolean;
   activeTurnStartedAt: string | null;
-  turnDiffSummaryByAssistantMessageId: ReadonlyMap<MessageId, TurnDiffSummary>;
   revertTurnCountByUserMessageId: ReadonlyMap<MessageId, number>;
 }): MessagesTimelineRow[] {
   const baseRows: BaseMessagesTimelineRow[] = [];
@@ -117,6 +111,10 @@ export function deriveMessagesTimelineRows(input: {
         kind: "work",
         id: timelineEntry.id,
         createdAt: timelineEntry.createdAt,
+        durationStart: groupedEntries[0]?.createdAt ?? timelineEntry.createdAt,
+        durationMs: computeWorkGroupDurationMs(groupedEntries),
+        isRunning: groupedEntries.some((entry) => entry.status === "running"),
+        summary: summarizeWorkGroup(groupedEntries),
         groupedEntries,
       });
       index = cursor - 1;
@@ -140,13 +138,6 @@ export function deriveMessagesTimelineRows(input: {
       message: timelineEntry.message,
       durationStart:
         durationStartByMessageId.get(timelineEntry.message.id) ?? timelineEntry.message.createdAt,
-      showCompletionDivider:
-        timelineEntry.message.role === "assistant" &&
-        input.completionDividerBeforeEntryId === timelineEntry.id,
-      assistantTurnDiffSummary:
-        timelineEntry.message.role === "assistant"
-          ? input.turnDiffSummaryByAssistantMessageId.get(timelineEntry.message.id)
-          : undefined,
       revertTurnCount:
         timelineEntry.message.role === "user"
           ? input.revertTurnCountByUserMessageId.get(timelineEntry.message.id)
@@ -162,127 +153,7 @@ export function deriveMessagesTimelineRows(input: {
     });
   }
 
-  return addWorkedHeaderRows(baseRows);
-}
-
-function addWorkedHeaderRows(rows: ReadonlyArray<BaseMessagesTimelineRow>): MessagesTimelineRow[] {
-  const result: MessagesTimelineRow[] = [];
-
-  for (let index = 0; index < rows.length; ) {
-    const row = rows[index];
-    if (!row) {
-      index += 1;
-      continue;
-    }
-
-    if (!isUserMessageTimelineRow(row)) {
-      result.push(row);
-      index += 1;
-      continue;
-    }
-
-    result.push(row);
-    index += 1;
-
-    const turnRows: BaseMessagesTimelineRow[] = [];
-    while (index < rows.length) {
-      const turnRow = rows[index];
-      if (!turnRow || isUserMessageTimelineRow(turnRow)) {
-        break;
-      }
-      turnRows.push(turnRow);
-      index += 1;
-    }
-
-    const workedHeaderRow = toWorkedHeaderRow(row.id, turnRows);
-    if (workedHeaderRow) {
-      const collapsibleRowIds = new Set(workedHeaderRow.collapsibleRowIds);
-      result.push(workedHeaderRow);
-      for (const turnRow of turnRows) {
-        result.push(
-          collapsibleRowIds.has(turnRow.id)
-            ? markWorkedHeaderRow(turnRow, workedHeaderRow.id)
-            : turnRow,
-        );
-      }
-    } else {
-      result.push(...turnRows);
-    }
-  }
-
-  return result;
-}
-
-function isUserMessageTimelineRow(row: BaseMessagesTimelineRow): boolean {
-  return row.kind === "message" && row.message.role === "user";
-}
-
-function toWorkedHeaderRow(
-  userRowId: string,
-  rows: BaseMessagesTimelineRow[],
-): WorkedHeaderTimelineRow | null {
-  const firstRow = rows[0];
-  if (!firstRow) {
-    return null;
-  }
-
-  const firstAssistantMessageRow = rows.find(
-    (row): row is MessageTimelineRow => row.kind === "message" && row.message.role === "assistant",
-  );
-  if (!firstAssistantMessageRow) {
-    return null;
-  }
-
-  const summaryIndex = rows.findLastIndex(
-    (row) => row.kind === "message" && row.message.role === "assistant",
-  );
-  const turnId = firstAssistantMessageRow.message.turnId ?? null;
-  const durationStart = firstAssistantMessageRow.durationStart;
-  const createdAt = firstRow.createdAt ?? durationStart;
-  const completedAt = rows.reduce<string | undefined>((latestCompletedAt, row) => {
-    if (row.kind !== "message" || row.message.role !== "assistant" || !row.message.completedAt) {
-      return latestCompletedAt;
-    }
-    if (!latestCompletedAt || row.message.completedAt.localeCompare(latestCompletedAt) > 0) {
-      return row.message.completedAt;
-    }
-    return latestCompletedAt;
-  }, undefined);
-  if (!completedAt) {
-    return null;
-  }
-
-  const collapsibleRowIds = rows
-    .slice(0, summaryIndex)
-    .filter((row) => row.kind !== "working")
-    .map((row) => row.id);
-  const id = `worked-header:${userRowId}`;
-
-  return {
-    kind: "worked-header",
-    id,
-    createdAt,
-    turnId,
-    durationStart,
-    completedAt,
-    collapsibleRowIds,
-  };
-}
-
-function markWorkedHeaderRow(
-  row: BaseMessagesTimelineRow,
-  workedHeaderId: string,
-): BaseMessagesTimelineRow {
-  switch (row.kind) {
-    case "work":
-      return { ...row, workedHeaderId };
-    case "message":
-      return { ...row, workedHeaderId };
-    case "proposed-plan":
-      return { ...row, workedHeaderId };
-    case "working":
-      return row;
-  }
+  return baseRows;
 }
 
 export function computeStableMessagesTimelineRows(
@@ -314,44 +185,241 @@ function isRowUnchanged(a: MessagesTimelineRow, b: MessagesTimelineRow): boolean
       return a.createdAt === (b as typeof a).createdAt;
 
     case "proposed-plan":
-      return (
-        a.proposedPlan === (b as typeof a).proposedPlan &&
-        a.workedHeaderId === (b as typeof a).workedHeaderId
-      );
+      return a.proposedPlan === (b as typeof a).proposedPlan;
 
     case "work":
-      return (
-        a.groupedEntries === (b as typeof a).groupedEntries &&
-        a.workedHeaderId === (b as typeof a).workedHeaderId
-      );
+      return isWorkRowUnchanged(a, b as typeof a);
 
     case "message": {
       const bm = b as typeof a;
       return (
         a.message === bm.message &&
         a.durationStart === bm.durationStart &&
-        a.showCompletionDivider === bm.showCompletionDivider &&
-        a.assistantTurnDiffSummary === bm.assistantTurnDiffSummary &&
-        a.revertTurnCount === bm.revertTurnCount &&
-        a.workedHeaderId === bm.workedHeaderId
-      );
-    }
-
-    case "worked-header": {
-      const bm = b as typeof a;
-      return (
-        a.turnId === bm.turnId &&
-        a.durationStart === bm.durationStart &&
-        a.completedAt === bm.completedAt &&
-        areStringArraysEqual(a.collapsibleRowIds, bm.collapsibleRowIds)
+        a.revertTurnCount === bm.revertTurnCount
       );
     }
   }
 }
 
-function areStringArraysEqual(a: readonly string[], b: readonly string[]): boolean {
-  if (a.length !== b.length) {
+export function summarizeWorkGroup(
+  entries: ReadonlyArray<WorkLogEntry>,
+): WorkGroupSummary {
+  const running = entries.some((entry) => entry.status === "running");
+  const commandCount = entries.filter(isCommandWorkEntry).length;
+  const editedFiles = collectEditedFilePaths(entries);
+  const stats = summarizeEditedFileStats(entries);
+
+  if (commandCount === entries.length && commandCount > 0) {
+    return {
+      action: running ? "Running" : "Ran",
+      details: countLabel(commandCount, "command"),
+    };
+  }
+
+  if (editedFiles.size > 0) {
+    return {
+      action: running ? "Editing" : "Edited",
+      details: countLabel(editedFiles.size, "file"),
+      ...(stats.additions > 0 ? { additions: stats.additions } : {}),
+      ...(stats.deletions > 0 ? { deletions: stats.deletions } : {}),
+    };
+  }
+
+  const explorationSummary = summarizeExploration(entries, running);
+  if (explorationSummary) {
+    return explorationSummary;
+  }
+
+  return {
+    action: running ? "Working" : "Worked",
+    details: countLabel(entries.length, "step"),
+  };
+}
+
+function computeWorkGroupDurationMs(entries: ReadonlyArray<WorkLogEntry>): number {
+  const firstEntry = entries[0];
+  const lastEntry = entries.at(-1);
+  if (!firstEntry || !lastEntry) {
+    return 0;
+  }
+
+  const startMs = Date.parse(firstEntry.createdAt);
+  const endMs = Date.parse(lastEntry.createdAt);
+  const timelineDurationMs =
+    Number.isFinite(startMs) && Number.isFinite(endMs) ? Math.max(0, endMs - startMs) : 0;
+  const artifactDurationMs = entries.reduce((total, entry) => {
+    const commandArtifactDurationMs =
+      entry.artifacts
+        ?.filter((artifact) => artifact.type === "command")
+        .reduce((artifactTotal, artifact) => artifactTotal + (artifact.durationMs ?? 0), 0) ?? 0;
+    return total + commandArtifactDurationMs;
+  }, 0);
+
+  return Math.max(timelineDurationMs, artifactDurationMs);
+}
+
+function summarizeExploration(
+  entries: ReadonlyArray<WorkLogEntry>,
+  running: boolean,
+): WorkGroupSummary | null {
+  const exploredFiles = collectExploredFilePaths(entries);
+  const readCount = entries.filter(isFileReadWorkEntry).length;
+  const searchCount = entries.filter(isFileSearchWorkEntry).length;
+  const webSearchCount = entries.filter((entry) => entry.itemType === "web_search").length;
+  const webFetchCount = entries.filter((entry) => entry.itemType === "web_fetch").length;
+  const fileCount = exploredFiles.size || readCount;
+  const details = [
+    ...(fileCount > 0 ? [countLabel(fileCount, "file")] : []),
+    ...(searchCount > 0 ? [countLabel(searchCount, "search")] : []),
+    ...(webSearchCount > 0 ? [countLabel(webSearchCount, "web search")] : []),
+    ...(webFetchCount > 0 ? [countLabel(webFetchCount, "fetch")] : []),
+  ];
+
+  if (details.length === 0) {
+    return null;
+  }
+
+  return {
+    action: running ? "Exploring" : "Explored",
+    details: details.join(", "),
+  };
+}
+
+function collectEditedFilePaths(entries: ReadonlyArray<WorkLogEntry>): Set<string> {
+  const paths = new Set<string>();
+  for (const entry of entries) {
+    if (!isFileChangeWorkEntry(entry)) {
+      continue;
+    }
+    addPaths(paths, entry.changedFiles);
+    for (const artifact of diffArtifactsForEntry(entry)) {
+      addPaths(
+        paths,
+        artifact.files.map((file) => file.path),
+      );
+    }
+  }
+  return paths;
+}
+
+function collectExploredFilePaths(entries: ReadonlyArray<WorkLogEntry>): Set<string> {
+  const paths = new Set<string>();
+  for (const entry of entries) {
+    for (const artifact of entry.artifacts ?? []) {
+      if (artifact.type === "read") {
+        addPath(paths, artifact.path);
+      }
+      if (artifact.type === "search") {
+        addPaths(paths, artifact.matchedFiles);
+      }
+    }
+  }
+  return paths;
+}
+
+function summarizeEditedFileStats(entries: ReadonlyArray<WorkLogEntry>): {
+  additions: number;
+  deletions: number;
+} {
+  let additions = 0;
+  let deletions = 0;
+  for (const entry of entries) {
+    for (const artifact of diffArtifactsForEntry(entry)) {
+      for (const file of artifact.files) {
+        additions += file.additions ?? 0;
+        deletions += file.deletions ?? 0;
+      }
+    }
+  }
+  return { additions, deletions };
+}
+
+function diffArtifactsForEntry(entry: WorkLogEntry) {
+  const diffArtifacts = entry.artifacts?.filter((artifact) => artifact.type === "diff") ?? [];
+  const resultArtifacts = diffArtifacts.filter((artifact) => artifact.source === "result");
+  return resultArtifacts.length > 0 ? resultArtifacts : diffArtifacts;
+}
+
+function isCommandWorkEntry(entry: WorkLogEntry): boolean {
+  return (
+    entry.requestKind === "command" ||
+    entry.itemType === "command_execution" ||
+    Boolean(entry.command) ||
+    Boolean(entry.artifacts?.some((artifact) => artifact.type === "command"))
+  );
+}
+
+function isFileChangeWorkEntry(entry: WorkLogEntry): boolean {
+  return (
+    entry.requestKind === "file-change" ||
+    entry.itemType === "file_change" ||
+    (entry.changedFiles?.length ?? 0) > 0 ||
+    Boolean(entry.artifacts?.some((artifact) => artifact.type === "diff"))
+  );
+}
+
+function isFileReadWorkEntry(entry: WorkLogEntry): boolean {
+  return (
+    entry.requestKind === "file-read" ||
+    entry.itemType === "file_read" ||
+    Boolean(entry.artifacts?.some((artifact) => artifact.type === "read"))
+  );
+}
+
+function isFileSearchWorkEntry(entry: WorkLogEntry): boolean {
+  return (
+    entry.itemType === "file_search" ||
+    Boolean(entry.artifacts?.some((artifact) => artifact.type === "search"))
+  );
+}
+
+function addPaths(target: Set<string>, paths: ReadonlyArray<string | undefined> | undefined) {
+  for (const path of paths ?? []) {
+    addPath(target, path);
+  }
+}
+
+function addPath(target: Set<string>, path: string | undefined) {
+  const trimmedPath = path?.trim();
+  if (trimmedPath) {
+    target.add(trimmedPath);
+  }
+}
+
+function countLabel(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
+
+function isWorkRowUnchanged(a: WorkTimelineRow, b: WorkTimelineRow): boolean {
+  if (a.isRunning || b.isRunning) {
     return false;
   }
-  return a.every((value, index) => value === b[index]);
+
+  return (
+    a.createdAt === b.createdAt &&
+    a.durationStart === b.durationStart &&
+    a.durationMs === b.durationMs &&
+    a.isRunning === b.isRunning &&
+    a.summary.action === b.summary.action &&
+    a.summary.details === b.summary.details &&
+    a.summary.additions === b.summary.additions &&
+    a.summary.deletions === b.summary.deletions &&
+    areSameWorkEntries(a.groupedEntries, b.groupedEntries)
+  );
+}
+
+function areSameWorkEntries(
+  left: ReadonlyArray<WorkLogEntry>,
+  right: ReadonlyArray<WorkLogEntry>,
+): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) {
+      return false;
+    }
+  }
+  return true;
 }

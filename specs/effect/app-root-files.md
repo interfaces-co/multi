@@ -12,10 +12,11 @@ find packages/app/src -maxdepth 1 -type f \( -name '*.ts' -o -name '*.tsx' \) | 
 
 Current count:
 
-- [x] `17` root app `ts` / `tsx` files remain after the route, plan,
+- [x] `16` root app `ts` / `tsx` files remain after the route, plan,
       pending-input, worktree, project-script, auth, branding, Git, terminal
       link, chat VSCode icon, appearance boot, editor preference, and runtime
-      orchestration, and context-menu browser fallback owner moves.
+      orchestration, context-menu browser fallback, and environment RPC client
+      owner moves.
 
 ## Status Rule
 
@@ -33,7 +34,6 @@ These files are acceptable root-level app boundaries for now.
 - [x] `env.ts` - host/Electron detection and host markers.
 - [x] `environment-api.ts` - environment-scoped API adapter boundary.
 - [x] `local-api.ts` - primary local API adapter boundary.
-- [x] `ws-rpc-client.ts` - compatibility export for current RPC client access.
 - [x] `types.ts` - app-wide UI/domain view types; keep until state contracts are
       reduced enough to split or move safely.
 - [x] `keybindings.ts` - configurable input/action matching boundary.
@@ -47,8 +47,9 @@ Pending follow-up:
 
 - [ ] Shrink `session-logic.ts` by extracting or deleting behavior only after a
       behavior inventory proves the target slices.
-- [ ] Decide whether `ws-rpc-client.ts` can be removed after all callers import
-      from `rpc/ws-rpc-client.ts` or environment APIs directly.
+- [x] Delete root `ws-rpc-client.ts`; environment-scoped client lookup now
+      lives under `environments/runtime`, and raw RPC client types/creation stay
+      under `rpc/ws-rpc-client.ts`.
 - [ ] Split `types.ts` only when each extracted type has a clearer owner.
 
 ## Move Into Existing Directories

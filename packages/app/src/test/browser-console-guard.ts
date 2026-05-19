@@ -100,14 +100,16 @@ afterEach(() => {
     return;
   }
 
-  throw new Error(
-    [
-      "Unexpected browser console warn/error output.",
-      "Move intentional warnings into allowedConsoleMessages with a local reason.",
-      ...unexpectedMessages.flatMap((message) => [
-        `${message.method}: ${message.text}`,
-        ...(message.stack ? [message.stack] : []),
-      ]),
-    ].join("\n"),
+  const formattedMessages = ["Unexpected browser console warn/error output."];
+  formattedMessages.push(
+    "Move intentional warnings into allowedConsoleMessages with a local reason.",
   );
+  for (const message of unexpectedMessages) {
+    formattedMessages.push(`${message.method}: ${message.text}`);
+    if (message.stack) {
+      formattedMessages.push(message.stack);
+    }
+  }
+
+  throw new Error(formattedMessages.join("\n"));
 });

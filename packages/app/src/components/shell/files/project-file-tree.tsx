@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import { resolveAndPersistPreferredEditor } from "~/editor/preferences";
 import { useGitStatus } from "~/lib/git-status-state";
 import { ensureNativeApi } from "~/lib/native-runtime-api";
+import { formatProjectErrorDescription } from "~/lib/project-error-description";
 import { projectListDirectoryQueryOptions } from "~/lib/project-react-query";
 import { cn } from "~/lib/utils";
 import { useTheme } from "~/hooks/use-theme";
@@ -450,8 +451,8 @@ export const ProjectFileTree = forwardRef<
         )}
 
         {loadError ? (
-          <div className="px-3 py-2 text-detail text-destructive/80">
-            Unable to load files.
+          <div className="whitespace-pre-wrap px-3 py-2 text-detail text-destructive/80">
+            {formatProjectErrorDescription(loadError, "Unable to load files.")}
           </div>
         ) : null}
       </div>

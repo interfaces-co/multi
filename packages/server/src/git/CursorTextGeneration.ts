@@ -80,6 +80,8 @@ const makeCursorTextGeneration = Effect.gen(function* () {
         cursorSettings,
         childProcessSpawner: commandSpawner,
         cwd,
+        spawnModel: modelSelection.model,
+        ...(modelSelection.options !== undefined ? { spawnSelections: modelSelection.options } : {}),
         clientInfo: { name: "multi-git-text", version: "0.0.0" },
       }).pipe(
         Effect.mapError((cause) =>

@@ -1,3 +1,4 @@
+import { DEFAULT_TERMINAL_ID } from "@multi/contracts";
 import { Option, Schema } from "effect";
 import { create } from "zustand";
 
@@ -41,7 +42,7 @@ export interface TerminalSessionEntry {
   label: string;
 }
 
-interface TerminalSessionsState {
+export interface TerminalSessionsState {
   activeId: string;
   sessions: TerminalSessionEntry[];
 }
@@ -125,7 +126,7 @@ const DEFAULT_SECONDARY_RAIL: SecondaryRailState = Object.freeze({
   width: SECONDARY_RAIL_DEFAULT_WIDTH,
 });
 
-const DEFAULT_TERMINAL_SESSION_ID = "default";
+const DEFAULT_TERMINAL_SESSION_ID = DEFAULT_TERMINAL_ID;
 
 const DEFAULT_TERMINAL_SESSIONS: TerminalSessionsState = Object.freeze({
   activeId: DEFAULT_TERMINAL_SESSION_ID,
@@ -159,8 +160,9 @@ function readPersistedPanels(): {
   }
 
   try {
-    const parsed = Option.getOrElse(decodePersistedShellPanelsStateOption(JSON.parse(raw)), () =>
-      null,
+    const parsed = Option.getOrElse(
+      decodePersistedShellPanelsStateOption(JSON.parse(raw)),
+      () => null,
     ) satisfies PersistedShellPanelsState | null;
     if (!parsed || typeof parsed !== "object") {
       return { ...DEFAULT_LEFT_PANEL_STATE, ...DEFAULT_WORKBENCH_PANEL_STATE };
@@ -241,6 +243,13 @@ function persistSecondaryRails(data: Record<string, SecondaryRailState>): void {
   window.localStorage.setItem(SECONDARY_RAIL_STORAGE_KEY, JSON.stringify(data));
 }
 
+function cloneTerminalSessionEntry(session: TerminalSessionEntry): TerminalSessionEntry {
+  return {
+    id: session.id,
+    label: session.label,
+  };
+}
+
 function readPersistedTerminalSessions(): Record<string, TerminalSessionsState> {
   if (typeof window === "undefined") return {};
   const raw = window.localStorage.getItem(TERMINAL_SESSIONS_STORAGE_KEY);
@@ -250,15 +259,16 @@ function readPersistedTerminalSessions(): Record<string, TerminalSessionsState> 
     if (!parsed || typeof parsed !== "object") return {};
     const result: Record<string, TerminalSessionsState> = {};
     for (const [key, value] of Object.entries(parsed)) {
-      const decoded = Option.getOrElse(decodePersistedTerminalSessionsStateOption(value), () =>
-        null,
+      const decoded = Option.getOrElse(
+        decodePersistedTerminalSessionsStateOption(value),
+        () => null,
       );
       if (!decoded?.activeId || decoded.sessions.length === 0) {
         continue;
       }
       result[key] = {
         activeId: decoded.activeId,
-        sessions: decoded.sessions.map((session) => ({ ...session })),
+        sessions: decoded.sessions.map(cloneTerminalSessionEntry),
       };
     }
     return result;
@@ -512,6 +522,12 @@ export function useSecondaryRail(cwd: string | null, tab: WorkbenchTab): Seconda
 export function useTerminalSessions(cwd: string | null): TerminalSessionsState {
   return useShellPanelsStore(
     (state) => state.terminalByCwd[resolveCwdKey(cwd)] ?? DEFAULT_TERMINAL_SESSIONS,
+  );
+}
+
+export function readTerminalSessions(cwd: string | null): TerminalSessionsState {
+  return (
+    useShellPanelsStore.getState().terminalByCwd[resolveCwdKey(cwd)] ?? DEFAULT_TERMINAL_SESSIONS
   );
 }
 

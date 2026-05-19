@@ -12,7 +12,6 @@ import {
   type ServerProvider,
   type ScopedThreadRef,
   type ThreadId,
-  type TurnId,
   type KeybindingCommand,
   OrchestrationThreadActivity,
   ProviderInteractionMode,
@@ -50,7 +49,6 @@ import {
   parseStandaloneComposerSlashCommand,
 } from "../composer/prompt-triggers";
 import {
-  deriveCompletionDividerBeforeEntryId,
   derivePendingApprovals,
   derivePendingUserInputs,
   derivePhase,
@@ -59,9 +57,7 @@ import {
   findLatestProposedPlan,
   deriveWorkLogEntries,
   hasActionableProposedPlan,
-  hasToolActivityForTurn,
   isLatestTurnSettled,
-  formatElapsed,
   type PendingApproval,
   type PendingUserInput,
 } from "../../../session-logic";
@@ -86,7 +82,6 @@ import { resolvePlanFollowUpSubmission } from "~/plan/proposed-plan";
 import {
   DEFAULT_INTERACTION_MODE,
   DEFAULT_RUNTIME_MODE,
-  DEFAULT_THREAD_TERMINAL_ID,
   MAX_TERMINALS_PER_GROUP,
   type ChatMessage,
   type SessionPhase,
@@ -139,7 +134,11 @@ import {
   type ThreadTerminalLaunchContext,
   useTerminalStateStore,
 } from "../../../terminal-state-store";
-import { shellPanelsActions } from "~/stores/shell-panels-store";
+import { readTerminalSessions, shellPanelsActions } from "~/stores/shell-panels-store";
+import {
+  readWorkbenchTerminalApi,
+  workbenchTerminalThreadId,
+} from "~/components/shell/terminal/workbench-terminal";
 import { ComposerInput, type ComposerInputHandle } from "../composer/input";
 import { ExpandedImageDialog } from "../message/expanded-image-dialog";
 import { PullRequestThreadDialog } from "../../pull-request-thread-dialog";
@@ -155,6 +154,7 @@ import {
 } from "./inline-message-edit-composer";
 import { type ExpandedImagePreview } from "../message/expanded-image-preview";
 import { gitCheckoutMutationOptions } from "../../../lib/git-react-query";
+import { formatGitActionErrorDescription } from "~/git/action-error-description";
 import { ThreadErrorBanner } from "../message/error-banner";
 import {
   buildExpiredTerminalContextToastCopy,
@@ -212,8 +212,6 @@ const EMPTY_PENDING_USER_INPUT_ANSWERS: Record<string, PendingUserInputDraftAnsw
 const EMPTY_QUEUED_COMPOSER_ITEMS: QueuedComposerItem[] = [];
 const EMPTY_TIMELINE_PROPOSED_PLANS: Thread["proposedPlans"] = [];
 const DOCKED_COMPOSER_TIMELINE_RESERVE_PX = 88;
-const SCRIPT_TERMINAL_COLS = 120;
-const SCRIPT_TERMINAL_ROWS = 30;
 
 function ProviderStatusBanner({ status }: { status: ServerProvider | null }) {
   if (!status || status.status === "ready" || status.status === "disabled") {
@@ -995,7 +993,6 @@ export default function ChatView(props: ChatViewProps) {
   const storeSetTerminalOpen = useTerminalStateStore((s) => s.setTerminalOpen);
   const storeSplitTerminal = useTerminalStateStore((s) => s.splitTerminal);
   const storeNewTerminal = useTerminalStateStore((s) => s.newTerminal);
-  const storeSetActiveTerminal = useTerminalStateStore((s) => s.setActiveTerminal);
   const storeCloseTerminal = useTerminalStateStore((s) => s.closeTerminal);
   const serverThreadKeys = useStore(
     useShallow((state) =>
@@ -1198,10 +1195,6 @@ export default function ChatView(props: ChatViewProps) {
         activeRunningTurnId,
       }),
     [activeRunningTurnId, threadActivities],
-  );
-  const latestTurnHasToolActivity = useMemo(
-    () => hasToolActivityForTurn(threadActivities, activeLatestTurn?.turnId),
-    [activeLatestTurn?.turnId, threadActivities],
   );
   const pendingApprovals = useMemo(
     () =>
@@ -1425,25 +1418,6 @@ export default function ChatView(props: ChatViewProps) {
     [clearComposerDraftContent, editComposerDraftTarget],
   );
 
-  const completionSummary = useMemo(() => {
-    if (!latestTurnSettled) return null;
-    if (!activeLatestTurn?.startedAt) return null;
-    if (!activeLatestTurn.completedAt) return null;
-    if (!latestTurnHasToolActivity) return null;
-
-    const elapsed = formatElapsed(activeLatestTurn.startedAt, activeLatestTurn.completedAt);
-    return elapsed ? `Worked for ${elapsed}` : null;
-  }, [
-    activeLatestTurn?.completedAt,
-    activeLatestTurn?.startedAt,
-    latestTurnHasToolActivity,
-    latestTurnSettled,
-  ]);
-  const completionDividerBeforeEntryId = useMemo(() => {
-    if (!latestTurnSettled) return null;
-    if (!completionSummary) return null;
-    return deriveCompletionDividerBeforeEntryId(timelineEntries, activeLatestTurn);
-  }, [activeLatestTurn, completionSummary, latestTurnSettled, timelineEntries]);
   const gitCwd = activeProject
     ? projectScriptCwd({
         project: { cwd: activeProject.cwd },
@@ -1659,11 +1633,10 @@ export default function ChatView(props: ChatViewProps) {
         cwd?: string;
         env?: Record<string, string>;
         worktreePath?: string | null;
-        preferNewTerminal?: boolean;
         rememberAsLastInvoked?: boolean;
       },
     ) => {
-      const api = readEnvironmentApi(environmentId);
+      const api = readWorkbenchTerminalApi(environmentId);
       if (!api || !activeThreadId || !activeProject || !activeThread) return;
       if (options?.rememberAsLastInvoked !== false) {
         setLastInvokedScriptByProjectId((current) => {
@@ -1672,31 +1645,9 @@ export default function ChatView(props: ChatViewProps) {
         });
       }
       const targetCwd = options?.cwd ?? gitCwd ?? activeProject.cwd;
-      const baseTerminalId =
-        terminalState.activeTerminalId ||
-        terminalState.terminalIds[0] ||
-        DEFAULT_THREAD_TERMINAL_ID;
-      const shouldCreateNewTerminal =
-        Boolean(options?.preferNewTerminal) ||
-        terminalState.runningTerminalIds.includes(baseTerminalId);
-      const terminalId = shouldCreateNewTerminal ? `terminal-${randomUUID()}` : baseTerminalId;
+      const terminalThreadId = workbenchTerminalThreadId(targetCwd);
+      const terminalId = readTerminalSessions(targetCwd).activeId;
       const terminalWorktreePath = options?.worktreePath ?? activeThread.worktreePath ?? null;
-
-      setTerminalLaunchContext({
-        threadId: activeThreadId,
-        cwd: targetCwd,
-        worktreePath: terminalWorktreePath,
-      });
-      setTerminalOpen(true);
-      if (!activeThreadRef) {
-        return;
-      }
-      if (shouldCreateNewTerminal) {
-        storeNewTerminal(activeThreadRef, terminalId);
-      } else {
-        storeSetActiveTerminal(activeThreadRef, terminalId);
-      }
-      setTerminalFocusRequestId((value) => value + 1);
 
       const runtimeEnv = projectScriptRuntimeEnv({
         project: {
@@ -1706,20 +1657,18 @@ export default function ChatView(props: ChatViewProps) {
         ...(options?.env ? { extraEnv: options.env } : {}),
       });
       const openTerminalInput = {
-        threadId: activeThreadId,
+        threadId: terminalThreadId,
         terminalId,
         cwd: targetCwd,
         ...(terminalWorktreePath !== null ? { worktreePath: terminalWorktreePath } : {}),
         env: runtimeEnv,
-        ...(shouldCreateNewTerminal
-          ? { cols: SCRIPT_TERMINAL_COLS, rows: SCRIPT_TERMINAL_ROWS }
-          : {}),
       };
 
       try {
-        await api.terminal.open(openTerminalInput);
-        await api.terminal.write({
-          threadId: activeThreadId,
+        await api.open(openTerminalInput);
+        shellPanelsActions.setActiveTab("terminal");
+        await api.write({
+          threadId: terminalThreadId,
           terminalId,
           data: `${script.command}\r`,
         });
@@ -1734,17 +1683,10 @@ export default function ChatView(props: ChatViewProps) {
       activeProject,
       activeThread,
       activeThreadId,
-      activeThreadRef,
       gitCwd,
-      setTerminalOpen,
       setThreadError,
-      storeNewTerminal,
-      storeSetActiveTerminal,
       setLastInvokedScriptByProjectId,
       environmentId,
-      terminalState.activeTerminalId,
-      terminalState.runningTerminalIds,
-      terminalState.terminalIds,
     ],
   );
 
@@ -2065,7 +2007,7 @@ export default function ChatView(props: ChatViewProps) {
         toastManager.add({
           type: "error",
           title: `Could not checkout ${branch.name}`,
-          description: error instanceof Error ? error.message : "Git checkout failed.",
+          description: formatGitActionErrorDescription(error, "Git checkout failed."),
         });
         return;
       }
@@ -3238,29 +3180,6 @@ export default function ChatView(props: ChatViewProps) {
       threadActivities,
     ],
   );
-  const onOpenTurnDiff = useCallback(
-    (turnId: TurnId, filePath?: string) => {
-      if (!isServerThread) {
-        return;
-      }
-      openGitWorkbench();
-      void navigate({
-        to: "/$environmentId/$threadId",
-        params: {
-          environmentId,
-          threadId,
-        },
-        search: (previous) => {
-          const rest = stripDiffSearchParams(previous);
-          return filePath
-            ? { ...rest, diff: "1", diffTurnId: turnId, diffFilePath: filePath, workbench: "git" }
-            : { ...rest, diff: "1", diffTurnId: turnId, workbench: "git" };
-        },
-      });
-    },
-    [environmentId, isServerThread, navigate, openGitWorkbench, threadId],
-  );
-
   const isHeroComposer = activeThread
     ? isLocalDraftThread && !threadHasStarted(activeThread)
     : false;
@@ -3531,15 +3450,10 @@ export default function ChatView(props: ChatViewProps) {
                 bottomClearancePx={DOCKED_COMPOSER_TIMELINE_RESERVE_PX}
                 timelineControllerRef={messagesTimelineControllerRef}
                 timelineEntries={timelineEntries}
-                completionDividerBeforeEntryId={completionDividerBeforeEntryId}
-                turnDiffSummaryByAssistantMessageId={turnDiffSummaryByAssistantMessageId}
                 activeThreadEnvironmentId={activeThread.environmentId}
-                routeThreadKey={routeThreadKey}
-                onOpenTurnDiff={onOpenTurnDiff}
                 revertTurnCountByUserMessageId={revertTurnCountByUserMessageId}
                 onImageExpand={onExpandTimelineImage}
                 markdownCwd={gitCwd ?? undefined}
-                resolvedTheme={resolvedTheme}
                 projectRoot={activeProjectRoot}
                 isServerThread={isServerThread}
                 editingUserMessageId={activeEditingUserMessageId}

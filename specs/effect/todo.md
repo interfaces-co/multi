@@ -114,16 +114,15 @@ P6  EFFECT
 - [x] Classify `components/command-palette-model.ts`: not normalized
       provider/model output; leave any collapse to the delete inventory.
 - [x] Add compact model selector overflow browser coverage.
-- [x] Re-run model/provider one-caller export inventory from
-      [model.md](./model.md) before the next model cleanup wave.
+- [x] Re-run model/provider one-caller export inventory before the next model
+      cleanup wave.
 - [x] Decide whether current picker display helpers in
       `components/chat/picker/icon-utils.ts` stay as a picker boundary or move
       into the consuming picker files.
 - [x] Add full provider settings browser coverage before collapsing
       settings-provider component boundaries.
-- [x] Rewire supported providers to the canonical list in
-      [providers.md](./providers.md): Codex/OpenAI, Claude, OpenCode, Cursor,
-      and Pi pending only.
+- [x] Rewire supported providers to the canonical list: Codex/OpenAI, Claude,
+      OpenCode, Cursor, and Pi pending only.
 - [x] Remove provider-specific model constants, aliases, display names, and
       per-provider defaults from `packages/contracts/src/model.ts`; model
       catalogs are provider/runtime-owned.
@@ -152,6 +151,12 @@ P6  EFFECT
 - [x] Verify plan panel controls with focused browser coverage.
 - [x] Replace existing prop-to-state effects in composer controls with derived
       state or keyed component boundaries.
+- [x] Draft and implement chat turn chrome cleanup: remove inline
+      changed-files summaries from chat, keep the Git workbench/diff panel as
+      the canonical diff surface, delete the old split-row `worked-header`
+      model, replace it with the Cursor-style work-group row, and keep compact
+      tool chevrons adjacent to the visible text cluster. Focused browser
+      coverage now verifies the compact work-row lane and chevron geometry.
 
 ## P4: Delete
 
@@ -161,7 +166,8 @@ P6  EFFECT
 - [x] Delete root composer file names after moving real boundaries.
 - [x] Inventory project-script, pending-user-input, and terminal helper files
       before deletion.
-- [~] Continue `knip` strict cleanup for exported-but-unused files.
+- [x] Complete the current `knip` strict cleanup pass for exported-but-unused
+      source files.
   - [x] Re-ran `pnpm run knip:production`; repo-wide output still fails on
         package entry/dependency noise, but filtering the same run to
         `packages/app/src` reported no app source unused exports after the
@@ -175,6 +181,28 @@ P6  EFFECT
         cleanup; it still fails on broad package dependency and public export
         reports, but did not surface a new focused app/server source deletion
         target for this pass.
+  - [x] Re-ran `pnpm run knip:production` after the terminal/error and
+        pretext-helper cleanup; the repo-wide run still fails on broad
+        dependency/public export reports, but filtering output to
+        `packages/(app|server)/(src|test|scripts)` produced no source-path
+        deletion candidates, and `@chenglou/pretext` no longer appears.
+  - [x] Re-ran `pnpm run knip:production` after the composer effect cleanup;
+        the repo-wide run still fails on broad dependency/public export
+        reports, but filtering output to
+        `packages/(app|server)/(src|test|scripts)` produced no source-path
+        deletion candidates.
+  - [x] Re-ran `pnpm run knip:production` after the chat chrome visual-proof
+        cleanup; the repo-wide run still fails on broad dependency/public
+        export reports, but filtering output to
+        `packages/(app|server)/(src|test|scripts)` produced no source-path
+        deletion candidates.
+  - [x] Re-ran `pnpm run knip:production` during the current pass; the
+        repo-wide run still fails on package dependency and public export
+        reports. Filtering to `packages/(app|server|shared)/(src|test|scripts)`
+        produced only shared public exports already validated by production
+        caller inventory, including `@multi/shared/Net`, logging,
+        DrainableWorker, cli args, path helpers, search ranking, schema JSON,
+        project scripts, and thread segments.
 - [x] Re-evaluate `packages/app/src/diff-route-search.ts` after route-search
       ownership is decided; keep the shared search contract at
       `packages/app/src/app/routes/chat-shell-search.ts`.
@@ -187,7 +215,7 @@ P6  EFFECT
       boundary, move, inline, generated, or delete.
 - [x] Re-run app file inventory before each deletion wave:
       `rg --files packages/app/src`.
-      Current run: `343` files; no remaining `*logic*` files outside
+      Current run: `339` files; no remaining `*logic*` files outside
       `session-logic.ts` and `session-logic.test.ts`.
 - [x] Classify the remaining `.logic.ts` file,
       `packages/app/src/app/toast.logic.ts`, as keep/inline/delete.
@@ -212,8 +240,17 @@ P6  EFFECT
   - [x] `String.ts`
   - [x] `subagents.ts`
   - [x] `tool-activity.ts`
-- [ ] Delete helper tests only after moving retained behavior to a behavior
-      suite.
+- [x] Delete the one-caller `PretextOneLine` wrapper and
+      `use-pretext-one-line` hook after replacing the remaining Git diff header
+      usage with CSS truncation, and remove `@chenglou/pretext` from the app
+      dependency set.
+- [x] Delete root `packages/app/src/ws-rpc-client.ts` after moving
+      environment-scoped RPC client lookup to `environments/runtime` and keeping
+      raw RPC client construction/types under `rpc/ws-rpc-client.ts`.
+- [x] Delete helper tests only after moving retained behavior to a behavior
+      suite. Current missing-sibling test inventory found no stale deleted-helper
+      mirrors; remaining matches are behavior/contract suites, `.tsx` component
+      tests, or index-boundary tests.
 
 ## P5: Usability Tests
 
@@ -247,8 +284,10 @@ P6  EFFECT
 - [x] Count current production direct `useEffect` and `useLayoutEffect`
       callsites.
 - [x] Classify direct `useEffect` callsites by replacement pattern before
-  editing them.
+      editing them.
 - [x] Add a `useMountEffect` escape-hatch wrapper.
+- [x] Add a `useLayoutSyncEffect` wrapper and reject direct app
+      `useLayoutEffect` calls outside that wrapper.
 - [x] Implement `multi/no-direct-use-effect` in the existing oxlint plugin.
 - [x] Enable the rule with warnings denied after the migration path is clean.
 - [x] Move hardcoded route Escape handling through configurable keybindings.
@@ -308,8 +347,10 @@ Keep single-caller UI files when they are shell slots, not helper buckets:
       `packages/server/src/server-runtime.ts`.
 - [x] Inventory service contract files: `packages/server/src` has `62`
       `*.service.ts` files.
-- [x] Inventory current defect boundaries: `Effect.die` appears in five server
-      source locations.
+- [x] Inventory current defect boundaries: `Effect.die` originally appeared in
+      five server source locations; the Bun PTY Windows unavailable path has
+      been converted to a typed spawn failure, leaving four current defect
+      callsites.
 - [x] Sweep service-local runtimes/facades and keep only real runtime bridges.
 - [x] Prefer existing server services over raw process/filesystem APIs when
       touching effectful server code. Current cleanup did not add raw server
@@ -319,8 +360,25 @@ Keep single-caller UI files when they are shell slots, not helper buckets:
       persistence/contract boundaries without introducing an app Effect runtime.
 - [x] Pick one route group and make expected error contracts explicit at the
       route/RPC boundary.
-- [x] Classify the five `Effect.die` callsites before converting or keeping
-      them.
+- [x] Tighten `packages/server/src/http.ts` attachment route expected failures
+      with route-local tagged errors while preserving existing text/status wire
+      responses.
+- [x] Tighten `packages/server/src/http.ts` project favicon and static/dev
+      route expected failures with route-local tagged errors while preserving
+      existing text/status wire responses.
+- [x] Tighten `packages/server/src/git/OpenCodeTextGeneration.ts` so SDK
+      runtime failures and expected missing session / prompt error / empty
+      output cases fail through the existing `TextGenerationError` channel
+      instead of throwing generic `Error` values inside the Effect path.
+- [x] Tighten terminal write/resize process operation failures so PTY throws map
+      into the public `TerminalProcessOperationError` branch of `TerminalError`
+      instead of dying as defects.
+- [x] Tighten terminal PTY spawn adapter failures so native `node-pty` and Bun
+      spawn exceptions fail as `PtySpawnError` instead of defects.
+- [x] Tighten the Bun PTY Windows unavailable path so it fails as
+      `PtySpawnError` instead of dying during layer construction.
+- [x] Classify the original five `Effect.die` callsites before converting or
+      keeping them.
 - [x] Prevent new service-local runtime facades; use the central
       `ServerRuntime` boundary or route-hosted Effect runtime.
 

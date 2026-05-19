@@ -1,6 +1,6 @@
 import { StatusDot as UiStatusDot } from "@multi/ui/status-dot";
 import { scopedThreadKey } from "@multi/client-runtime";
-import { IconArchive } from "central-icons";
+import { IconArchive1, IconPin, IconUnpin } from "central-icons";
 import {
   type ComponentProps,
   type KeyboardEvent,
@@ -64,6 +64,17 @@ function StatusSlot(props: { item: SidebarChatItem }) {
   );
 }
 
+const hoverActionButtonClass = cn(
+  "flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-multi-control border border-transparent bg-transparent p-0 text-multi-fg-tertiary outline-none",
+  "hover:bg-multi-bg-quaternary hover:text-multi-fg-primary",
+  "focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0",
+);
+
+function stopActionPointerDown(event: MouseEvent<HTMLButtonElement>) {
+  event.preventDefault();
+  event.stopPropagation();
+}
+
 export const AgentRow = memo(
   function AgentRow(props: {
     item: SidebarChatItem;
@@ -74,6 +85,7 @@ export const AgentRow = memo(
     const { commitRename, archiveThread } = useThreadActions();
     const targetThreadRef = props.item.kind === "thread" ? props.item.threadRef : null;
     const markThreadUnread = useUiStateStore((store) => store.markThreadUnread);
+    const setThreadPinned = useUiStateStore((store) => store.setThreadPinned);
     const [renaming, setRenaming] = useState(false);
     const [renameValue, setRenameValue] = useState("");
     const committedRef = useRef(false);
@@ -189,11 +201,14 @@ export const AgentRow = memo(
         });
       });
     };
-    const stopArchivePointerDown = (event: MouseEvent<HTMLButtonElement>) => {
+    const togglePinnedThread = (event: MouseEvent<HTMLButtonElement>) => {
       event.preventDefault();
       event.stopPropagation();
+      if (!targetThreadRef) {
+        return;
+      }
+      setThreadPinned(scopedThreadKey(targetThreadRef), !threadItem.pinned);
     };
-
     return (
       <ThreadContextMenu
         threadId={threadItem.id}
@@ -252,7 +267,7 @@ export const AgentRow = memo(
           <div className="group/agent-row-shell relative min-w-0" data-agent-sidebar-row-shell="">
             <RowButton
               variant="agent"
-              className="pr-7"
+              className="pr-1.5 transition-[background-color,color,padding-right] group-hover/agent-row-shell:pr-[6.75rem] group-focus-within/agent-row-shell:pr-[6.75rem]"
               data-selected={props.selected}
               data-chat-item=""
               data-agent-sidebar-cell=""
@@ -272,23 +287,48 @@ export const AgentRow = memo(
                   </span>
                 </span>
               </span>
+            </RowButton>
+            <span
+              className="pointer-events-none absolute top-1/2 right-1 flex max-w-0 -translate-y-1/2 items-center gap-0.5 overflow-hidden opacity-0 transition-[max-width,opacity] duration-100 ease-out group-hover/agent-row-shell:pointer-events-auto group-hover/agent-row-shell:max-w-[6.75rem] group-hover/agent-row-shell:opacity-100 group-focus-within/agent-row-shell:pointer-events-auto group-focus-within/agent-row-shell:max-w-[6.75rem] group-focus-within/agent-row-shell:opacity-100 motion-reduce:transition-none"
+              data-agent-sidebar-actions=""
+            >
+              <button
+                type="button"
+                aria-label="Archive"
+                title="Archive"
+                onClick={archiveCurrentThread}
+                onMouseDown={stopActionPointerDown}
+                className={hoverActionButtonClass}
+                data-agent-sidebar-archive-action=""
+              >
+                <IconArchive1 className="size-3.5" aria-hidden />
+              </button>
               <span
-                className="max-w-14 min-w-8 shrink-0 overflow-hidden text-ellipsis whitespace-nowrap text-right text-(length:--multi-text-detail) leading-(--multi-leading-detail) text-multi-fg-tertiary tabular-nums transition-opacity duration-100 group-hover/agent-row-shell:opacity-0 group-focus-within/agent-row-shell:opacity-0 group-data-[selected=true]/agent-row:text-multi-fg-secondary motion-reduce:transition-none pointer-coarse:opacity-0"
+                className={cn(
+                  "max-w-8 min-w-7 shrink-0 overflow-hidden text-ellipsis whitespace-nowrap text-center text-(length:--multi-text-detail) leading-(--multi-leading-detail) tabular-nums",
+                  props.selected ? "text-multi-fg-secondary" : "text-multi-fg-tertiary",
+                )}
                 data-agent-sidebar-subtitle=""
+                data-agent-sidebar-trailing-content=""
               >
                 {props.item.ago}
               </span>
-            </RowButton>
-            <button
-              type="button"
-              aria-label="Archive"
-              title="Archive"
-              onClick={archiveCurrentThread}
-              onMouseDown={stopArchivePointerDown}
-              className="absolute top-1/2 right-1 flex size-5 -translate-y-1/2 cursor-pointer items-center justify-center rounded-multi-control border border-transparent bg-transparent p-0 text-multi-fg-tertiary opacity-0 outline-none transition-[background-color,color,opacity] duration-100 ease-out group-hover/agent-row-shell:opacity-100 group-focus-within/agent-row-shell:opacity-100 hover:bg-multi-bg-quaternary hover:text-multi-fg-primary focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 motion-reduce:transition-none pointer-coarse:opacity-100"
-            >
-              <IconArchive className="size-3.5" aria-hidden />
-            </button>
+              <button
+                type="button"
+                aria-label={threadItem.pinned ? "Unpin" : "Pin"}
+                title={threadItem.pinned ? "Unpin" : "Pin"}
+                onClick={togglePinnedThread}
+                onMouseDown={stopActionPointerDown}
+                className={hoverActionButtonClass}
+                data-agent-sidebar-pin-action=""
+              >
+                {threadItem.pinned ? (
+                  <IconUnpin className="size-3.5" aria-hidden />
+                ) : (
+                  <IconPin className="size-3.5" aria-hidden />
+                )}
+              </button>
+            </span>
           </div>
         )}
       </ThreadContextMenu>

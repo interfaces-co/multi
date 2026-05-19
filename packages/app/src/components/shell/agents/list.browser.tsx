@@ -36,6 +36,8 @@ vi.mock("~/environments/runtime/service", () => {
   return {
     applyEnvironmentThreadDetailEvent: vi.fn(),
     ensureEnvironmentConnectionBootstrapped: async () => undefined,
+    getEnvironmentWsRpcClient: () => primaryConnection.client,
+    getPrimaryEnvironmentWsRpcClient: () => primaryConnection.client,
     getPrimaryEnvironmentConnection: () => primaryConnection,
     listEnvironmentConnections: () => [],
     readEnvironmentConnection: () => null,
@@ -125,6 +127,31 @@ const indicatorRows = [
   ago: string;
 }>;
 
+function projectToggle(): HTMLButtonElement | null {
+  return document.querySelector<HTMLButtonElement>(
+    "[data-agent-sidebar-section] button[aria-expanded]",
+  );
+}
+
+function makeOrderedProjectSections(
+  summaries: readonly SidebarThreadSummary[],
+): SidebarSectionModel[] {
+  return buildProjectChatSections(summaries, [], "/repo/beta", "/Users/workgyver", undefined, [
+    "/repo/alpha",
+    "/repo/beta",
+    "/repo/gamma",
+  ]);
+}
+
+function sectionLabels(): Array<string | undefined> {
+  return Array.from(
+    document.querySelectorAll<HTMLButtonElement>(
+      "[data-agent-sidebar-section] button[aria-expanded]",
+    ),
+    (element) => element.textContent?.trim(),
+  );
+}
+
 const sections: SidebarSectionModel[] = [
   {
     id: "ws:/tmp/project",
@@ -143,6 +170,7 @@ const sections: SidebarSectionModel[] = [
         title: "Implement compact sidebar rows",
         state: "running",
         unread: true,
+        pinned: false,
         updatedAt: "2026-04-29T12:00:00.000Z",
         latestReadableAt: "2026-04-29T12:00:00.000Z",
         ago: "4m",
@@ -194,6 +222,7 @@ function makeThreadSection(
       title: `Thread ${index + 1}`,
       state: "idle",
       unread: false,
+      pinned: false,
       updatedAt: "2026-04-29T12:00:00.000Z",
       latestReadableAt: "2026-04-29T12:00:00.000Z",
       ago: `${index + 1}m`,
@@ -225,6 +254,7 @@ function makeIndicatorSection(): SidebarSectionModel {
       title: row.title,
       state: row.state,
       unread: row.unread,
+      pinned: false,
       updatedAt: "2026-04-29T12:00:00.000Z",
       latestReadableAt: "2026-04-29T12:00:00.000Z",
       ago: row.ago,
@@ -308,7 +338,6 @@ describe("AgentList sidebar", () => {
       projectExpandedById: {},
       projectOrder: [],
       threadLastVisitedAtById: {},
-      threadChangedFilesExpandedById: {},
     });
   });
 
@@ -348,14 +377,16 @@ describe("AgentList sidebar", () => {
       .toHaveAttribute("data-selected", "true");
 
     await page.getByRole("button", { name: "New agent in project" }).click();
-    expect(onNewAgent, "project section: expected new-agent action to receive cwd").toHaveBeenCalledWith(
-      "/tmp/project",
-    );
+    expect(
+      onNewAgent,
+      "project section: expected new-agent action to receive cwd",
+    ).toHaveBeenCalledWith("/tmp/project");
 
     await page.getByRole("button", { name: /Draft follow-up/ }).click();
-    expect(onSelectAgent, "draft row: expected selection action to receive draft id").toHaveBeenCalledWith(
-      "draft-1",
-    );
+    expect(
+      onSelectAgent,
+      "draft row: expected selection action to receive draft id",
+    ).toHaveBeenCalledWith("draft-1");
   });
 
   it("reveals a newly selected thread below the folded preview", async () => {
@@ -381,10 +412,6 @@ describe("AgentList sidebar", () => {
 
   it("persists project expansion state across sidebar remounts", async () => {
     const section = makeThreadSection(2, { projectStateKey: PROJECT_STATE_KEY });
-    const projectToggle = () =>
-      document.querySelector<HTMLButtonElement>(
-        '[data-agent-sidebar-section] button[aria-expanded]',
-      );
     const firstMount = await mount({
       sections: [section],
       selectedId: null,
@@ -467,37 +494,20 @@ describe("AgentList sidebar", () => {
     expect(
       retainThreadDetailSubscriptionMock.mock.calls.map((call) => call[1]),
       "expanded project: expected subscriptions to follow visible row order",
-    ).toEqual(Array.from({ length: 10 }, (_, index) => ThreadId.make(`thread-${index + 1}`)),
-    );
+    ).toEqual(Array.from({ length: 10 }, (_, index) => ThreadId.make(`thread-${index + 1}`)));
   });
 
   it("keeps project section order stable when projects are added and removed", async () => {
     const projectA = ProjectId.make("project-a");
     const projectB = ProjectId.make("project-b");
     const projectC = ProjectId.make("project-c");
-    const makeSections = (summaries: readonly SidebarThreadSummary[]) =>
-      buildProjectChatSections(
-        summaries,
-        [],
-        "/repo/beta",
-        "/Users/workgyver",
-        undefined,
-        ["/repo/alpha", "/repo/beta", "/repo/gamma"],
-      );
     const mounted = await mount({
-      sections: makeSections([
+      sections: makeOrderedProjectSections([
         makeOrderingSummary("thread-alpha", projectA, "/repo/alpha", "2026-04-29T12:00:00.000Z"),
         makeOrderingSummary("thread-beta", projectB, "/repo/beta", "2026-04-29T12:01:00.000Z"),
       ]),
       selectedId: null,
     });
-    const sectionLabels = () =>
-      Array.from(
-        document.querySelectorAll<HTMLButtonElement>(
-          "[data-agent-sidebar-section] button[aria-expanded]",
-        ),
-        (element) => element.textContent?.trim(),
-      );
 
     await vi.waitFor(() => {
       expect(sectionLabels(), "initial projects: expected source project order").toEqual([
@@ -507,7 +517,7 @@ describe("AgentList sidebar", () => {
     });
 
     await mounted.rerender({
-      sections: makeSections([
+      sections: makeOrderedProjectSections([
         makeOrderingSummary("thread-alpha", projectA, "/repo/alpha", "2026-04-29T12:00:00.000Z"),
         makeOrderingSummary("thread-beta", projectB, "/repo/beta", "2026-04-29T12:01:00.000Z"),
         makeOrderingSummary("thread-gamma", projectC, "/repo/gamma", "2026-04-29T12:02:00.000Z"),
@@ -523,7 +533,7 @@ describe("AgentList sidebar", () => {
     });
 
     await mounted.rerender({
-      sections: makeSections([
+      sections: makeOrderedProjectSections([
         makeOrderingSummary("thread-beta", projectB, "/repo/beta", "2026-04-29T12:01:00.000Z"),
         makeOrderingSummary("thread-gamma", projectC, "/repo/gamma", "2026-04-29T12:02:00.000Z"),
       ]),

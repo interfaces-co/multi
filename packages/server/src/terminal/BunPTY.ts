@@ -1,5 +1,14 @@
 import { Effect, Layer } from "effect";
-import { PtyAdapter, PtyAdapterShape, PtyExitEvent, PtyProcess } from "./PTY.service";
+import {
+  PtyAdapter,
+  PtyAdapterShape,
+  PtyExitEvent,
+  PtyProcess,
+  PtySpawnError,
+} from "./PTY.service";
+
+const BUN_PTY_WINDOWS_UNAVAILABLE_MESSAGE =
+  "Bun PTY terminal support is unavailable on Windows. Please use Node.js (e.g. by running `npx usemulti`) instead.";
 
 class BunPtyProcess implements PtyProcess {
   private readonly dataListeners = new Set<(data: string) => void>();
@@ -86,17 +95,24 @@ class BunPtyProcess implements PtyProcess {
   }
 }
 
-export const layer = Layer.effect(
-  PtyAdapter,
-  Effect.gen(function* () {
-    if (process.platform === "win32") {
-      return yield* Effect.die(
-        "Bun PTY terminal support is unavailable on Windows. Please use Node.js (e.g. by running `npx usemulti`) instead.",
-      );
-    }
+export const layer = Layer.effect(PtyAdapter, Effect.succeed(makeBunPtyAdapter()));
+
+function makeBunPtyAdapter(): PtyAdapterShape {
+  if (process.platform === "win32") {
     return {
-      spawn: (input) =>
-        Effect.sync(() => {
+      spawn: () =>
+        Effect.fail(
+          new PtySpawnError({
+            adapter: "bun",
+            message: BUN_PTY_WINDOWS_UNAVAILABLE_MESSAGE,
+          }),
+        ),
+    };
+  }
+  return {
+    spawn: (input) =>
+      Effect.try({
+        try: () => {
           let processHandle: BunPtyProcess | null = null;
           const command = [input.shell, ...(input.args ?? [])];
           const subprocess = Bun.spawn(command, {
@@ -112,7 +128,13 @@ export const layer = Layer.effect(
           });
           processHandle = new BunPtyProcess(subprocess);
           return processHandle;
-        }),
-    } satisfies PtyAdapterShape;
-  }),
-);
+        },
+        catch: (cause) =>
+          new PtySpawnError({
+            adapter: "bun",
+            message: "Failed to spawn Bun PTY process.",
+            cause,
+          }),
+      }),
+  };
+}

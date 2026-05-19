@@ -1,5 +1,5 @@
 "use client";
-import { IconChevronLeftMedium, IconChevronRightMedium, IconClipboard } from "central-icons";
+import { IconChevronRightMedium, IconClipboard, IconStepBack } from "central-icons";
 import type { GitFilePatchResult } from "@multi/contracts";
 import {
   type KeyboardEvent,
@@ -9,7 +9,6 @@ import {
 } from "react";
 import { toast } from "sonner";
 
-import { PretextOneLine } from "~/components/pretext-one-line";
 import type { DiffRow } from "~/hooks/use-environment-git";
 import { cn } from "~/lib/utils";
 import { useMountEffect } from "~/hooks/use-mount-effect";
@@ -115,12 +114,9 @@ export function GitDiffCard(props: {
           className="flex min-w-0 flex-1 flex-nowrap items-center overflow-hidden text-[12px]/4"
           title={props.file.path}
         >
-          <PretextOneLine
-            text={pathLabel}
-            title={props.file.path}
-            truncate="middle"
-            className="block w-full max-w-full min-w-0 flex-1 overflow-hidden text-[12px]/4 font-medium whitespace-nowrap text-[color-mix(in_srgb,var(--foreground)_92%,transparent)]"
-          />
+          <span className="block w-full max-w-full min-w-0 flex-1 overflow-hidden text-ellipsis text-[12px]/4 font-medium whitespace-nowrap text-[color-mix(in_srgb,var(--foreground)_92%,transparent)]">
+            {pathLabel}
+          </span>
         </span>
         <span className="flex shrink-0 items-center gap-1.5 text-[11px]/4 tabular-nums @max-[360px]:gap-1">
           {props.file.add > 0 ? (
@@ -150,7 +146,7 @@ export function GitDiffCard(props: {
             aria-label="Discard changes"
             title="Discard changes"
           >
-            <IconChevronLeftMedium className="size-3.5 shrink-0" />
+            <IconStepBack className="size-3.5 shrink-0" />
           </button>
           <label
             className="inline-flex min-h-(--multi-workbench-action-size) shrink-0 cursor-(--multi-button-cursor) items-center gap-1 rounded-[5px] px-[3px] pr-1 text-[11px]/4 text-[color-mix(in_srgb,var(--foreground)_58%,transparent)] hover:bg-(--multi-workbench-toolbar-hover-background) hover:text-foreground @max-[360px]:w-(--multi-workbench-action-size) @max-[360px]:justify-center @max-[360px]:px-[3px]"

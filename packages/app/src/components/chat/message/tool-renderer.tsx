@@ -13,6 +13,7 @@ import {
 import { cva } from "class-variance-authority";
 import {
   memo,
+  type ComponentPropsWithoutRef,
   type ComponentType,
   type ReactNode,
   useMemo,
@@ -29,7 +30,6 @@ import {
   type ToolSearchArtifact,
   type ToolDisplayArtifact,
 } from "../../../session-logic";
-import { PretextOneLine } from "~/components/pretext-one-line";
 import { cn } from "~/lib/utils";
 import { InlineToolDiff } from "./tool-inline-diff";
 
@@ -119,7 +119,7 @@ const thinkingStatusTaskVariants = cva(
 
 const toolCallLineVariants = cva(
   cn(
-    "group/tool-call-line flex min-h-6 min-w-0 items-center gap-1 overflow-hidden",
+    "group/tool-call-line inline-flex min-h-6 w-fit max-w-full min-w-0 items-center gap-1 overflow-hidden",
     "border-0 bg-transparent text-left select-none",
     "text-conversation",
     "text-ellipsis whitespace-nowrap text-multi-fg-primary",
@@ -139,7 +139,8 @@ const toolCallLineVariants = cva(
 
 const toolCallLineActionVariants = cva(
   cn(
-    "shrink-0 font-normal text-multi-fg-secondary",
+    "shrink-0 overflow-hidden text-ellipsis whitespace-nowrap",
+    "font-normal text-multi-fg-secondary",
     "transition-colors duration-100",
     "group-hover/tool-call-line:text-multi-fg-primary",
   ),
@@ -158,7 +159,7 @@ const toolCallLineActionVariants = cva(
 
 const toolCallLineDetailsVariants = cva(
   cn(
-    "overflow-hidden text-ellipsis text-multi-fg-tertiary tabular-nums",
+    "min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-multi-fg-tertiary tabular-nums",
     "transition-colors duration-100",
     "group-hover/tool-call-line:text-multi-fg-secondary",
   ),
@@ -281,6 +282,7 @@ export const ToolCallRenderer = memo(function ToolCallRenderer({
           callId={callId}
           defaultExpanded={defaultExpanded}
           onNestedToolExpand={onNestedToolExpand}
+          showIcon={conversationDensity === "verbose"}
         />
       );
     case "editToolCall":
@@ -298,7 +300,7 @@ export const ToolCallRenderer = memo(function ToolCallRenderer({
           onFileClick={onFileClick}
           onNestedToolExpand={onNestedToolExpand}
           callId={callId}
-          conversationDensity={conversationDensity}
+          showIcon={conversationDensity === "verbose"}
         />
       );
     case "taskToolCall":
@@ -314,13 +316,14 @@ export const ToolCallRenderer = memo(function ToolCallRenderer({
           callId={callId}
           defaultExpanded={defaultExpanded}
           onNestedToolExpand={onNestedToolExpand}
+          showIcon={conversationDensity === "verbose"}
         />
       );
     case "webSearchToolCall":
     case "webFetchToolCall":
       return (
         <ToolCallLine
-          icon={iconForToolCase(toolCall.tool.case)}
+          icon={conversationDensity === "verbose" ? iconForToolCase(toolCall.tool.case) : undefined}
           action={displayState.action}
           details={displayState.details}
           loading={loading}
@@ -340,7 +343,7 @@ export const ToolCallRenderer = memo(function ToolCallRenderer({
     case "unknownToolCall":
       return (
         <ExpandableToolMetadataLine
-          icon={iconForToolCase(toolCall.tool.case)}
+          icon={conversationDensity === "verbose" ? iconForToolCase(toolCall.tool.case) : undefined}
           action={displayState.action}
           details={displayState.details}
           output={
@@ -422,6 +425,7 @@ function TaskToolCall({
   callId,
   defaultExpanded,
   onNestedToolExpand,
+  showIcon,
 }: {
   action: string;
   details: string;
@@ -435,10 +439,11 @@ function TaskToolCall({
   callId: string | undefined;
   defaultExpanded: boolean;
   onNestedToolExpand: ((callId: string | undefined, expanded: boolean) => void) | undefined;
+  showIcon: boolean;
 }) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const hasBody = Boolean(subagentConversation) || Boolean(renderStep);
-  const statusIcon = (
+  const statusIcon = showIcon ? (
     <span className="inline-flex shrink-0 items-center justify-center text-multi-icon-tertiary">
       {loading ? (
         <IconClock className="tool-call-shimmer size-3.5" />
@@ -448,24 +453,14 @@ function TaskToolCall({
         <IconRobot className="size-3.5" />
       )}
     </span>
-  );
+  ) : null;
   const titleArea = (
-    <span className="inline-flex min-w-0 items-baseline gap-1">
-      <span
-        className={cn(
-          "min-w-0 text-body font-medium text-multi-fg-secondary",
-          loading && "tool-call-shimmer",
-        )}
-      >
-        {action}
-      </span>
+    <span className="inline-flex min-w-0 max-w-full items-baseline gap-1 overflow-hidden">
+      <span className={toolCallLineActionVariants({ loading })}>{action}</span>
       {details ? (
-        <PretextOneLine
-          text={details}
-          title={details}
-          truncate="middle"
-          className="min-w-0 text-body text-multi-fg-tertiary"
-        />
+        <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-multi-fg-tertiary">
+          {details}
+        </span>
       ) : null}
     </span>
   );
@@ -480,13 +475,13 @@ function TaskToolCall({
 
   return (
     <div
-      className="ui-task-tool-call min-w-0 max-w-full text-multi-fg-secondary"
+      className="min-w-0 max-w-full text-multi-fg-secondary"
       data-status={hasError ? "error" : loading ? "running" : "completed"}
     >
       {hasBody ? (
         <button
           type="button"
-          className="ui-task-tool-call__header flex min-h-6 w-fit max-w-full min-w-0 cursor-pointer items-center gap-1"
+          className="inline-flex min-h-6 w-fit max-w-full min-w-0 cursor-pointer items-center gap-1 overflow-hidden"
           aria-expanded={isExpanded}
           onClick={toggleExpanded}
         >
@@ -500,13 +495,13 @@ function TaskToolCall({
           />
         </button>
       ) : (
-        <div className="ui-task-tool-call__header flex min-h-6 w-fit max-w-full min-w-0 items-center gap-1">
+        <div className="inline-flex min-h-6 w-fit max-w-full min-w-0 items-center gap-1 overflow-hidden">
           {statusIcon}
           {titleArea}
         </div>
       )}
       {isExpanded && hasBody ? (
-        <div className="ui-task-tool-call__body mt-1 min-w-0 max-w-full">
+        <div className="mt-1 min-w-0 max-w-full">
           {subagentConversation}
           {renderStep?.(toolCall, 0, callId)}
         </div>
@@ -535,24 +530,19 @@ const ToolCallLine = memo(function ToolCallLine({
   const content = (
     <>
       {Icon ? <Icon className="size-3.5 shrink-0 text-multi-fg-tertiary" /> : null}
-      <span className={toolCallLineActionVariants({ loading })}>{action}</span>
-      {details ? (
-        typeof details === "string" ? (
-          <PretextOneLine
-            text={details}
-            title={details}
-            truncate="middle"
-            className={toolCallLineDetailsVariants({ linkable })}
-          />
-        ) : (
-          <span className={toolCallLineDetailsVariants({ linkable })}>{details}</span>
-        )
-      ) : null}
+      <span className={toolCallLineActionVariants({ loading })} data-tool-call-line-action="">
+        {action}
+      </span>
+      {details ? <ToolCallLineDetails linkable={linkable}>{details}</ToolCallLineDetails> : null}
     </>
   );
 
   if (!onClick) {
-    return <div className={toolCallLineVariants({ clickable: false })}>{content}</div>;
+    return (
+      <div className={toolCallLineVariants({ clickable: false })} data-tool-call-line="">
+        {content}
+      </div>
+    );
   }
 
   return (
@@ -560,6 +550,7 @@ const ToolCallLine = memo(function ToolCallLine({
       role="button"
       tabIndex={0}
       className={toolCallLineVariants({ clickable: true })}
+      data-tool-call-line=""
       onClick={onClick}
       onKeyDown={(event) => {
         if (event.key !== "Enter" && event.key !== " ") return;
@@ -571,6 +562,23 @@ const ToolCallLine = memo(function ToolCallLine({
     </div>
   );
 });
+
+function ToolCallLineDetails({
+  children,
+  className,
+  linkable = false,
+  ...spanProps
+}: ComponentPropsWithoutRef<"span"> & { linkable?: boolean | undefined }) {
+  return (
+    <span
+      {...spanProps}
+      className={cn(toolCallLineDetailsVariants({ linkable }), className)}
+      data-tool-call-line-details=""
+    >
+      {children}
+    </span>
+  );
+}
 
 const ExpandableToolMetadataLine = memo(function ExpandableToolMetadataLine({
   icon: Icon,
@@ -585,7 +593,7 @@ const ExpandableToolMetadataLine = memo(function ExpandableToolMetadataLine({
   callId,
   onNestedToolExpand,
 }: {
-  icon: CentralIconComponent;
+  icon: CentralIconComponent | undefined;
   action: string;
   details: string;
   output: string | null;
@@ -624,11 +632,8 @@ const ExpandableToolMetadataLine = memo(function ExpandableToolMetadataLine({
   }
 
   const detailsNode = details ? (
-    <PretextOneLine
-      text={details}
-      title={details}
-      truncate="middle"
-      className={toolCallLineDetailsVariants({ linkable })}
+    <ToolCallLineDetails
+      linkable={linkable}
       role={linkable ? "button" : undefined}
       tabIndex={linkable ? 0 : undefined}
       onClick={
@@ -649,32 +654,46 @@ const ExpandableToolMetadataLine = memo(function ExpandableToolMetadataLine({
             }
           : undefined
       }
-    />
+    >
+      {details}
+    </ToolCallLineDetails>
   ) : null;
 
   const headerInner = (
     <>
-      <Icon className="size-3.5 shrink-0 text-multi-fg-tertiary" />
-      <span className={toolCallLineActionVariants({ loading })}>{action}</span>
+      {Icon ? <Icon className="size-3.5 shrink-0 text-multi-fg-tertiary" /> : null}
+      <span className={toolCallLineActionVariants({ loading })} data-tool-call-line-action="">
+        {action}
+      </span>
       {detailsNode}
     </>
   );
 
   const chevron = (
-    <IconChevronRightMedium
-      className={cn(
-        "size-3 shrink-0 text-multi-icon-tertiary transition-transform duration-150",
-        isExpanded && "rotate-90",
-      )}
-    />
+    <span
+      className="inline-flex size-3 shrink-0 items-center justify-center"
+      data-tool-call-line-chevron=""
+    >
+      <IconChevronRightMedium
+        className={cn(
+          "size-3 shrink-0 text-multi-icon-tertiary transition-transform duration-150",
+          isExpanded && "rotate-90",
+        )}
+      />
+    </span>
   );
 
   return (
     <div className="m-0 min-w-0 max-w-full">
-      <div className="group/metadata-tool flex min-w-0 items-center gap-1">
+      <div className="group/metadata-tool flex w-full min-w-0 items-center gap-1">
         {linkable ? (
           <>
-            <div className={toolCallLineVariants({ clickable: false })}>{headerInner}</div>
+            <div
+              className={cn(toolCallLineVariants({ clickable: false }), "w-auto max-w-full")}
+              data-tool-call-line=""
+            >
+              {headerInner}
+            </div>
             <button
               type="button"
               className={cn(
@@ -695,7 +714,8 @@ const ExpandableToolMetadataLine = memo(function ExpandableToolMetadataLine({
         ) : (
           <button
             type="button"
-            className={cn(toolCallLineVariants({ clickable: true }), "w-fit max-w-full min-w-0")}
+            className={toolCallLineVariants({ clickable: true })}
+            data-tool-call-line=""
             aria-expanded={isExpanded}
             onClick={toggleExpanded}
           >
@@ -743,6 +763,7 @@ function ShellToolCall({
   callId,
   defaultExpanded,
   onNestedToolExpand,
+  showIcon,
 }: {
   action: string;
   details: string;
@@ -755,6 +776,7 @@ function ShellToolCall({
   callId: string | undefined;
   defaultExpanded: boolean;
   onNestedToolExpand: ((callId: string | undefined, expanded: boolean) => void) | undefined;
+  showIcon: boolean;
 }) {
   const currentApprovalStatus = approval?.status;
   const [expansionState, setExpansionState] = useState<ShellToolExpansionState>(() => ({
@@ -797,7 +819,7 @@ function ShellToolCall({
       <button
         type="button"
         className={cn(
-          "group/shell-trigger flex min-h-6 w-fit max-w-full min-w-0 items-center gap-1 overflow-hidden",
+          "group/shell-trigger inline-flex min-h-6 w-fit max-w-full min-w-0 items-center gap-1 overflow-hidden",
           "border-0 bg-transparent p-0 text-left select-none",
           "text-conversation text-multi-fg-primary",
           expandable && "cursor-pointer",
@@ -805,40 +827,41 @@ function ShellToolCall({
           hasError && "text-multi-fg-red-primary",
         )}
         aria-expanded={expandable ? isExpanded : undefined}
+        data-tool-call-line=""
         disabled={!expandable}
         onClick={toggleExpanded}
       >
-        <IconConsole className="size-3.5 shrink-0 text-multi-fg-tertiary" />
+        {showIcon ? <IconConsole className="size-3.5 shrink-0 text-multi-fg-tertiary" /> : null}
         <span
           className={cn(
-            "flex min-w-0 flex-1 items-center gap-1",
+            "inline-flex min-w-0 max-w-full items-center gap-1",
             "overflow-hidden text-ellipsis whitespace-nowrap",
           )}
         >
-          <span
-            className={cn(
-              "overflow-hidden text-ellipsis text-multi-fg-secondary",
-              loading && "tool-call-shimmer",
-            )}
-          >
+          <span className={toolCallLineActionVariants({ loading })} data-tool-call-line-action="">
             {action}
           </span>
           {details ? (
-            <PretextOneLine
-              text={details}
-              title={details}
-              truncate="middle"
-              className="min-w-0 flex-1 text-multi-fg-tertiary"
-            />
+            <span
+              className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-multi-fg-tertiary"
+              data-tool-call-line-details=""
+            >
+              {details}
+            </span>
           ) : null}
         </span>
         {expandable ? (
-          <IconChevronRightMedium
-            className={cn(
-              "size-3 shrink-0 text-multi-icon-tertiary transition-transform duration-150",
-              isExpanded && "rotate-90",
-            )}
-          />
+          <span
+            className="inline-flex size-3 shrink-0 items-center justify-center"
+            data-tool-call-line-chevron=""
+          >
+            <IconChevronRightMedium
+              className={cn(
+                "size-3 shrink-0 text-multi-icon-tertiary transition-transform duration-150",
+                isExpanded && "rotate-90",
+              )}
+            />
+          </span>
         ) : null}
       </button>
       {isExpanded && hasContent ? (
@@ -904,6 +927,7 @@ function EditToolCall({
   onFileClick,
   onNestedToolExpand,
   callId,
+  showIcon,
 }: {
   action: string;
   path: string;
@@ -916,7 +940,7 @@ function EditToolCall({
   onFileClick: ((path: string) => void) | undefined;
   onNestedToolExpand: ((callId: string | undefined, expanded: boolean) => void) | undefined;
   callId: string | undefined;
-  conversationDensity: ToolCallConversationDensity;
+  showIcon: boolean;
 }) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const hasContent = Boolean(detail) || Boolean(diffArtifact);
@@ -932,23 +956,20 @@ function EditToolCall({
 
   return (
     <div className="m-0">
-      <div className="group/edit-tool-call flex min-w-0 items-center gap-1">
+      <div className="group/edit-tool-call flex w-full min-w-0 items-center gap-1">
         {hasContent ? (
           <button
             type="button"
-            className={cn(toolCallLineVariants({ clickable: true }), "w-fit max-w-full min-w-0")}
+            className={toolCallLineVariants({ clickable: true })}
             aria-label={isExpanded ? "Collapse edit details" : "Expand edit details"}
             aria-expanded={isExpanded}
             onClick={toggleExpanded}
           >
-            <IconFileEdit className="size-3.5 shrink-0 text-multi-fg-tertiary" />
+            {showIcon ? (
+              <IconFileEdit className="size-3.5 shrink-0 text-multi-fg-tertiary" />
+            ) : null}
             <span className={toolCallLineActionVariants()}>{action}</span>
-            <PretextOneLine
-              text={path}
-              title={path}
-              truncate="middle"
-              className={editToolCallFilenameVariants({ loading, isDelete })}
-            />
+            <span className={editToolCallFilenameVariants({ loading, isDelete })}>{path}</span>
             <EditStats stats={stats} />
             <IconChevronRightMedium
               className={cn(
@@ -971,28 +992,23 @@ function EditToolCall({
                   onFileClick(path);
                 }}
               >
-                <IconFileEdit className="size-3.5 shrink-0 text-multi-fg-tertiary" />
+                {showIcon ? (
+                  <IconFileEdit className="size-3.5 shrink-0 text-multi-fg-tertiary" />
+                ) : null}
                 <span className={toolCallLineActionVariants()}>{action}</span>
-                <PretextOneLine
-                  text={path}
-                  title={path}
-                  truncate="middle"
-                  className={editToolCallFilenameVariants({ loading, isDelete })}
-                />
+                <span className={editToolCallFilenameVariants({ loading, isDelete })}>{path}</span>
+                <EditStats stats={stats} />
               </div>
             ) : (
               <div className={toolCallLineVariants({ clickable: false })}>
-                <IconFileEdit className="size-3.5 shrink-0 text-multi-fg-tertiary" />
+                {showIcon ? (
+                  <IconFileEdit className="size-3.5 shrink-0 text-multi-fg-tertiary" />
+                ) : null}
                 <span className={toolCallLineActionVariants()}>{action}</span>
-                <PretextOneLine
-                  text={path}
-                  title={path}
-                  truncate="middle"
-                  className={editToolCallFilenameVariants({ loading, isDelete })}
-                />
+                <span className={editToolCallFilenameVariants({ loading, isDelete })}>{path}</span>
+                <EditStats stats={stats} />
               </div>
             )}
-            <EditStats stats={stats} />
           </>
         )}
       </div>
@@ -1191,18 +1207,18 @@ const TOOL_ACTION_LABELS: Record<ToolCase, { loading: string; completed: string;
     readToolCall: { loading: "Reading", completed: "Read", error: "Read" },
     grepToolCall: { loading: "Grepping", completed: "Grepped", error: "Grep" },
     globToolCall: {
-      loading: "Searching files",
-      completed: "Searched files",
-      error: "Search files",
+      loading: "Searching",
+      completed: "Searched",
+      error: "Search",
     },
-    shellToolCall: { loading: "Command", completed: "Command", error: "Command" },
+    shellToolCall: { loading: "Running", completed: "Ran", error: "Command" },
     editToolCall: { loading: "Editing", completed: "Edited", error: "Edit" },
     deleteToolCall: { loading: "Deleting", completed: "Deleted", error: "Delete" },
-    mcpToolCall: { loading: "Running MCP", completed: "Ran MCP", error: "Run MCP" },
-    dynamicToolCall: { loading: "Running tool", completed: "Ran tool", error: "Run tool" },
+    mcpToolCall: { loading: "Running", completed: "Ran", error: "Run" },
+    dynamicToolCall: { loading: "Running", completed: "Ran", error: "Run" },
     taskToolCall: { loading: "Task", completed: "Task", error: "Task" },
-    webSearchToolCall: { loading: "Searching web", completed: "Searched web", error: "Search web" },
+    webSearchToolCall: { loading: "Searching", completed: "Searched", error: "Search" },
     webFetchToolCall: { loading: "Fetching", completed: "Fetched", error: "Fetch" },
-    imageViewToolCall: { loading: "Viewing image", completed: "Viewed image", error: "View image" },
-    unknownToolCall: { loading: "Running tool", completed: "Ran tool", error: "Run tool" },
+    imageViewToolCall: { loading: "Viewing", completed: "Viewed", error: "View" },
+    unknownToolCall: { loading: "Running", completed: "Ran", error: "Run" },
   };

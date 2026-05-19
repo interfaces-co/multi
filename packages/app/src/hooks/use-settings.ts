@@ -182,16 +182,13 @@ export function useUpdateSettings() {
     if (refreshProvidersAfterWrite) {
       await ensureLocalApi()
         .server.refreshProviders()
-        .then((payload) => applyProvidersUpdated(payload))
-        .catch((error: unknown) => {
-          console.warn("Failed to refresh providers after settings update", error);
-        });
+        .then((payload) => applyProvidersUpdated(payload));
     }
   }, []);
 
-  const resetSettings = useCallback(() => {
-    updateSettings(DEFAULT_UNIFIED_SETTINGS);
-  }, [updateSettings]);
+  const resetSettings = useCallback(() => updateSettings(DEFAULT_UNIFIED_SETTINGS), [
+    updateSettings,
+  ]);
 
   return {
     updateSettings,

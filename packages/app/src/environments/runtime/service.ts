@@ -38,7 +38,7 @@ import {
 import { useTerminalStateStore } from "~/terminal-state-store";
 import { useUiStateStore } from "~/stores/ui-state-store";
 import { WsTransport } from "../../rpc/ws-transport";
-import { createWsRpcClient } from "../../rpc/ws-rpc-client";
+import { createWsRpcClient, type WsRpcClient } from "../../rpc/ws-rpc-client";
 import { deriveLogicalProjectKey, getProjectOrderKey } from "~/stores/project-identity";
 import { dispatchNextQueuedComposerItemForThread } from "~/stores/chat-send-queue-dispatch";
 
@@ -887,6 +887,25 @@ export function requireEnvironmentConnection(environmentId: EnvironmentId): Envi
 
 export function getPrimaryEnvironmentConnection(): EnvironmentConnection {
   return createPrimaryEnvironmentConnection();
+}
+
+export function getPrimaryEnvironmentWsRpcClient(): WsRpcClient {
+  return getPrimaryEnvironmentConnection().client;
+}
+
+export function getEnvironmentWsRpcClient(
+  environmentId: EnvironmentId | null | undefined,
+): WsRpcClient {
+  if (!environmentId) {
+    return getPrimaryEnvironmentWsRpcClient();
+  }
+
+  const connection = readEnvironmentConnection(environmentId);
+  if (!connection) {
+    throw new Error(`Environment API not found for environment ${environmentId}`);
+  }
+
+  return connection.client;
 }
 
 export async function ensureEnvironmentConnectionBootstrapped(

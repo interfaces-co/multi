@@ -1,6 +1,6 @@
 import { ContextMenu } from "@base-ui/react/context-menu";
 import {
-  IconArchive,
+  IconArchive1,
   IconBell,
   IconCheckmark1Small,
   IconClipboard,
@@ -76,7 +76,7 @@ export function ThreadContextMenu(props: {
               <ContextMenu.Separator className="my-0.5 h-px shrink-0 bg-multi-stroke/60" />
               <ContextMenu.Item label="Archive" onClick={props.onArchive} className={itemClass}>
                 <span className="inline-flex h-4 w-3 shrink-0 items-center justify-center text-muted-foreground/60">
-                  <IconArchive className="size-3" aria-hidden />
+                  <IconArchive1 className="size-3" aria-hidden />
                 </span>
                 <span className="min-w-0 flex-1 truncate">Archive</span>
               </ContextMenu.Item>
@@ -91,6 +91,7 @@ export function ThreadContextMenu(props: {
 export function SidebarSectionContextMenu(props: {
   children: ReactNode;
   hasThreads: boolean;
+  canOpenInEditor: boolean;
   canRemoveProject: boolean;
   onOpenInEditor: () => void;
   onMarkAllRead: () => void;
@@ -110,16 +111,18 @@ export function SidebarSectionContextMenu(props: {
             className={cn(popupSurface, "z-50")}
           >
             <div className="flex max-h-72 min-h-0 flex-col gap-px overflow-y-auto overscroll-contain p-1">
-              <ContextMenu.Item
-                label="Open in Editor Window"
-                onClick={props.onOpenInEditor}
-                className={itemClass}
-              >
-                <span className="inline-flex h-4 w-3 shrink-0 items-center justify-center text-muted-foreground/60">
-                  <IconCode className="size-3" aria-hidden />
-                </span>
-                <span className="min-w-0 flex-1 truncate">Open in Editor Window</span>
-              </ContextMenu.Item>
+              {props.canOpenInEditor ? (
+                <ContextMenu.Item
+                  label="Open in Editor Window"
+                  onClick={props.onOpenInEditor}
+                  className={itemClass}
+                >
+                  <span className="inline-flex h-4 w-3 shrink-0 items-center justify-center text-muted-foreground/60">
+                    <IconCode className="size-3" aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">Open in Editor Window</span>
+                </ContextMenu.Item>
+              ) : null}
               <ContextMenu.Item
                 label="Mark All as Read"
                 onClick={props.onMarkAllRead}
@@ -138,7 +141,7 @@ export function SidebarSectionContextMenu(props: {
                 className={itemClass}
               >
                 <span className="inline-flex h-4 w-3 shrink-0 items-center justify-center text-muted-foreground/60">
-                  <IconArchive className="size-3" aria-hidden />
+                  <IconArchive1 className="size-3" aria-hidden />
                 </span>
                 <span className="min-w-0 flex-1 truncate">Archive All</span>
               </ContextMenu.Item>

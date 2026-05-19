@@ -65,6 +65,7 @@ import {
   RECENT_THREAD_LIMIT,
 } from "./command-palette-model";
 import { ProjectFavicon } from "./project-favicon";
+import { formatSchemaBackedTransportErrorDescription } from "~/rpc/transport-error";
 import {
   useServerAvailableEditors,
   useServerKeybindings,
@@ -595,7 +596,7 @@ function OpenCommandPaletteDialog() {
         toastManager.add({
           type: "error",
           title: "Failed to add project",
-          description: error instanceof Error ? error.message : "An error occurred.",
+          description: formatSchemaBackedTransportErrorDescription(error, "An error occurred."),
         });
       });
   }, [handleAddProject, primaryEnvironmentId, setOpen, settings.addProjectBaseDirectory]);
@@ -833,7 +834,7 @@ function OpenCommandPaletteDialog() {
           toastManager.add({
             type: "error",
             title: "Unable to open provider log",
-            description: error instanceof Error ? error.message : "An error occurred.",
+            description: formatSchemaBackedTransportErrorDescription(error, "An error occurred."),
           });
         }
       },
@@ -914,7 +915,10 @@ function OpenCommandPaletteDialog() {
       toastManager.add({
         type: "error",
         title: "Unable to run command",
-        description: error instanceof Error ? error.message : "An unexpected error occurred.",
+        description: formatSchemaBackedTransportErrorDescription(
+          error,
+          "An unexpected error occurred.",
+        ),
       });
     });
   }

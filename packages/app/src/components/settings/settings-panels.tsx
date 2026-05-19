@@ -1,5 +1,5 @@
 import {
-  IconArchive,
+  IconArchive1,
   IconArchiveJunk,
   IconChevronRightMedium,
   IconLoader,
@@ -60,6 +60,7 @@ import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "@mu
 import { Switch } from "@multi/ui/switch";
 import { Text, textVariants } from "@multi/ui/text";
 import { toastManager } from "~/app/toast";
+import { formatProviderErrorDescription } from "~/lib/provider-error-description";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@multi/ui/tooltip";
 import {
   SettingResetButton,
@@ -142,6 +143,14 @@ function buildProviderInstanceUpdatePatch(input: {
       ? { textGenerationModelSelection: input.textGenerationModelSelection }
       : {}),
   };
+}
+
+function showProviderSettingsError(title: string, error: unknown): void {
+  toastManager.add({
+    type: "error",
+    title,
+    description: formatProviderErrorDescription(error, "Provider settings update failed."),
+  });
 }
 
 function AboutVersionTitle() {
@@ -369,10 +378,14 @@ export function useSettingsRestore(onRestored?: () => void) {
     );
     if (!confirmed) return;
 
-    setTheme("system");
-    appearanceSettingsActions.reset();
-    resetSettings();
-    onRestored?.();
+    try {
+      setTheme("system");
+      appearanceSettingsActions.reset();
+      await resetSettings();
+      onRestored?.();
+    } catch (error) {
+      showProviderSettingsError("Failed to restore default settings", error);
+    }
   }, [changedSettingLabels, onRestored, resetSettings, setTheme]);
 
   return {
@@ -1318,7 +1331,7 @@ export function ModelsSettingsPanel() {
       .server.refreshProviders()
       .then((payload) => applyProvidersUpdated(payload))
       .catch((error: unknown) => {
-        console.warn("Failed to refresh providers", error);
+        showProviderSettingsError("Failed to refresh providers", error);
       })
       .finally(() => {
         refreshingRef.current = null;
@@ -1425,10 +1438,12 @@ export function ModelsSettingsPanel() {
   };
 
   const deleteProviderInstance = (id: ProviderInstanceId) => {
-    updateSettings({
+    void updateSettings({
       providerInstances: withoutProviderInstanceKey(settings.providerInstances, id),
       providerModelPreferences: withoutProviderInstanceKey(settings.providerModelPreferences, id),
       favorites: withoutProviderInstanceFavorites(settings.favorites ?? [], id),
+    }).catch((error: unknown) => {
+      showProviderSettingsError("Failed to delete provider instance", error);
     });
   };
 
@@ -1442,7 +1457,7 @@ export function ModelsSettingsPanel() {
     const hiddenModels = [...new Set(next.hiddenModels.filter((slug) => slug.trim().length > 0))];
     const modelOrder = [...new Set(next.modelOrder.filter((slug) => slug.trim().length > 0))];
     const rest = withoutProviderInstanceKey(settings.providerModelPreferences, instanceId);
-    updateSettings({
+    void updateSettings({
       providerModelPreferences:
         hiddenModels.length === 0 && modelOrder.length === 0
           ? rest
@@ -1453,6 +1468,8 @@ export function ModelsSettingsPanel() {
                 modelOrder,
               },
             },
+    }).catch((error: unknown) => {
+      showProviderSettingsError("Failed to update provider settings", error);
     });
   };
 
@@ -1463,11 +1480,13 @@ export function ModelsSettingsPanel() {
     const favoriteModels = [
       ...new Set(nextFavoriteModels.map((slug) => slug.trim()).filter((slug) => slug.length > 0)),
     ];
-    updateSettings({
+    void updateSettings({
       favorites: [
         ...withoutProviderInstanceFavorites(settings.favorites ?? [], instanceId),
         ...favoriteModels.map((model) => ({ provider: instanceId, model })),
       ],
+    }).catch((error: unknown) => {
+      showProviderSettingsError("Failed to update provider favorites", error);
     });
   };
 
@@ -1492,7 +1511,7 @@ export function ModelsSettingsPanel() {
       ),
       favorites: withoutProviderInstanceFavorites(settings.favorites ?? [], defaultInstanceId),
     }).catch((error: unknown) => {
-      console.warn("Failed to reset provider settings", error);
+      showProviderSettingsError("Failed to reset provider settings", error);
     });
   };
 
@@ -1508,9 +1527,11 @@ export function ModelsSettingsPanel() {
               <SettingResetButton
                 label="text generation model"
                 onClick={() =>
-                  updateSettings({
+                  void updateSettings({
                     textGenerationModelSelection:
                       DEFAULT_UNIFIED_SETTINGS.textGenerationModelSelection,
+                  }).catch((error: unknown) => {
+                    showProviderSettingsError("Failed to update provider settings", error);
                   })
                 }
               />
@@ -1532,8 +1553,10 @@ export function ModelsSettingsPanel() {
                     ...settings,
                     textGenerationModelSelection: selection,
                   };
-                  updateSettings({
+                  void updateSettings({
                     textGenerationModelSelection: resolveTextGenerationModelSelection(nextSettings),
+                  }).catch((error: unknown) => {
+                    showProviderSettingsError("Failed to update provider settings", error);
                   });
                 }}
               />
@@ -1556,8 +1579,10 @@ export function ModelsSettingsPanel() {
                       nextOptions,
                     ),
                   };
-                  updateSettings({
+                  void updateSettings({
                     textGenerationModelSelection: resolveTextGenerationModelSelection(nextSettings),
+                  }).catch((error: unknown) => {
+                    showProviderSettingsError("Failed to update provider settings", error);
                   });
                 }}
               />
@@ -1664,11 +1689,11 @@ export function ModelsSettingsPanel() {
                     ...patch,
                     textGenerationModelSelection: resolveTextGenerationModelSelection(nextSettings),
                   }).catch((error: unknown) => {
-                    console.warn("Failed to update provider settings", error);
+                    showProviderSettingsError("Failed to update provider settings", error);
                   });
                 } else {
                   void updateProviderInstance(row, next).catch((error: unknown) => {
-                    console.warn("Failed to update provider settings", error);
+                    showProviderSettingsError("Failed to update provider settings", error);
                   });
                 }
               }}
@@ -1762,7 +1787,7 @@ export function ArchivedThreadsPanel() {
         <SettingsSection title="Archived threads">
           <Empty className="min-h-88">
             <EmptyMedia variant="icon">
-              <IconArchive />
+              <IconArchive1 />
             </EmptyMedia>
             <EmptyHeader>
               <EmptyTitle>No archived threads</EmptyTitle>

@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import { toastManager } from "~/app/toast";
 import ChatMarkdown from "~/components/chat/markdown/chat-markdown";
 import { readEnvironmentApi } from "~/environment-api";
+import { formatProjectErrorDescription } from "~/lib/project-error-description";
 import { cn } from "~/lib/utils";
 import {
   buildProposedPlanMarkdownFilename,
@@ -199,45 +200,6 @@ export const PlanWorkbenchPanel = memo(function PlanWorkbenchPanel({
   );
 });
 
-function readRecordField(value: unknown, key: string): unknown {
-  if (typeof value !== "object" || value === null) {
-    return undefined;
-  }
-  return (value as Record<string, unknown>)[key];
-}
-
-function readNonEmptyStringField(value: unknown, key: string): string | null {
-  const field = readRecordField(value, key);
-  return typeof field === "string" && field.trim().length > 0 ? field.trim() : null;
-}
-
-function formatProjectWriteErrorDescription(error: unknown): string {
-  const message =
-    readNonEmptyStringField(error, "message") ??
-    (error instanceof Error && error.message.trim().length > 0 ? error.message.trim() : null);
-  const cause = readRecordField(error, "cause");
-  const detail = readNonEmptyStringField(cause, "detail");
-  const operation = readNonEmptyStringField(cause, "operation");
-  const cwd = readNonEmptyStringField(cause, "cwd");
-  const relativePath = readNonEmptyStringField(cause, "relativePath");
-  const lines = [message ?? "An error occurred."];
-
-  if (detail && detail !== message) {
-    lines.push(detail);
-  }
-  if (operation) {
-    lines.push(`Operation: ${operation}`);
-  }
-  if (cwd) {
-    lines.push(`Project: ${cwd}`);
-  }
-  if (relativePath) {
-    lines.push(`Path: ${relativePath}`);
-  }
-
-  return lines.join("\n");
-}
-
 function PlanActions(props: {
   environmentId: EnvironmentId | null;
   markdownCwd: string | undefined;
@@ -314,7 +276,7 @@ function PlanActions(props: {
       toast.success(`Saved ${result.relativePath}.`);
       setSaveDialogOpen(false);
     } catch (error) {
-      const description = formatProjectWriteErrorDescription(error);
+      const description = formatProjectErrorDescription(error, "An error occurred.");
       setSaveError(description);
       toastManager.add({
         type: "error",
