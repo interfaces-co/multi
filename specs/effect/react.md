@@ -18,14 +18,17 @@ Snapshot result:
 
 - [x] Direct `useEffect` appears only in
       `packages/app/src/hooks/use-mount-effect.ts`, with `2` matches.
-- [x] Direct `useLayoutEffect` appears in `6` production app files with `13`
-      matches.
+- [x] Direct `useLayoutEffect` appears only in
+      `packages/app/src/hooks/use-layout-sync-effect.ts`, with `2` matches.
 - [x] `packages/app/src/hooks/use-mount-effect.ts` defines the mount-only
       external-sync wrapper. Route-level global shortcut listeners,
       `use-copy-to-clipboard` timer cleanup, and thread jump hint controller
       cleanup now use it.
+- [x] `packages/app/src/hooks/use-layout-sync-effect.ts` defines the layout
+      external-sync wrapper used for TipTap editor reconciliation and
+      measurement.
 - [x] Direct effect callsite classification is captured in
-  [react-effect-callsite-inventory.md](./react-effect-callsite-inventory.md).
+      [react-effect-callsite-inventory.md](./react-effect-callsite-inventory.md).
 
 ## Rule
 
@@ -89,8 +92,8 @@ The repository currently uses `oxlint` with the local
 - [x] Add a `multi/no-direct-use-effect` rule after the wrapper exists.
 - [x] The rule should reject direct `useEffect` imports and
       `React.useEffect(...)` calls outside the wrapper file.
-- [ ] The rule should allow `useLayoutEffect` only while the layout-effect
-      migration remains explicitly tracked in this spec.
+- [x] The rule rejects direct `useLayoutEffect` imports and
+      `React.useLayoutEffect(...)` calls outside the layout-sync wrapper file.
 - [x] `pnpm exec oxlint --report-unused-disable-directives --deny-warnings`
       stays clean with the rule enabled as `error`.
 

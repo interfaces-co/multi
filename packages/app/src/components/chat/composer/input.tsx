@@ -3,7 +3,6 @@ import {
   memo,
   useCallback,
   useImperativeHandle,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -482,7 +481,7 @@ function ComposerPendingInputPromptSync({
   resolveComposerTrigger: (text: string, expandedCursor: number) => ComposerTrigger | null;
   setComposerCursor: Dispatch<SetStateAction<number>>;
   setComposerHighlightedItemId: Dispatch<SetStateAction<string | null>>;
-  setComposerTrigger: Dispatch<SetStateAction<ComposerTrigger | null>>;
+  setComposerTrigger: (trigger: ComposerTrigger | null) => void;
 }) {
   useMountEffect(() => {
     if (typeof customAnswer !== "string") {
@@ -1391,6 +1390,118 @@ export const ComposerInput = memo(
     const isDockComposerSingleLine = composerVariant === "compact" && !isDockComposerExpanded;
 
     // ------------------------------------------------------------------
+    // Prompt helpers
+    // ------------------------------------------------------------------
+    const setPrompt = useCallback(
+      (nextPrompt: string) => {
+        setComposerDraftPrompt(composerDraftTarget, nextPrompt);
+      },
+      [composerDraftTarget, setComposerDraftPrompt],
+    );
+
+    const applyPromptReplacement = useCallback(
+      (
+        rangeStart: number,
+        rangeEnd: number,
+        replacement: string,
+        options?: { expectedText?: string; focusEditorAfterReplace?: boolean },
+      ): boolean => {
+        const currentText = promptRef.current;
+        const safeStart = Math.max(0, Math.min(currentText.length, rangeStart));
+        const safeEnd = Math.max(safeStart, Math.min(currentText.length, rangeEnd));
+        if (
+          options?.expectedText !== undefined &&
+          currentText.slice(safeStart, safeEnd) !== options.expectedText
+        ) {
+          return false;
+        }
+        const next = replaceTextRange(promptRef.current, rangeStart, rangeEnd, replacement);
+        const nextCursor = collapseExpandedComposerCursor(next.text, next.cursor);
+        const nextExpandedCursor = expandCollapsedComposerCursor(next.text, nextCursor);
+        promptRef.current = next.text;
+        const activePendingQuestion = activePendingProgress?.activeQuestion;
+        if (activePendingQuestion && activePendingUserInput) {
+          handleChangeActivePendingUserInputCustomAnswer(
+            activePendingQuestion.id,
+            next.text,
+            nextCursor,
+            nextExpandedCursor,
+            false,
+          );
+        } else {
+          setPrompt(next.text);
+        }
+        setComposerCursor(nextCursor);
+        setComposerTrigger(resolveComposerTrigger(next.text, nextExpandedCursor));
+        if (options?.focusEditorAfterReplace !== false) {
+          window.requestAnimationFrame(() => {
+            composerEditorRef.current?.focusAt(nextCursor);
+          });
+        }
+        return true;
+      },
+      [
+        activePendingProgress?.activeQuestion,
+        activePendingUserInput,
+        handleChangeActivePendingUserInputCustomAnswer,
+        promptRef,
+        resolveComposerTrigger,
+        setPrompt,
+      ],
+    );
+
+    const applyComposerTrigger = useCallback(
+      (nextTrigger: ComposerTrigger | null) => {
+        if (!nextTrigger || nextTrigger.kind !== "slash-model" || isComposerApprovalState) {
+          setComposerTrigger(nextTrigger);
+          return false;
+        }
+
+        const currentText = promptRef.current;
+        const expectedSlice = currentText.slice(nextTrigger.rangeStart, nextTrigger.rangeEnd);
+        const applied = applyPromptReplacement(nextTrigger.rangeStart, nextTrigger.rangeEnd, "", {
+          expectedText: expectedSlice,
+          focusEditorAfterReplace: true,
+        });
+        if (!applied) {
+          setComposerTrigger(nextTrigger);
+          return false;
+        }
+
+        setComposerHighlightedItemId(null);
+        setModelPickerOpenSearchSeed(nextTrigger.query.trim());
+        setIsComposerModelPickerOpen(true);
+        return true;
+      },
+      [applyPromptReplacement, isComposerApprovalState, promptRef],
+    );
+
+    const removeComposerTerminalContextFromDraft = useCallback(
+      (contextId: string) => {
+        const contextIndex = composerTerminalContexts.findIndex(
+          (context) => context.id === contextId,
+        );
+        if (contextIndex < 0) return;
+        const removal = removeInlineTerminalContextPlaceholder(promptRef.current, contextIndex);
+        promptRef.current = removal.prompt;
+        setPrompt(removal.prompt);
+        removeComposerDraftTerminalContext(composerDraftTarget, contextId);
+        const nextCursor = collapseExpandedComposerCursor(removal.prompt, removal.cursor);
+        setComposerCursor(nextCursor);
+        applyComposerTrigger(resolveComposerTrigger(removal.prompt, removal.cursor));
+      },
+      [
+        applyComposerTrigger,
+        composerDraftTarget,
+        composerTerminalContexts,
+        promptRef,
+        resolveComposerTrigger,
+        removeComposerDraftTerminalContext,
+        setPrompt,
+      ],
+    );
+
+    // ------------------------------------------------------------------
     // Provider traits UI
     // ------------------------------------------------------------------
     const setPromptFromTraits = useCallback(
@@ -1403,10 +1514,11 @@ export const ComposerInput = memo(
         setComposerDraftPrompt(composerDraftTarget, nextPrompt);
         const nextCursor = collapseExpandedComposerCursor(nextPrompt, nextPrompt.length);
         setComposerCursor(nextCursor);
-        setComposerTrigger(resolveComposerTrigger(nextPrompt, nextPrompt.length));
+        applyComposerTrigger(resolveComposerTrigger(nextPrompt, nextPrompt.length));
         scheduleComposerFocus();
       },
       [
+        applyComposerTrigger,
         composerDraftTarget,
         promptRef,
         resolveComposerTrigger,
@@ -1459,40 +1571,6 @@ export const ComposerInput = memo(
     );
 
     // ------------------------------------------------------------------
-    // Prompt helpers
-    // ------------------------------------------------------------------
-    const setPrompt = useCallback(
-      (nextPrompt: string) => {
-        setComposerDraftPrompt(composerDraftTarget, nextPrompt);
-      },
-      [composerDraftTarget, setComposerDraftPrompt],
-    );
-
-    const removeComposerTerminalContextFromDraft = useCallback(
-      (contextId: string) => {
-        const contextIndex = composerTerminalContexts.findIndex(
-          (context) => context.id === contextId,
-        );
-        if (contextIndex < 0) return;
-        const removal = removeInlineTerminalContextPlaceholder(promptRef.current, contextIndex);
-        promptRef.current = removal.prompt;
-        setPrompt(removal.prompt);
-        removeComposerDraftTerminalContext(composerDraftTarget, contextId);
-        const nextCursor = collapseExpandedComposerCursor(removal.prompt, removal.cursor);
-        setComposerCursor(nextCursor);
-        setComposerTrigger(resolveComposerTrigger(removal.prompt, removal.cursor));
-      },
-      [
-        composerDraftTarget,
-        composerTerminalContexts,
-        promptRef,
-        resolveComposerTrigger,
-        removeComposerDraftTerminalContext,
-        setPrompt,
-      ],
-    );
-
-    // ------------------------------------------------------------------
     // Sync refs back to parent
     // ------------------------------------------------------------------
     promptRef.current = prompt;
@@ -1516,10 +1594,14 @@ export const ComposerInput = memo(
         terminalContextIds: string[],
       ) => {
         if (activePendingProgress?.activeQuestion && pendingUserInputs.length > 0) {
+          promptRef.current = nextPrompt;
           setComposerCursor(nextCursor);
-          setComposerTrigger(
+          const triggerHandled = applyComposerTrigger(
             cursorAdjacentToMention ? null : resolveComposerTrigger(nextPrompt, expandedCursor),
           );
+          if (triggerHandled) {
+            return;
+          }
           handleChangeActivePendingUserInputCustomAnswer(
             activePendingProgress.activeQuestion.id,
             nextPrompt,
@@ -1538,12 +1620,13 @@ export const ComposerInput = memo(
           );
         }
         setComposerCursor(nextCursor);
-        setComposerTrigger(
+        applyComposerTrigger(
           cursorAdjacentToMention ? null : resolveComposerTrigger(nextPrompt, expandedCursor),
         );
       },
       [
         activePendingProgress?.activeQuestion,
+        applyComposerTrigger,
         pendingUserInputs.length,
         handleChangeActivePendingUserInputCustomAnswer,
         promptRef,
@@ -1554,79 +1637,6 @@ export const ComposerInput = memo(
         setComposerDraftTerminalContexts,
       ],
     );
-
-    // ------------------------------------------------------------------
-    // Callbacks: prompt replacement / menu
-    // ------------------------------------------------------------------
-    const applyPromptReplacement = useCallback(
-      (
-        rangeStart: number,
-        rangeEnd: number,
-        replacement: string,
-        options?: { expectedText?: string; focusEditorAfterReplace?: boolean },
-      ): boolean => {
-        const currentText = promptRef.current;
-        const safeStart = Math.max(0, Math.min(currentText.length, rangeStart));
-        const safeEnd = Math.max(safeStart, Math.min(currentText.length, rangeEnd));
-        if (
-          options?.expectedText !== undefined &&
-          currentText.slice(safeStart, safeEnd) !== options.expectedText
-        ) {
-          return false;
-        }
-        const next = replaceTextRange(promptRef.current, rangeStart, rangeEnd, replacement);
-        const nextCursor = collapseExpandedComposerCursor(next.text, next.cursor);
-        const nextExpandedCursor = expandCollapsedComposerCursor(next.text, nextCursor);
-        promptRef.current = next.text;
-        const activePendingQuestion = activePendingProgress?.activeQuestion;
-        if (activePendingQuestion && activePendingUserInput) {
-          handleChangeActivePendingUserInputCustomAnswer(
-            activePendingQuestion.id,
-            next.text,
-            nextCursor,
-            nextExpandedCursor,
-            false,
-          );
-        } else {
-          setPrompt(next.text);
-        }
-        setComposerCursor(nextCursor);
-        setComposerTrigger(resolveComposerTrigger(next.text, nextExpandedCursor));
-        if (options?.focusEditorAfterReplace !== false) {
-          window.requestAnimationFrame(() => {
-            composerEditorRef.current?.focusAt(nextCursor);
-          });
-        }
-        return true;
-      },
-      [
-        activePendingProgress?.activeQuestion,
-        activePendingUserInput,
-        handleChangeActivePendingUserInputCustomAnswer,
-        promptRef,
-        resolveComposerTrigger,
-        setPrompt,
-      ],
-    );
-
-    const applyPromptReplacementRef = useRef(applyPromptReplacement);
-    applyPromptReplacementRef.current = applyPromptReplacement;
-
-    useLayoutEffect(() => {
-      if (isComposerApprovalState) return;
-      if (composerTrigger?.kind !== "slash-model") return;
-      const t = composerTrigger;
-      const currentText = promptRef.current;
-      const expectedSlice = currentText.slice(t.rangeStart, t.rangeEnd);
-      const applied = applyPromptReplacementRef.current(t.rangeStart, t.rangeEnd, "", {
-        expectedText: expectedSlice,
-        focusEditorAfterReplace: true,
-      });
-      if (!applied) return;
-      setComposerHighlightedItemId(null);
-      setModelPickerOpenSearchSeed(t.query.trim());
-      setIsComposerModelPickerOpen(true);
-    }, [composerTrigger, isComposerApprovalState, promptRef]);
 
     const readComposerSnapshot = useCallback((): {
       value: string;
@@ -1670,6 +1680,7 @@ export const ComposerInput = memo(
 
     const promptRefVersion = useValueIdentityVersion(promptRef);
     const resolveComposerTriggerVersion = useValueIdentityVersion(resolveComposerTrigger);
+    const applyComposerTriggerVersion = useValueIdentityVersion(applyComposerTrigger);
     const dismissComposerCommandMenuVersion = useValueIdentityVersion(
       dismissComposerCommandMenu,
     );
@@ -1702,6 +1713,7 @@ export const ComposerInput = memo(
             pendingInputRequestId ?? "",
             promptRefVersion,
             resolveComposerTriggerVersion,
+            applyComposerTriggerVersion,
           ].join("\0")}
           activeQuestionId={pendingInputQuestionId}
           customAnswer={pendingInputCustomAnswer}
@@ -1711,7 +1723,7 @@ export const ComposerInput = memo(
           resolveComposerTrigger={resolveComposerTrigger}
           setComposerCursor={setComposerCursor}
           setComposerHighlightedItemId={setComposerHighlightedItemId}
-          setComposerTrigger={setComposerTrigger}
+          setComposerTrigger={applyComposerTrigger}
         />
         <ComposerDraftResetSync
           key={[draftId ?? "", activeThreadId ?? "", promptRefVersion].join("\0")}
@@ -1934,7 +1946,7 @@ export const ComposerInput = memo(
           const cursor = clampCollapsedComposerCursor(promptForState, options?.cursor ?? 0);
           setComposerHighlightedItemId(null);
           setComposerCursor(cursor);
-          setComposerTrigger(
+          applyComposerTrigger(
             options?.detectTrigger
               ? resolveComposerTrigger(
                   promptForState,
@@ -1973,7 +1985,7 @@ export const ComposerInput = memo(
           if (!inserted) return;
           promptRef.current = insertion.prompt;
           setComposerCursor(nextCollapsedCursor);
-          setComposerTrigger(resolveComposerTrigger(insertion.prompt, insertion.cursor));
+          applyComposerTrigger(resolveComposerTrigger(insertion.prompt, insertion.cursor));
           window.requestAnimationFrame(() => {
             composerEditorRef.current?.focusAt(nextCollapsedCursor);
           });
@@ -1995,6 +2007,7 @@ export const ComposerInput = memo(
       }),
       [
         activeThread,
+        applyComposerTrigger,
         composerDraftTarget,
         composerCursor,
         composerTerminalContexts,

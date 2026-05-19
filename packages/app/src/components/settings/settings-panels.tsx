@@ -1,5 +1,5 @@
 import {
-  IconArchive,
+  IconArchive1,
   IconArchiveJunk,
   IconChevronRightMedium,
   IconLoader,
@@ -1762,7 +1762,7 @@ export function ArchivedThreadsPanel() {
         <SettingsSection title="Archived threads">
           <Empty className="min-h-88">
             <EmptyMedia variant="icon">
-              <IconArchive />
+              <IconArchive1 />
             </EmptyMedia>
             <EmptyHeader>
               <EmptyTitle>No archived threads</EmptyTitle>

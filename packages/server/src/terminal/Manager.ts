@@ -30,6 +30,7 @@ import {
   TerminalHistoryError,
   TerminalManager,
   TerminalNotRunningError,
+  TerminalProcessOperationError,
   TerminalSessionLookupError,
   type TerminalManagerShape,
 } from "./Manager.service";
@@ -57,6 +58,15 @@ const DEFAULT_OPEN_ROWS = 30;
 const toTerminalHistoryError =
   (operation: "read" | "truncate", threadId: string, terminalId: string) => (cause: unknown) =>
     new TerminalHistoryError({
+      operation,
+      threadId,
+      terminalId,
+      cause,
+    });
+
+const toTerminalProcessOperationError =
+  (operation: "write" | "resize", threadId: string, terminalId: string) => (cause: unknown) =>
+    new TerminalProcessOperationError({
       operation,
       threadId,
       terminalId,
@@ -1716,11 +1726,15 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
             return snapshot(liveSession);
           }
 
+          const liveProcess = liveSession.process;
           if (liveSession.cols !== targetCols || liveSession.rows !== targetRows) {
             liveSession.cols = targetCols;
             liveSession.rows = targetRows;
             liveSession.updatedAt = new Date().toISOString();
-            liveSession.process.resize(targetCols, targetRows);
+            yield* Effect.try({
+              try: () => liveProcess.resize(targetCols, targetRows),
+              catch: toTerminalProcessOperationError("resize", input.threadId, terminalId),
+            });
           }
 
           return snapshot(liveSession);
@@ -1738,7 +1752,10 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
           terminalId,
         });
       }
-      yield* Effect.sync(() => process.write(input.data));
+      yield* Effect.try({
+        try: () => process.write(input.data),
+        catch: toTerminalProcessOperationError("write", input.threadId, terminalId),
+      });
     });
 
     const resize: TerminalManagerShape["resize"] = Effect.fn("terminal.resize")(function* (input) {
@@ -1754,7 +1771,10 @@ export const makeTerminalManagerWithOptions = Effect.fn("makeTerminalManagerWith
       session.cols = input.cols;
       session.rows = input.rows;
       session.updatedAt = new Date().toISOString();
-      yield* Effect.sync(() => process.resize(input.cols, input.rows));
+      yield* Effect.try({
+        try: () => process.resize(input.cols, input.rows),
+        catch: toTerminalProcessOperationError("resize", input.threadId, terminalId),
+      });
     });
 
     const clear: TerminalManagerShape["clear"] = (input) =>

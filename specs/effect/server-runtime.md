@@ -40,10 +40,23 @@ Current facts:
       manager context with `Effect.runForkWith`, and Claude SDK permission /
       stream callbacks re-enter the adapter session context with
       `Effect.runForkWith` / `Effect.runPromiseWith`.
-- [x] `Effect.die` appears in five current server source locations:
-      `terminal/BunPTY.ts`, `provider/ProviderService.ts`,
+- [x] `packages/server/src/git/OpenCodeTextGeneration.ts` maps SDK runtime
+      failures and expected missing session / prompt error / empty output cases
+      into the existing `TextGenerationError` service error channel instead of
+      throwing generic `Error` values inside its text-generation path.
+- [x] `packages/server/src/terminal/Manager.ts` maps PTY process
+      write/resize throws into the public `TerminalProcessOperationError`
+      branch of `TerminalError` instead of letting user-triggered terminal
+      operations die as defects.
+- [x] `packages/server/src/terminal/NodePTY.ts` and
+      `packages/server/src/terminal/BunPTY.ts` map native spawn exceptions into
+      `PtySpawnError`, matching the PTY adapter service contract and preserving
+      terminal-manager shell fallback handling.
+- [x] `Effect.die` appears in four current server callsites across
+      `provider/ProviderService.ts`,
       `orchestration/ProviderCommandReactor.ts`, and
-      `persistence/NodeSqliteClient.ts`.
+      `persistence/NodeSqliteClient.ts`. The former Bun PTY Windows unavailable
+      path now fails through `PtySpawnError`.
 - [x] HTTP route groups already have mixed behavior: auth routes share
       `respondToAuthError`, orchestration routes map tagged errors locally, and
       static/attachment/favicon routes still return plain text status bodies.
@@ -104,17 +117,30 @@ Current anchors:
       decodes that same schema.
 - [x] `packages/server/src/ws.ts` hosts WebSocket RPC methods from
       `packages/contracts/src/rpc.ts`.
-- [ ] `packages/server/src/http.ts` static, attachment, favicon, and
-      environment routes still use plain text responses for expected failures.
+- [x] `packages/server/src/http.ts` attachment route maps route-local
+      `AttachmentRequestUrlError`, `AttachmentPathError`,
+      `AttachmentNotFoundError`, and `AttachmentServeError` tags to the
+      existing public text/status responses.
+- [x] `packages/server/src/http.ts` project favicon route maps route-local
+      `ProjectFaviconRequestUrlError`, `ProjectFaviconMissingCwdError`, and
+      `ProjectFaviconServeError` tags to the existing public text/status
+      responses.
+- [x] `packages/server/src/http.ts` static/dev route maps route-local
+      `StaticRequestUrlError`, `StaticUnavailableError`, `StaticPathError`,
+      `StaticNotFoundError`, and `StaticServeError` tags to the existing public
+      text/status responses.
+- [x] `packages/server/src/http.ts` environment descriptor route has no local
+      expected failure branch to translate; the descriptor service is currently
+      infallible and the route returns the descriptor contract directly.
 
 Rules:
 
-- [ ] Pick one route group at a time and write the public error shape before
+- [x] Pick one route group at a time and write the public error shape before
       changing code.
-- [ ] Keep one-off error translations inline with the route.
-- [ ] Extract a route-group helper only after the same translation repeats.
-- [ ] Do not add a generic `unknown -> status/message` registry.
-- [ ] Preserve existing wire bodies unless a breaking contract change is
+- [x] Keep one-off error translations inline with the route.
+- [x] Extract a route-group helper only after the same translation repeats.
+- [x] Do not add a generic `unknown -> status/message` registry.
+- [x] Preserve existing wire bodies unless a breaking contract change is
       explicit.
 
 ## Defect Boundary
@@ -126,10 +152,10 @@ failures.
 
 Current classification:
 
-- [x] `packages/server/src/terminal/BunPTY.ts`: the Windows guard is a runtime
-      prerequisite defect for the Bun PTY adapter layer, not a terminal
-      user-action failure. Spawn/write/resize failures remain typed through the
-      PTY adapter boundary.
+- [x] `packages/server/src/terminal/BunPTY.ts`: converted the Windows
+      unavailable guard from a layer-construction defect to a typed
+      `PtySpawnError`; spawn/write/resize failures now stay on typed terminal
+      boundaries.
 - [x] `packages/server/src/provider/ProviderService.ts`: a provider adapter
       emitting events for a different provider than its registered instance is
       an adapter invariant defect.
@@ -196,19 +222,29 @@ Rules:
       `packages/server/src/orchestration/http.ts` if the goal is tagged route
       mapping, or `packages/server/src/http.ts` if the goal is plain-text
       expected failure cleanup.
-- [x] Classify the five current `Effect.die` callsites before editing them.
+- [x] Classify the original five `Effect.die` callsites before editing them;
+      the Bun PTY unavailable-platform path has been converted, leaving four
+      current defect callsites.
 - [x] Make shared observability canonical and remove server duplicate
       trace/sink/tracer files.
 - [x] Re-run the runtime facade inventory before any service-shape cleanup:
       `rg -n "ManagedRuntime\.make|makeRuntime\(" packages/server/src packages/shared/src packages/contracts/src --glob '*.ts'`.
 - [x] Keep `pnpm run typecheck` as the verifier for code changes.
+- [x] Tighten `packages/server/src/http.ts` project favicon and static/dev
+      expected failures with route-local tagged errors while preserving existing
+      text/status wire responses.
+- [x] Tighten terminal write/resize process operation failures with a typed
+      public `TerminalError` branch.
+- [x] Tighten terminal PTY spawn adapter failures with the existing typed
+      `PtySpawnError` service contract.
 
 ## Done Means
 
 - [x] No service-local runtime or async facade is introduced.
-- [ ] Any changed service method exposes expected failures in its Effect error
+- [x] Any changed service method exposes expected failures in its Effect error
       type.
-- [ ] Any changed route maps expected service errors at the route/RPC boundary.
+- [x] Any changed route maps expected route/service errors at the route/RPC
+      boundary.
 - [ ] Generic middleware or catch-all translation does not grow new domain
       knowledge.
 - [x] Server/shared observability has one canonical trace implementation.

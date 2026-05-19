@@ -1,4 +1,4 @@
-import { IconChevronLeftMedium } from "central-icons";
+import { IconStepBack } from "central-icons";
 import { type ReactNode } from "react";
 
 import { cn } from "../../lib/utils";
@@ -105,7 +105,7 @@ export function SettingResetButton({ label, onClick }: { label: string; onClick:
               onClick();
             }}
           >
-            <IconChevronLeftMedium className="size-3" />
+            <IconStepBack className="size-3" />
           </Button>
         }
       />

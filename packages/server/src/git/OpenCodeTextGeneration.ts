@@ -33,6 +33,7 @@ import {
   openCodeEnvironmentsEqual,
   openCodeRuntimeErrorDetail,
   parseOpenCodeModelSlug,
+  runOpenCodeSdk,
   toOpenCodeFileParts,
 } from "../provider/opencodeRuntime.ts";
 import { resolveOpenCodeSettings } from "../provider/provider-settings.ts";
@@ -321,53 +322,66 @@ const makeOpenCodeTextGeneration = Effect.gen(function* () {
         resolveAttachmentPath({ attachmentsDir: serverConfig.attachmentsDir, attachment }),
     });
 
+    const toTextGenerationRuntimeError = (cause: unknown) =>
+      new TextGenerationError({
+        operation: input.operation,
+        detail: openCodeRuntimeErrorDetail(cause),
+        cause,
+      });
+
     const runAgainstServer = (server: Pick<OpenCodeServerConnection, "url">) =>
-      Effect.tryPromise({
-        try: async () => {
-          const client = openCodeRuntime.createOpenCodeSdkClient({
-            baseUrl: server.url,
-            directory: input.cwd,
-            ...(settings.serverUrl.length > 0 && settings.serverPassword
-              ? { serverPassword: settings.serverPassword }
-              : {}),
-          });
-          const session = await client.session.create({
+      Effect.gen(function* () {
+        const client = openCodeRuntime.createOpenCodeSdkClient({
+          baseUrl: server.url,
+          directory: input.cwd,
+          ...(settings.serverUrl.length > 0 && settings.serverPassword
+            ? { serverPassword: settings.serverPassword }
+            : {}),
+        });
+        const session = yield* runOpenCodeSdk("session.create", () =>
+          client.session.create({
             title: `Multi ${input.operation}`,
             permission: [{ permission: "*", pattern: "*", action: "deny" }],
+          }),
+        ).pipe(Effect.mapError(toTextGenerationRuntimeError));
+        if (!session.data) {
+          return yield* new TextGenerationError({
+            operation: input.operation,
+            detail: "OpenCode session.create returned no session payload.",
           });
-          if (!session.data) {
-            throw new Error("OpenCode session.create returned no session payload.");
-          }
-          const selectedAgent = getModelSelectionStringOptionValue(input.modelSelection, "agent");
-          const selectedVariant = getModelSelectionStringOptionValue(
-            input.modelSelection,
-            "variant",
-          );
+        }
+        const selectedAgent = getModelSelectionStringOptionValue(input.modelSelection, "agent");
+        const selectedVariant = getModelSelectionStringOptionValue(
+          input.modelSelection,
+          "variant",
+        );
 
-          const result = await client.session.prompt({
+        const result = yield* runOpenCodeSdk("session.prompt", () =>
+          client.session.prompt({
             sessionID: session.data.id,
             model: parsedModel,
             ...(selectedAgent ? { agent: selectedAgent } : {}),
             ...(selectedVariant ? { variant: selectedVariant } : {}),
             parts: [{ type: "text", text: input.prompt }, ...fileParts],
-          });
-          const info = result.data?.info;
-          const errorMessage = getOpenCodePromptErrorMessage(info?.error);
-          if (errorMessage) {
-            throw new Error(errorMessage);
-          }
-          const rawText = getOpenCodeTextResponse(result.data?.parts);
-          if (rawText.length === 0) {
-            throw new Error("OpenCode returned empty output.");
-          }
-          return rawText;
-        },
-        catch: (cause) =>
-          new TextGenerationError({
-            operation: input.operation,
-            detail: openCodeRuntimeErrorDetail(cause),
-            cause,
           }),
+        ).pipe(Effect.mapError(toTextGenerationRuntimeError));
+        const info = result.data?.info;
+        const errorMessage = getOpenCodePromptErrorMessage(info?.error);
+        if (errorMessage) {
+          return yield* new TextGenerationError({
+            operation: input.operation,
+            detail: errorMessage,
+            cause: info?.error,
+          });
+        }
+        const rawText = getOpenCodeTextResponse(result.data?.parts);
+        if (rawText.length === 0) {
+          return yield* new TextGenerationError({
+            operation: input.operation,
+            detail: "OpenCode returned empty output.",
+          });
+        }
+        return rawText;
       });
 
     const rawOutput =

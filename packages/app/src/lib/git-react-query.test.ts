@@ -5,11 +5,6 @@ vi.mock("../environment-api", () => ({
   ensureEnvironmentApi: vi.fn(),
 }));
 
-vi.mock("../ws-rpc-client", () => ({
-  getWsRpcClient: vi.fn(),
-  getWsRpcClientForEnvironment: vi.fn(),
-}));
-
 import type { InfiniteData } from "@tanstack/react-query";
 import { EnvironmentId, type GitListBranchesResult } from "@multi/contracts";
 

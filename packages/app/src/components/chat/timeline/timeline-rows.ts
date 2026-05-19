@@ -13,7 +13,18 @@ export interface WorkTimelineRow {
   kind: "work";
   id: string;
   createdAt: string;
+  durationStart: string;
+  durationMs: number;
+  isRunning: boolean;
+  summary: WorkGroupSummary;
   groupedEntries: WorkLogEntry[];
+}
+
+export interface WorkGroupSummary {
+  action: string;
+  details: string;
+  additions?: number | undefined;
+  deletions?: number | undefined;
 }
 
 export interface MessageTimelineRow {
@@ -100,6 +111,10 @@ export function deriveMessagesTimelineRows(input: {
         kind: "work",
         id: timelineEntry.id,
         createdAt: timelineEntry.createdAt,
+        durationStart: groupedEntries[0]?.createdAt ?? timelineEntry.createdAt,
+        durationMs: computeWorkGroupDurationMs(groupedEntries),
+        isRunning: groupedEntries.some((entry) => entry.status === "running"),
+        summary: summarizeWorkGroup(groupedEntries),
         groupedEntries,
       });
       index = cursor - 1;
@@ -173,7 +188,7 @@ function isRowUnchanged(a: MessagesTimelineRow, b: MessagesTimelineRow): boolean
       return a.proposedPlan === (b as typeof a).proposedPlan;
 
     case "work":
-      return a.groupedEntries === (b as typeof a).groupedEntries;
+      return isWorkRowUnchanged(a, b as typeof a);
 
     case "message": {
       const bm = b as typeof a;
@@ -184,4 +199,227 @@ function isRowUnchanged(a: MessagesTimelineRow, b: MessagesTimelineRow): boolean
       );
     }
   }
+}
+
+export function summarizeWorkGroup(
+  entries: ReadonlyArray<WorkLogEntry>,
+): WorkGroupSummary {
+  const running = entries.some((entry) => entry.status === "running");
+  const commandCount = entries.filter(isCommandWorkEntry).length;
+  const editedFiles = collectEditedFilePaths(entries);
+  const stats = summarizeEditedFileStats(entries);
+
+  if (commandCount === entries.length && commandCount > 0) {
+    return {
+      action: running ? "Running" : "Ran",
+      details: countLabel(commandCount, "command"),
+    };
+  }
+
+  if (editedFiles.size > 0) {
+    return {
+      action: running ? "Editing" : "Edited",
+      details: countLabel(editedFiles.size, "file"),
+      ...(stats.additions > 0 ? { additions: stats.additions } : {}),
+      ...(stats.deletions > 0 ? { deletions: stats.deletions } : {}),
+    };
+  }
+
+  const explorationSummary = summarizeExploration(entries, running);
+  if (explorationSummary) {
+    return explorationSummary;
+  }
+
+  return {
+    action: running ? "Working" : "Worked",
+    details: countLabel(entries.length, "step"),
+  };
+}
+
+function computeWorkGroupDurationMs(entries: ReadonlyArray<WorkLogEntry>): number {
+  const firstEntry = entries[0];
+  const lastEntry = entries.at(-1);
+  if (!firstEntry || !lastEntry) {
+    return 0;
+  }
+
+  const startMs = Date.parse(firstEntry.createdAt);
+  const endMs = Date.parse(lastEntry.createdAt);
+  const timelineDurationMs =
+    Number.isFinite(startMs) && Number.isFinite(endMs) ? Math.max(0, endMs - startMs) : 0;
+  const artifactDurationMs = entries.reduce((total, entry) => {
+    const commandArtifactDurationMs =
+      entry.artifacts
+        ?.filter((artifact) => artifact.type === "command")
+        .reduce((artifactTotal, artifact) => artifactTotal + (artifact.durationMs ?? 0), 0) ?? 0;
+    return total + commandArtifactDurationMs;
+  }, 0);
+
+  return Math.max(timelineDurationMs, artifactDurationMs);
+}
+
+function summarizeExploration(
+  entries: ReadonlyArray<WorkLogEntry>,
+  running: boolean,
+): WorkGroupSummary | null {
+  const exploredFiles = collectExploredFilePaths(entries);
+  const readCount = entries.filter(isFileReadWorkEntry).length;
+  const searchCount = entries.filter(isFileSearchWorkEntry).length;
+  const webSearchCount = entries.filter((entry) => entry.itemType === "web_search").length;
+  const webFetchCount = entries.filter((entry) => entry.itemType === "web_fetch").length;
+  const fileCount = exploredFiles.size || readCount;
+  const details = [
+    ...(fileCount > 0 ? [countLabel(fileCount, "file")] : []),
+    ...(searchCount > 0 ? [countLabel(searchCount, "search")] : []),
+    ...(webSearchCount > 0 ? [countLabel(webSearchCount, "web search")] : []),
+    ...(webFetchCount > 0 ? [countLabel(webFetchCount, "fetch")] : []),
+  ];
+
+  if (details.length === 0) {
+    return null;
+  }
+
+  return {
+    action: running ? "Exploring" : "Explored",
+    details: details.join(", "),
+  };
+}
+
+function collectEditedFilePaths(entries: ReadonlyArray<WorkLogEntry>): Set<string> {
+  const paths = new Set<string>();
+  for (const entry of entries) {
+    if (!isFileChangeWorkEntry(entry)) {
+      continue;
+    }
+    addPaths(paths, entry.changedFiles);
+    for (const artifact of diffArtifactsForEntry(entry)) {
+      addPaths(
+        paths,
+        artifact.files.map((file) => file.path),
+      );
+    }
+  }
+  return paths;
+}
+
+function collectExploredFilePaths(entries: ReadonlyArray<WorkLogEntry>): Set<string> {
+  const paths = new Set<string>();
+  for (const entry of entries) {
+    for (const artifact of entry.artifacts ?? []) {
+      if (artifact.type === "read") {
+        addPath(paths, artifact.path);
+      }
+      if (artifact.type === "search") {
+        addPaths(paths, artifact.matchedFiles);
+      }
+    }
+  }
+  return paths;
+}
+
+function summarizeEditedFileStats(entries: ReadonlyArray<WorkLogEntry>): {
+  additions: number;
+  deletions: number;
+} {
+  let additions = 0;
+  let deletions = 0;
+  for (const entry of entries) {
+    for (const artifact of diffArtifactsForEntry(entry)) {
+      for (const file of artifact.files) {
+        additions += file.additions ?? 0;
+        deletions += file.deletions ?? 0;
+      }
+    }
+  }
+  return { additions, deletions };
+}
+
+function diffArtifactsForEntry(entry: WorkLogEntry) {
+  const diffArtifacts = entry.artifacts?.filter((artifact) => artifact.type === "diff") ?? [];
+  const resultArtifacts = diffArtifacts.filter((artifact) => artifact.source === "result");
+  return resultArtifacts.length > 0 ? resultArtifacts : diffArtifacts;
+}
+
+function isCommandWorkEntry(entry: WorkLogEntry): boolean {
+  return (
+    entry.requestKind === "command" ||
+    entry.itemType === "command_execution" ||
+    Boolean(entry.command) ||
+    Boolean(entry.artifacts?.some((artifact) => artifact.type === "command"))
+  );
+}
+
+function isFileChangeWorkEntry(entry: WorkLogEntry): boolean {
+  return (
+    entry.requestKind === "file-change" ||
+    entry.itemType === "file_change" ||
+    (entry.changedFiles?.length ?? 0) > 0 ||
+    Boolean(entry.artifacts?.some((artifact) => artifact.type === "diff"))
+  );
+}
+
+function isFileReadWorkEntry(entry: WorkLogEntry): boolean {
+  return (
+    entry.requestKind === "file-read" ||
+    entry.itemType === "file_read" ||
+    Boolean(entry.artifacts?.some((artifact) => artifact.type === "read"))
+  );
+}
+
+function isFileSearchWorkEntry(entry: WorkLogEntry): boolean {
+  return (
+    entry.itemType === "file_search" ||
+    Boolean(entry.artifacts?.some((artifact) => artifact.type === "search"))
+  );
+}
+
+function addPaths(target: Set<string>, paths: ReadonlyArray<string | undefined> | undefined) {
+  for (const path of paths ?? []) {
+    addPath(target, path);
+  }
+}
+
+function addPath(target: Set<string>, path: string | undefined) {
+  const trimmedPath = path?.trim();
+  if (trimmedPath) {
+    target.add(trimmedPath);
+  }
+}
+
+function countLabel(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
+
+function isWorkRowUnchanged(a: WorkTimelineRow, b: WorkTimelineRow): boolean {
+  if (a.isRunning || b.isRunning) {
+    return false;
+  }
+
+  return (
+    a.createdAt === b.createdAt &&
+    a.durationStart === b.durationStart &&
+    a.durationMs === b.durationMs &&
+    a.isRunning === b.isRunning &&
+    a.summary.action === b.summary.action &&
+    a.summary.details === b.summary.details &&
+    a.summary.additions === b.summary.additions &&
+    a.summary.deletions === b.summary.deletions &&
+    areSameWorkEntries(a.groupedEntries, b.groupedEntries)
+  );
+}
+
+function areSameWorkEntries(
+  left: ReadonlyArray<WorkLogEntry>,
+  right: ReadonlyArray<WorkLogEntry>,
+): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) {
+      return false;
+    }
+  }
+  return true;
 }

@@ -171,10 +171,12 @@ Rules:
 - [x] Picker/settings/command-palette surfaces consume normalized model output.
 - [x] Missing/disabled provider states are discriminated results with consistent
       UI messages.
-
-Detailed rules: [model.md](./model.md).
-
-Supported-provider source of truth: [providers.md](./providers.md).
+- [x] Supported provider drivers are `codex`, `claudeAgent`, `opencode`, and
+      `cursor`; `pi` remains visible only as pending and must not route
+      sessions until it has a real provider contract and adapter.
+- [x] Model catalogs are provider/runtime-owned. Contracts expose provider
+      option and capability schemas, not per-provider model constants, aliases,
+      or defaults.
 
 ## Routes
 
@@ -207,13 +209,15 @@ Rules:
 
 - [x] Proposed plans render in the right workbench plan panel.
 - [x] Plan actions live on the plan workbench, not in a chat plan card.
+- [x] Composer stores and send boundaries persist plain prompt text and
+      structured attachment/context facts, not editor JSON.
+- [x] Inactive workbench panels do not mount side-effectful bodies such as
+      terminal hosts.
 - [x] Do not use direct `useEffect` for prop-to-state or store-to-state sync.
 - [ ] Existing React effects should be kept only for external sync,
       subscriptions, DOM integration, observers, and cleanup.
 - [ ] Composer helper files are kept only when they own a durable behavior
       boundary.
-
-Detailed rules: [composer-plan.md](./composer-plan.md).
 
 ## React Effects
 

@@ -4,6 +4,7 @@ import "../../../styles/tokens.css";
 
 import { scopedThreadKey, scopeThreadRef } from "@multi/client-runtime";
 import {
+  DEFAULT_TERMINAL_ID,
   ORCHESTRATION_WS_METHODS,
   WS_METHODS,
   ThreadId,
@@ -34,6 +35,7 @@ import {
   waitForURL,
   wsRequests,
 } from "./chat-view.browser.harness";
+import { workbenchTerminalThreadId } from "~/components/shell/terminal/workbench-terminal";
 
 const WORKTREE_THREAD_ID = ThreadId.make("thread-worktree-sidebar");
 const SECOND_WORKTREE_THREAD_ID = ThreadId.make("thread-worktree-sidebar-2");
@@ -110,12 +112,10 @@ function createWorktreeSidebarSnapshot(options: { includeSecondWorktree?: boolea
 
 function createUnreadWorktreeSidebarSnapshot() {
   const snapshot = createWorktreeSidebarSnapshot();
-  return {
-    ...snapshot,
+  return Object.assign({}, snapshot, {
     threads: snapshot.threads.map((thread) =>
       thread.id === WORKTREE_THREAD_ID
-        ? {
-            ...thread,
+        ? Object.assign({}, thread, {
             latestTurn: {
               turnId: "turn-worktree-sidebar-unread" as TurnId,
               state: "completed" as const,
@@ -126,16 +126,15 @@ function createUnreadWorktreeSidebarSnapshot() {
             },
             updatedAt: isoAt(340),
             session: thread.session
-              ? {
-                  ...thread.session,
+              ? Object.assign({}, thread.session, {
                   status: "ready" as const,
                   updatedAt: isoAt(340),
-                }
+                })
               : null,
-          }
+          })
         : thread,
     ),
-  };
+  });
 }
 
 function findSidebarThreadRow(title: string): HTMLElement | null {
@@ -217,7 +216,8 @@ describe("ChatView sidebar worktree behavior", () => {
           );
           expect(openRequest).toMatchObject({
             _tag: WS_METHODS.terminalOpen,
-            threadId: WORKTREE_THREAD_ID,
+            threadId: workbenchTerminalThreadId(WORKTREE_PATH),
+            terminalId: DEFAULT_TERMINAL_ID,
             cwd: WORKTREE_PATH,
             env: {
               MULTI_PROJECT_ROOT: "/repo/project",

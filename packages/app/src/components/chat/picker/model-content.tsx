@@ -4,7 +4,7 @@ import {
   type ResolvedKeybindingsConfig,
 } from "@multi/contracts";
 import { normalizeSearchQuery, scoreQueryMatch } from "@multi/shared/search-ranking";
-import { memo, useMemo, useState, useCallback, useLayoutEffect, useRef } from "react";
+import { memo, useMemo, useState, useCallback, useRef } from "react";
 import { IconMagnifyingGlass } from "central-icons";
 import { ModelListRow } from "./model-list-row";
 import { ModelPickerSidebar } from "./model-sidebar";
@@ -159,6 +159,27 @@ function sortModelPickerItems(
   });
 }
 
+function ModelPickerOpenSync(props: {
+  activeInstanceId: ProviderInstanceId;
+  focusSearchInput: () => void;
+  openSearchSeed?: string | undefined;
+  setRailSelection: (selection: ProviderInstanceId | "favorites") => void;
+  setSearchQuery: (query: string) => void;
+}) {
+  useMountEffect(() => {
+    props.setRailSelection(props.activeInstanceId);
+    if (props.openSearchSeed !== undefined) {
+      props.setSearchQuery(props.openSearchSeed);
+    }
+    const frame = window.requestAnimationFrame(() => {
+      props.focusSearchInput();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  });
+
+  return null;
+}
+
 export const ModelPickerContent = memo(function ModelPickerContent(props: {
   /** The instance currently selected in the composer (combobox "value"). */
   activeInstanceId: ProviderInstanceId;
@@ -195,8 +216,6 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const listRegionRef = useRef<HTMLDivElement>(null);
   const highlightedModelKeyRef = useRef<string | null>(null);
-  const activeInstanceIdRef = useRef(props.activeInstanceId);
-  activeInstanceIdRef.current = props.activeInstanceId;
   const favorites = useSettings((s) => s.favorites ?? []);
   const keybindings = useMemo<ResolvedKeybindingsConfig>(
     () => providedKeybindings ?? [],
@@ -206,30 +225,6 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
   const focusSearchInput = useCallback(() => {
     searchInputRef.current?.focus({ preventScroll: true });
   }, []);
-
-  const popoverWasOpenRef = useRef(false);
-  useLayoutEffect(() => {
-    const open = props.popoverOpen;
-    if (!open) {
-      popoverWasOpenRef.current = false;
-      return;
-    }
-    const justOpened = !popoverWasOpenRef.current;
-    popoverWasOpenRef.current = true;
-    if (justOpened) {
-      setRailSelection(activeInstanceIdRef.current);
-    }
-    if (justOpened && props.openSearchSeed !== undefined) {
-      setSearchQuery(props.openSearchSeed);
-    }
-    if (justOpened) {
-      const frame = window.requestAnimationFrame(() => {
-        focusSearchInput();
-      });
-      return () => window.cancelAnimationFrame(frame);
-    }
-    return undefined;
-  }, [focusSearchInput, props.openSearchSeed, props.popoverOpen]);
 
   // Create a Set for efficient lookup. Favorites are keyed by
   // `${instanceId}:${slug}`; built-in instance ids match their driver slugs.
@@ -484,6 +479,16 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
 
   return (
     <div className="relative flex max-h-64 min-h-0 w-72 max-w-full min-w-64 flex-col overflow-hidden rounded-lg border border-multi-stroke-tertiary bg-multi-bg-elevated font-multi text-body text-multi-fg-primary shadow-multi-popup backdrop-blur-[18px]">
+      {props.popoverOpen ? (
+        <ModelPickerOpenSync
+          key="open"
+          activeInstanceId={props.activeInstanceId}
+          focusSearchInput={focusSearchInput}
+          openSearchSeed={props.openSearchSeed}
+          setRailSelection={setRailSelection}
+          setSearchQuery={setSearchQuery}
+        />
+      ) : null}
       <div className="flex min-h-0 flex-1">
         <div className="flex min-h-0 w-12 shrink-0 flex-col">
           {sidebarVisible ? (

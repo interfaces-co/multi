@@ -1,4 +1,9 @@
-import { scopedProjectKey, scopeProjectRef, scopeThreadRef } from "@multi/client-runtime";
+import {
+  scopedProjectKey,
+  scopedThreadKey,
+  scopeProjectRef,
+  scopeThreadRef,
+} from "@multi/client-runtime";
 import type {
   EnvironmentId,
   OrchestrationSessionStatus,
@@ -59,6 +64,7 @@ export type SidebarChatItem =
     kind: "thread";
     state: SidebarThreadState;
     unread: boolean;
+    pinned: boolean;
     latestReadableAt: string | null;
     threadRef: ScopedThreadRef;
   })
@@ -126,13 +132,19 @@ function draftTitle(draft: SidebarDraftSummary) {
   return `${head} +${draft.attachmentCount - 1}`;
 }
 
-function buildThreadChat(sum: SidebarThreadSummary, unreadIds?: ReadonlySet<string>) {
+function buildThreadChat(
+  sum: SidebarThreadSummary,
+  unreadIds?: ReadonlySet<string>,
+  pinnedThreadKeys?: ReadonlySet<string>,
+) {
+  const threadRef = scopeThreadRef(sum.environmentId, sum.id);
   return {
     id: sum.id,
     kind: "thread",
     title: sum.name?.trim() || sum.firstMessage.trim() || "Untitled",
     state: threadState(sum),
     unread: unreadIds?.has(sum.id) ?? false,
+    pinned: pinnedThreadKeys?.has(scopedThreadKey(threadRef)) ?? false,
     updatedAt: sum.modifiedAt,
     latestReadableAt: sum.latestReadableAt ?? sum.modifiedAt,
     ago: formatCompactRelativeTimeLabel(sum.modifiedAt),
@@ -140,7 +152,7 @@ function buildThreadChat(sum: SidebarThreadSummary, unreadIds?: ReadonlySet<stri
     environmentId: sum.environmentId,
     projectId: sum.projectId,
     projectCwd: sum.projectCwd,
-    threadRef: scopeThreadRef(sum.environmentId, sum.id),
+    threadRef,
   } satisfies SidebarChatItem;
 }
 
@@ -180,9 +192,10 @@ export function buildProjectChatSections(
   home: string | null,
   unreadIds?: ReadonlySet<string>,
   projectCwds: readonly string[] = [],
+  pinnedThreadKeys?: ReadonlySet<string>,
 ): SidebarSectionModel[] {
   const list = [
-    ...threadSummaries.map((sum) => buildThreadChat(sum, unreadIds)),
+    ...threadSummaries.map((sum) => buildThreadChat(sum, unreadIds, pinnedThreadKeys)),
     ...drafts.map(buildDraftChat),
   ];
   if (list.length === 0) return [];
@@ -204,9 +217,14 @@ export function buildProjectChatSections(
   }
 
   const groups = [...by.entries()].map(([dir, items], index) => {
-    const sorted = items.toSorted((left, right) =>
-      left.updatedAt < right.updatedAt ? 1 : left.updatedAt > right.updatedAt ? -1 : 0,
-    );
+    const sorted = items.toSorted((left, right) => {
+      const leftPinned = left.kind === "thread" && left.pinned;
+      const rightPinned = right.kind === "thread" && right.pinned;
+      if (leftPinned !== rightPinned) {
+        return leftPinned ? -1 : 1;
+      }
+      return left.updatedAt < right.updatedAt ? 1 : left.updatedAt > right.updatedAt ? -1 : 0;
+    });
     return { dir, label: shortProjectPathLabel(dir, home), sorted, index };
   });
 

@@ -6,6 +6,7 @@ import {
   markThreadUnread,
   reorderProjects,
   setProjectExpanded,
+  setThreadPinned,
   syncProjects,
   syncThreads,
   type SyncProjectInput,
@@ -17,6 +18,7 @@ function makeUiState(overrides: Partial<UiState> = {}): UiState {
     projectExpandedById: {},
     projectOrder: [],
     threadLastVisitedAtById: {},
+    pinnedThreadKeys: [],
     ...overrides,
   };
 }
@@ -249,6 +251,7 @@ describe("uiStateStore pure functions", () => {
         [thread1]: "2026-02-25T12:35:00.000Z",
         [thread2]: "2026-02-25T12:36:00.000Z",
       },
+      pinnedThreadKeys: [thread1, thread2],
     });
 
     const next = syncThreads(initialState, [{ key: thread1 }]);
@@ -256,6 +259,7 @@ describe("uiStateStore pure functions", () => {
     expect(next.threadLastVisitedAtById).toEqual({
       [thread1]: "2026-02-25T12:35:00.000Z",
     });
+    expect(next.pinnedThreadKeys).toEqual([thread1]);
   });
 
   it("syncThreads seeds visit state for unseen snapshot threads", () => {
@@ -289,16 +293,31 @@ describe("uiStateStore pure functions", () => {
     expect(next.projectOrder).toEqual([project1]);
   });
 
-  it("clearThreadUi removes visit state for deleted threads", () => {
+  it("setThreadPinned updates pinned thread keys idempotently", () => {
+    const thread1 = ThreadId.make("thread-1");
+    const initialState = makeUiState();
+
+    const pinned = setThreadPinned(initialState, thread1, true);
+    const pinnedAgain = setThreadPinned(pinned, thread1, true);
+    const unpinned = setThreadPinned(pinned, thread1, false);
+
+    expect(pinned.pinnedThreadKeys).toEqual([thread1]);
+    expect(pinnedAgain).toBe(pinned);
+    expect(unpinned.pinnedThreadKeys).toEqual([]);
+  });
+
+  it("clearThreadUi removes visit and pinned state for deleted threads", () => {
     const thread1 = ThreadId.make("thread-1");
     const initialState = makeUiState({
       threadLastVisitedAtById: {
         [thread1]: "2026-02-25T12:35:00.000Z",
       },
+      pinnedThreadKeys: [thread1],
     });
 
     const next = clearThreadUi(initialState, thread1);
 
     expect(next.threadLastVisitedAtById).toEqual({});
+    expect(next.pinnedThreadKeys).toEqual([]);
   });
 });

@@ -12,8 +12,6 @@ Current entry points:
 - [effect/schema.md](./effect/schema.md): schema ownership and migration rules.
 - [effect/routes.md](./effect/routes.md): HTTP, WebSocket RPC, and TanStack route
   boundaries.
-- [effect/composer-plan.md](./effect/composer-plan.md): composer, slash menu,
-  React effect, and native plan workbench rules.
 - [effect/react.md](./effect/react.md): no-direct-`useEffect` rules,
   replacement patterns, and migration inventory.
 - [effect/react-effect-callsite-inventory.md](./effect/react-effect-callsite-inventory.md):
@@ -34,14 +32,8 @@ Current entry points:
   shared package file ownership, duplication, and cleanup candidates.
 - [effect/server-runtime.md](./effect/server-runtime.md): server Effect
   runtime, service contract, route error, defect, and facade cleanup rules.
-- [effect/model.md](./effect/model.md): provider/model resolver ownership and
-  picker simplification rules.
-- [effect/providers.md](./effect/providers.md): canonical supported-provider
-  list, Cursor ACP contract, and Pi pending rules.
 - [effect/usability-testing.md](./effect/usability-testing.md): browser and
   integration coverage required before deleting UI helper files.
-- [effect/sidebar-usability.md](./effect/sidebar-usability.md): concrete
-  sidebar desktop/compact/worktree behavior coverage required before cleanup.
 
 Inventories and execution ledgers live in [../docs](../docs). Specs describe
 the target shape; ledgers track the current cleanup wave.

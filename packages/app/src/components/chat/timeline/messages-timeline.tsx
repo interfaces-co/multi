@@ -13,6 +13,7 @@ import {
   type CSSProperties,
   useMemo,
   useRef,
+  useState,
   type ReactNode,
 } from "react";
 import {
@@ -21,8 +22,9 @@ import {
   type Range,
   type VirtualItem,
 } from "@tanstack/react-virtual";
+import { IconChevronRightMedium } from "central-icons";
 import { Spinner } from "@multi/ui/spinner";
-import { deriveTimelineEntries } from "../../../session-logic";
+import { deriveTimelineEntries, formatDuration } from "../../../session-logic";
 import { type ChatMessage } from "../../../types";
 import { type ExpandedImagePreview } from "../message/expanded-image-preview";
 import {
@@ -145,6 +147,20 @@ export const MessagesTimeline = memo(function MessagesTimeline({
     ],
   );
   const rows = useStableRows(rawRows);
+  const [collapsedWorkGroupIds, setCollapsedWorkGroupIds] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const toggleWorkGroupExpanded = useCallback((rowId: string) => {
+    setCollapsedWorkGroupIds((current) => {
+      const next = new Set(current);
+      if (next.has(rowId)) {
+        next.delete(rowId);
+      } else {
+        next.add(rowId);
+      }
+      return next;
+    });
+  }, []);
   const stickyUserRowIndices = useMemo(
     () => rows.flatMap((row, index) => (isUserMessageRow(row) ? [index] : [])),
     [rows],
@@ -437,6 +453,10 @@ export const MessagesTimeline = memo(function MessagesTimeline({
                 >
                   <TimelineRowContent
                     row={row}
+                    workGroupExpanded={
+                      row.kind !== "work" || !collapsedWorkGroupIds.has(row.id)
+                    }
+                    onToggleWorkGroupExpanded={toggleWorkGroupExpanded}
                     editUserMessagesDisabled={editUserMessagesDisabled}
                     isEditingUserMessage={
                       row.kind === "message" &&
@@ -592,7 +612,7 @@ function estimateTimelineRowSize(row: MessagesTimelineRow | undefined): number {
     return 52 + VIRTUAL_ROW_GAP_PX;
   }
 
-  return 76 + VIRTUAL_ROW_GAP_PX;
+  return Math.min(320, 48 + row.groupedEntries.length * 26) + VIRTUAL_ROW_GAP_PX;
 }
 
 function virtualRowStyle(
@@ -623,10 +643,14 @@ type TimelineRow = MessagesTimelineRow;
 
 const TimelineRowContent = memo(function TimelineRowContent({
   row,
+  workGroupExpanded,
+  onToggleWorkGroupExpanded,
   editUserMessagesDisabled,
   isEditingUserMessage = false,
 }: {
   row: TimelineRow;
+  workGroupExpanded: boolean;
+  onToggleWorkGroupExpanded: (rowId: string) => void;
   editUserMessagesDisabled: boolean;
   isEditingUserMessage?: boolean;
 }) {
@@ -650,6 +674,8 @@ const TimelineRowContent = memo(function TimelineRowContent({
     >
       <TimelineRowBody
         row={row}
+        workGroupExpanded={workGroupExpanded}
+        onToggleWorkGroupExpanded={onToggleWorkGroupExpanded}
         editUserMessagesDisabled={editUserMessagesDisabled}
         isEditingUserMessage={isEditingUserMessage}
         ctx={ctx}
@@ -660,11 +686,15 @@ const TimelineRowContent = memo(function TimelineRowContent({
 
 function TimelineRowBody({
   row,
+  workGroupExpanded,
+  onToggleWorkGroupExpanded,
   editUserMessagesDisabled,
   isEditingUserMessage,
   ctx,
 }: {
   row: TimelineRow;
+  workGroupExpanded: boolean;
+  onToggleWorkGroupExpanded: (rowId: string) => void;
   editUserMessagesDisabled: boolean;
   isEditingUserMessage: boolean;
   ctx: TimelineRowSharedState;
@@ -673,7 +703,11 @@ function TimelineRowBody({
     <>
       {row.kind === "work" && (
         <div className="flex w-full min-w-0">
-          <WorkGroupSection groupedEntries={row.groupedEntries} />
+          <WorkGroupSection
+            row={row}
+            expanded={workGroupExpanded}
+            onToggleExpanded={onToggleWorkGroupExpanded}
+          />
         </div>
       )}
 
@@ -740,20 +774,47 @@ const HumanTimelineRow = memo(function HumanTimelineRow({
 // ---------------------------------------------------------------------------
 
 const WorkGroupSection = memo(function WorkGroupSection({
-  groupedEntries,
+  row,
+  expanded,
+  onToggleExpanded,
 }: {
-  groupedEntries: Extract<
-    MessagesTimelineRow,
-    { kind: "work" }
-  >["groupedEntries"];
+  row: Extract<MessagesTimelineRow, { kind: "work" }>;
+  expanded: boolean;
+  onToggleExpanded: (rowId: string) => void;
 }) {
   const { projectRoot } = use(TimelineRowCtx);
+  const summary = row.summary;
 
   return (
-    <div className="min-w-0 max-w-full flex-1">
-      <div className="w-full min-w-0">
-        <div className="flex w-full max-w-agent-chat flex-col gap-1.5">
-          {groupedEntries.map((workEntry) => (
+    <div
+      className="flex min-w-0 max-w-agent-chat flex-1 flex-col gap-0.5 py-0.5 text-conversation"
+      data-assistant-work-group=""
+    >
+      <button
+        type="button"
+        className={cn(
+          "group/work-header inline-flex w-fit max-w-full min-w-0 items-center gap-1 overflow-hidden",
+          "border-0 bg-transparent p-0 text-left select-none",
+          "text-conversation text-multi-fg-tertiary",
+          "hover:text-multi-fg-secondary focus-visible:text-multi-fg-secondary",
+        )}
+        aria-expanded={expanded}
+        onClick={() => onToggleExpanded(row.id)}
+      >
+        <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap tabular-nums">
+          Worked for {formatDuration(row.durationMs)}
+        </span>
+        <IconChevronRightMedium
+          className={cn(
+            "size-3 shrink-0 text-multi-icon-tertiary transition-transform duration-150",
+            expanded && "rotate-90",
+          )}
+        />
+      </button>
+      {expanded ? (
+        <div className="flex min-w-0 max-w-full flex-col gap-0.5">
+          <WorkGroupSummaryLine summary={summary} />
+          {row.groupedEntries.map((workEntry) => (
             <ToolCallMessage
               key={`work-row:${workEntry.id}`}
               workEntry={workEntry}
@@ -761,10 +822,47 @@ const WorkGroupSection = memo(function WorkGroupSection({
             />
           ))}
         </div>
-      </div>
+      ) : null}
     </div>
   );
 });
+
+function WorkGroupSummaryLine({
+  summary,
+}: {
+  summary: Extract<MessagesTimelineRow, { kind: "work" }>["summary"];
+}) {
+  return (
+    <div className="inline-flex min-h-6 w-fit max-w-full min-w-0 items-center gap-1 overflow-hidden whitespace-nowrap text-conversation">
+      <span className="shrink-0 overflow-hidden text-ellipsis whitespace-nowrap text-multi-fg-secondary">
+        {summary.action}
+      </span>
+      <span className="min-w-0 overflow-hidden text-ellipsis text-multi-fg-tertiary tabular-nums">
+        {summary.details}
+      </span>
+      <WorkGroupStats summary={summary} />
+    </div>
+  );
+}
+
+function WorkGroupStats({
+  summary,
+}: {
+  summary: Extract<MessagesTimelineRow, { kind: "work" }>["summary"];
+}) {
+  const additions = summary.additions ?? 0;
+  const deletions = summary.deletions ?? 0;
+  if (additions === 0 && deletions === 0) {
+    return null;
+  }
+
+  return (
+    <span className="inline-flex shrink-0 gap-1 tabular-nums">
+      {additions > 0 ? <span className="text-multi-diff-addition">+{additions}</span> : null}
+      {deletions > 0 ? <span className="text-multi-diff-deletion">-{deletions}</span> : null}
+    </span>
+  );
+}
 
 function timelineRowKind(
   row: TimelineRow,

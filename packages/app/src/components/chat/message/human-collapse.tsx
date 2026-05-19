@@ -1,4 +1,4 @@
-import { memo, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { memo, useCallback, useState, type ReactNode } from "react";
 import { cn } from "~/lib/utils";
 
 const COLLAPSED_MAX_PX = 72;
@@ -13,12 +13,10 @@ export const HumanMessageCollapsible = memo(function HumanMessageCollapsible({
 }: {
   children: ReactNode;
 }) {
-  const measureRef = useRef<HTMLDivElement>(null);
   const [overflows, setOverflows] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
-  useLayoutEffect(() => {
-    const el = measureRef.current;
+  const measureElement = useCallback((el: HTMLDivElement | null) => {
     if (!el) {
       return;
     }
@@ -35,7 +33,7 @@ export const HumanMessageCollapsible = memo(function HumanMessageCollapsible({
     return () => {
       observer.disconnect();
     };
-  }, [children]);
+  }, []);
 
   const collapsed = overflows && !expanded;
 
@@ -52,7 +50,7 @@ export const HumanMessageCollapsible = memo(function HumanMessageCollapsible({
             : undefined
         }
       >
-        <div ref={measureRef}>{children}</div>
+        <div ref={measureElement}>{children}</div>
       </div>
       {overflows ? (
         <button

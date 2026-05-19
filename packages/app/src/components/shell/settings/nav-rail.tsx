@@ -1,11 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import {
-  IconArchive,
-  IconChevronLeftMedium,
+  IconArchive1,
   IconCode,
   IconColorSwatch,
   IconRobot,
   IconSettingsGear2,
+  IconStepBack,
 } from "central-icons";
 import type { ComponentType } from "react";
 
@@ -27,7 +27,7 @@ const items: {
   { to: "/settings/appearance", label: "Appearance", icon: IconColorSwatch },
   { to: "/settings/agents", label: "Agents", icon: IconRobot },
   { to: "/settings/models", label: "Models", icon: IconCode },
-  { to: "/settings/archived", label: "Archived", icon: IconArchive },
+  { to: "/settings/archived", label: "Archived", icon: IconArchive1 },
 ];
 
 export function SettingsNavRail() {
@@ -71,7 +71,7 @@ export function SettingsNavRail() {
           disabled={changedSettingLabels.length === 0}
           onClick={() => void restoreDefaults()}
         >
-          <IconChevronLeftMedium className="size-3.5" />
+          <IconStepBack className="size-3.5" />
           Restore defaults
         </Button>
       </div>

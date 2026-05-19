@@ -3,6 +3,7 @@ import "../../../index.css";
 import "../../../styles/tokens.css";
 
 import {
+  DEFAULT_TERMINAL_ID,
   ORCHESTRATION_WS_METHODS,
   type MessageId,
   type ServerConfig,
@@ -20,7 +21,9 @@ import {
 } from "../../../lib/terminal-context";
 import { useTerminalStateStore } from "../../../terminal-state-store";
 import { useUiStateStore } from "../../../stores/ui-state-store";
+import { useShellPanelsStore } from "~/stores/shell-panels-store";
 import { DEFAULT_INTERACTION_MODE, DEFAULT_RUNTIME_MODE } from "../../../types";
+import { workbenchTerminalThreadId } from "~/components/shell/terminal/workbench-terminal";
 
 import {
   COMPACT_FOOTER_VIEWPORT,
@@ -574,6 +577,9 @@ describe("ChatView timeline estimator parity (full app)", () => {
     });
 
     try {
+      await waitForLayout();
+      wsRequests.length = 0;
+
       const runButton = await waitForElement(
         () =>
           Array.from(document.querySelectorAll("button")).find(
@@ -590,7 +596,8 @@ describe("ChatView timeline estimator parity (full app)", () => {
           );
           expect(openRequest).toMatchObject({
             _tag: WS_METHODS.terminalOpen,
-            threadId: THREAD_ID,
+            threadId: workbenchTerminalThreadId("/repo/project"),
+            terminalId: DEFAULT_TERMINAL_ID,
             cwd: "/repo/project",
             env: {
               MULTI_PROJECT_ROOT: "/repo/project",
@@ -607,7 +614,122 @@ describe("ChatView timeline estimator parity (full app)", () => {
           );
           expect(writeRequest).toMatchObject({
             _tag: WS_METHODS.terminalWrite,
-            threadId: THREAD_ID,
+            threadId: workbenchTerminalThreadId("/repo/project"),
+            terminalId: DEFAULT_TERMINAL_ID,
+            data: "bun run lint\r",
+          });
+        },
+        { timeout: 8_000, interval: 16 },
+      );
+
+      const terminalStoreState = useTerminalStateStore.getState();
+      expect(terminalStoreState.terminalStateByThreadKey[THREAD_KEY]?.terminalOpen ?? false).toBe(
+        false,
+      );
+      expect(terminalStoreState.terminalLaunchContextByThreadKey[THREAD_KEY]).toBeUndefined();
+      expect(useShellPanelsStore.getState().activeTab).toBe("terminal");
+    } finally {
+      await mounted.cleanup();
+    }
+  });
+
+  it("runs project scripts in the active workbench terminal even when the thread terminal is marked running", async () => {
+    useComposerDraftStore.setState({
+      draftThreadsByThreadKey: {
+        [THREAD_KEY]: {
+          threadId: THREAD_ID,
+          environmentId: LOCAL_ENVIRONMENT_ID,
+          projectId: PROJECT_ID,
+          logicalProjectKey: PROJECT_DRAFT_KEY,
+          createdAt: NOW_ISO,
+          runtimeMode: "full-access",
+          interactionMode: "default",
+          branch: null,
+          worktreePath: null,
+          envMode: "local",
+        },
+      },
+      logicalProjectDraftThreadKeyByLogicalProjectKey: {
+        [PROJECT_DRAFT_KEY]: THREAD_KEY,
+      },
+    });
+    useTerminalStateStore.setState({
+      terminalStateByThreadKey: {
+        [THREAD_KEY]: {
+          terminalOpen: true,
+          terminalHeight: 280,
+          terminalIds: ["default"],
+          runningTerminalIds: ["default"],
+          activeTerminalId: "default",
+          terminalGroups: [{ id: "group-default", terminalIds: ["default"] }],
+          activeTerminalGroupId: "group-default",
+        },
+      },
+    });
+    useShellPanelsStore.setState({
+      terminalByCwd: {
+        "/repo/project": {
+          activeId: "term-visible",
+          sessions: [
+            { id: DEFAULT_TERMINAL_ID, label: "Terminal" },
+            { id: "term-visible", label: "Terminal 2" },
+          ],
+        },
+      },
+    });
+
+    const mounted = await mountChatView({
+      viewport: DEFAULT_VIEWPORT,
+      snapshot: withProjectScripts(createDraftOnlySnapshot(), [
+        {
+          id: "lint",
+          name: "Lint",
+          command: "bun run lint",
+          icon: "lint",
+          runOnWorktreeCreate: false,
+        },
+      ]),
+    });
+
+    try {
+      await waitForLayout();
+      wsRequests.length = 0;
+
+      const runButton = await waitForElement(
+        () =>
+          Array.from(document.querySelectorAll("button")).find(
+            (button) => button.title === "Run Lint",
+          ) as HTMLButtonElement | null,
+        "Unable to find Run Lint button.",
+      );
+      runButton.click();
+
+      await vi.waitFor(
+        () => {
+          const openRequest = wsRequests.find(
+            (request) => request._tag === WS_METHODS.terminalOpen,
+          );
+          expect(openRequest).toMatchObject({
+            _tag: WS_METHODS.terminalOpen,
+            threadId: workbenchTerminalThreadId("/repo/project"),
+            terminalId: "term-visible",
+            cwd: "/repo/project",
+          });
+          expect(openRequest).not.toHaveProperty("cols");
+          expect(openRequest).not.toHaveProperty("rows");
+        },
+        { timeout: 8_000, interval: 16 },
+      );
+
+      await vi.waitFor(
+        () => {
+          const writeRequest = wsRequests.find(
+            (request) => request._tag === WS_METHODS.terminalWrite,
+          );
+          expect(writeRequest).toMatchObject({
+            _tag: WS_METHODS.terminalWrite,
+            threadId: workbenchTerminalThreadId("/repo/project"),
+            terminalId: "term-visible",
             data: "bun run lint\r",
           });
         },
@@ -653,6 +775,9 @@ describe("ChatView timeline estimator parity (full app)", () => {
     });
 
     try {
+      await waitForLayout();
+      wsRequests.length = 0;
+
       const runButton = await waitForElement(
         () =>
           Array.from(document.querySelectorAll("button")).find(
@@ -669,7 +794,8 @@ describe("ChatView timeline estimator parity (full app)", () => {
           );
           expect(openRequest).toMatchObject({
             _tag: WS_METHODS.terminalOpen,
-            threadId: THREAD_ID,
+            threadId: workbenchTerminalThreadId("/repo/worktrees/feature-draft"),
+            terminalId: DEFAULT_TERMINAL_ID,
             cwd: "/repo/worktrees/feature-draft",
             env: {
               MULTI_PROJECT_ROOT: "/repo/project",

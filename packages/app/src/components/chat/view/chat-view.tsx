@@ -82,7 +82,6 @@ import { resolvePlanFollowUpSubmission } from "~/plan/proposed-plan";
 import {
   DEFAULT_INTERACTION_MODE,
   DEFAULT_RUNTIME_MODE,
-  DEFAULT_THREAD_TERMINAL_ID,
   MAX_TERMINALS_PER_GROUP,
   type ChatMessage,
   type SessionPhase,
@@ -135,7 +134,11 @@ import {
   type ThreadTerminalLaunchContext,
   useTerminalStateStore,
 } from "../../../terminal-state-store";
-import { shellPanelsActions } from "~/stores/shell-panels-store";
+import { readTerminalSessions, shellPanelsActions } from "~/stores/shell-panels-store";
+import {
+  readWorkbenchTerminalApi,
+  workbenchTerminalThreadId,
+} from "~/components/shell/terminal/workbench-terminal";
 import { ComposerInput, type ComposerInputHandle } from "../composer/input";
 import { ExpandedImageDialog } from "../message/expanded-image-dialog";
 import { PullRequestThreadDialog } from "../../pull-request-thread-dialog";
@@ -989,7 +992,6 @@ export default function ChatView(props: ChatViewProps) {
   const storeSetTerminalOpen = useTerminalStateStore((s) => s.setTerminalOpen);
   const storeSplitTerminal = useTerminalStateStore((s) => s.splitTerminal);
   const storeNewTerminal = useTerminalStateStore((s) => s.newTerminal);
-  const storeSetActiveTerminal = useTerminalStateStore((s) => s.setActiveTerminal);
   const storeCloseTerminal = useTerminalStateStore((s) => s.closeTerminal);
   const serverThreadKeys = useStore(
     useShallow((state) =>
@@ -1633,7 +1635,7 @@ export default function ChatView(props: ChatViewProps) {
         rememberAsLastInvoked?: boolean;
       },
     ) => {
-      const api = readEnvironmentApi(environmentId);
+      const api = readWorkbenchTerminalApi(environmentId);
       if (!api || !activeThreadId || !activeProject || !activeThread) return;
       if (options?.rememberAsLastInvoked !== false) {
         setLastInvokedScriptByProjectId((current) => {
@@ -1642,24 +1644,9 @@ export default function ChatView(props: ChatViewProps) {
         });
       }
       const targetCwd = options?.cwd ?? gitCwd ?? activeProject.cwd;
-      const baseTerminalId =
-        terminalState.activeTerminalId ||
-        terminalState.terminalIds[0] ||
-        DEFAULT_THREAD_TERMINAL_ID;
-      const terminalId = baseTerminalId;
+      const terminalThreadId = workbenchTerminalThreadId(targetCwd);
+      const terminalId = readTerminalSessions(targetCwd).activeId;
       const terminalWorktreePath = options?.worktreePath ?? activeThread.worktreePath ?? null;
-
-      setTerminalLaunchContext({
-        threadId: activeThreadId,
-        cwd: targetCwd,
-        worktreePath: terminalWorktreePath,
-      });
-      setTerminalOpen(true);
-      if (!activeThreadRef) {
-        return;
-      }
-      storeSetActiveTerminal(activeThreadRef, terminalId);
-      setTerminalFocusRequestId((value) => value + 1);
 
       const runtimeEnv = projectScriptRuntimeEnv({
         project: {
@@ -1669,7 +1656,7 @@ export default function ChatView(props: ChatViewProps) {
         ...(options?.env ? { extraEnv: options.env } : {}),
       });
       const openTerminalInput = {
-        threadId: activeThreadId,
+        threadId: terminalThreadId,
         terminalId,
         cwd: targetCwd,
         ...(terminalWorktreePath !== null ? { worktreePath: terminalWorktreePath } : {}),
@@ -1677,9 +1664,10 @@ export default function ChatView(props: ChatViewProps) {
       };
 
       try {
-        await api.terminal.open(openTerminalInput);
-        await api.terminal.write({
-          threadId: activeThreadId,
+        await api.open(openTerminalInput);
+        shellPanelsActions.setActiveTab("terminal");
+        await api.write({
+          threadId: terminalThreadId,
           terminalId,
           data: `${script.command}\r`,
         });
@@ -1694,15 +1682,10 @@ export default function ChatView(props: ChatViewProps) {
       activeProject,
       activeThread,
       activeThreadId,
-      activeThreadRef,
       gitCwd,
-      setTerminalOpen,
       setThreadError,
-      storeSetActiveTerminal,
       setLastInvokedScriptByProjectId,
       environmentId,
-      terminalState.activeTerminalId,
-      terminalState.terminalIds,
     ],
   );
 

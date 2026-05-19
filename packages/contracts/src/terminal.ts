@@ -220,10 +220,25 @@ export class TerminalNotRunningError extends Schema.TaggedErrorClass<TerminalNot
   }
 }
 
+export class TerminalProcessOperationError extends Schema.TaggedErrorClass<TerminalProcessOperationError>()(
+  "TerminalProcessOperationError",
+  {
+    operation: Schema.Literals(["write", "resize"]),
+    threadId: Schema.String,
+    terminalId: Schema.String,
+    cause: Schema.optional(Schema.Defect),
+  },
+) {
+  override get message() {
+    return `Failed to ${this.operation} terminal process for thread: ${this.threadId}, terminal: ${this.terminalId}`;
+  }
+}
+
 export const TerminalError = Schema.Union([
   TerminalCwdError,
   TerminalHistoryError,
   TerminalSessionLookupError,
   TerminalNotRunningError,
+  TerminalProcessOperationError,
 ]);
 export type TerminalError = typeof TerminalError.Type;

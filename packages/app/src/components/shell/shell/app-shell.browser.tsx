@@ -18,12 +18,7 @@ vi.mock("@tanstack/react-router", () => ({
   getRouteApi: () => ({
     useSearch: () => ({}),
   }),
-  Link: (props: {
-    children: ReactNode;
-    className?: string;
-    "aria-label"?: string;
-    to: string;
-  }) => (
+  Link: (props: { children: ReactNode; className?: string; "aria-label"?: string; to: string }) => (
     <a href={props.to} className={props.className} aria-label={props["aria-label"]}>
       {props.children}
     </a>
@@ -67,6 +62,24 @@ function rectWidth(selector: string): number {
 
 function elementRect(element: Element | null): DOMRect | null {
   return element?.getBoundingClientRect() ?? null;
+}
+
+function agentWindowSidebar(): HTMLElement | null {
+  return document.querySelector<HTMLElement>("[data-agent-window-sidebar]");
+}
+
+function agentWindowSidebarContent(): Element | null | undefined {
+  return agentWindowSidebar()?.firstElementChild;
+}
+
+function agentWindowShell(): HTMLElement | null {
+  return document.querySelector<HTMLElement>("[data-agent-window]");
+}
+
+function rightWorkbenchToggle(): HTMLButtonElement | null {
+  return document.querySelector<HTMLButtonElement>(
+    'button[aria-label="Hide project panel"], button[aria-label^="Show project panel"]',
+  );
 }
 
 async function mount(options: {
@@ -117,23 +130,21 @@ describe("AppShell sidebar", () => {
   it("collapses and restores the sidebar at a narrow expanded width without changing the route", async () => {
     await using _ = await mount({ hostWidth: 720, right: null });
     const initialHref = window.location.href;
-    const sidebar = () =>
-      document.querySelector<HTMLElement>("[data-agent-window-sidebar]");
-    const sidebarContent = () => sidebar()?.firstElementChild;
 
     await vi.waitFor(() => {
       expect(document.body.textContent, "initial render: expected sidebar content").toContain(
         "Restored sidebar row",
       );
-      expect(sidebar()?.dataset.state, "initial render: expected sidebar expanded state").toBe(
-        "expanded",
-      );
       expect(
-        sidebar()?.getAttribute("aria-hidden"),
+        agentWindowSidebar()?.dataset.state,
+        "initial render: expected sidebar expanded state",
+      ).toBe("expanded");
+      expect(
+        agentWindowSidebar()?.getAttribute("aria-hidden"),
         "initial render: expected sidebar to be exposed",
       ).toBeNull();
       expect(
-        sidebarContent()?.getAttribute("aria-hidden"),
+        agentWindowSidebarContent()?.getAttribute("aria-hidden"),
         "initial render: expected sidebar content to be exposed",
       ).toBe("false");
       expect(
@@ -147,15 +158,16 @@ describe("AppShell sidebar", () => {
       initialHref,
     );
     await vi.waitFor(() => {
-      expect(sidebar()?.dataset.state, "collapse chats: expected sidebar collapsed state").toBe(
-        "collapsed",
-      );
       expect(
-        sidebar()?.getAttribute("aria-hidden"),
+        agentWindowSidebar()?.dataset.state,
+        "collapse chats: expected sidebar collapsed state",
+      ).toBe("collapsed");
+      expect(
+        agentWindowSidebar()?.getAttribute("aria-hidden"),
         "collapse chats: expected sidebar to be hidden",
       ).toBe("true");
       expect(
-        sidebarContent()?.getAttribute("aria-hidden"),
+        agentWindowSidebarContent()?.getAttribute("aria-hidden"),
         "collapse chats: expected sidebar content to be hidden",
       ).toBe("true");
       expect(
@@ -169,15 +181,16 @@ describe("AppShell sidebar", () => {
       initialHref,
     );
     await vi.waitFor(() => {
-      expect(sidebar()?.dataset.state, "expand chats: expected sidebar expanded state").toBe(
-        "expanded",
-      );
       expect(
-        sidebar()?.getAttribute("aria-hidden"),
+        agentWindowSidebar()?.dataset.state,
+        "expand chats: expected sidebar expanded state",
+      ).toBe("expanded");
+      expect(
+        agentWindowSidebar()?.getAttribute("aria-hidden"),
         "expand chats: expected sidebar to be exposed",
       ).toBeNull();
       expect(
-        sidebarContent()?.getAttribute("aria-hidden"),
+        agentWindowSidebarContent()?.getAttribute("aria-hidden"),
         "expand chats: expected sidebar content to be exposed",
       ).toBe("false");
       expect(
@@ -189,15 +202,10 @@ describe("AppShell sidebar", () => {
 
   it("opens the project panel below auto-collapse thresholds without hiding the toggle", async () => {
     await using _ = await mount({ hostWidth: 430, right: rightWorkbench, rightOpen: false });
-    const shell = () => document.querySelector<HTMLElement>("[data-agent-window]");
-    const rightToggle = () =>
-      document.querySelector<HTMLButtonElement>(
-        'button[aria-label="Hide project panel"], button[aria-label^="Show project panel"]',
-      );
 
     await vi.waitFor(() => {
       expect(
-        shell()?.dataset.shellRightIntent,
+        agentWindowShell()?.dataset.shellRightIntent,
         "narrow shell before toggle: expected right panel collapsed intent",
       ).toBe("collapsed");
       expect(
@@ -218,7 +226,7 @@ describe("AppShell sidebar", () => {
 
     await vi.waitFor(() => {
       expect(
-        shell()?.dataset.shellRightIntent,
+        agentWindowShell()?.dataset.shellRightIntent,
         "narrow shell after toggle: expected right panel expanded intent",
       ).toBe("expanded");
       expect(
@@ -233,12 +241,13 @@ describe("AppShell sidebar", () => {
         rectWidth("[data-agent-window-workbench]"),
         "narrow shell after toggle: expected right workbench forced open",
       ).toBeGreaterThan(0);
-      expect(document.body.textContent, "narrow shell after toggle: expected files panel").toContain(
-        "Project files panel",
-      );
+      expect(
+        document.body.textContent,
+        "narrow shell after toggle: expected files panel",
+      ).toContain("Project files panel");
 
-      const shellRect = elementRect(shell());
-      const toggleRect = elementRect(rightToggle());
+      const shellRect = elementRect(agentWindowShell());
+      const toggleRect = elementRect(rightWorkbenchToggle());
       if (!shellRect || !toggleRect) {
         throw new Error("Expected shell and project panel toggle to be mounted.");
       }
@@ -297,12 +306,14 @@ describe("AppShell sidebar", () => {
         if (!controlRect) {
           throw new Error(`Expected ${control.label} sidebar control to have layout bounds.`);
         }
-        expect(controlRect.left, `${control.label}: left edge outside sidebar`).toBeGreaterThanOrEqual(
-          sidebarRect.left,
-        );
-        expect(controlRect.right, `${control.label}: right edge outside sidebar`).toBeLessThanOrEqual(
-          sidebarRect.right,
-        );
+        expect(
+          controlRect.left,
+          `${control.label}: left edge outside sidebar`,
+        ).toBeGreaterThanOrEqual(sidebarRect.left);
+        expect(
+          controlRect.right,
+          `${control.label}: right edge outside sidebar`,
+        ).toBeLessThanOrEqual(sidebarRect.right);
       }
     });
   });
@@ -315,9 +326,10 @@ describe("AppShell sidebar", () => {
     });
 
     await vi.waitFor(() => {
-      expect(document.body.textContent, "initial files tab: expected files panel content").toContain(
-        "Project files panel",
-      );
+      expect(
+        document.body.textContent,
+        "initial files tab: expected files panel content",
+      ).toContain("Project files panel");
       expect(
         document.querySelector("[data-terminal-panel]"),
         "initial files tab: expected terminal panel to stay unmounted",

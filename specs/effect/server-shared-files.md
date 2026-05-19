@@ -191,23 +191,46 @@ Target:
 These files are not deletion decisions. They need caller inventory before code
 changes.
 
-- [ ] `packages/server/src/atomic-write.ts`
-- [ ] `packages/server/src/attachment-paths.ts`
-- [ ] `packages/server/src/attachment-store.ts`
-- [ ] `packages/server/src/cli-auth-format.ts`
-- [ ] `packages/server/src/image-mime.ts`
-- [ ] `packages/server/src/path-expansion.ts`
-- [ ] `packages/server/src/startup-access.ts`
-- [ ] `packages/server/src/server-lifecycle-events.ts`
-- [ ] `packages/server/scripts/acp-mock-agent.ts`
-- [ ] `packages/server/scripts/cli.ts`
+- [x] `packages/server/src/atomic-write.ts`
+      Keep as the server atomic filesystem write boundary. Caller inventory:
+      provider status cache and server settings.
+- [x] `packages/server/src/attachment-paths.ts`
+      Keep as the attachment route/store traversal guard. Caller inventory:
+      HTTP attachment route and attachment store.
+- [x] `packages/server/src/attachment-store.ts`
+      Keep as the attachment id/path boundary shared by HTTP, orchestration
+      normalization/projection, provider adapters, Git text generation, and
+      event logging.
+- [x] `packages/server/src/cli-auth-format.ts`
+      Keep for now as the CLI auth output formatter. Caller inventory: server
+      CLI plus a focused formatter test; inlining requires replacing that helper
+      test with CLI behavior coverage.
+- [x] `packages/server/src/image-mime.ts`
+      Keep as the image data URL / safe extension boundary shared by
+      attachment storage and orchestration normalization.
+- [x] `packages/server/src/path-expansion.ts`
+      Keep as a process/provider path normalization boundary used by project
+      cwd access, Codex provider setup, and Git text generation.
+- [x] `packages/server/src/startup-access.ts`
+      Keep as startup/auth/listening URL policy shared by auth policy, runtime
+      state, and startup headless output.
+- [x] `packages/server/src/server-lifecycle-events.ts`
+      Keep as the server lifecycle stream service used by runtime assembly,
+      startup publication, and WebSocket subscription.
+- [x] `packages/server/scripts/acp-mock-agent.ts`
+      Caller inventory found no package or workflow command reference, but this
+      is an intentional mock agent script with env-driven behavior; do not
+      delete without explicit confirmation.
+- [x] `packages/server/scripts/cli.ts`
+      Keep as the package build/publish script. Caller inventory: server
+      `build` package script and release workflow publish step.
 
 Rules:
 
-- [ ] Keep helpers that protect filesystem, auth, attachment, or startup
+- [x] Keep helpers that protect filesystem, auth, attachment, or startup
       semantics.
 - [ ] Move narrow helpers next to the owning route, CLI, or runtime surface.
-- [ ] Delete script entrypoints only after package command inventory proves
+- [x] Delete script entrypoints only after package command inventory proves
       they are not used.
 
 ## First Server/Shared Cleanup Candidates
@@ -231,7 +254,7 @@ Rules:
       `rg`, `git ls-files`, or `knip`.
 - [x] Public `@multi/shared` exports remain intentional in
       `packages/shared/package.json`.
-- [ ] Server runtime boundaries still expose typed Effect errors where
+- [x] Server runtime boundaries still expose typed Effect errors where
       expected failures are possible.
 - [ ] Proposed-plan chain still runs provider event to projection to native
       workbench.

@@ -47,7 +47,8 @@ The sidebar is a product surface, not just a store.
   - [x] selecting a worktree thread updates the composer path-search cwd
   - [x] selecting a worktree thread routes project scripts to the worktree cwd
 
-Detailed sidebar plan: [sidebar-usability.md](./sidebar-usability.md).
+Sidebar cleanup gates are complete. Desktop, compact, worktree, unread, project
+ordering, and quick-archive behavior are covered by the sidebar/browser suites.
 
 ## Composer Coverage
 

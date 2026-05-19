@@ -90,6 +90,10 @@ File: `packages/app/src/components/chat/composer/input.tsx`
       lives in a keyed mount-only child.
 - [x] `1371`: `external-sync`; outside pointer listener now lives in a
       mount-only menu dismissal child.
+- [x] Former `1615`: removed `action-relay`; slash-model trigger handling now
+      runs from prompt update paths through `applyComposerTrigger`, strips the
+      typed trigger range, and opens the model picker with the typed search
+      seed without a direct layout effect.
 - [x] `use-image-attachments.ts:70`: removed `derived-state`; drag-over depth
       and visual state now reset through render-time target ownership.
 - [x] `use-image-attachments.ts:75`: `external-sync`; image `File`
@@ -106,6 +110,8 @@ Target:
 - [x] Move image attachment persistence out of direct effects; promote it into
       the draft store if another caller
       needs the same serialization invariant.
+- [x] Move slash-model picker opening to event-time command handling if
+      composer trigger ownership becomes event-owned.
 
 ## Prompt Editor
 
@@ -121,17 +127,21 @@ File: `packages/app/src/components/chat/composer/prompt-editor.tsx`
       render state.
 - [x] `1237`: `external-sync`; TipTap editable state now syncs through a keyed
       mount-only child.
-- [x] `1241`: `external-sync`; reconciles controlled prompt/cursor/contexts
-      into TipTap editor state.
-- [x] `1298`: `external-sync`; observes editor size and reports multiline
-      measurement.
+- [x] `usePromptEditorControlledStateSync`: `external-sync`; reconciles
+      controlled prompt/cursor/contexts into TipTap editor state from an
+      editor-owned integration hook through `useLayoutSyncEffect`.
+- [x] `usePromptEditorMultilineMeasurement`: `external-sync`; observes editor
+      size and reports multiline measurement from an editor-owned integration
+      hook through `useLayoutSyncEffect`.
 
 Target:
 
-- [ ] Keep TipTap editor reconciliation in an editor-owned integration hook.
-- [ ] Prefer `useEffectEvent` or event-time ref writes for callback refs where
-      React support allows it.
-- [ ] Keep `ResizeObserver` as external sync.
+- [x] Keep TipTap editor reconciliation in an editor-owned integration hook.
+- [x] Prefer `useEffectEvent` or event-time ref writes for callback refs where
+      React support allows it. Current TipTap callbacks stay on render-updated
+      refs because they are invoked from the editor lifecycle and imperative
+      handle, not from React Effect Event callsites.
+- [x] Keep `ResizeObserver` as external sync.
 
 ## Thread Terminal Drawer
 
@@ -168,8 +178,13 @@ Target:
 
 File: `packages/app/src/components/chat/timeline/messages-timeline.tsx`
 
-- [x] Former `worked-header` override pruning was deleted with the chat turn
-      chrome cleanup.
+- [x] Former split-row `worked-header` override pruning was deleted with the
+      chat turn chrome cleanup.
+- [x] Cursor-style work-group expansion should stay local to the timeline
+      render tree; do not add a persisted UI-state effect for it.
+- [x] Compact tool-line truncation should be CSS-owned. Do not introduce
+      mount-time text measurement or navigation-time recalculation effects for
+      collapsed command/tool labels.
 - [x] `331`: `external-sync`; imperative timeline controller exposure now
       lives in a keyed mount-only sync child.
 - [x] `345`: `resource-cleanup`; programmatic scroll cleanup now lives in a
@@ -218,8 +233,9 @@ Classified:
 
 - [x] `model-picker.tsx:108`: deleted; the shared model picker open store had
       no readers, so the popover now keeps only local/controlled open state.
-- [x] `model-content.tsx:108`: `external-sync`; on popover open, focuses search
-      and initializes rail/search state.
+- [x] Former `model-content.tsx:211`: removed direct layout effect; popover
+      open now mounts a keyed `ModelPickerOpenSync` child that focuses search
+      and initializes rail/search state through the mount-only effect wrapper.
 - [x] `model-content.tsx:381`: `external-sync`; global keydown listener for
       model jump shortcuts now uses the mount-only effect wrapper with
       render-time refs.
@@ -356,6 +372,14 @@ Read before editing:
       await-details timer effect with a private `useSyncExternalStore` timer;
       Shell tool approval collapse now uses render-time expansion-state
       reconciliation instead of an effect.
+- [x] `packages/app/src/components/chat/message/human-collapse.tsx`: removed
+      the direct layout-effect measurement path; the measured element now owns
+      initial overflow measurement and `ResizeObserver` cleanup through a React
+      19 callback ref.
+- [x] `packages/app/src/components/chat/composer/slash-menu.tsx`: removed the
+      active item scroll `useLayoutEffect`; the active command item now scrolls
+      itself into view through an item-local callback ref when it becomes the
+      active row.
 - [x] `packages/app/src/components/chat/view/attachment-preview-handoff.ts`:
       removed the ref-copy effect, moved unmount cleanup to `useMountEffect`,
       and moved image-preload promotion into a rendered mount-only lifecycle
@@ -406,6 +430,9 @@ Read before editing:
 - [x] `packages/app/src/components/shell/git/git-diff-card.tsx`:
       moved `IntersectionObserver` prefetch into a keyed expanded-card child
       with the mount-only effect wrapper.
+- [x] `packages/app/src/hooks/use-pretext-one-line.ts`: deleted after the last
+      `PretextOneLine` caller moved to CSS truncation in the Git diff header.
+      This also removed the hook's direct layout-effect measurement path.
 - [x] `packages/app/src/components/shell/git/panel.tsx`: removed selected-file
       `derived-state` effect with render-time selection reconciliation; retained
       expand-on-selection and scroll-into-view in a keyed mount-only sync child.

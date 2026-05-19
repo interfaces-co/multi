@@ -19,30 +19,15 @@ import {
   terminalDeleteShortcutData,
   terminalNavigationShortcutData,
 } from "~/keybindings";
-import { readNativeEnvironmentApi } from "~/lib/native-runtime-api";
+import {
+  readWorkbenchTerminalApi,
+  workbenchTerminalThreadId,
+} from "~/components/shell/terminal/workbench-terminal";
 import {
   clampTerminalDimensions,
   waitForTerminalLayoutFrame,
 } from "~/lib/terminal-dimensions";
 import { useMountEffect } from "~/hooks/use-mount-effect";
-
-function workbenchThreadId(cwd: string) {
-  return `workbench:${cwd}`;
-}
-
-type WorkbenchTerminalApi = NonNullable<
-  ReturnType<typeof readNativeEnvironmentApi>
->["terminal"];
-
-function readWorkbenchTerminalApi(
-  environmentId: EnvironmentId | null | undefined,
-): WorkbenchTerminalApi | null {
-  return (
-    readNativeEnvironmentApi(environmentId, {
-      allowPrimaryEnvironmentFallback: true,
-    })?.terminal ?? null
-  );
-}
 
 export function TerminalPanel(props: {
   cwd: string | null;
@@ -114,7 +99,7 @@ function TerminalPanelSession({
       return;
     }
 
-    const thread = workbenchThreadId(cwd);
+    const thread = workbenchTerminalThreadId(cwd);
     const termId = terminalId;
     const cfg = readTerminalHostThemeForMount(el);
     const family = readTerminalHostFontFamily(el);
@@ -371,7 +356,7 @@ function TerminalPanelSession({
       const api = readWorkbenchTerminalApi(environmentId);
       if (!addon || !next || !api) return;
       addon.fit();
-      const thread = workbenchThreadId(cwd);
+      const thread = workbenchTerminalThreadId(cwd);
       if (
         openSession.current?.thread !== thread ||
         openSession.current.terminalId !== termId

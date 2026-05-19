@@ -21,7 +21,7 @@ import {
   IconSquareChecklist,
   type CentralIconBaseProps,
 } from "central-icons";
-import { memo, useLayoutEffect, useMemo, useRef, type ComponentType } from "react";
+import { memo, useCallback, useMemo, type ComponentType } from "react";
 
 import {
   type ComposerSlashCommand,
@@ -540,20 +540,11 @@ export const ComposerCommandMenu = memo(function ComposerCommandMenu(props: {
   onHighlightedItemChange: (itemId: string | null) => void;
   onSelect: (item: ComposerCommandItem) => void;
 }) {
-  const listRef = useRef<HTMLDivElement>(null);
   const groups = useMemo(
     () =>
       groupCommandItems(props.items, props.triggerKind, props.groupSlashCommandSections ?? true),
     [props.groupSlashCommandSections, props.items, props.triggerKind],
   );
-
-  useLayoutEffect(() => {
-    if (!props.activeItemId || !listRef.current) return;
-    const el = listRef.current.querySelector<HTMLElement>(
-      `[data-composer-item-id="${CSS.escape(props.activeItemId)}"]`,
-    );
-    el?.scrollIntoView({ block: "nearest" });
-  }, [props.activeItemId]);
 
   return (
     <Command
@@ -567,7 +558,6 @@ export const ComposerCommandMenu = memo(function ComposerCommandMenu(props: {
       }}
     >
       <div
-        ref={listRef}
         className="relative w-full max-w-full min-w-0 overflow-hidden rounded-lg border border-multi-stroke-secondary bg-[color-mix(in_srgb,var(--glass-chat-bubble-opaque-background)_96%,transparent)] font-multi text-body text-multi-fg-primary shadow-multi-popup backdrop-blur-[18px] motion-reduce:animate-none motion-reduce:transition-none"
         data-menu-kind={props.menuKind}
         data-variant="glass"
@@ -620,6 +610,13 @@ const ComposerCommandMenuItem = memo(function ComposerCommandMenuItem(props: {
   onHighlight: (itemId: string | null) => void;
   onSelect: (item: ComposerCommandItem) => void;
 }) {
+  const scrollActiveItemIntoView = useCallback(
+    (node: HTMLElement | null) => {
+      if (!node || !props.isActive) return;
+      node.scrollIntoView({ block: "nearest" });
+    },
+    [props.isActive],
+  );
   const skillSourceLabel =
     props.item.type === "skill" ? formatProviderSkillInstallSource(props.item.skill) : null;
   const SlashIcon =
@@ -633,6 +630,7 @@ const ComposerCommandMenuItem = memo(function ComposerCommandMenuItem(props: {
 
   return (
     <CommandItem
+      ref={props.isActive ? scrollActiveItemIntoView : undefined}
       value={props.item.id}
       data-composer-item-id={props.item.id}
       data-is-selected={props.isActive ? "" : undefined}

@@ -45,7 +45,8 @@ Keep these as state boundaries unless the owning product surface changes.
 - [x] `packages/app/src/stores/shell-panels-store.ts`: persisted shell left
       rail, right workbench, secondary rail, and terminal session layout state.
 - [x] `packages/app/src/stores/ui-state-store.ts`: persisted sidebar UI state,
-      project order/expansion, thread visited state, and changed-files expansion.
+      project order/expansion, thread visited/unread state, and pinned thread
+      keys.
 - [x] `packages/app/src/stores/appearance-store.ts`: app store adapter for
       appearance settings.
 - [x] `packages/app/src/stores/thread-selection-store.ts`: sidebar/thread
@@ -76,9 +77,10 @@ behavior coverage. Do not delete them as helper cleanup.
 - [x] `shell-panels-store.ts`: owns shell layout and workbench panel
       persistence. It should not be split until shell/workbench behavior tests
       cover panel route sync and terminal session persistence.
-- [x] `ui-state-store.ts`: owns sidebar UI persistence and visit/unread
-      semantics. Keep until sidebar multi-viewport behavior tests cover the same
-      workflow.
+- [x] `ui-state-store.ts`: owns sidebar UI persistence, visit/unread semantics,
+      project order/expansion, and pinned thread keys. Keep as the shared store
+      boundary because shell host, runtime sync, chat view, and sidebar row
+      actions all read or update it.
 
 ## Move Or Inline Candidates
 
@@ -174,10 +176,11 @@ Rules:
   - [x] Delete `lib/thread-sidebar.ts` after moving the final three production
         consumers to their owning modules.
 - [x] Replace sidebar helper tests with browser coverage for desktop, compact,
-      worktree, and multi-viewport sidebar behavior.
-
-Detailed sidebar coverage gates:
-[sidebar-usability.md](./sidebar-usability.md).
+      worktree, unread, project-order, and quick-archive sidebar behavior.
+- [x] Retain `components/shell/agents/list.tsx` as the sidebar section/list
+      rendering boundary.
+- [x] Retain `components/shell/agents/row.tsx` as the sidebar row interaction
+      boundary for rename, archive, unread, status, and prefetch behavior.
 
 ## Done Means
 
